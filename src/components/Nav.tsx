@@ -13,6 +13,7 @@ const SECONDARY = [
   { href: "/matchup", label: "Matchup" },
   { href: "/player-news", label: "Player News" },
   { href: "/trades", label: "Trades" },
+  { href: "/pickem", label: "Pick-'Em" },
 ];
 
 const bar: React.CSSProperties = {
