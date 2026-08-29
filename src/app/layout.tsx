@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./nocturne.css";
 import "./globals.css";
+
+// Self-hosted at build time, so the page does not depend on the Google Fonts
+// CDN being reachable. Nocturne's tokens name "Inter", which this satisfies.
+const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], display: "swap" });
 
 export const metadata: Metadata = {
   title: "Gridiron Legacy",
@@ -9,15 +14,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={inter.className}>
       <body>{children}</body>
     </html>
   );

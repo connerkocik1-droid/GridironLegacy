@@ -79,9 +79,13 @@ export default function PickemBoard() {
   }, []);
 
   useEffect(() => {
-    load();
+    // The board is fetched on mount rather than server-rendered. `load` only
+    // sets state once its request resolves, so this is not the synchronous
+    // cascade the rule guards against.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
     // Live scores move during games; the board refreshes rather than going stale.
-    const timer = setInterval(load, 60_000);
+    const timer = setInterval(() => void load(), 60_000);
     return () => clearInterval(timer);
   }, [load]);
 
