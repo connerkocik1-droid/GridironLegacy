@@ -61,19 +61,19 @@ export async function GET(req: Request) {
 
   const { data: slots } = await db
     .from("roster_slots")
-    .select("player_name, manager_id")
+    .select("player_name, manager_id, lineup_slot")
     .eq("league_id", me.league_id)
     .in("manager_id", [me.id, opponent.id]);
 
-  const mine = (slots ?? []).filter((s) => s.manager_id === me.id).map((s) => s.player_name);
-  const theirs = (slots ?? []).filter((s) => s.manager_id === opponent.id).map((s) => s.player_name);
+  const mine = (slots ?? []).filter((s) => s.manager_id === me.id);
+  const theirs = (slots ?? []).filter((s) => s.manager_id === opponent.id);
 
   const { data: scoreRows } = await db
     .from("player_scores")
     .select("player_name, points, stat_line")
     .eq("league_id", me.league_id)
     .eq("week", week)
-    .in("player_name", [...mine, ...theirs]);
+    .in("player_name", [...mine, ...theirs].map((s) => s.player_name));
 
   const scores = new Map<string, Score>(
     (scoreRows ?? []).map((r) => [
@@ -82,6 +82,8 @@ export async function GET(req: Request) {
     ]),
   );
 
+  // The lineup each manager actually set. A manager who has never set one
+  // falls back to their best legal lineup, so a team is never fielded empty.
   const rows = pairLineups(mine, theirs, league?.settings ?? null, scores);
 
   return Response.json({

@@ -3,6 +3,7 @@
     { "path": "/api/cron/scores", "schedule": "*/2 * * * 0" },
     { "path": "/api/cron/scores", "schedule": "*/2 * * * 1" },
     { "path": "/api/cron/scores", "schedule": "*/2 * * * 4" },
-    { "path": "/api/cron/scores", "schedule": "0 8 * * *" }
+    { "path": "/api/cron/scores", "schedule": "0 8 * * *" },
+    { "path": "/api/cron/autodraft", "schedule": "* * * * *" }
   ]
 }

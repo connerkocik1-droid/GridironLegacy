@@ -72,18 +72,49 @@ function entryFor(name: string, scores: Map<string, Score>): SideEntry {
   };
 }
 
+export interface RosterSlot {
+  player_name: string;
+  lineup_slot?: string;
+}
+
+/**
+ * The lineup a manager actually set, laid into the league's slot order.
+ *
+ * A manager who has never touched their lineup has every row on the bench;
+ * rather than field an empty team, that falls back to the best legal lineup.
+ */
+export function setLineup(
+  roster: RosterSlot[],
+  league: LeagueShape | null,
+  scores: Map<string, Score>,
+): { slot: string; entry: SideEntry | null }[] {
+  const names = roster.map((r) => r.player_name);
+  const chosen = roster.filter((r) => r.lineup_slot && r.lineup_slot !== "BENCH" && r.lineup_slot !== "IR");
+
+  if (!chosen.length) return bestLineup(names, league, scores);
+
+  const remaining = [...chosen];
+
+  return slotsOf(league ?? undefined).map((slot: string) => {
+    const at = remaining.findIndex((r) => r.lineup_slot === slot);
+    if (at === -1) return { slot, entry: null };
+    const [filled] = remaining.splice(at, 1);
+    return { slot, entry: entryFor(filled.player_name, scores) };
+  });
+}
+
 /**
  * Pairs the two lineups slot by slot, so each row is one head-to-head
  * comparison rather than two separate lists read side by side.
  */
 export function pairLineups(
-  home: string[],
-  away: string[],
+  home: RosterSlot[],
+  away: RosterSlot[],
   league: LeagueShape | null,
   scores: Map<string, Score>,
 ): MatchupRow[] {
-  const homeLineup = bestLineup(home, league, scores);
-  const awayLineup = bestLineup(away, league, scores);
+  const homeLineup = setLineup(home, league, scores);
+  const awayLineup = setLineup(away, league, scores);
 
   return homeLineup.map((row, i) => ({
     slot: row.slot,
