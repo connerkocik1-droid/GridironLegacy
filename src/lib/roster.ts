@@ -17,6 +17,7 @@ export interface LeagueShape {
   starters?: Partial<Record<Position | "FLEX", number>>;
   bench?: number;
   ir?: number;
+  [key: string]: unknown;
 }
 
 const SKILL: Position[] = ["RB", "WR", "TE"];
