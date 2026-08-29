@@ -1,10 +1,18 @@
-import { POOL } from "@/data/league-data";
-import { fetchGameStats, fetchScoreboard } from "@/lib/espn";
-import { scoreGame, type ScoringFormat } from "@/lib/scoring";
+import { fetchGameStats, fetchScoreboard, type Game, type PlayerStat } from "@/lib/espn";
+import { scoreDefense, scoreGame, type ScoringFormat } from "@/lib/scoring";
 import { serviceClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+interface ScoreRow {
+  league_id: string;
+  week: number;
+  player_name: string;
+  points: number;
+  stat_line: string;
+  updated_at: string;
+}
 
 /**
  * Pulls the week's box scores from ESPN, scores every rostered player, and
@@ -41,9 +49,101 @@ export async function GET(req: Request) {
   if (!games.length) return Response.json({ games: 0, players: 0, note: "no games" });
 
   const week = games[0].week;
+  await mirrorSchedule(db, games, league.season);
 
-  // Mirror the schedule first, so a later ESPN outage cannot strand pick-'em.
-  const gameRows = games.flatMap((g) => {
+  // Score against the rosters as they actually stand, not the static draft
+  // pool: a waiver pickup outside the original 585 would otherwise never
+  // score a point.
+  const { data: rosterRows } = await db
+    .from("roster_slots")
+    .select("player_name")
+    .eq("league_id", leagueId);
+
+  const rostered = new Set((rosterRows ?? []).map((r) => r.player_name));
+  if (!rostered.size) {
+    return Response.json({ week, games: games.length, players: 0, note: "no rosters yet" });
+  }
+
+  // Which team defenses are rostered, by the abbreviation the unit plays for.
+  // The pool names them "Seattle Seahawks D/ST", so the abbreviation is
+  // recovered from the games themselves rather than a second name table.
+  const defenseByAbbrev = new Map<string, string>();
+  for (const name of rostered) {
+    if (!name.endsWith("D/ST")) continue;
+    const team = teamAbbrevFor(name, games);
+    if (team) defenseByAbbrev.set(team, name);
+  }
+
+  const live = games.filter((g) => g.state !== "pre");
+  const rows: ScoreRow[] = [];
+  const now = new Date().toISOString();
+  let failed = 0;
+
+  for (const game of live) {
+    try {
+      const stats = await fetchGameStats(game.id);
+
+      for (const player of scoreGame(stats, format, rostered)) {
+        rows.push({
+          league_id: leagueId,
+          week,
+          player_name: player.name,
+          points: player.points,
+          stat_line: player.statLine,
+          updated_at: now,
+        });
+      }
+
+      // Each defense is scored against what the other side put up.
+      for (const [side, other] of [
+        [game.home, game.away],
+        [game.away, game.home],
+      ] as const) {
+        if (!side || !other) continue;
+        const name = defenseByAbbrev.get(side.abbrev);
+        if (!name) continue;
+
+        const scored = scoreDefense(stats, side.abbrev, other.score);
+        rows.push({
+          league_id: leagueId,
+          week,
+          player_name: name,
+          points: scored.points,
+          stat_line: scored.statLine,
+          updated_at: now,
+        });
+      }
+    } catch (err) {
+      // One bad game must not cost the whole run.
+      failed++;
+      console.error(`[cron/scores] game ${game.id} failed`, err);
+    }
+  }
+
+  if (rows.length) {
+    const { error } = await db.from("player_scores").upsert(rows);
+    if (error) {
+      console.error("[cron/scores] score upsert failed", error);
+      return Response.json({ error: "Failed to write scores" }, { status: 500 });
+    }
+  }
+
+  return Response.json({
+    week,
+    games: games.length,
+    live: live.length,
+    failed,
+    players: rows.length,
+  });
+}
+
+/** Mirrors the schedule first, so a later ESPN outage cannot strand grading. */
+async function mirrorSchedule(
+  db: ReturnType<typeof serviceClient>,
+  games: Game[],
+  season: number,
+) {
+  const rows = games.flatMap((g) => {
     if (!g.home || !g.away) return [];
     const winner = !g.completed
       ? null
@@ -52,10 +152,11 @@ export async function GET(req: Request) {
         : g.away.score > g.home.score
           ? g.away.abbrev
           : null; // a tie has no winner
+
     return [
       {
         id: g.id,
-        season: league.season,
+        season,
         week: g.week,
         season_type: 2,
         starts_at: g.date,
@@ -71,47 +172,25 @@ export async function GET(req: Request) {
     ];
   });
 
-  if (gameRows.length) {
-    const { error } = await db.from("nfl_games").upsert(gameRows);
-    if (error) console.error("[cron/scores] schedule upsert failed", error);
-  }
-
-  // Only games that have started can have a box score.
-  const live = games.filter((g) => g.state !== "pre");
-  const rostered = new Set(POOL.map((p) => p.n));
-  const scoreRows: Record<string, unknown>[] = [];
-
-  for (const game of live) {
-    try {
-      const stats = await fetchGameStats(game.id);
-      for (const player of scoreGame(stats, format, rostered)) {
-        scoreRows.push({
-          league_id: leagueId,
-          week,
-          player_name: player.name,
-          points: player.points,
-          stat_line: player.statLine,
-          updated_at: new Date().toISOString(),
-        });
-      }
-    } catch (err) {
-      // One bad game must not cost the whole run.
-      console.error(`[cron/scores] game ${game.id} failed`, err);
-    }
-  }
-
-  if (scoreRows.length) {
-    const { error } = await db.from("player_scores").upsert(scoreRows);
-    if (error) {
-      console.error("[cron/scores] score upsert failed", error);
-      return Response.json({ error: "Failed to write scores" }, { status: 500 });
-    }
-  }
-
-  return Response.json({
-    week,
-    games: gameRows.length,
-    live: live.length,
-    players: scoreRows.length,
-  });
+  if (!rows.length) return;
+  const { error } = await db.from("nfl_games").upsert(rows);
+  if (error) console.error("[cron/scores] schedule upsert failed", error);
 }
+
+/**
+ * "Seattle Seahawks D/ST" -> "SEA". The scoreboard carries each team's full
+ * display name beside its abbreviation, so the two are matched there rather
+ * than kept as a separate table that could drift.
+ */
+function teamAbbrevFor(defenseName: string, games: Game[]): string | null {
+  const full = defenseName.replace(/\s*D\/ST\s*$/, "").trim().toLowerCase();
+
+  for (const game of games) {
+    for (const side of [game.home, game.away]) {
+      if (side && side.name.toLowerCase() === full) return side.abbrev;
+    }
+  }
+  return null;
+}
+
+export type { PlayerStat };

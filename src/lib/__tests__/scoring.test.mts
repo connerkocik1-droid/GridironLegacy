@@ -44,3 +44,34 @@ console.log(`${filtered.length === 1 && filtered[0].name === "Rostered Guy" ? "P
 // malformed input must not throw
 eq(scoreGroup({ name:"X", team:"", group:"passing", stats:{} }, "half"), 0, "empty stats");
 eq(scoreGroup({ name:"X", team:"", group:"passing", stats:{ YDS:"--", TD:"", INT:undefined } }, "half"), 0, "junk stats");
+
+// --- team defense ---------------------------------------------------------
+import { scoreDefense } from "../scoring";
+
+const dstStats = (team) => [
+  { name:"A", team, group:"defensive",     stats:{ SACKS:"2.5", TD:"0" } },
+  { name:"B", team, group:"defensive",     stats:{ SACKS:"1", TD:"1" } },
+  { name:"C", team, group:"interceptions", stats:{ INT:"2", TD:"0" } },
+  { name:"D", team, group:"fumbles",       stats:{ REC:"1", LOST:"0" } },
+  // another team's line must not leak into this unit
+  { name:"E", team:"XXX", group:"defensive", stats:{ SACKS:"9", TD:"3" } },
+];
+
+// 3.5 sacks + 2 INT(4) + 1 FR(2) + 1 TD(6) = 15.5, plus the shutout band 10
+eq(scoreDefense(dstStats("SEA"), "SEA", 0).points, 25.5, "D/ST shutout");
+eq(scoreDefense(dstStats("SEA"), "SEA", 3).points, 22.5, "D/ST 1-6 allowed");
+eq(scoreDefense(dstStats("SEA"), "SEA", 13).points, 19.5, "D/ST 7-13 allowed");
+eq(scoreDefense(dstStats("SEA"), "SEA", 20).points, 16.5, "D/ST 14-20 allowed");
+eq(scoreDefense(dstStats("SEA"), "SEA", 24).points, 15.5, "D/ST 21-27 allowed");
+eq(scoreDefense(dstStats("SEA"), "SEA", 30).points, 14.5, "D/ST 28-34 allowed");
+eq(scoreDefense(dstStats("SEA"), "SEA", 42).points, 11.5, "D/ST 35+ allowed");
+
+// band boundaries are inclusive on the upper edge
+eq(scoreDefense([], "SEA", 6).points, 7, "6 allowed is the 1-6 band");
+eq(scoreDefense([], "SEA", 7).points, 4, "7 allowed drops a band");
+eq(scoreDefense([], "SEA", 27).points, 0, "27 allowed scores nothing");
+eq(scoreDefense([], "SEA", 28).points, -1, "28 allowed goes negative");
+
+// a defense with no plays and a blowout against it still scores the band
+eq(scoreDefense([], "SEA", 0).points, 10, "empty shutout");
+console.log("  D/ST line:", scoreDefense(dstStats("SEA"), "SEA", 13).statLine);

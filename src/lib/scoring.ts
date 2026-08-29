@@ -84,6 +84,82 @@ export function scoreGroup(stat: PlayerStat, format: ScoringFormat): number {
   }
 }
 
+/**
+ * Points allowed is the single largest term in a defensive score, and it is a
+ * band rather than a rate. Ordered high to low so the first match wins.
+ */
+const POINTS_ALLOWED: [max: number, points: number][] = [
+  [0, 10],
+  [6, 7],
+  [13, 4],
+  [20, 1],
+  [27, 0],
+  [34, -1],
+  [Infinity, -4],
+];
+
+const DEFENSE_RULES = {
+  sack: 1,
+  interception: 2,
+  fumbleRecovery: 2,
+  safety: 2,
+  touchdown: 6,
+};
+
+export interface DefenseScore {
+  points: number;
+  statLine: string;
+}
+
+/**
+ * A team defense, scored from its players' box-score lines plus the points its
+ * opponent put up. ESPN has no D/ST row — it reports defenders individually —
+ * so the unit is assembled here from every defender on that team.
+ */
+export function scoreDefense(
+  stats: PlayerStat[],
+  teamAbbrev: string,
+  pointsAllowed: number,
+): DefenseScore {
+  let sacks = 0;
+  let interceptions = 0;
+  let fumbleRecoveries = 0;
+  let touchdowns = 0;
+
+  for (const stat of stats) {
+    if (stat.team !== teamAbbrev) continue;
+    const s = stat.stats;
+
+    if (stat.group === "defensive") {
+      // ESPN reports half-sacks as 0.5, so this is a sum, not a count.
+      sacks += num(s.SACKS);
+      touchdowns += num(s.TD);
+    } else if (stat.group === "interceptions") {
+      interceptions += num(s.INT);
+      touchdowns += num(s.TD);
+    } else if (stat.group === "fumbles") {
+      // A recovery by the defence; the offensive "LOST" case is scored against
+      // the player who fumbled, in scoreGroup.
+      fumbleRecoveries += num(s.REC);
+    }
+  }
+
+  const band = POINTS_ALLOWED.find(([max]) => pointsAllowed <= max);
+  const allowedPoints = band ? band[1] : 0;
+
+  const points =
+    sacks * DEFENSE_RULES.sack +
+    interceptions * DEFENSE_RULES.interception +
+    fumbleRecoveries * DEFENSE_RULES.fumbleRecovery +
+    touchdowns * DEFENSE_RULES.touchdown +
+    allowedPoints;
+
+  return {
+    points: Math.round(points * 100) / 100,
+    statLine: `${sacks} sacks · ${interceptions} INT · ${fumbleRecoveries} FR · ${touchdowns} TD · ${pointsAllowed} allowed`,
+  };
+}
+
 export interface ScoredPlayer {
   name: string;
   team: string;
