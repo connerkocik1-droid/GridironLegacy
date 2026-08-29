@@ -12,7 +12,9 @@
     "extract-images": "node scripts/extract-images.mjs",
     "seed": "node scripts/seed.mjs",
     "test": "tsx src/lib/__tests__/scoring.test.mts",
-    "verify-espn": "node scripts/verify-espn.mjs"
+    "verify-espn": "node scripts/verify-espn.mjs",
+    "test:db": "./scripts/test-db.sh",
+    "test:all": "npm run test && npm run test:db"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
