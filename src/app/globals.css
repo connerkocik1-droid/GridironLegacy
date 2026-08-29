@@ -1,0 +1,47 @@
+html,
+body {
+  margin: 0;
+  background: #161826;
+  color: #e9e9ed;
+  font-family: var(--font-body);
+}
+
+a {
+  color: #b5abfc;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #d2cefd;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(145, 132, 217, 0.3);
+  border-radius: 4px;
+}
+
+@keyframes mt-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes mt-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
