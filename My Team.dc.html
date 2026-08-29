@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
+<script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
+<style>
+  html, body { margin:0; background:#161826; color:#e9e9ed; font-family:var(--font-body); }
+  a { color:#b5abfc; text-decoration:none; }
+  a:hover { color:#d2cefd; }
+  ::-webkit-scrollbar { width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb { background:rgba(145,132,217,.3); border-radius:4px; }
+  @keyframes mt-in { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
+  @keyframes mt-pulse { 0%,100% { opacity:.55; } 50% { opacity:1; } }
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:radial-gradient(120% 80% at 50% -10%,rgba(66,58,106,.4),transparent 60%),#161826">
+
+  <div style="position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:10px 22px;border-bottom:1px solid rgba(145,132,217,.22);background:rgba(22,24,38,.9);backdrop-filter:blur(10px);overflow-x:auto">
+    <div style="display:flex;align-items:center;gap:10px;flex:0 0 auto">
+      <div style="width:8px;height:17px;background:linear-gradient(180deg,#b5abfc,#5d5294);box-shadow:0 0 14px #9184d9"></div>
+      <span style="font-family:var(--font-heading);letter-spacing:.2em;text-transform:uppercase;font-size:12px;white-space:nowrap">Gridiron<span style="color:#b5abfc"> Legacy</span></span>
+    </div>
+    <div style="display:flex;gap:2px;margin-left:6px;flex:0 0 auto">
+      <span style="background:rgba(145,132,217,.28);border:1px solid rgba(181,171,252,.6);color:#e9e9ed;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;border-radius:var(--radius-sm)">Home</span>
+      <a href="Gridiron Legacy.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Draft</a>
+      <a href="League.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">League</a>
+      <a href="News.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">News</a>
+      <a href="Commissioner.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Commissioner</a>
+    </div>
+    <div style="display:flex;gap:2px;margin-left:12px;padding-left:12px;border-left:1px solid rgba(145,132,217,.22);flex:0 0 auto">
+      <span style="background:rgba(145,132,217,.2);border:1px solid rgba(181,171,252,.45);color:#e9e9ed;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;border-radius:var(--radius-sm)">My Lineup</span>
+      <a href="Matchup.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Matchup</a>
+      <a href="Player News.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Player News</a>
+      <a href="Trades.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Trades</a>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#75798c;white-space:nowrap;flex:0 0 auto">
+      <span>Week 1 · lineup locks Sun 1:00</span>
+    </div>
+  </div>
+
+  <div style="padding:24px 26px 12px;display:flex;align-items:flex-end;gap:26px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:9px;letter-spacing:.32em;color:#75798c">DYNASTY · 12 TEAM · SUPERFLEX</div>
+      <div style="font-family:var(--font-heading);font-size:44px;line-height:1.04;letter-spacing:-.035em;margin:8px 0 0">{{ teamName }}</div>
+    </div>
+    <div style="display:flex;gap:22px;margin-left:auto;flex-wrap:wrap">
+      <div><div style="font-family:var(--font-heading);font-size:26px;color:#d2cefd">{{ projTotal }}</div><div style="font-size:9px;letter-spacing:.2em;color:#75798c">PROJECTED</div></div>
+      <div><div style="font-family:var(--font-heading);font-size:26px">{{ rosterCount }}</div><div style="font-size:9px;letter-spacing:.2em;color:#75798c">UNDER CONTRACT</div></div>
+      <div><div style="{{ warnCountStyle }}">{{ warnCount }}</div><div style="font-size:9px;letter-spacing:.2em;color:#75798c">NEEDS A LOOK</div></div>
+      <div><div style="font-family:var(--font-heading);font-size:26px">{{ avgAge }}</div><div style="font-size:9px;letter-spacing:.2em;color:#75798c">AVG AGE</div></div>
+    </div>
+  </div>
+
+  <div style="padding:0 26px 8px;font-size:12px;color:#9397ab;max-width:70ch;line-height:1.6;text-wrap:pretty">{{ instruction }}</div>
+
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:18px;padding:12px 26px 40px;align-items:start">
+
+    <div style="border:1px solid rgba(145,132,217,.22);border-radius:var(--radius-lg);background:rgba(26,28,43,.55);overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid rgba(145,132,217,.18)">
+        <h6 style="margin:0;color:#d2cefd">Starting lineup</h6>
+        <span style="font-size:10px;letter-spacing:.16em;color:#75798c">{{ lineupNote }}</span>
+        <sc-for list="{{ cancelRow }}" as="c" hint-placeholder-count="0">
+          <button class="btn btn-ghost" onClick="{{ c.onClick }}" style="margin-left:auto;font-size:10px;letter-spacing:.12em">{{ c.label }}</button>
+        </sc-for>
+      </div>
+
+      <sc-for list="{{ lineup }}" as="row" hint-placeholder-count="11">
+        <div onClick="{{ row.onClick }}" style="{{ row.style }}">
+          <span style="{{ row.slotStyle }}">{{ row.slot }}</span>
+          {{ row.headEl }}
+          <div style="min-width:0;flex:1">
+            <div style="display:flex;align-items:center;gap:7px">
+              <span style="font-family:var(--font-heading);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ row.name }}</span>
+              {{ row.logoEl }}
+              <span style="font-size:9px;letter-spacing:.12em;color:#75798c;white-space:nowrap;flex:0 0 auto">{{ row.posTeam }}</span>
+              <sc-for list="{{ row.flags }}" as="f" hint-placeholder-count="0">
+                <span style="{{ f.style }}">{{ f.label }}</span>
+              </sc-for>
+            </div>
+            <div style="font-size:11px;color:#9397ab;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ row.line }}</div>
+          </div>
+          <div style="text-align:right;flex:0 0 auto">
+            <div style="font-family:var(--font-heading);font-size:17px;color:#d2cefd">{{ row.proj }}</div>
+            <div style="font-size:8px;letter-spacing:.16em;color:#75798c">PROJ</div>
+          </div>
+        </div>
+      </sc-for>
+
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid rgba(145,132,217,.18);border-bottom:1px solid rgba(145,132,217,.18);background:rgba(20,22,35,.5)">
+        <h6 style="margin:0;color:#9397ab">Bench</h6>
+        <span style="font-size:10px;letter-spacing:.16em;color:#75798c">{{ benchNote }}</span>
+      </div>
+      <div style="padding:8px 18px 10px;font-size:11px;color:#75798c;line-height:1.5;border-bottom:1px solid rgba(145,132,217,.12);text-wrap:pretty">{{ blockNote }}</div>
+      <sc-for list="{{ bench }}" as="b" hint-placeholder-count="14">
+        <div onClick="{{ b.onClick }}" style="{{ b.style }}">
+          <span style="{{ b.slotStyle }}">{{ b.tag }}</span>
+          {{ b.headEl }}
+          <div style="min-width:0;flex:1">
+            <div style="display:flex;align-items:center;gap:7px">
+              <span style="font-family:var(--font-heading);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ b.name }}</span>
+              {{ b.logoEl }}
+              <span style="font-size:9px;letter-spacing:.12em;color:#75798c;white-space:nowrap;flex:0 0 auto">{{ b.posTeam }}</span>
+              <sc-for list="{{ b.flags }}" as="f" hint-placeholder-count="0">
+                <span style="{{ f.style }}">{{ f.label }}</span>
+              </sc-for>
+            </div>
+            <div style="font-size:11px;color:#75798c;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ b.line }}</div>
+          </div>
+          <button onClick="{{ b.onBlock }}" style="{{ b.blockStyle }}">{{ b.blockLabel }}</button>
+          <div style="text-align:right;flex:0 0 auto">
+            <div style="font-family:var(--font-heading);font-size:15px;color:#b2b6ca">{{ b.proj }}</div>
+            <div style="font-size:8px;letter-spacing:.16em;color:#75798c">PROJ</div>
+          </div>
+        </div>
+      </sc-for>
+
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid rgba(145,132,217,.18);background:rgba(20,22,35,.5)">
+        <h6 style="margin:0;color:#9397ab">Injured reserve</h6>
+        <span style="font-size:10px;letter-spacing:.16em;color:#75798c">{{ irNote }}</span>
+      </div>
+      <sc-for list="{{ ir }}" as="x" hint-placeholder-count="2">
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-top:1px solid rgba(145,132,217,.1);opacity:.72">
+          <span style="font-family:var(--font-heading);font-size:10px;letter-spacing:.14em;color:#e0b573;width:34px;flex:0 0 auto">IR</span>
+          {{ x.headEl }}
+          <div style="min-width:0;flex:1">
+            <div style="font-family:var(--font-heading);font-size:14px">{{ x.name }}</div>
+            <div style="font-size:11px;color:#e0b573;margin-top:2px">{{ x.note }}</div>
+          </div>
+          <span style="font-size:9px;letter-spacing:.12em;color:#75798c;flex:0 0 auto">{{ x.posTeam }}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <sc-for list="{{ swapPanel }}" as="s" hint-placeholder-count="0">
+        <div style="border:1px solid rgba(181,171,252,.5);border-radius:var(--radius-lg);background:linear-gradient(150deg,rgba(40,44,74,.72),rgba(18,20,32,.86));padding:16px 18px;animation:mt-in .3s ease">
+          <div style="font-size:9px;letter-spacing:.28em;color:#b5abfc">MOVING INTO {{ s.slot }}</div>
+          <div style="font-family:var(--font-heading);font-size:22px;line-height:1.15;margin:8px 0 4px">{{ s.name }}</div>
+          <div style="font-size:12px;color:#9397ab;line-height:1.55;text-wrap:pretty">{{ s.hint }}</div>
+          <div style="font-size:9px;letter-spacing:.2em;color:#75798c;margin:16px 0 8px">{{ s.optionsNote }}</div>
+          <sc-for list="{{ s.options }}" as="o" hint-placeholder-count="0">
+            <button onClick="{{ o.onClick }}" style="{{ o.style }}">
+              <span style="display:flex;align-items:center;gap:8px">
+                <span style="font-family:var(--font-heading);font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ o.name }}</span>
+                <span style="font-size:9px;letter-spacing:.12em;color:#75798c;flex:0 0 auto">{{ o.posTeam }}</span>
+                <span style="font-family:var(--font-heading);font-size:13px;margin-left:auto;flex:0 0 auto;color:{{ o.deltaColor }}">{{ o.delta }}</span>
+              </span>
+              <span style="display:block;font-size:10px;color:#75798c;margin-top:3px">{{ o.line }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-for>
+
+      <div style="border:1px solid rgba(145,132,217,.22);border-radius:var(--radius-lg);background:rgba(26,28,43,.55);padding:16px 18px">
+        <h6 style="margin:0 0 4px;color:#d2cefd">This week</h6>
+        <div style="font-size:12px;color:#9397ab;line-height:1.6;text-wrap:pretty">{{ weekNote }}</div>
+        <div style="font-size:9px;letter-spacing:.2em;color:#75798c;margin:16px 0 8px">WATCH ITEMS</div>
+        <sc-for list="{{ watchItems }}" as="w" hint-placeholder-count="3">
+          <div style="padding:9px 0;border-top:1px solid rgba(145,132,217,.14)">
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <span style="font-size:13px;font-family:var(--font-heading)">{{ w.name }}</span>
+              <span style="{{ w.tagStyle }}">{{ w.tag }}</span>
+            </div>
+            <div style="font-size:11px;color:#9397ab;line-height:1.5;margin-top:3px;text-wrap:pretty">{{ w.note }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="border:1px solid rgba(145,132,217,.22);border-radius:var(--radius-lg);background:rgba(26,28,43,.55);padding:16px 18px">
+        <h6 style="margin:0 0 10px;color:#d2cefd">Roster shape</h6>
+        <sc-for list="{{ shape }}" as="s" hint-placeholder-count="6">
+          <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid rgba(145,132,217,.12)">
+            <span style="font-family:var(--font-heading);font-size:11px;letter-spacing:.1em;width:44px;flex:0 0 auto;color:#b5abfc">{{ s.pos }}</span>
+            <div style="flex:1;height:5px;border-radius:3px;background:rgba(145,132,217,.14);overflow:hidden">
+              <div style="{{ s.barStyle }}"></div>
+            </div>
+            <span style="font-size:11px;color:#b2b6ca;flex:0 0 auto;width:56px;text-align:right">{{ s.count }}</span>
+          </div>
+        </sc-for>
+        <div style="font-size:11px;color:#75798c;line-height:1.55;margin-top:12px;text-wrap:pretty">{{ shapeNote }}</div>
+      </div>
+
+      <div style="border:1px solid rgba(145,132,217,.22);border-radius:var(--radius-lg);background:rgba(26,28,43,.55);padding:16px 18px">
+        <h6 style="margin:0 0 10px;color:#d2cefd">Bye weeks</h6>
+        <sc-for list="{{ byes }}" as="b" hint-placeholder-count="4">
+          <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid rgba(145,132,217,.12)">
+            <span style="font-family:var(--font-heading);font-size:12px;width:52px;flex:0 0 auto;color:#d2cefd">WK {{ b.week }}</span>
+            <span style="font-size:11px;color:#9397ab;min-width:0;flex:1">{{ b.who }}</span>
+            <span style="{{ b.countStyle }}">{{ b.count }}</span>
+          </div>
+        </sc-for>
+        <div style="font-size:11px;color:#75798c;line-height:1.55;margin-top:12px;text-wrap:pretty">{{ byeNote }}</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1000}}">
+class Component extends DCLogic {
+  state = { data: null, lineup: null, bench: null, picking: null, art: 0, block: {}, league: null, slots: null };
+
+  // Listing a player tells the whole league you will listen on him.
+  toggleBlock(name) {
+    if (!this.set) return;
+    const m = this.state.data;
+    this.setState({ block: this.set.toggleBlock(name, m ? m.myTeam() : "") });
+  }
+
+  componentDidMount() {
+    Promise.all([import("./league-settings.js"), import("./league-sim.js")])
+      .then(([set, sim]) => {
+        this.set = set;
+        const league = set.readSettings();
+        sim.useSettings(league);
+        this.setState({ block: set.readBlock(), league: league, slots: sim.slotsOf(league) });
+      })
+      .catch(e => console.warn("[my team] settings unavailable", e));
+    import("./league-data.js").then(m => {
+      this.setState({ data: m, lineup: this.seedLineup(m), bench: this.seedBench(m) });
+      m.loadArt(() => this.setState({ art: this.state.art + 1 }));
+    }).catch(e => console.warn("[my team] data unavailable", e));
+  }
+
+  // The roster the draft produced, laid into the eleven starting slots. Each
+  // entry is a player name; the pool supplies everything else.
+  seedLineup(m) {
+    const flat = [];
+    m.STARTERS.forEach(group => group.forEach(s => flat.push({ slot: s.slot, n: s.n })));
+    return flat;
+  }
+  seedBench(m) { return m.BENCH.map(b => b.n); }
+
+  // What each slot will accept. FLEX takes the skill positions; the only
+  // defensive slot is the team unit.
+  // What the roster should hold at each position, from the league's own shape.
+  depthTarget() {
+    const s = this.state.league;
+    if (!s || !s.starters) return { QB: 3, RB: 7, WR: 9, TE: 3, K: 1, "D/ST": 1 };
+    const bench = s.bench != null ? s.bench : 14;
+    const flex = s.starters.FLEX || 0;
+    const out = {};
+    ["QB", "RB", "WR", "TE", "K", "D/ST"].forEach(pos => {
+      const start = s.starters[pos] || 0;
+      if (!start) { out[pos] = 0; return; }
+      if (pos === "K" || pos === "D/ST") { out[pos] = start; return; }
+      const share = pos === "QB" ? 0 : flex / 3;
+      out[pos] = start + Math.max(1, Math.round((start + share) * (bench / 8)));
+    });
+    return out;
+  }
+
+  eligible(slot, pos) {
+    // FLEX takes the skill positions the league actually starts, so a league
+    // that drops tight ends does not offer them a flex spot.
+    const starters = (this.state.league && this.state.league.starters) || {};
+    const flex = ["RB", "WR", "TE"].filter(p => (starters[p] || 0) > 0 || !this.state.league);
+    const map = { QB:["QB"], RB:["RB"], WR:["WR"], TE:["TE"], FLEX:flex.length ? flex : ["RB","WR","TE"], "D/ST":["D/ST"], K:["K"] };
+    return (map[slot] || [slot]).indexOf(pos) > -1;
+  }
+
+  player(name) {
+    const m = this.state.data;
+    if (!m) return null;
+    const p = m.find(name);
+    if (p) return p;
+    // A player on the roster who is not in the draftable pool still needs a
+    // position and a team, which the roster tables carry.
+    const seed = (m.STARTERS.flat().concat(m.BENCH)).find(x => x.n === name);
+    if (!seed) return null;
+    const parts = (seed.pt || "").split(" · ");
+    return { n: name, p: parts[0] === "DST" ? "D/ST" : parts[0], t: parts[1] || "", arch: "", adp: 999, bye: null, q: false };
+  }
+
+  // Projection. Pre-season week one, so this is a season-shape estimate rather
+  // than a live number: last year's per-game fantasy scoring where the export
+  // has it, otherwise a consensus-ADP curve.
+  proj(name) {
+    const m = this.state.data;
+    const p = this.player(name);
+    if (!m || !p) return 0;
+    if (m.KICK[name]) return +m.KICK[name].ppg;
+    if (p.p === "D/ST" && m.DEFENSE[p.t]) return +m.DEFENSE[p.t].ppg;
+    const pa = m.PASS[name], ru = m.RUSH[name], re = m.RECV[name];
+    const gp = Math.max(pa ? pa.gp : 0, ru ? ru.gp : 0, re ? re.gp : 0);
+    if (gp) {
+      let pts = 0;
+      if (pa) pts += pa.yds / 25 + pa.td * 4 - pa.int * 2;
+      if (ru) pts += ru.yds / 10 + ru.td * 6;
+      if (re) pts += re.yds / 10 + re.td * 6 + re.rec * 0.5;
+      return Math.round((pts / gp) * 10) / 10;
+    }
+    // no production on file: fall back to where the market has him
+    return Math.round(Math.max(2, 26 - Math.log(Math.max(1, p.adp)) * 4) * 10) / 10;
+  }
+
+  // Warnings that belong on a slot: an injury designation, or a bye that lands
+  // this week. Week one has no byes, so a bye flag is informational.
+  flagsFor(name) {
+    const m = this.state.data;
+    const p = this.player(name);
+    if (!m || !p) return [];
+    const out = [];
+    if (p.q) out.push({ label: "Q", kind: "inj" });
+    const bye = m.byeOf(p);
+    if (bye) out.push({ label: "BYE " + bye, kind: "bye" });
+    const r = m.ROLES[name];
+    if (r && /\*/.test(r.role)) out.push({ label: r.role, kind: "cond" });
+    return out;
+  }
+
+  flagStyle(kind) {
+    const c = kind === "inj" ? "#e0b573" : kind === "cond" ? "#b5abfc" : "#75798c";
+    return "font-size:8px;letter-spacing:.12em;padding:2px 5px;border-radius:2px;flex:0 0 auto;border:1px solid " + c + "66;color:" + c;
+  }
+
+  // Tap a slot, then tap a replacement. The first tap arms the slot; a second
+  // tap on the same slot cancels.
+  pickSlot(i) {
+    this.setState({ picking: this.state.picking === i ? null : i });
+  }
+
+  // Moves a bench player into the armed slot, sending the man there to the bench.
+  swapIn(name) {
+    const i = this.state.picking;
+    if (i == null) return;
+    const lineup = this.state.lineup.slice();
+    const bench = this.state.bench.slice();
+    const outgoing = lineup[i].n;
+    const at = bench.indexOf(name);
+    if (at > -1) bench.splice(at, 1);
+    if (outgoing) bench.unshift(outgoing);
+    lineup[i] = { slot: lineup[i].slot, n: name };
+    this.setState({ lineup: lineup, bench: bench, picking: null });
+  }
+
+  renderVals() {
+    const S = this.state, self = this, m = S.data;
+    if (!m || !S.lineup) {
+      return {
+        teamName: "Loading roster", instruction: "Reading the league's tables.",
+        blockNote: "", lineup: [], bench: [], ir: [], swapPanel: [], cancelRow: [], watchItems: [], shape: [], byes: [],
+        projTotal: "—", rosterCount: "—", warnCount: "—", avgAge: "—",
+        warnCountStyle: "font-family:var(--font-heading);font-size:26px",
+        lineupNote: "", benchNote: "", irNote: "", weekNote: "", shapeNote: "", byeNote: ""
+      };
+    }
+
+    const row = (name, slot) => {
+      const p = self.player(name) || { p: "", t: "", n: name };
+      return { p: p, proj: self.proj(name), flags: self.flagsFor(name) };
+    };
+
+    const picking = S.picking;
+    const lineup = S.lineup.map((s, i) => {
+      const p = self.player(s.n) || { p: "", t: "", n: s.n };
+      const armed = picking === i;
+      return {
+        slot: s.slot,
+        name: s.n,
+        posTeam: (p.p || "") + (p.t ? " · " + p.t : ""),
+        line: m.statLine(p),
+        proj: self.proj(s.n).toFixed(1),
+        headEl: React.createElement("img", { src: m.headshot(s.n) || "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", alt: "", style: { width: 34, height: 34, borderRadius: "50%", objectFit: "contain", border: "1px solid rgba(145,132,217,.3)", background: "rgba(35,37,50,.7)", flex: "0 0 auto" } }),
+        logoEl: React.createElement("img", { src: m.logo(p.t) || "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", alt: "", style: { width: 15, height: 15, objectFit: "contain", opacity: .85, flex: "0 0 auto" } }),
+        flags: self.flagsFor(s.n).map(f => ({ label: f.label, style: self.flagStyle(f.kind) })),
+        onClick: () => self.pickSlot(i),
+        slotStyle: "font-family:var(--font-heading);font-size:10px;letter-spacing:.14em;width:38px;flex:0 0 auto;color:" + (armed ? "#e9e9ed" : "#b5abfc"),
+        style: "display:flex;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid rgba(145,132,217,.12);cursor:pointer;transition:background .18s ease;"
+          + (armed
+              ? "background:linear-gradient(90deg,rgba(145,132,217,.34),transparent);box-shadow:inset 2px 0 0 #b5abfc"
+              : "background:transparent")
+      };
+    });
+
+    // Only players the armed slot will take, best projection first.
+    const armedSlot = picking != null ? S.lineup[picking] : null;
+    const options = armedSlot
+      ? S.bench
+          .filter(n => { const p = self.player(n); return p && self.eligible(armedSlot.slot, p.p); })
+          .map(n => {
+            const p = self.player(n);
+            const delta = self.proj(n) - self.proj(armedSlot.n);
+            return {
+              name: n,
+              posTeam: (p.p || "") + (p.t ? " · " + p.t : ""),
+              line: m.statLine(p),
+              delta: (delta > 0 ? "+" : "") + delta.toFixed(1),
+              deltaColor: delta > 0 ? "#b5abfc" : delta < 0 ? "#e0b573" : "#75798c",
+              raw: delta,
+              onClick: () => self.swapIn(n),
+              style: "text-align:left;width:100%;display:block;padding:9px 11px;margin-bottom:6px;border:1px solid rgba(145,132,217,.28);border-radius:var(--radius-md);background:rgba(20,22,35,.6);color:inherit;font:inherit;cursor:pointer"
+            };
+          })
+          .sort((a, b) => b.raw - a.raw)
+      : [];
+
+    const benchRows = S.bench.map(n => {
+      const p = self.player(n) || { p: "", t: "", n: n };
+      const fits = armedSlot && self.eligible(armedSlot.slot, p.p);
+      return {
+        name: n,
+        tag: p.p === "D/ST" ? "DST" : (p.p || "—"),
+        posTeam: p.t || "",
+        line: m.statLine(p),
+        proj: self.proj(n).toFixed(1),
+        headEl: React.createElement("img", { src: m.headshot(n) || "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", alt: "", style: { width: 30, height: 30, borderRadius: "50%", objectFit: "contain", border: "1px solid rgba(145,132,217,.25)", background: "rgba(35,37,50,.7)", flex: "0 0 auto" } }),
+        logoEl: React.createElement("img", { src: m.logo(p.t) || "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", alt: "", style: { width: 14, height: 14, objectFit: "contain", opacity: .8, flex: "0 0 auto" } }),
+        flags: self.flagsFor(n).map(f => ({ label: f.label, style: self.flagStyle(f.kind) })),
+        onClick: () => { if (fits) self.swapIn(n); },
+        listed: !!S.block[n],
+        blockLabel: S.block[n] ? "Listed" : "Block",
+        blockStyle: "cursor:pointer;font:inherit;font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:4px 8px;flex:0 0 auto;border:1px solid "
+          + (S.block[n] ? "rgba(127,209,168,.5);background:rgba(30,54,44,.4);color:#7fd1a8" : "rgba(145,132,217,.26);background:transparent;color:#75798c"),
+        onBlock: e => { e.stopPropagation(); self.toggleBlock(n); },
+        slotStyle: "font-family:var(--font-heading);font-size:10px;letter-spacing:.14em;width:38px;flex:0 0 auto;color:" + (fits ? "#b5abfc" : "#75798c"),
+        style: "display:flex;align-items:center;gap:12px;padding:11px 18px;border-top:1px solid rgba(145,132,217,.1);transition:background .18s ease;"
+          + (armedSlot
+              ? (fits
+                  ? "cursor:pointer;background:rgba(66,58,106,.28);box-shadow:inset 2px 0 0 rgba(181,171,252,.55)"
+                  : "opacity:.32;cursor:default;background:transparent")
+              : "cursor:default;background:transparent")
+      };
+    });
+
+    const projTotal = S.lineup.reduce((sum, s) => sum + self.proj(s.n), 0);
+
+    // Positional counts across the whole roster, starters and bench together.
+    const counts = {};
+    S.lineup.concat(S.bench.map(n => ({ n: n }))).forEach(x => {
+      const p = self.player(x.n);
+      if (p) counts[p.p] = (counts[p.p] || 0) + 1;
+    });
+    // Derived from the commissioner's lineup and bench, not a second copy of
+    // the same numbers written out by hand.
+    const want = self.depthTarget();
+    const shape = Object.keys(want).map(pos => {
+      const have = counts[pos] || 0;
+      const pct = Math.min(100, Math.round(have / want[pos] * 100));
+      return {
+        pos: pos, count: have + " / " + want[pos],
+        barStyle: "height:100%;width:" + pct + "%;background:" + (have >= want[pos] ? "#b5abfc" : have === 0 ? "#e0b573" : "rgba(181,171,252,.55)")
+      };
+    });
+    const thin = Object.keys(want).filter(pos => (counts[pos] || 0) < want[pos]);
+
+    // Bye weeks across the roster, so a manager sees the crunch weeks early.
+    const byeMap = {};
+    S.lineup.map(s => s.n).concat(S.bench).forEach(n => {
+      const p = self.player(n);
+      const b = p && m.byeOf(p);
+      if (b) (byeMap[b] = byeMap[b] || []).push(n.split(" ").slice(-1)[0]);
+    });
+    const byes = Object.keys(byeMap).map(Number).sort((a, b) => a - b).map(w => ({
+      week: w,
+      who: byeMap[w].join(", "),
+      count: byeMap[w].length,
+      countStyle: "font-family:var(--font-heading);font-size:12px;flex:0 0 auto;color:" + (byeMap[w].length >= 4 ? "#e0b573" : "#75798c")
+    }));
+    const worst = byes.slice().sort((a, b) => b.count - a.count)[0];
+
+    // Anything on the roster carrying a designation or a conditional role.
+    const watchItems = S.lineup.map(s => s.n).concat(S.bench)
+      .map(n => ({ n: n, p: self.player(n) }))
+      .filter(x => x.p && (x.p.q || (m.ROLES[x.n] && /\*/.test(m.ROLES[x.n].role))))
+      .slice(0, 4)
+      .map(x => {
+        const r = m.ROLES[x.n];
+        const cond = r && /\*/.test(r.role);
+        return {
+          name: x.n,
+          tag: x.p.q ? "QUESTIONABLE" : "CONDITIONAL ROLE",
+          tagStyle: "font-size:8px;letter-spacing:.14em;padding:2px 6px;border-radius:2px;border:1px solid "
+            + (x.p.q ? "rgba(224,181,115,.5);color:#e0b573" : "rgba(181,171,252,.5);color:#b5abfc"),
+          note: x.p.q
+            ? "Carries a designation into week 1 and the market has not moved off him — " + x.p.marketStat
+            : "Listed " + r.role + " on " + (r.team || x.p.t) + ". The slot moves up if " + (r.ahead || "the man ahead") + " misses time."
+        };
+      });
+
+    const ages = S.lineup.map(s => s.n).concat(S.bench)
+      .map(n => { const p = self.player(n); return p ? m.ageOf(p) : null; })
+      .filter(a => a);
+    const avgAge = ages.length ? (ages.reduce((a, b) => a + b, 0) / ages.length).toFixed(1) : "—";
+
+    const warnCount = watchItems.length;
+
+    return {
+      teamName: m.teamName(m.myTeam()) || "My team",
+      instruction: picking != null
+        ? "Now tap a bench player to move them into " + S.lineup[picking].slot + ". Only eligible players are lit; tap the slot again to cancel."
+        : "Tap a starting slot, then tap the bench player you want in it. Everything here reads from the 2025 exports — projections are a season-shape estimate, not a live score.",
+
+      lineup: lineup,
+      bench: benchRows,
+      blockNote: (() => {
+        const n = Object.keys(S.block).filter(k => S.block[k]).length;
+        return n
+          ? n + (n === 1 ? " player" : " players") + " listed — every manager in the league can see them on the trade block."
+          : "Nothing listed. Blocking a player tells the league you will listen on him; it does not commit you to anything.";
+      })(),
+      ir: m.IR.map(x => ({
+        name: x.n, note: x.note, posTeam: x.pt,
+        headEl: React.createElement("img", { src: m.headshot(x.n) || "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", alt: "", style: { width: 28, height: 28, borderRadius: "50%", objectFit: "contain", border: "1px solid rgba(145,132,217,.22)", background: "rgba(35,37,50,.7)", flex: "0 0 auto" } })
+      })),
+
+      swapPanel: armedSlot ? [{
+        slot: armedSlot.slot,
+        name: armedSlot.n,
+        hint: "Currently in the slot at " + self.proj(armedSlot.n).toFixed(1) + " projected. Pick a replacement below, or from the bench list.",
+        optionsNote: options.length ? options.length + " ELIGIBLE ON THE BENCH" : "NOBODY ON THE BENCH FITS THIS SLOT",
+        options: options,
+        cancel: () => self.setState({ picking: null })
+      }] : [],
+      cancelRow: armedSlot ? [{ label: "Cancel swap", onClick: () => self.setState({ picking: null }) }] : [],
+
+      lineupNote: S.lineup.length + " SLOTS · " + projTotal.toFixed(1) + " PROJECTED",
+      benchNote: S.bench.length + " OF " + ((S.league && S.league.bench != null) ? S.league.bench : 14) + (armedSlot ? " · TAP AN ELIGIBLE PLAYER" : ""),
+      irNote: m.IR.length + " OF " + ((S.league && S.league.ir != null) ? S.league.ir : 2),
+
+      projTotal: projTotal.toFixed(1),
+      rosterCount: S.lineup.length + S.bench.length + m.IR.length,
+      warnCount: warnCount,
+      warnCountStyle: "font-family:var(--font-heading);font-size:26px;color:" + (warnCount ? "#e0b573" : "#e9e9ed"),
+      avgAge: avgAge,
+
+      weekNote: "Week 1 is ahead — nothing has been played, so these are projections off 2025 production. Lineups lock at the first kickoff Sunday.",
+      watchItems: watchItems,
+
+      shape: shape,
+      shapeNote: thin.length
+        ? "Thin at " + thin.join(", ") + " against a dynasty-depth target. Worth a look in trades or on the wire."
+        : "Every position is at or above a dynasty-depth target.",
+
+      byes: byes,
+      byeNote: worst && worst.count >= 4
+        ? "Week " + worst.week + " is the crunch — " + worst.count + " players off. Plan a trade or a streamer before it lands."
+        : "No week takes more than three players off the roster."
+    };
+  }
+}
+</script>
+</body>
+</html>

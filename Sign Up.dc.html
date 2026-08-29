@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
+<script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
+<style>
+  html, body { margin:0; background:#161826; color:#e9e9ed; font-family:var(--font-body); }
+  a { color:#b5abfc; text-decoration:none; }
+  a:hover { color:#d2cefd; }
+  input { font-family:inherit; }
+  input:focus-visible { outline:2px solid #9184d9; outline-offset:2px; }
+  ::-webkit-scrollbar { width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb { background:rgba(145,132,217,.3); border-radius:4px; }
+  @keyframes su-in { from { opacity:0; transform:translateY(9px); } to { opacity:1; transform:none; } }
+  @keyframes su-shake { 0%,100% { transform:none; } 20% { transform:translateX(-6px); } 40% { transform:translateX(6px); } 60% { transform:translateX(-3px); } 80% { transform:translateX(3px); } }
+</style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;flex-direction:column;background:radial-gradient(900px 620px at 50% -8%,rgba(66,58,106,.5),transparent 62%),#161826">
+
+  <div style="display:flex;align-items:center;gap:14px;padding:14px 26px;border-bottom:1px solid rgba(145,132,217,.2);overflow-x:auto">
+    <div style="display:flex;align-items:center;gap:10px;flex:0 0 auto">
+      <div style="width:8px;height:17px;background:linear-gradient(180deg,#b5abfc,#5d5294);box-shadow:0 0 14px #9184d9"></div>
+      <span style="font-family:var(--font-heading);letter-spacing:.2em;text-transform:uppercase;font-size:12px;white-space:nowrap">Gridiron<span style="color:#b5abfc"> Legacy</span></span>
+    </div>
+    <span style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#75798c;white-space:nowrap;flex:0 0 auto">Dynasty · 12 team · superflex</span>
+    <span style="margin-left:auto;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#75798c;white-space:nowrap;flex:0 0 auto">{{ openLabel }}</span>
+  </div>
+
+  <div style="flex:1;display:flex;align-items:flex-start;justify-content:center;padding:44px 26px 60px">
+    <div style="width:100%;max-width:680px">
+
+      <sc-if value="{{ atSignedIn }}" hint-placeholder-val="{{ false }}">
+        <div style="animation:su-in .4s ease">
+          <div style="font-size:10px;letter-spacing:.36em;color:#b5abfc">SIGNED IN</div>
+          <h1 style="font-family:var(--font-heading);font-size:50px;font-weight:500;line-height:1.05;letter-spacing:-.035em;margin:14px 0 10px">{{ welcomeTitle }}</h1>
+          <p style="font-size:14px;color:#9397ab;line-height:1.6;max-width:54ch;margin:0 0 26px;text-wrap:pretty">{{ welcomeBody }}</p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;max-width:540px">
+            <sc-for list="{{ receipt }}" as="r" hint-placeholder-count="3">
+              <div style="padding:14px 16px;border:1px solid rgba(145,132,217,.24);border-radius:var(--radius-md);background:rgba(26,28,43,.6)">
+                <div style="font-size:9px;letter-spacing:.2em;color:#75798c">{{ r.label }}</div>
+                <div style="font-family:var(--font-heading);font-size:17px;margin-top:6px">{{ r.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(145,132,217,.2);max-width:400px">
+            <label style="display:block;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#75798c;margin-bottom:7px">Franchise name</label>
+            <input value="{{ franchiseValue }}" onInput="{{ onFranchise }}" maxlength="26" style="width:100%;box-sizing:border-box;padding:11px 14px;font-size:15px;color:#e9e9ed;background:rgba(20,22,35,.8);border:1px solid rgba(145,132,217,.3);border-radius:var(--radius-sm)">
+            <div style="{{ franchiseHintStyle }}">{{ franchiseHint }}</div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:26px">
+            <a class="btn btn-primary" href="Home.dc.html" style="font-size:12px;letter-spacing:.14em;padding:13px 26px">Go to my league</a>
+            <a class="btn btn-ghost" href="Gridiron Legacy.dc.html" style="font-size:12px;letter-spacing:.14em;padding:13px 22px">Enter the draft lobby</a>
+            <button onClick="{{ signOut }}" style="background:none;border:0;color:#595d6c;font:inherit;font-size:11px;letter-spacing:.12em;cursor:pointer;padding:13px 8px">Sign out</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ atAuth }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="display:flex;gap:2px;padding:3px;border:1px solid rgba(145,132,217,.24);border-radius:var(--radius-md);background:rgba(20,22,35,.6);max-width:300px;margin-bottom:30px">
+            <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="2">
+              <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ isSignIn }}" hint-placeholder-val="{{ false }}">
+            <div style="animation:su-in .4s ease">
+              <div style="font-size:10px;letter-spacing:.36em;color:#75798c">RETURNING MANAGER</div>
+              <h1 style="font-family:var(--font-heading);font-size:50px;font-weight:500;line-height:1.05;letter-spacing:-.035em;margin:14px 0 10px">Sign back in</h1>
+              <p style="font-size:14px;color:#9397ab;line-height:1.6;max-width:52ch;margin:0 0 26px;text-wrap:pretty">{{ signInIntro }}</p>
+
+              <sc-for list="{{ accountRows }}" as="a" hint-placeholder-count="0">
+                <button onClick="{{ a.onClick }}" style="{{ a.style }}">
+                  <span style="display:flex;align-items:baseline;gap:9px">
+                    <span style="{{ a.abbrStyle }}">{{ a.abbr }}</span>
+                    <span style="font-family:var(--font-heading);font-size:16px;min-width:0">{{ a.franchise }}</span>
+                    <span style="font-size:11px;color:#75798c;margin-left:auto;flex:0 0 auto">{{ a.manager }}</span>
+                  </span>
+                </button>
+              </sc-for>
+
+              <sc-for list="{{ noAccountsRow }}" as="e" hint-placeholder-count="1">
+                <div style="padding:26px 20px;border:1px dashed rgba(145,132,217,.3);border-radius:var(--radius-md);background:rgba(22,24,38,.5);font-size:13px;color:#9397ab;line-height:1.6;text-wrap:pretty">{{ e.text }}</div>
+              </sc-for>
+
+              <sc-for list="{{ pinPrompt }}" as="p" hint-placeholder-count="0">
+                <div style="{{ p.wrapStyle }}">
+                  <label style="display:block;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#75798c;margin-bottom:9px">{{ p.label }}</label>
+                  <div style="display:flex;gap:9px">
+                    <sc-for list="{{ signInBoxes }}" as="b" hint-placeholder-count="4">
+                      <input value="{{ b.value }}" onInput="{{ b.onInput }}" onKeyDown="{{ b.onKeyDown }}" ref="{{ b.ref }}" inputmode="numeric" maxlength="1" type="password" style="{{ b.style }}">
+                    </sc-for>
+                  </div>
+                  <div style="{{ p.hintStyle }}">{{ p.hint }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isSignUp }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <div style="display:flex;gap:8px;margin-bottom:30px">
+                <sc-for list="{{ steps }}" as="s" hint-placeholder-count="3">
+                  <div style="flex:1 1 0;min-width:0">
+                    <div style="{{ s.barStyle }}"></div>
+                    <div style="{{ s.labelStyle }}">{{ s.label }}</div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <sc-if value="{{ atName }}" hint-placeholder-val="{{ true }}">
+                <div style="animation:su-in .4s ease">
+                  <div style="font-size:10px;letter-spacing:.36em;color:#75798c">STEP ONE</div>
+                  <h1 style="font-family:var(--font-heading);font-size:50px;font-weight:500;line-height:1.05;letter-spacing:-.035em;margin:14px 0 10px">What should the league call you?</h1>
+                  <p style="font-size:14px;color:#9397ab;line-height:1.6;max-width:52ch;margin:0 0 26px;text-wrap:pretty">Your first name identifies you to the other eleven managers — in trade offers, on the draft clock, and beside your matchup each week.</p>
+                  <div style="max-width:340px">
+                    <label style="display:block;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#75798c;margin-bottom:7px">First name</label>
+                    <input value="{{ nameValue }}" onInput="{{ onName }}" onKeyDown="{{ onNameKey }}" placeholder="e.g. Marcus" maxlength="18" style="width:100%;box-sizing:border-box;padding:13px 15px;font-size:17px;color:#e9e9ed;background:rgba(20,22,35,.8);border:1px solid rgba(145,132,217,.3);border-radius:var(--radius-sm)">
+                    <div style="{{ nameHintStyle }}">{{ nameHint }}</div>
+                  </div>
+                  <div style="margin-top:26px;padding:14px 16px;border-left:2px solid rgba(181,171,252,.5);background:rgba(30,33,54,.5);max-width:56ch">
+                    <div style="font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#b5abfc">One thing first</div>
+                    <div style="font-size:12px;color:#b2b6ca;line-height:1.6;margin-top:6px;text-wrap:pretty">This is your name, not your team's. Once the account is created you'll name your franchise, and that name is what appears on the draft board and on matchups all season.</div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ atPin }}" hint-placeholder-val="{{ false }}">
+                <div style="animation:su-in .4s ease">
+                  <div style="font-size:10px;letter-spacing:.36em;color:#75798c">STEP TWO</div>
+                  <h1 style="font-family:var(--font-heading);font-size:50px;font-weight:500;line-height:1.05;letter-spacing:-.035em;margin:14px 0 10px">Create a four-digit PIN</h1>
+                  <p style="font-size:14px;color:#9397ab;line-height:1.6;max-width:52ch;margin:0 0 28px;text-wrap:pretty">This is how you get back into your team — setting a lineup, sending a trade, entering the draft room. Nobody else in the league can see it.</p>
+                  <div style="display:flex;gap:34px;flex-wrap:wrap">
+                    <div>
+                      <label style="display:block;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#75798c;margin-bottom:9px">PIN</label>
+                      <div style="display:flex;gap:9px">
+                        <sc-for list="{{ pinBoxes }}" as="b" hint-placeholder-count="4">
+                          <input value="{{ b.value }}" onInput="{{ b.onInput }}" onKeyDown="{{ b.onKeyDown }}" ref="{{ b.ref }}" inputmode="numeric" maxlength="1" type="password" style="{{ b.style }}">
+                        </sc-for>
+                      </div>
+                    </div>
+                    <div>
+                      <label style="display:block;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#75798c;margin-bottom:9px">Confirm</label>
+                      <div style="display:flex;gap:9px">
+                        <sc-for list="{{ confirmBoxes }}" as="b" hint-placeholder-count="4">
+                          <input value="{{ b.value }}" onInput="{{ b.onInput }}" onKeyDown="{{ b.onKeyDown }}" ref="{{ b.ref }}" inputmode="numeric" maxlength="1" type="password" style="{{ b.style }}">
+                        </sc-for>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="{{ pinHintStyle }}">{{ pinHint }}</div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ atSlot }}" hint-placeholder-val="{{ false }}">
+                <div style="animation:su-in .4s ease">
+                  <div style="font-size:10px;letter-spacing:.36em;color:#75798c">STEP THREE</div>
+                  <h1 style="font-family:var(--font-heading);font-size:50px;font-weight:500;line-height:1.05;letter-spacing:-.035em;margin:14px 0 10px">Take an open slot</h1>
+                  <p style="font-size:14px;color:#9397ab;line-height:1.6;max-width:56ch;margin:0 0 24px;text-wrap:pretty">{{ slotIntro }}</p>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px">
+                    <sc-for list="{{ slots }}" as="s" hint-placeholder-count="12">
+                      <button onClick="{{ s.onClick }}" style="{{ s.style }}">
+                        <span style="display:flex;align-items:baseline;gap:8px">
+                          <span style="{{ s.abbrStyle }}">{{ s.abbr }}</span>
+                          <span style="{{ s.stateStyle }}">{{ s.state }}</span>
+                        </span>
+                        <span style="display:block;font-family:var(--font-heading);font-size:16px;line-height:1.2;margin-top:6px">{{ s.name }}</span>
+                        <span style="display:block;font-size:11px;color:#75798c;margin-top:3px">{{ s.holder }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                  <sc-for list="{{ renameRow }}" as="r" hint-placeholder-count="0">
+                    <div style="margin-top:22px;padding-top:20px;border-top:1px solid rgba(145,132,217,.2);max-width:400px">
+                      <label style="display:block;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#75798c;margin-bottom:7px">Franchise name</label>
+                      <input value="{{ r.value }}" onInput="{{ r.onInput }}" maxlength="26" style="width:100%;box-sizing:border-box;padding:11px 14px;font-size:15px;color:#e9e9ed;background:rgba(20,22,35,.8);border:1px solid rgba(145,132,217,.3);border-radius:var(--radius-sm)">
+                      <div style="font-size:11px;color:#75798c;margin-top:7px;line-height:1.5">{{ r.hint }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:32px">
+                <sc-for list="{{ actions }}" as="a" hint-placeholder-count="1">
+                  <button onClick="{{ a.onClick }}" style="{{ a.style }}">{{ a.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1200,&quot;height&quot;:900},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#b5abfc&quot;,&quot;options&quot;:[&quot;#b5abfc&quot;,&quot;#7fd1a8&quot;,&quot;#e0b573&quot;,&quot;#d98ab5&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Look&quot;}}">
+// Sign in and sign up. Accounts live in localStorage under gl.accounts, keyed by
+// the league slot each manager holds; gl.manager names whoever is currently
+// signed in, which is what every other page reads.
+const ACCOUNTS = "gl.accounts";
+const SESSION = "gl.manager";
+
+// Slots held by managers who were in this league before the app existed. They
+// have no account to sign into — a new manager takes one of the rest. HELX is
+// among them because it holds the app's seeded roster.
+const SEEDED = {
+  STL: "Dana", BLZ: "Priya", RVN: "Marcus", APEX: "Theo",
+  NOVA: "Rosa", VOLT: "Kenji", ONYX: "Aisha", FLUX: "Sam", HELX: "Ari"
+};
+
+const readJson = key => { try { return JSON.parse(localStorage.getItem(key)) || null; } catch (e) { return null; } };
+const writeJson = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { console.warn("[auth] could not save", e); } };
+
+class Component extends DCLogic {
+  state = {
+    mode: "signup",        // signup | signin
+    step: 0,               // signup: 0 name · 1 pin · 2 slot
+    name: "", pin: ["", "", "", ""], confirm: ["", "", "", ""],
+    slot: null, franchise: "", touched: {},
+    signInSlot: null, signInPin: ["", "", "", ""], signInError: "", shake: 0,
+    session: null, accounts: {},
+    franchiseSaved: false,
+    teams: null, names: null
+  };
+
+  componentDidMount() {
+    this.pinRefs = [];
+    this.confirmRefs = [];
+    this.signInRefs = [];
+    const accounts = readJson(ACCOUNTS) || {};
+    const session = readJson(SESSION);
+    // A session naming a slot with no account behind it is stale.
+    const live = session && accounts[session.slot] ? session : null;
+    this.setState({
+      accounts: accounts,
+      session: live,
+      franchise: live ? live.franchise : "",
+      mode: Object.keys(accounts).length ? "signin" : "signup"
+    });
+    import("./league-data.js")
+      .then(m => this.setState({ teams: m.TEAMS, names: m.TEAM_NAMES }))
+      .catch(e => console.warn("[auth] league tables unavailable", e));
+  }
+
+  accent() { return this.props.accent ?? "#b5abfc"; }
+
+  // Every slot that cannot be claimed: the pre-existing managers plus anyone who
+  // has since created an account.
+  heldBy(abbr) {
+    const a = this.state.accounts[abbr];
+    if (a) return a.name;
+    return SEEDED[abbr] || null;
+  }
+
+  nameOk() { return this.state.name.trim().length >= 2; }
+  pinFull() { return this.state.pin.every(d => d !== ""); }
+  pinsMatch() { return this.pinFull() && this.state.pin.join("") === this.state.confirm.join(""); }
+  canAdvance() {
+    const S = this.state;
+    if (S.step === 0) return this.nameOk();
+    if (S.step === 1) return this.pinsMatch();
+    if (S.step === 2) return !!S.slot;
+    return false;
+  }
+
+  advance() {
+    if (!this.canAdvance()) {
+      this.setState({ touched: Object.assign({}, this.state.touched, { [this.state.step]: true }) });
+      return;
+    }
+    if (this.state.step === 2) { this.createAccount(); return; }
+    this.setState({ step: this.state.step + 1 });
+  }
+
+  createAccount() {
+    const S = this.state;
+    const account = {
+      name: S.name.trim(),
+      pin: S.pin.join(""),
+      slot: S.slot,
+      franchise: (S.franchise || (S.names && S.names[S.slot]) || S.slot).trim(),
+      joined: new Date().toISOString()
+    };
+    const accounts = Object.assign({}, S.accounts, { [S.slot]: account });
+    writeJson(ACCOUNTS, accounts);
+    writeJson(SESSION, account);
+    this.setState({ accounts: accounts, session: account, franchise: account.franchise });
+  }
+
+  // A PIN is only checked once all four digits are in, so the field does not
+  // flash an error while it is still being typed.
+  trySignIn(digits) {
+    const S = this.state;
+    const account = S.accounts[S.signInSlot];
+    if (!account) return;
+    if (digits.join("") === account.pin) {
+      writeJson(SESSION, account);
+      this.setState({ session: account, franchise: account.franchise, signInPin: ["", "", "", ""], signInError: "" });
+      return;
+    }
+    this.setState({
+      signInError: "That PIN doesn't match " + account.name + "'s account.",
+      signInPin: ["", "", "", ""],
+      shake: S.shake + 1
+    });
+    if (this.signInRefs[0]) setTimeout(() => this.signInRefs[0].focus(), 30);
+  }
+
+  signOut() {
+    try { localStorage.removeItem(SESSION); } catch (e) {}
+    this.setState({
+      session: null, mode: "signin", signInSlot: null, signInPin: ["", "", "", ""],
+      signInError: "", step: 0, name: "", pin: ["", "", "", ""], confirm: ["", "", "", ""],
+      slot: null, touched: {}
+    });
+  }
+
+  saveFranchise(value) {
+    const S = this.state;
+    if (!S.session) return;
+    const account = Object.assign({}, S.session, { franchise: value.trim() || S.session.slot });
+    const accounts = Object.assign({}, S.accounts, { [account.slot]: account });
+    writeJson(ACCOUNTS, accounts);
+    writeJson(SESSION, account);
+    this.setState({ accounts: accounts, session: account, franchiseSaved: true });
+  }
+
+  // A digit typed into a box moves focus on; a backspace on an empty box moves
+  // back. Every PIN field behaves the same way, so they share this.
+  digitBoxes(key, refs, onFull) {
+    const self = this;
+    return this.state[key].map((d, i) => ({
+      value: d,
+      ref: el => { refs[i] = el; },
+      onInput: e => {
+        const only = (e.target.value || "").replace(/\D/g, "").slice(-1);
+        const next = self.state[key].slice();
+        next[i] = only;
+        self.setState({ [key]: next, signInError: key === "signInPin" ? "" : self.state.signInError });
+        if (only && refs[i + 1]) refs[i + 1].focus();
+        if (only && i === 3 && onFull && next.every(x => x !== "")) setTimeout(() => onFull(next), 60);
+      },
+      onKeyDown: e => {
+        if (e.key === "Backspace" && !self.state[key][i] && refs[i - 1]) refs[i - 1].focus();
+        if (e.key === "Enter") {
+          if (onFull) { if (self.state[key].every(x => x !== "")) onFull(self.state[key]); }
+          else self.advance();
+        }
+      },
+      style: "width:52px;height:60px;box-sizing:border-box;text-align:center;font-family:var(--font-heading);font-size:24px;color:#e9e9ed;background:rgba(20,22,35,.85);border:1px solid "
+        + (d ? "rgba(181,171,252,.55)" : "rgba(145,132,217,.28)") + ";border-radius:var(--radius-sm)"
+    }));
+  }
+
+  renderVals() {
+    const S = this.state, self = this;
+    const teams = S.teams || [];
+    const names = S.names || {};
+    const open = teams.filter(t => !self.heldBy(t));
+    const accountList = teams.filter(t => S.accounts[t]);
+
+    const btn = (on, dim) => "cursor:" + (dim ? "default" : "pointer")
+      + ";font:inherit;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:12px 22px;border-radius:var(--radius-sm);border:1px solid "
+      + (on ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.26)")
+      + ";background:" + (on ? "rgba(145,132,217,.26)" : "transparent")
+      + ";color:" + (on ? "#e9e9ed" : "#9397ab") + (dim ? ";opacity:.45" : "");
+
+    const ready = this.canAdvance();
+    const showErr = !!S.touched[S.step] && !ready;
+
+    const actions = [];
+    if (S.step > 0) actions.push({ label: "Back", style: btn(false), onClick: () => self.setState({ step: S.step - 1 }) });
+    actions.push({
+      label: S.step === 2 ? "Claim this slot" : "Continue",
+      style: btn(true, !ready),
+      onClick: () => self.advance()
+    });
+
+    const pinHint = !this.pinFull()
+      ? "Four digits. You'll be asked for these every time you sign in."
+      : this.pinsMatch() ? "PINs match." : "The two PINs don't match yet.";
+
+    const signedInName = S.session ? S.session.name : "";
+
+    return {
+      openLabel: teams.length
+        ? (open.length ? open.length + " of " + teams.length + " slots open" : "League full")
+        : "Reading the league",
+
+      atSignedIn: !!S.session,
+      atAuth: !S.session,
+      isSignIn: !S.session && S.mode === "signin",
+      isSignUp: !S.session && S.mode === "signup",
+
+      tabs: [
+        { key: "signin", label: "Sign in" },
+        { key: "signup", label: "Create account" }
+      ].map(t => ({
+        label: t.label,
+        onClick: () => self.setState({ mode: t.key, signInError: "" }),
+        style: "flex:1 1 0;cursor:pointer;font:inherit;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:9px 10px;border:0;border-radius:var(--radius-sm);background:"
+          + (S.mode === t.key ? "rgba(145,132,217,.28)" : "transparent")
+          + ";color:" + (S.mode === t.key ? "#e9e9ed" : "#75798c")
+      })),
+
+      // ── signed in ───────────────────────────────────────────────────────
+      welcomeTitle: signedInName ? signedInName + ", you're in." : "You're in.",
+      welcomeBody: "Your slot is held and your PIN is set. The startup draft is twenty-four rounds — twelve teams, superflex, a team defense and a kicker. Set a lineup any time before week one.",
+      receipt: [
+        { label: "MANAGER", value: signedInName || "—" },
+        { label: "FRANCHISE", value: S.session ? S.session.franchise : "—" },
+        { label: "SLOT", value: S.session ? S.session.slot : "—" }
+      ],
+      franchiseValue: S.franchise,
+      onFranchise: e => { self.setState({ franchise: e.target.value, franchiseSaved: false }); self.saveFranchise(e.target.value); },
+      franchiseHint: S.franchiseSaved ? "Saved — this is the name on the draft board and on your matchup." : "This is the name on the draft board and on your weekly matchup.",
+      franchiseHintStyle: "font-size:11px;margin-top:7px;line-height:1.5;color:" + (S.franchiseSaved ? "#7fd1a8" : "#75798c"),
+      signOut: () => self.signOut(),
+
+      // ── sign in ─────────────────────────────────────────────────────────
+      signInIntro: accountList.length
+        ? "Pick your franchise, then enter the four-digit PIN you set when you joined."
+        : "No accounts have been created on this device yet.",
+      accountRows: accountList.map(t => {
+        const a = S.accounts[t];
+        const on = S.signInSlot === t;
+        return {
+          abbr: t,
+          franchise: a.franchise,
+          manager: a.name,
+          onClick: () => {
+            self.setState({ signInSlot: t, signInPin: ["", "", "", ""], signInError: "" });
+            setTimeout(() => { if (self.signInRefs[0]) self.signInRefs[0].focus(); }, 40);
+          },
+          abbrStyle: "font-family:var(--font-heading);font-size:12px;letter-spacing:.14em;flex:0 0 auto;color:" + (on ? self.accent() : "#9397ab"),
+          style: "text-align:left;width:100%;display:block;font:inherit;color:inherit;cursor:pointer;padding:13px 16px;margin-bottom:8px;border-radius:var(--radius-md);border:1px solid "
+            + (on ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.26)")
+            + ";background:" + (on ? "rgba(145,132,217,.24)" : "rgba(26,28,43,.6)")
+        };
+      }),
+      noAccountsRow: accountList.length ? [] : [{
+        text: "Nothing to sign into yet — accounts are stored on this device, so create one first and it will be waiting here next time."
+      }],
+      pinPrompt: S.signInSlot ? [{
+        label: "PIN for " + (S.accounts[S.signInSlot] ? S.accounts[S.signInSlot].franchise : S.signInSlot),
+        hint: S.signInError || "Four digits. It signs you in as soon as the last one lands.",
+        hintStyle: "font-size:11px;margin-top:12px;line-height:1.5;color:" + (S.signInError ? "#d98b8b" : "#75798c"),
+        wrapStyle: "margin-top:22px;padding-top:20px;border-top:1px solid rgba(145,132,217,.2)"
+          + (S.shake ? ";animation:su-shake .4s ease" : "")
+      }] : [],
+      signInBoxes: this.digitBoxes("signInPin", this.signInRefs || [], d => self.trySignIn(d)),
+
+      // ── sign up ─────────────────────────────────────────────────────────
+      steps: ["Your name", "Your PIN", "Your slot"].map((label, i) => ({
+        label: label,
+        barStyle: "height:3px;border-radius:2px;background:" + (i <= S.step ? self.accent() : "rgba(145,132,217,.2)"),
+        labelStyle: "font-size:9px;letter-spacing:.16em;text-transform:uppercase;margin-top:8px;color:"
+          + (i === S.step ? "#e9e9ed" : i < S.step ? "#9397ab" : "#595d6c")
+      })),
+      atName: S.step === 0, atPin: S.step === 1, atSlot: S.step === 2,
+
+      nameValue: S.name,
+      onName: e => self.setState({ name: e.target.value }),
+      onNameKey: e => { if (e.key === "Enter") self.advance(); },
+      nameHint: showErr ? "Two characters or more." : "First name only — no surnames, no handles.",
+      nameHintStyle: "font-size:11px;margin-top:9px;line-height:1.5;color:" + (showErr ? "#d98b8b" : "#75798c"),
+
+      pinBoxes: this.digitBoxes("pin", this.pinRefs || []),
+      confirmBoxes: this.digitBoxes("confirm", this.confirmRefs || []),
+      pinHint: showErr && !this.pinsMatch() ? "Enter the same four digits in both fields." : pinHint,
+      pinHintStyle: "font-size:11px;margin-top:16px;line-height:1.5;color:"
+        + (showErr && !this.pinsMatch() ? "#d98b8b" : this.pinsMatch() ? "#7fd1a8" : "#75798c"),
+
+      slotIntro: open.length
+        ? open.length + " of the " + teams.length + " are still open. Pick one and it's yours — the franchise name comes with it, and you can change it below."
+        : "Every slot in this league is filled.",
+
+      slots: teams.map(t => {
+        const holder = self.heldBy(t);
+        const mine = S.slot === t;
+        return {
+          abbr: t,
+          name: names[t] || t,
+          holder: holder ? "Held by " + holder : mine ? "Yours" : "Open",
+          state: holder ? "TAKEN" : mine ? "SELECTED" : "OPEN",
+          onClick: () => { if (!holder) self.setState({ slot: t, franchise: names[t] || t }); },
+          abbrStyle: "font-family:var(--font-heading);font-size:12px;letter-spacing:.14em;color:"
+            + (holder ? "#595d6c" : mine ? self.accent() : "#9397ab"),
+          stateStyle: "font-size:8px;letter-spacing:.18em;margin-left:auto;color:"
+            + (holder ? "#4d5060" : mine ? self.accent() : "#75798c"),
+          style: "text-align:left;width:100%;display:block;font:inherit;padding:13px 15px;border-radius:var(--radius-md);border:1px solid "
+            + (mine ? "rgba(181,171,252,.6)" : holder ? "rgba(145,132,217,.14)" : "rgba(145,132,217,.3)")
+            + ";background:" + (mine ? "rgba(145,132,217,.24)" : holder ? "rgba(20,22,32,.4)" : "rgba(26,28,43,.6)")
+            + ";color:" + (holder ? "#595d6c" : "inherit")
+            + ";cursor:" + (holder ? "default" : "pointer")
+        };
+      }),
+
+      renameRow: S.slot ? [{
+        value: S.franchise,
+        onInput: e => self.setState({ franchise: e.target.value }),
+        hint: "This is the name on the draft board and on your weekly matchup. Change it any time."
+      }] : [],
+
+      actions: actions
+    };
+  }
+}
+</script>
+</body>
+</html>

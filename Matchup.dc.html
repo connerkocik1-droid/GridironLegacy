@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
+<script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
+<style>
+  html, body { margin:0; background:#161826; color:#e9e9ed; font-family:var(--font-body); }
+  a { color:#b5abfc; text-decoration:none; }
+  a:hover { color:#d2cefd; }
+  ::-webkit-scrollbar { width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb { background:rgba(145,132,217,.3); border-radius:4px; }
+  @keyframes mu-live { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:radial-gradient(120% 80% at 50% -10%,rgba(66,58,106,.4),transparent 60%),#161826">
+
+  <div style="position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:10px 22px;border-bottom:1px solid rgba(145,132,217,.22);background:rgba(22,24,38,.9);backdrop-filter:blur(10px);overflow-x:auto">
+    <div style="display:flex;align-items:center;gap:10px;flex:0 0 auto">
+      <div style="width:8px;height:17px;background:linear-gradient(180deg,#b5abfc,#5d5294);box-shadow:0 0 14px #9184d9"></div>
+      <span style="font-family:var(--font-heading);letter-spacing:.2em;text-transform:uppercase;font-size:12px;white-space:nowrap">Gridiron<span style="color:#b5abfc"> Legacy</span></span>
+    </div>
+    <div style="display:flex;gap:2px;margin-left:6px;flex:0 0 auto">
+      <a href="Home.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Home</a>
+      <a href="Gridiron Legacy.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Draft</a>
+      <a href="League.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">League</a>
+      <a href="News.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">News</a>
+      <a href="Commissioner.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Commissioner</a>
+    </div>
+    <div style="display:flex;gap:2px;margin-left:12px;padding-left:12px;border-left:1px solid rgba(145,132,217,.22);flex:0 0 auto">
+      <a href="My Team.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">My Lineup</a>
+      <span style="background:rgba(145,132,217,.2);border:1px solid rgba(181,171,252,.45);color:#e9e9ed;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;border-radius:var(--radius-sm)">Matchup</span>
+      <a href="Player News.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Player News</a>
+      <a href="Trades.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Trades</a>
+    </div>
+    <div style="margin-left:auto;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#75798c;white-space:nowrap;flex:0 0 auto">{{ headNote }}</div>
+  </div>
+
+  <div style="padding:22px 26px 0">
+    <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:18px 24px;border:1px solid rgba(181,171,252,.4);border-radius:var(--radius-lg);background:linear-gradient(150deg,rgba(30,33,54,.85),rgba(22,24,38,.7))">
+      <div style="flex:1 1 200px;min-width:0">
+        <div style="font-size:10px;letter-spacing:.2em;color:#b5abfc">{{ mineAbbr }}</div>
+        <div style="font-family:var(--font-heading);font-size:19px;line-height:1.15;margin:5px 0 8px;text-wrap:pretty">{{ mineName }}</div>
+        <div style="{{ mineScoreStyle }}">{{ mineScore }}</div>
+        <div style="font-size:10px;letter-spacing:.14em;color:#75798c;margin-top:5px">{{ mineSub }}</div>
+      </div>
+      <div style="text-align:center;flex:0 0 auto">
+        <div style="{{ phaseStyle }}">{{ phaseLabel }}</div>
+        <div style="font-family:var(--font-heading);font-size:15px;color:#d2cefd;margin-top:6px">{{ progressLabel }}</div>
+        <div style="width:120px;height:2px;background:rgba(145,132,217,.2);margin:9px auto 0;overflow:hidden">
+          <div style="{{ progressBarStyle }}"></div>
+        </div>
+        <div style="display:flex;gap:7px;margin-top:13px;justify-content:center;flex-wrap:wrap">
+          <sc-for list="{{ controls }}" as="c" hint-placeholder-count="2">
+            <button onClick="{{ c.onClick }}" style="{{ c.style }}">{{ c.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="flex:1 1 200px;min-width:0;text-align:right">
+        <div style="font-size:10px;letter-spacing:.2em;color:#e0b573">{{ oppAbbr }}</div>
+        <div style="font-family:var(--font-heading);font-size:19px;line-height:1.15;margin:5px 0 8px;text-wrap:pretty">{{ oppName }}</div>
+        <div style="{{ oppScoreStyle }}">{{ oppScore }}</div>
+        <div style="font-size:10px;letter-spacing:.14em;color:#75798c;margin-top:5px">{{ oppSub }}</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#9397ab;line-height:1.6;max-width:84ch;margin:13px 0 0;text-wrap:pretty">{{ intro }}</div>
+  </div>
+
+  <div style="padding:18px 26px 40px;display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:18px;align-items:start">
+    <sc-for list="{{ sides }}" as="side" hint-placeholder-count="2">
+      <div style="{{ side.cardStyle }}">
+
+        <div style="{{ side.headStyle }}">
+          <div style="display:flex;align-items:baseline;gap:9px;flex-wrap:wrap">
+            <span style="{{ side.abbrStyle }}">{{ side.abbr }}</span>
+            <span style="font-family:var(--font-heading);font-size:17px;line-height:1.2;min-width:0">{{ side.name }}</span>
+            <span style="{{ side.resultStyle }}">{{ side.result }}</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:12px;margin-top:9px">
+            <span style="{{ side.totalStyle }}">{{ side.total }}</span>
+            <span style="font-size:10px;letter-spacing:.14em;color:#75798c">{{ side.totalNote }}</span>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:46px minmax(0,1fr) 56px;gap:10px;padding:9px 16px;border-bottom:1px solid rgba(145,132,217,.18);font-size:9px;letter-spacing:.14em;color:#75798c">
+          <span>SLOT</span><span>STARTER</span><span style="text-align:right">PTS</span>
+        </div>
+        <sc-for list="{{ side.starters }}" as="r" hint-placeholder-count="10">
+          <div style="{{ r.rowStyle }}">
+            <span style="{{ r.slotStyle }}">{{ r.slot }}</span>
+            <span style="min-width:0">
+              <span style="display:flex;align-items:center;gap:7px">
+                {{ r.logoEl }}
+                <span style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ r.name }}</span>
+                <span style="{{ r.flagStyle }}">{{ r.flag }}</span>
+              </span>
+              <span style="display:block;font-size:10px;color:#595d6c;margin-top:2px">{{ r.meta }}</span>
+            </span>
+            <span style="{{ r.ptsStyle }}">{{ r.pts }}</span>
+          </div>
+        </sc-for>
+
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid rgba(145,132,217,.22);border-bottom:1px solid rgba(145,132,217,.18);background:rgba(20,22,35,.5)">
+          <span style="font-size:9px;letter-spacing:.2em;color:#9397ab">BENCH</span>
+          <span style="font-size:10px;letter-spacing:.14em;color:#75798c">{{ side.benchNote }}</span>
+          <span style="{{ side.benchTotalStyle }}">{{ side.benchTotal }}</span>
+        </div>
+        <sc-for list="{{ side.bench }}" as="r" hint-placeholder-count="14">
+          <div style="{{ r.rowStyle }}">
+            <span style="{{ r.slotStyle }}">{{ r.slot }}</span>
+            <span style="min-width:0">
+              <span style="display:flex;align-items:center;gap:7px">
+                {{ r.logoEl }}
+                <span style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ r.name }}</span>
+                <span style="{{ r.flagStyle }}">{{ r.flag }}</span>
+              </span>
+              <span style="display:block;font-size:10px;color:#595d6c;margin-top:2px">{{ r.meta }}</span>
+            </span>
+            <span style="{{ r.ptsStyle }}">{{ r.pts }}</span>
+          </div>
+        </sc-for>
+
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1500,&quot;height&quot;:1040},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#b5abfc&quot;,&quot;options&quot;:[&quot;#b5abfc&quot;,&quot;#7fd1a8&quot;,&quot;#e0b573&quot;,&quot;#d98ab5&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Look&quot;},&quot;scanlines&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Look&quot;}}">
+// Week-one matchup, one card per team. Nothing has been played, so the run is a
+// simulation off each player's 2025 per-game rate — the scoreboard says so
+// rather than passing it off as a real score.
+const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "FLEX", "D/ST", "K"];
+const BLANK = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+const TICKS = 60;
+const TICK_MS = 700;
+
+const RNG = seed => () => {
+  seed = (seed * 1664525 + 1013904223) % 4294967296;
+  return seed / 4294967296;
+};
+
+class Component extends DCLogic {
+  state = { data: null, sim: null, rosters: null, me: null, opp: null, tick: 0, running: false, art: 0 };
+
+  componentDidMount() {
+    Promise.all([import("./league-data.js"), import("./league-sim.js"), import("./league-settings.js")])
+      .then(([m, sim, set]) => {
+        this.league = set.readSettings();
+        sim.useSettings(this.league);
+        const rosters = sim.buildLeague(m);
+        const me = m.TEAMS.indexOf(m.myTeam());
+        const opp = me % 2 === 0 ? me + 1 : me - 1;
+        this.setState({ data: m, sim: sim, rosters: rosters, me: me, opp: opp });
+        m.loadArt(() => this.setState({ art: this.state.art + 1 }));
+      })
+      .catch(e => console.warn("[matchup] data unavailable", e));
+  }
+
+  componentWillUnmount() { clearInterval(this.t); }
+
+  accent() { return this.props.accent ?? "#b5abfc"; }
+
+  play() {
+    clearInterval(this.t);
+    this.setState({ running: true });
+    this.t = setInterval(() => {
+      const next = this.state.tick + 1;
+      if (next >= TICKS) { clearInterval(this.t); this.setState({ tick: TICKS, running: false }); return; }
+      this.setState({ tick: next });
+    }, TICK_MS);
+  }
+  pause() { clearInterval(this.t); this.setState({ running: false }); }
+  reset() { clearInterval(this.t); this.setState({ tick: 0, running: false }); }
+  finish() { clearInterval(this.t); this.setState({ tick: TICKS, running: false }); }
+
+  img(src, style) { return React.createElement("img", { src: src || BLANK, alt: "", style: style }); }
+
+  // Scoring spread unevenly across the hour, so a lead moves rather than
+  // climbing in a straight line. Deterministic per player.
+  curveFor(name, total) {
+    const rand = RNG(name.split("").reduce((s, c) => s + c.charCodeAt(0), 7) * 31);
+    const weights = [];
+    let sum = 0;
+    for (let i = 0; i < TICKS; i++) {
+      const w = rand() < 0.22 ? rand() * 3 + 0.4 : rand() * 0.15;
+      weights.push(w); sum += w;
+    }
+    return weights.map(w => (w / (sum || 1)) * total);
+  }
+
+  scoreAt(name, total, tick) {
+    if (!this._curves) this._curves = {};
+    if (!this._curves[name]) this._curves[name] = this.curveFor(name, total);
+    const c = this._curves[name];
+    let s = 0;
+    for (let i = 0; i < tick && i < c.length; i++) s += c[i];
+    return s;
+  }
+
+  renderVals() {
+    const S = this.state, self = this, m = S.data, sim = S.sim;
+    const btn = on => "cursor:pointer;font:inherit;font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:7px 12px;border-radius:var(--radius-sm);border:1px solid "
+      + (on ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.28)")
+      + ";background:" + (on ? "rgba(145,132,217,.26)" : "transparent")
+      + ";color:" + (on ? "#e9e9ed" : "#9397ab");
+
+    if (!m) {
+      return {
+        headNote: "", intro: "Reading the league's rosters.", sides: [],
+        mineAbbr: "", mineName: "", mineScore: "0.0", mineSub: "", mineScoreStyle: "font-family:var(--font-heading);font-size:40px",
+        oppAbbr: "", oppName: "", oppScore: "0.0", oppSub: "", oppScoreStyle: "font-family:var(--font-heading);font-size:40px",
+        phaseLabel: "", phaseStyle: "font-size:9px;color:#75798c", progressLabel: "", progressBarStyle: "height:100%;width:0%", controls: []
+      };
+    }
+
+    const live = x => x ? self.scoreAt(x.p.n, sim.proj(m, x.p), S.tick) : 0;
+    const proj = x => x ? sim.proj(m, x.p) : 0;
+
+    const build = idx => {
+      const starters = sim.startersOf(m, S.rosters[idx]);
+      const onField = {};
+      starters.forEach(r => { if (r.x) onField[r.x.p.n] = 1; });
+      const bench = S.rosters[idx].filter(x => !onField[x.p.n])
+        .sort((a, b) => live(b) - live(a));
+      return { starters: starters, bench: bench };
+    };
+
+    const mineSide = build(S.me), oppSide = build(S.opp);
+    const sum = list => list.reduce((s, r) => s + live(r.x !== undefined ? r.x : r), 0);
+    const mineLive = mineSide.starters.reduce((s, r) => s + live(r.x), 0);
+    const oppLive = oppSide.starters.reduce((s, r) => s + live(r.x), 0);
+    const mineProj = mineSide.starters.reduce((s, r) => s + proj(r.x), 0);
+    const oppProj = oppSide.starters.reduce((s, r) => s + proj(r.x), 0);
+
+    const done = S.tick >= TICKS;
+    const started = S.tick > 0;
+    const lead = mineLive - oppLive;
+
+    // One row shape for starters and bench alike.
+    const row = (slot, x, i, dim) => ({
+      slot: slot,
+      slotStyle: "font-family:var(--font-heading);font-size:10px;letter-spacing:.1em;color:" + (dim ? "#4d5060" : "#75798c"),
+      name: x ? x.p.n : "—",
+      meta: x ? x.p.p + " · " + x.p.t + " · " + proj(x).toFixed(1) + " proj · " + (x.p.arch || "") : "slot empty",
+      pts: live(x).toFixed(1),
+      ptsStyle: "font-family:var(--font-heading);font-size:14px;text-align:right;color:" + (dim ? "#75798c" : "#e9e9ed"),
+      flag: x && x.p.q ? "Q" : "",
+      flagStyle: x && x.p.q
+        ? "font-size:8px;letter-spacing:.1em;padding:1px 4px;border-radius:2px;border:1px solid rgba(224,181,115,.5);color:#e0b573;flex:0 0 auto"
+        : "display:none",
+      logoEl: self.img(x ? m.logo(x.p.t) : null, { width: 14, height: 14, objectFit: "contain", opacity: dim ? .45 : .85, flex: "0 0 auto" }),
+      rowStyle: "display:grid;grid-template-columns:46px minmax(0,1fr) 56px;gap:10px;align-items:center;padding:10px 16px"
+        + (i ? ";border-top:1px solid rgba(145,132,217,.11)" : "")
+        + (dim ? ";opacity:.72" : "")
+    });
+
+    const side = (idx, isMine, sideData, total, projTotal) => {
+      const benchTotal = sideData.bench.reduce((s, x) => s + live(x), 0);
+      const tint = isMine ? self.accent() : "#e0b573";
+      const winning = isMine ? lead > 0 : lead < 0;
+      return {
+        abbr: m.TEAMS[idx],
+        name: m.teamName(m.TEAMS[idx]),
+        abbrStyle: "font-family:var(--font-heading);font-size:11px;letter-spacing:.16em;flex:0 0 auto;color:" + tint,
+        result: !started ? "" : done ? (winning ? "WON" : lead === 0 ? "TIED" : "LOST") : (winning ? "LEADING" : lead === 0 ? "LEVEL" : "TRAILING"),
+        resultStyle: !started
+          ? "display:none"
+          : "font-size:8px;letter-spacing:.18em;padding:2px 7px;border-radius:2px;margin-left:auto;flex:0 0 auto;border:1px solid "
+            + (winning ? tint + "99" : "rgba(145,132,217,.3)") + ";color:" + (winning ? tint : "#75798c"),
+        total: total.toFixed(1),
+        totalStyle: "font-family:var(--font-heading);font-size:30px;line-height:1;letter-spacing:-.02em;color:" + (winning ? tint : "#e9e9ed"),
+        totalNote: projTotal.toFixed(1) + " PROJECTED · STARTERS ONLY",
+        // Each team gets its own bordered card, tinted to its own side, so the
+        // two rosters never read as one merged table.
+        cardStyle: "border:1px solid " + (isMine ? "rgba(181,171,252,.42)" : "rgba(224,181,115,.34)")
+          + ";border-radius:var(--radius-lg);background:rgba(26,28,43,.6);overflow:hidden",
+        headStyle: "padding:15px 16px;border-bottom:1px solid rgba(145,132,217,.22);background:"
+          + (isMine ? "rgba(30,33,54,.7)" : "rgba(34,30,26,.55)"),
+        starters: SLOTS.map((slot, i) => row(slot, sideData.starters[i] && sideData.starters[i].x, i, false)),
+        bench: sideData.bench.map((x, i) => row(x.p.p, x, i, true)),
+        benchNote: sideData.bench.length + (sideData.bench.length === 1 ? " PLAYER" : " PLAYERS"),
+        benchTotal: benchTotal.toFixed(1),
+        benchTotalStyle: "font-family:var(--font-heading);font-size:13px;margin-left:auto;color:#9397ab"
+      };
+    };
+
+    const controls = [];
+    if (!done) controls.push({ label: S.running ? "Pause" : started ? "Resume" : "Play the week", style: btn(!S.running), onClick: () => S.running ? self.pause() : self.play() });
+    if (!done) controls.push({ label: "Jump to final", style: btn(false), onClick: () => self.finish() });
+    if (started) controls.push({ label: "Reset", style: btn(false), onClick: () => self.reset() });
+
+    return {
+      headNote: "Week 1 · " + (done ? "final" : started ? "in progress" : "not started"),
+      intro: "Nothing has been played yet, so this run is simulated off each player's 2025 per-game scoring — the same rate the projections use. Bench points are shown but do not count toward either total.",
+
+      mineAbbr: m.TEAMS[S.me],
+      mineName: m.teamName(m.TEAMS[S.me]),
+      mineScore: mineLive.toFixed(1),
+      mineSub: mineProj.toFixed(1) + " PROJECTED",
+      mineScoreStyle: "font-family:var(--font-heading);font-size:40px;line-height:1;letter-spacing:-.03em;color:"
+        + (lead > 0 ? self.accent() : "#e9e9ed") + (lead > 0 ? ";text-shadow:0 0 30px " + self.accent() + "66" : ""),
+
+      oppAbbr: m.TEAMS[S.opp],
+      oppName: m.teamName(m.TEAMS[S.opp]),
+      oppScore: oppLive.toFixed(1),
+      oppSub: oppProj.toFixed(1) + " PROJECTED",
+      oppScoreStyle: "font-family:var(--font-heading);font-size:40px;line-height:1;letter-spacing:-.03em;color:"
+        + (lead < 0 ? "#e0b573" : "#e9e9ed") + (lead < 0 ? ";text-shadow:0 0 30px rgba(224,181,115,.4)" : ""),
+
+      phaseLabel: done ? "FINAL" : started ? "SIMULATED · LIVE" : "NOT STARTED",
+      phaseStyle: "font-size:9px;letter-spacing:.24em;color:" + (started && !done ? self.accent() : "#75798c")
+        + (S.running ? ";animation:mu-live 1.6s infinite" : ""),
+      progressLabel: done ? "60:00" : String(Math.floor(S.tick)).padStart(2, "0") + ":00",
+      progressBarStyle: "height:100%;background:" + self.accent() + ";width:" + ((S.tick / TICKS) * 100).toFixed(1) + "%;transition:width .5s linear",
+      controls: controls,
+
+      sides: [
+        side(S.me, true, mineSide, mineLive, mineProj),
+        side(S.opp, false, oppSide, oppLive, oppProj)
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

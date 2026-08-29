@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
+<script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
+<style>
+  body { margin:0; background:#0f111c; }
+  a { color:#b5abfc; text-decoration:none; }
+  a:hover { color:#d2cefd; }
+  @keyframes gl-pulse { 0%,100% { opacity:.3;} 50% { opacity:1;} }
+  @keyframes gl-in { from { opacity:0; transform:translateY(10px);} to { opacity:1; transform:none;} }
+  @keyframes gl-spin-r { to { transform:rotate(-360deg);} }
+  @keyframes gl-reel { 0% { transform:translateY(0);} 100% { transform:translateY(-50%);} }
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:radial-gradient(1200px 620px at 12% -14%, #1d2137 0%, #0f111c 64%);color:var(--color-text);font-family:var(--font-body);font-size:15px;font-variant-numeric:tabular-nums">
+  <div style="{{ scanlineStyle }}"></div>
+
+  <div style="display:flex;align-items:center;gap:20px;padding:0 24px;height:54px;border-bottom:1px solid rgba(145,132,217,.28);background:rgba(15,17,28,.86);backdrop-filter:blur(10px);position:sticky;top:0;z-index:50;box-shadow:0 1px 26px rgba(145,132,217,.14)">
+    <div style="display:flex;align-items:center;gap:10px;flex:0 0 auto">
+      <div style="width:8px;height:17px;background:linear-gradient(180deg,#b5abfc,#5d5294);box-shadow:0 0 14px #9184d9"></div>
+      <span style="font-family:var(--font-heading);letter-spacing:.2em;text-transform:uppercase;font-size:12px;white-space:nowrap">Gridiron<span style="color:#b5abfc"> Legacy</span></span>
+    </div>
+    <div style="display:flex;gap:2px;margin-left:6px;flex:0 0 auto">
+      <span style="background:rgba(145,132,217,.28);border:1px solid rgba(181,171,252,.6);color:#e9e9ed;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;border-radius:var(--radius-sm)">Home</span>
+      <a href="Gridiron Legacy.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Draft</a>
+      <a href="League.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">League</a>
+      <a href="News.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">News</a>
+      <a href="Commissioner.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Commissioner</a>
+    </div>
+    <div style="display:flex;gap:2px;margin-left:12px;padding-left:12px;border-left:1px solid rgba(145,132,217,.22);flex:0 0 auto">
+      <a href="My Team.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">My Lineup</a>
+      <a href="Matchup.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Matchup</a>
+      <a href="Player News.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Player News</a>
+      <a href="Trades.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Trades</a>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#75798c;white-space:nowrap;flex:0 0 auto">
+      <span style="display:flex;align-items:center;gap:6px;color:#b5abfc"><span style="width:5px;height:5px;border-radius:50%;background:#b5abfc;box-shadow:0 0 8px #b5abfc;animation:gl-pulse 1.6s infinite"></span>Link Active</span>
+    </div>
+  </div>
+
+  <div style="{{ shellStyle }}">
+
+    <div style="background:rgba(18,20,32,.7);padding:20px 18px">
+      <div style="font-size:9px;letter-spacing:.26em;color:#75798c">ROSTER · 12 SLOTS</div>
+      <div style="font-family:var(--font-heading);font-size:22px;margin:8px 0 16px;letter-spacing:-.02em">Perfect draft</div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <sc-for list="{{ groups }}" as="g" hint-placeholder-count="2">
+          <div>
+            <div style="font-size:8px;letter-spacing:.26em;color:#595d6c;margin-bottom:7px">{{ g.label }}</div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <sc-for list="{{ g.slots }}" as="s" hint-placeholder-count="6">
+                <div style="{{ s.style }}">
+                  <span style="font-family:var(--font-heading);font-size:11px;letter-spacing:.12em;width:38px;flex:0 0 auto;color:#b5abfc">{{ s.pos }}</span>
+                  <span style="{{ s.multStyle }}">{{ s.mult }}</span>
+                  <span style="{{ s.nameStyle }}">{{ s.name }}</span>
+                  <span style="font-size:10px;color:#75798c;margin-left:auto;flex:0 0 auto">{{ s.pts }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="background:transparent;display:flex;flex-direction:column;min-width:0">
+
+      <div style="padding:14px 26px 12px;border-bottom:1px solid rgba(145,132,217,.2)">
+        <div style="display:flex;align-items:baseline;gap:22px;flex-wrap:wrap;row-gap:6px">
+          <div>
+            <div style="font-size:9px;letter-spacing:.24em;color:#75798c;margin-bottom:3px">Round</div>
+            <div style="font-family:var(--font-heading);font-size:24px;line-height:1.05">{{ roundLabel }}</div>
+          </div>
+          <div>
+            <div style="font-size:9px;letter-spacing:.24em;color:#75798c;margin-bottom:3px">Side</div>
+            <div style="font-family:var(--font-heading);font-size:24px;line-height:1.05;color:#d2cefd">{{ fillingLabel }}</div>
+          </div>
+          <div>
+            <div style="font-size:9px;letter-spacing:.24em;color:#75798c;margin-bottom:3px">Score</div>
+            <div style="{{ scoreStyle }}">{{ scoreLabel }}</div>
+          </div>
+        </div>
+        <sc-if value="{{ hasOpenSlots }}" hint-placeholder-val="{{ true }}">
+          <div style="font-size:9px;letter-spacing:.14em;color:#595d6c;margin-top:9px">OPEN: {{ openSlots }}</div>
+        </sc-if>
+      </div>
+
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 26px;position:relative;min-height:0">
+
+        <sc-if value="{{ showSpinner }}" hint-placeholder-val="{{ true }}">
+          <div style="text-align:center;position:relative;animation:gl-in .45s ease">
+            <div style="position:absolute;left:50%;top:50%;width:520px;height:520px;margin:-260px 0 0 -260px;border:1px solid rgba(145,132,217,.14);border-radius:50%;animation:gl-spin-r 26s linear infinite;pointer-events:none"></div>
+            <div style="font-size:10px;letter-spacing:.42em;color:#75798c">{{ spinHeader }}</div>
+            <div style="display:flex;gap:0;align-items:stretch;justify-content:center;margin:26px 0 8px">
+              <div style="padding:0 40px">
+                <div style="height:132px;display:flex;align-items:center;justify-content:center">
+                  <sc-for list="{{ reelLogoRow }}" as="l" hint-placeholder-count="0">
+                    <img src="{{ l.src }}" alt="" style="{{ l.style }}">
+                  </sc-for>
+                  <sc-if value="{{ noReelLogo }}" hint-placeholder-val="{{ true }}">
+                    <div style="{{ teamReelStyle }}">{{ spunTeam }}</div>
+                  </sc-if>
+                </div>
+                <div style="font-size:9px;letter-spacing:.28em;color:#75798c;margin-top:10px">FRANCHISE</div>
+              </div>
+              <div style="width:1px;background:linear-gradient(180deg,transparent,rgba(145,132,217,.45),transparent)"></div>
+              <div style="padding:0 40px">
+                <div style="{{ eraReelStyle }}">{{ spunEra }}</div>
+                <div style="font-size:9px;letter-spacing:.28em;color:#75798c;margin-top:10px">ERA</div>
+              </div>
+            </div>
+            <div style="font-size:12px;color:#9397ab;margin-top:20px;max-width:460px;text-wrap:pretty">{{ spinNote }}</div>
+            <div style="margin-top:26px">
+              <button class="btn btn-primary" onClick="{{ spin }}" style="font-size:12px;letter-spacing:.14em;padding:13px 30px">{{ spinCta }}</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showBoard }}" hint-placeholder-val="{{ false }}">
+          <div style="width:100%;max-width:880px;animation:gl-in .45s ease">
+            <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px;flex-wrap:wrap">
+              <sc-for list="{{ boardLogoRow }}" as="l" hint-placeholder-count="0">
+                <img src="{{ l.src }}" alt="" style="width:26px;height:26px;object-fit:contain;align-self:center">
+              </sc-for>
+              <span style="font-family:var(--font-heading);font-size:20px;letter-spacing:-.01em">{{ spunTeamName }}</span>
+              <span style="font-size:11px;letter-spacing:.2em;color:#b5abfc">{{ spunEra }}</span>
+              <span style="font-size:11px;color:#75798c;margin-left:auto">{{ candidateNote }}</span>
+            </div>
+            <div style="border:1px solid rgba(145,132,217,.22);border-radius:var(--radius-md);overflow:hidden">
+              <sc-for list="{{ candidates }}" as="c" hint-placeholder-count="4">
+                <button onClick="{{ c.pick }}" style="{{ c.style }}">
+                  <span style="display:flex;align-items:baseline;gap:8px">
+                    <span style="{{ c.posStyle }}">{{ c.pos }}</span>
+                    <span style="font-family:var(--font-heading);font-size:14px;letter-spacing:-.01em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.n }}</span>
+                    <span style="font-size:10px;color:#75798c;flex:0 0 auto">{{ c.yr }} {{ c.team }}</span>
+                    <span style="font-size:8px;letter-spacing:.14em;color:#e0b573;flex:0 0 auto;margin-left:auto">{{ c.mult }}</span>
+                    <span style="{{ c.fillsStyle }}">{{ c.fills }}</span>
+                  </span>
+                  <span style="display:block;font-size:11px;color:#b2b6ca;line-height:1.45;margin-top:4px">{{ c.line }}</span>
+                  <span style="display:block;font-size:11px;color:#75798c;line-height:1.45">{{ c.line2 }}</span>
+                </button>
+              </sc-for>
+            </div>
+            <div style="margin-top:18px"><button onClick="{{ reSpin }}" style="background:none;border:0;color:#595d6c;font:inherit;font-size:11px;letter-spacing:.12em;cursor:pointer">spin again — forfeits this round's board</button></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showDone }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;max-width:520px;animation:gl-in .45s ease">
+            <div style="font-size:10px;letter-spacing:.42em;color:#75798c">{{ doneKicker }}</div>
+            <div style="font-family:var(--font-heading);font-size:88px;line-height:1;letter-spacing:-.04em;margin:14px 0 8px;color:#d2cefd;text-shadow:0 0 54px rgba(181,171,252,.5)">{{ doneScoreLabel }}</div>
+            <div style="font-size:12px;letter-spacing:.2em;color:#75798c">{{ doneFilled }}</div>
+            <div style="font-size:12px;color:#9397ab;line-height:1.6;margin-top:12px;text-wrap:pretty">{{ doneNote }}</div>
+            <div style="margin-top:26px"><button class="btn btn-primary" onClick="{{ restart }}" style="font-size:11px;letter-spacing:.12em">New run</button></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showLocked }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;max-width:520px;animation:gl-in .45s ease">
+            <div style="font-size:10px;letter-spacing:.42em;color:#75798c">AWAITING DATA</div>
+            <div style="font-family:var(--font-heading);font-size:40px;line-height:1.08;letter-spacing:-.03em;margin:16px 0 12px">{{ lockedTitle }}</div>
+            <div style="font-size:13px;color:#9397ab;line-height:1.65;text-wrap:pretty">{{ lockedBody }}</div>
+            <div style="margin-top:26px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+              <button class="btn btn-primary" onClick="{{ skipSlot }}" style="font-size:11px;letter-spacing:.12em">{{ skipLabel }}</button>
+              <button class="btn btn-ghost" onClick="{{ restart }}" style="font-size:11px;letter-spacing:.12em">Restart run</button>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+
+    <div style="{{ resultRailStyle }}">
+      <sc-if value="{{ showLeaderboard }}" hint-placeholder-val="{{ false }}">
+        <div style="font-size:9px;letter-spacing:.26em;color:#75798c">LEADERBOARD</div>
+        <div style="font-size:11px;color:#75798c;margin:8px 0 14px;line-height:1.5">Perfect run is 20-0. Every slot scores its season, multiplied where the position carries one.</div>
+        <div style="display:flex;flex-direction:column;gap:1px;background:rgba(145,132,217,.14)">
+          <sc-for list="{{ leaderboard }}" as="l" hint-placeholder-count="6">
+            <div style="{{ l.style }}">
+              <span style="font-family:var(--font-heading);font-size:11px;color:#75798c;width:18px;flex:0 0 auto">{{ l.rank }}</span>
+              <span style="font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ l.who }}</span>
+              <span style="font-family:var(--font-heading);font-size:13px;margin-left:auto;flex:0 0 auto;color:#d2cefd">{{ l.score }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#b5abfc&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#b5abfc&quot;,&quot;#7ad9d0&quot;,&quot;#e0b573&quot;,&quot;#d98ab5&quot;],&quot;section&quot;:&quot;Look&quot;},&quot;scanlines&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Look&quot;}}">
+const OFFENSE = ["QB", "RB", "WR", "TE", "FLEX", "FLEX"];
+const DEFENSE = ["EDGE", "DT/EDGE", "LB", "CB", "CB/S", "FLEX"];
+
+// Which pools each slot will take. Two grouped pools stand in for four
+// positions: the defensive-line and secondary exports carry no position column,
+// so EDGE and DT/EDGE both draw DL, and CB and CB/S both draw DB.
+const SLOT_POOLS = {
+  QB: ["QB"], RB: ["RB"], WR: ["WR"], TE: ["TE"],
+  EDGE: ["DL"], "DT/EDGE": ["DL"], LB: ["LB"], CB: ["DB"], "CB/S": ["DB"]
+};
+
+// FLEX takes any position on its own side except quarterback.
+const FLEX_POOLS = { offense: ["RB", "WR", "TE"], defense: ["DL", "LB", "DB"] };
+
+const poolsForSlot = (slot, defense) =>
+  slot === "FLEX" ? FLEX_POOLS[defense ? "defense" : "offense"] : (SLOT_POOLS[slot] || [slot]);
+const SLOTS = OFFENSE.concat(DEFENSE);
+const MULT = { QB: 1.5, EDGE: 1.5, CB: 1.5 };
+
+// Transparent 1px stand-in: an <img> paints once while its src hole is still
+// unresolved, so the fallback has to be a valid URL rather than an empty string.
+const BLANK_PX = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+const TEAM_NAMES = {
+  ARI:"Arizona Cardinals", ATL:"Atlanta Falcons", BAL:"Baltimore Ravens", BUF:"Buffalo Bills",
+  CAR:"Carolina Panthers", CHI:"Chicago Bears", CIN:"Cincinnati Bengals", CLE:"Cleveland Browns",
+  DAL:"Dallas Cowboys", DEN:"Denver Broncos", DET:"Detroit Lions", GB:"Green Bay Packers",
+  HOU:"Houston Texans", IND:"Indianapolis Colts", JAX:"Jacksonville Jaguars", KC:"Kansas City Chiefs",
+  LAC:"Los Angeles Chargers", LAR:"Los Angeles Rams", LV:"Las Vegas Raiders", MIA:"Miami Dolphins",
+  MIN:"Minnesota Vikings", NE:"New England Patriots", NO:"New Orleans Saints", NYG:"New York Giants",
+  NYJ:"New York Jets", PHI:"Philadelphia Eagles", PIT:"Pittsburgh Steelers", SEA:"Seattle Seahawks",
+  SF:"San Francisco 49ers", TB:"Tampa Bay Buccaneers", TEN:"Tennessee Titans", WSH:"Washington Commanders"
+};
+
+const SEED_BOARD = [
+  { who: "hexline", score: 1284 }, { who: "Vantablack", score: 1251 },
+  { who: "cold_open", score: 1206 }, { who: "Marrow", score: 1188 },
+  { who: "nine_lives", score: 1140 }, { who: "Torchbearer", score: 1097 }
+];
+
+class Component extends DCLogic {
+  state = { pools: {}, eraLabels: [], round: 0, phase: "ready", spun: null, roster: [], reeling: false,
+    reelTeam: null, reelEra: null, reelEraLocked: false };
+
+  // Team marks are vendored into logos.state.json (72px PNGs, base64) so an
+  // exported copy keeps them without reaching the network. The CDN is the
+  // fallback if the local file is missing.
+  logo(team) {
+    if (!team) return BLANK_PX;
+    const k = String(team).toLowerCase() === "was" ? "wsh" : String(team).toLowerCase();
+    return (this.logos && this.logos[k]) || "https://a.espncdn.com/i/teamlogos/nfl/500-dark/" + k + ".png";
+  }
+
+  componentDidMount() {
+    fetch("logos.state.json")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) { this.logos = d; this.forceUpdate(); } })
+      .catch(() => {});
+    import("./twenty-zero-data.js")
+      .then(m => this.setState({ pools: m.POOLS, eraLabels: m.ERA_LABELS }))
+      .catch(e => console.warn("[20-0] pool unavailable", e));
+  }
+
+  // Rounds 1-6 are offense, 7-12 defense. A round is not tied to one position:
+  // the board offers every position on that side, and a pick lands in whichever
+  // slot it fits.
+  sideFor(round) { return round >= OFFENSE.length ? DEFENSE : OFFENSE; }
+
+  // A side's pool can be large and still have nothing draftable: once EDGE, DT
+  // and the defensive FLEX are filled, every DL player has no slot left to sit
+  // in. Readiness therefore asks whether anything can actually be placed.
+  playable(round, roster) {
+    if (round >= SLOTS.length) return false;
+    return this.poolFor(round).some(p => this.slotIndexFor(p.pos, round, roster) > -1);
+  }
+
+  poolFor(round) {
+    const P = this.state.pools;
+    if (!P) return [];
+    const defense = round >= OFFENSE.length;
+    const seen = {};
+    return this.sideFor(round)
+      .reduce((keys, slot) => keys.concat(poolsForSlot(slot, defense)), [])
+      .filter(k => seen[k] ? false : (seen[k] = true))
+      .reduce((all, k) => all.concat(P[k] || []), []);
+  }
+
+  // Where a player can go: a named slot that takes his position, otherwise FLEX
+  // on the same side — and FLEX never takes a quarterback.
+  // Takes the roster explicitly: a caller mid-pick holds the new roster in a
+  // local, while this.state still carries the pre-pick one.
+  slotIndexFor(pos, round, roster) {
+    const side = this.sideFor(round);
+    const defense = round >= OFFENSE.length;
+    const base = defense ? OFFENSE.length : 0;
+    const R = roster || this.state.roster;
+    const takes = slot => poolsForSlot(slot, defense).indexOf(pos) > -1;
+    // Named slots first, so a player only reaches FLEX once his own is taken.
+    for (let k = 0; k < side.length; k++) {
+      if (side[k] !== "FLEX" && takes(side[k]) && !R[base + k]) return base + k;
+    }
+    for (let k = 0; k < side.length; k++) {
+      if (side[k] === "FLEX" && takes("FLEX") && !R[base + k]) return base + k;
+    }
+    return -1;
+  }
+
+  componentWillUnmount() { clearTimeout(this.reelT); clearTimeout(this.tickT); }
+
+  slotFor(round) { return SLOTS[round] || null; }
+
+  // Spin lands on a franchise and an era. Candidates are that franchise's
+  // qualifying seasons inside that era; where the franchise has fewer than
+  // three, the board fills out with other seasons from the same era so the
+  // round is always a real choice rather than a forced pick.
+  candidatesFor(team, era, round) {
+    const P = this.poolFor(round);
+    const taken = this.state.roster.map(r => r && r.n);
+    // a player only counts as available if some slot on this side can hold him
+    const free = p => taken.indexOf(p.n) === -1 && this.slotIndexFor(p.pos, round) > -1;
+    // A round is open to every position on this side, so the board runs deeper
+    // than one position's shortlist — six rows, best seasons first.
+    const WANT = 6;
+    const own = P.filter(p => p.t === team && p.era === era && free(p)).sort((a, b) => b.sc - a.sc);
+    if (own.length >= WANT) return own.slice(0, WANT).map(p => ({ p: p, own: true }));
+    const rest = P.filter(p => p.era === era && p.t !== team && free(p)).sort((a, b) => b.sc - a.sc);
+    const fill = [];
+    while (fill.length < WANT - own.length && rest.length) {
+      fill.push(rest.splice(Math.floor(Math.random() * Math.min(12, rest.length)), 1)[0]);
+    }
+    return own.map(p => ({ p: p, own: true })).concat(fill.map(p => ({ p: p, own: false })));
+  }
+
+  spin() {
+    const round = this.state.round;
+    if (!this.playable(round)) { this.setState({ phase: "locked" }); return; }
+    const P = this.poolFor(round);
+
+    // Resolve the draw first, then animate into it, so the reel settles on the
+    // real franchise and era rather than a value the board then contradicts.
+    let team, era, cands;
+    for (let i = 0; i < 40; i++) {
+      const seed = P[Math.floor(Math.random() * P.length)];
+      team = seed.t; era = seed.era;
+      cands = this.candidatesFor(team, era, round);
+      if (cands.length >= 2) break;
+    }
+    // A draw with nothing on it is a dead end, so fall through to the locked
+    // state, where the round can be skipped.
+    if (!cands.length) { this.setState({ phase: "locked", spun: null, reeling: false }); return; }
+
+    // Both columns tumble through real values, decelerating, with the era
+    // settling first so the two locks land as separate beats.
+    const teams = Object.keys(P.reduce((s, p) => (s[p.t] = 1, s), {}));
+    const eras = Object.keys(P.reduce((s, p) => (s[p.era] = 1, s), {})).map(Number);
+    const TICKS = 26, ERA_LOCK = 17;
+    let tick = 0;
+    clearTimeout(this.reelT);
+    clearTimeout(this.tickT);
+
+    const step = () => {
+      tick++;
+      const eraDone = tick >= ERA_LOCK;
+      this.setState({
+        reelTeam: tick >= TICKS ? team : teams[Math.floor(Math.random() * teams.length)],
+        reelEra: eraDone ? era : eras[Math.floor(Math.random() * eras.length)],
+        reelEraLocked: eraDone
+      });
+      if (tick < TICKS) {
+        // ease-out: each tick sits longer than the last
+        const t = tick / TICKS;
+        this.tickT = setTimeout(step, 38 + Math.pow(t, 2.6) * 240);
+      } else {
+        // a beat on the settled pair before the board arrives
+        this.reelT = setTimeout(() => {
+          this.setState({ reeling: false, phase: "board", spun: { team: team, era: era, cands: cands } });
+        }, 480);
+      }
+    };
+
+    this.setState({ reeling: true, phase: "spinning", reelEraLocked: false, reelTeam: null, reelEra: null });
+    step();
+  }
+
+  pick(entry) {
+    const idx = this.slotIndexFor(entry.p.pos, this.state.round);
+    if (idx < 0) return;
+    const roster = this.state.roster.slice();
+    roster[idx] = entry.p;
+    const round = this.state.round + 1;
+    this.setState({
+      roster: roster,
+      round: round,
+      spun: null,
+      // measured against the roster this pick just produced, not the one in
+      // state, which has not committed yet
+      phase: round >= SLOTS.length ? "done" : (this.playable(round, roster) ? "ready" : "locked")
+    });
+  }
+
+  total() {
+    return this.state.roster.reduce((sum, p, i) => {
+      if (!p) return sum;
+      return sum + p.sc * (MULT[SLOTS[i]] || 1);
+    }, 0);
+  }
+
+  renderVals() {
+    const self = this;
+    const S = this.state;
+    const accent = this.props.accent ?? "#b5abfc";
+    const slot = this.slotFor(S.round);
+    const filled = S.roster.filter(Boolean).length;
+    const total = this.total();
+    const eraLabel = e => S.eraLabels[e] || "—";
+
+    const groups = [
+      { label: "OFFENSE · ROUNDS 1–6", from: 0, list: OFFENSE },
+      { label: "DEFENSE · ROUNDS 7–12", from: 6, list: DEFENSE }
+    ].map(g => ({
+      label: g.label,
+      slots: g.list.map((pos, k) => {
+        const i = g.from + k;
+        const p = S.roster[i];
+        // A round is open to the whole side, so every unfilled slot on the
+        // active side is live — not the one whose index matches the round.
+        const activeSide = S.round < SLOTS.length
+          && (i >= OFFENSE.length) === (S.round >= OFFENSE.length);
+        const live = !p && activeSide && S.phase !== "done";
+        return {
+          pos: pos,
+          mult: MULT[pos] ? MULT[pos] + "×" : "",
+          multStyle: MULT[pos]
+            ? "font-family:var(--font-heading);font-size:9px;color:#e0b573;width:22px;flex:0 0 auto"
+            : "width:22px;flex:0 0 auto",
+          name: p ? p.n + " · " + p.yr : (live ? "open" : "empty"),
+          nameStyle: "font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:"
+            + (p ? "#e9e9ed" : live ? "#b5abfc" : "#595d6c"),
+          // Individual scores stay hidden — a filled slot is shown as locked in,
+          // never as a number.
+          pts: p ? "✓" : "",
+          style: "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-sm);border:1px solid "
+            + (live ? "rgba(181,171,252,.55)" : "rgba(145,132,217,.16)")
+            + ";background:" + (live ? "rgba(145,132,217,.14)" : p ? "rgba(26,28,43,.7)" : "transparent")
+        };
+      })
+    }));
+
+    // One condensed row per candidate: position, name and year on the left, the
+    // season's line in the middle, the slot it would fill on the right.
+    const cands = (S.spun && S.spun.cands || []).map((c, i) => {
+      const idx = self.slotIndexFor(c.p.pos, S.round);
+      const target = idx > -1 ? SLOTS[idx] : null;
+      // A slot's name and its pool key differ where one pool feeds several slots,
+      // so "on position" compares the slot's pool, not its label.
+      const onPos = !!target && target !== "FLEX";
+      return {
+        n: c.p.n,
+        yr: c.p.yr,
+        pos: c.p.pos,
+        team: c.p.t,
+        wildcard: c.own ? "" : "WILDCARD",
+        line: c.p.line,
+        line2: c.p.line2,
+        fills: onPos ? target : target ? target + " ←" : "—",
+        fillsStyle: "font-family:var(--font-heading);font-size:10px;letter-spacing:.14em;flex:0 0 auto;color:"
+          + (onPos ? "#b5abfc" : "#e0b573"),
+        mult: target && MULT[target] ? MULT[target] + "×" : "",
+        pick: () => self.pick(c),
+        posStyle: "font-family:var(--font-heading);font-size:11px;letter-spacing:.1em;flex:0 0 auto;color:"
+          + (c.own ? "#b5abfc" : "#75798c"),
+        style: "text-align:left;cursor:pointer;padding:10px 14px;border:0;border-top:"
+          + (i ? "1px solid rgba(145,132,217,.14)" : "0")
+          + ";background:" + (c.own ? "rgba(30,33,54,.72)" : "rgba(20,22,36,.6)")
+          + ";color:inherit;font:inherit;display:block;width:100%"
+      };
+    });
+
+    // The leaderboard is a result, so it only appears once a run is finished.
+    const board = (S.phase !== "done" || filled !== SLOTS.length ? [] : SEED_BOARD.concat([{ who: "you · final", score: Math.round(total), me: true }]))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8)
+      .map((l, i) => ({
+        rank: i + 1,
+        who: l.who,
+        score: l.score,
+        style: "display:flex;align-items:center;gap:9px;padding:9px 10px;background:" + (l.me ? "rgba(145,132,217,.18)" : "#141625")
+      }));
+
+    return {
+      scanlineStyle: (this.props.scanlines ?? true)
+        ? "position:fixed;inset:0;background:repeating-linear-gradient(180deg," + accent + "0f 0 1px,transparent 1px 3px);pointer-events:none;z-index:60"
+        : "display:none",
+
+      groups: groups,
+      roundLabel: S.round >= SLOTS.length ? "COMPLETE" : (S.round + 1) + " / 12",
+      fillingLabel: S.round >= SLOTS.length ? "—" : (S.round >= OFFENSE.length ? "DEFENSE" : "OFFENSE"),
+      // The leaderboard is only earned by a complete roster, so the rail, the
+      // heading and the rows all key on the same test.
+      showLeaderboard: S.phase === "done" && filled === SLOTS.length,
+      // The results rail only exists once the run is over; until then the
+      // drafting pane takes the width back.
+      shellStyle: "display:grid;grid-template-columns:minmax(250px,290px) minmax(0,1fr)"
+        + (S.phase === "done" && filled === SLOTS.length ? " minmax(230px,268px)" : "")
+        + ";gap:1px;background:rgba(145,132,217,.18);min-height:calc(100vh - 54px)",
+      resultRailStyle: S.phase === "done" && filled === SLOTS.length
+        ? "background:rgba(18,20,32,.7);padding:20px 18px"
+        : "display:none",
+      hasOpenSlots: S.round < SLOTS.length,
+      openSlots: S.round >= SLOTS.length ? "" : this.sideFor(S.round)
+        .filter((p, k) => !S.roster[(S.round >= OFFENSE.length ? OFFENSE.length : 0) + k])
+        .join(" · "),
+      // The total is a result, withheld until every one of the twelve slots is
+      // filled — a run with skipped slots never reveals one.
+      scoreLabel: S.phase === "done" && filled === SLOTS.length ? Math.round(total) : "—",
+      scoreStyle: "font-family:var(--font-heading);font-size:24px;line-height:1.05;color:" + accent + ";text-shadow:0 0 22px " + accent + "80",
+      ruleNote: "Rounds 1–6 offense, 7–12 defense. QB, EDGE and CB score 1.5×. Nothing here touches your dynasty team.",
+
+      showSpinner: S.phase === "ready" || S.phase === "spinning",
+      showBoard: S.phase === "board",
+      showLocked: S.phase === "locked",
+      showDone: S.phase === "done",
+      doneScore: Math.round(total),
+      // A run that skipped slots was never a complete roster, so it scores nothing.
+      doneScoreLabel: filled === SLOTS.length ? Math.round(total) : "INCOMPLETE",
+      doneKicker: filled === SLOTS.length ? "RUN COMPLETE" : "RUN ENDED",
+      doneNote: filled === SLOTS.length
+        ? ""
+        : "A run only scores on a full twelve-slot roster, so this one earns nothing and does not reach the leaderboard.",
+      doneFilled: filled + " of 12 slots filled",
+
+      spinHeader: S.reeling ? "SPINNING" : "ROUND " + (S.round + 1) + " · " + (S.round >= OFFENSE.length ? "DEFENSE" : "OFFENSE"),
+      spunTeam: S.reeling ? (S.reelTeam || "···") : (S.spun ? S.spun.team : "—"),
+      // The franchise column shows the mark; the abbreviation stands in before a
+      // spin has drawn one. Carried as a list so nothing paints — and no image
+      // is requested — until a team actually exists.
+      reelLogoRow: (S.reeling ? S.reelTeam : (S.spun && S.spun.team))
+        ? [{ src: self.logo(S.reeling ? S.reelTeam : S.spun.team),
+             style: "width:132px;height:132px;object-fit:contain;transition:filter .12s ease,opacity .12s ease;"
+               + (S.reeling
+                   ? "filter:grayscale(1) brightness(1.5) blur(1.4px);opacity:.6"
+                   : "filter:drop-shadow(0 0 30px " + accent + "8c);opacity:1") }]
+        : [],
+      noReelLogo: !(S.reeling ? S.reelTeam : (S.spun && S.spun.team)),
+      spunEra: S.reeling
+        ? (S.reelEra == null ? "····" : eraLabel(S.reelEra))
+        : (S.spun ? eraLabel(S.spun.era) : "—"),
+      spunTeamName: S.spun ? (TEAM_NAMES[S.spun.team] || S.spun.team) : "",
+      boardLogoRow: (S.spun && S.spun.team) ? [{ src: self.logo(S.spun.team) }] : [],
+      // A tumbling value is dim and slightly blurred; a locked one snaps to full
+      // contrast, so the eye reads the settle without needing the label.
+      teamReelStyle: "font-family:var(--font-heading);font-size:76px;line-height:1;letter-spacing:-.04em;transition:color .12s ease,filter .12s ease;color:"
+        + (S.reeling ? "#8a8fa6" : "#d2cefd")
+        + ";filter:blur(" + (S.reeling ? "1.1px" : "0") + ")"
+        + ";text-shadow:0 0 46px " + (S.reeling ? "transparent" : accent + "8c"),
+      eraReelStyle: "font-family:var(--font-heading);font-size:52px;line-height:1.4;letter-spacing:-.03em;transition:color .12s ease,filter .12s ease;color:"
+        + (S.reeling && !S.reelEraLocked ? "#8a8fa6" : "#e9e9ed")
+        + ";filter:blur(" + (S.reeling && !S.reelEraLocked ? "1.1px" : "0") + ")"
+        + ";text-shadow:0 0 34px " + (S.reeling && !S.reelEraLocked ? "transparent" : accent + "5c"),
+      spinNote: S.reeling
+        ? (S.reelEraLocked ? "Era locked. Drawing the franchise." : "Drawing a franchise and an era.")
+        : "Every round is a spin. You draft from the franchise and era it lands on, taking each player's best season inside that window.",
+      spinCta: S.reeling ? "Spinning…" : "Spin round " + (S.round + 1),
+      spin: () => self.spin(),
+      reSpin: () => self.spin(),
+
+      candidates: cands,
+      candidateNote: cands.length
+        ? cands.filter(c => !c.wildcard).length + " from this franchise · " + cands.filter(c => c.wildcard).length + " era wildcards"
+        : "",
+
+      lockedTitle: (S.round >= OFFENSE.length ? "Defense" : "Offense") + " is not loaded yet",
+      skipLabel2: "Skip round " + (S.round + 1),
+      lockedBody: "Every position is loaded — all twelve rounds play on real seasons from 2002 to 2025. If a round has nothing left to offer, its slots are already full.",
+      // A locked slot has to be passable, or an unloaded position walls off every
+      // round behind it — including the two FLEX rounds, which are playable.
+      skipSlot: () => {
+        const next = Math.min(S.round + 1, SLOTS.length);
+        self.setState({
+          round: next,
+          spun: null,
+          phase: next >= SLOTS.length ? "done" : (self.playable(next) ? "ready" : "locked")
+        });
+      },
+      skipLabel: "Skip round " + (S.round + 1) + " · leave a slot empty",
+      restart: () => self.setState({ round: 0, roster: [], spun: null, phase: "ready" }),
+
+      leaderboard: board
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
+<script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
+<style>
+  html, body { margin:0; background:#0b0d16; color:#e9e9ed; font-family:var(--font-body); }
+  a { color:#b5abfc; text-decoration:none; }
+  a:hover { color:#d2cefd; }
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-thumb { background:rgba(145,132,217,.34); }
+  @keyframes hx-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  @keyframes hx-sweep { 0% { transform:translateY(-100%); } 100% { transform:translateY(1400%); } }
+  @keyframes hx-spin { to { transform:rotate(360deg); } }
+  @keyframes hx-spin-r { to { transform:rotate(-360deg); } }
+  @keyframes hx-pulse { 0%,100% { opacity:.9; } 50% { opacity:.35; } }
+  @keyframes hx-flicker { 0%,100% { opacity:1; } 92% { opacity:1; } 94% { opacity:.72; } 96% { opacity:1; } }
+</style>
+</helmet>
+
+<div style="position:relative;min-height:100vh;overflow:hidden;background:radial-gradient(1100px 700px at 50% -12%,rgba(66,58,106,.5),transparent 62%),#0b0d16">
+
+  <div style="position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(145,132,217,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(145,132,217,.055) 1px,transparent 1px);background-size:52px 52px;mask-image:radial-gradient(120% 90% at 50% 0%,#000 20%,transparent 78%)"></div>
+  <div style="position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(180deg,rgba(145,132,217,.05) 0 1px,transparent 1px 3px)"></div>
+  <div style="position:fixed;left:0;right:0;height:70px;pointer-events:none;z-index:1;background:linear-gradient(180deg,transparent,rgba(181,171,252,.07),transparent);animation:hx-sweep 9s linear infinite"></div>
+
+  <div style="position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:10px 22px;border-bottom:1px solid rgba(145,132,217,.26);background:rgba(11,13,22,.86);backdrop-filter:blur(12px);overflow-x:auto">
+    <div style="display:flex;align-items:center;gap:10px;flex:0 0 auto">
+      <div style="width:8px;height:17px;background:linear-gradient(180deg,#b5abfc,#5d5294);box-shadow:0 0 16px #9184d9"></div>
+      <span style="font-family:var(--font-heading);letter-spacing:.2em;text-transform:uppercase;font-size:12px;white-space:nowrap">Gridiron<span style="color:#b5abfc"> Legacy</span></span>
+    </div>
+    <div style="display:flex;gap:2px;margin-left:6px;flex:0 0 auto">
+      <a href="Home.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Home</a>
+      <a href="Gridiron Legacy.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Draft</a>
+      <a href="League.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">League</a>
+      <a href="News.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">News</a>
+      <a href="Commissioner.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Commissioner</a>
+    </div>
+    <div style="display:flex;gap:2px;margin-left:12px;padding-left:12px;border-left:1px solid rgba(145,132,217,.22);flex:0 0 auto">
+      <a href="My Team.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">My Lineup</a>
+      <a href="Matchup.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Matchup</a>
+      <a href="Player News.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Player News</a>
+      <span style="background:rgba(145,132,217,.2);border:1px solid rgba(181,171,252,.5);color:#e9e9ed;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto">Trades</span>
+    </div>
+    <div style="margin-left:auto;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#75798c;white-space:nowrap;flex:0 0 auto">{{ weekLabel }}</div>
+  </div>
+
+  <div style="position:relative;z-index:2;padding:22px 26px 0">
+    <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:22px;height:1px;background:linear-gradient(90deg,transparent,#b5abfc)"></span>
+          <span style="font-size:9px;letter-spacing:.34em;color:#b5abfc">NEGOTIATION CONSOLE</span>
+        </div>
+        <div style="font-family:var(--font-heading);font-size:42px;line-height:1.04;letter-spacing:-.035em;margin:9px 0 0;text-shadow:0 0 34px rgba(181,171,252,.45);animation:hx-flicker 7s infinite">Trade Desk</div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:2px;padding:3px;border:1px solid rgba(145,132,217,.3);background:rgba(16,19,32,.7)">
+        <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+          <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#9397ab;max-width:84ch;line-height:1.6;margin-top:11px;text-wrap:pretty">{{ intro }}</div>
+  </div>
+
+  <sc-if value="{{ onDesk }}" hint-placeholder-val="{{ true }}">
+  <div style="position:relative;z-index:2">
+    <div style="display:flex;gap:5px;padding:18px 26px 0;flex-wrap:wrap;align-items:center">
+      <span style="font-size:9px;letter-spacing:.22em;color:#75798c;margin-right:5px">PARTNER</span>
+      <sc-for list="{{ partners }}" as="t" hint-placeholder-count="11">
+        <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.abbr }}</button>
+      </sc-for>
+    </div>
+
+    <div style="padding:16px 26px 44px;display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,420px) minmax(0,1fr);gap:16px;align-items:start">
+
+      <div style="{{ myPanelStyle }}">
+        <div style="{{ cornerTL }}"></div><div style="{{ cornerTR }}"></div><div style="{{ cornerBL }}"></div><div style="{{ cornerBR }}"></div>
+        <div style="padding:13px 16px;border-bottom:1px solid rgba(145,132,217,.24);background:linear-gradient(180deg,rgba(40,44,74,.5),transparent)">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="width:5px;height:5px;background:#b5abfc;box-shadow:0 0 8px #b5abfc;animation:hx-pulse 2s infinite"></span>
+            <span style="font-size:9px;letter-spacing:.24em;color:#b5abfc">OUTBOUND</span>
+          </div>
+          <div style="font-family:var(--font-heading);font-size:17px;margin-top:6px">{{ myName }}</div>
+          <div style="font-size:10px;color:#75798c;margin-top:3px;letter-spacing:.06em">{{ myNote }}</div>
+        </div>
+        <div style="display:flex;gap:3px;padding:9px 12px;border-bottom:1px solid rgba(145,132,217,.16);overflow-x:auto">
+          <sc-for list="{{ myFilters }}" as="f" hint-placeholder-count="6">
+            <button onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</button>
+          </sc-for>
+        </div>
+        <div style="max-height:56vh;overflow-y:auto">
+          <sc-for list="{{ myAssets }}" as="a" hint-placeholder-count="12">
+            <button onClick="{{ a.onClick }}" style="{{ a.style }}">
+              <span style="{{ a.markStyle }}"></span>
+              <span style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+                <span style="{{ a.posStyle }}">{{ a.pos }}</span>
+                <span style="font-size:13px;line-height:1.35;flex:1 1 auto;min-width:0">{{ a.name }}</span>
+                <span style="{{ a.starterStyle }}">{{ a.starter }}</span>
+                <span style="{{ a.listedStyle }}">{{ a.listed }}</span>
+                <span style="{{ a.valueStyle }}">{{ a.value }}</span>
+              </span>
+              <span style="display:block;font-size:10px;color:#75798c;margin-top:3px;letter-spacing:.03em">{{ a.meta }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <div style="{{ consoleStyle }}">
+          <div style="{{ cornerTL }}"></div><div style="{{ cornerTR }}"></div><div style="{{ cornerBL }}"></div><div style="{{ cornerBR }}"></div>
+
+          <div style="position:relative;height:196px;display:flex;align-items:center;justify-content:center;overflow:hidden">
+            <div style="position:absolute;width:196px;height:196px;border:1px solid rgba(145,132,217,.22);border-radius:50%;animation:hx-spin 34s linear infinite"></div>
+            <div style="position:absolute;width:158px;height:158px;border:1px dashed rgba(145,132,217,.28);border-radius:50%;animation:hx-spin-r 22s linear infinite"></div>
+            <div style="{{ tiltStyle }}"></div>
+            <div style="position:relative;text-align:center">
+              <div style="{{ balanceStyle }}">{{ balanceValue }}</div>
+              <div style="font-size:9px;letter-spacing:.26em;color:#75798c;margin-top:6px">{{ balanceLabel }}</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center;padding:0 18px 16px">
+            <div>
+              <div style="font-family:var(--font-heading);font-size:25px;line-height:1;color:#d2cefd">{{ myTotal }}</div>
+              <div style="font-size:9px;letter-spacing:.16em;color:#75798c;margin-top:4px">YOU GIVE</div>
+            </div>
+            <div style="font-size:11px;color:#595d6c">⇄</div>
+            <div style="text-align:right">
+              <div style="font-family:var(--font-heading);font-size:25px;line-height:1;color:#e0b573">{{ theirTotal }}</div>
+              <div style="font-size:9px;letter-spacing:.16em;color:#75798c;margin-top:4px">YOU GET</div>
+            </div>
+          </div>
+
+          <div style="padding:14px 18px;border-top:1px solid rgba(145,132,217,.22);background:rgba(16,19,32,.5)">
+            <div style="font-size:9px;letter-spacing:.22em;color:#75798c;margin-bottom:10px">PROJECTED LINEUP SHIFT</div>
+            <sc-for list="{{ impact }}" as="i" hint-placeholder-count="2">
+              <div style="display:flex;align-items:center;gap:10px;padding:5px 0">
+                <span style="{{ i.whoStyle }}">{{ i.who }}</span>
+                <span style="font-size:12px;color:#9397ab;font-variant-numeric:tabular-nums">{{ i.before }}</span>
+                <span style="font-size:10px;color:#4d5060">→</span>
+                <span style="font-size:12px;color:#e9e9ed;font-variant-numeric:tabular-nums">{{ i.after }}</span>
+                <span style="{{ i.deltaStyle }}">{{ i.delta }}</span>
+              </div>
+            </sc-for>
+            <div style="font-size:11px;color:#75798c;line-height:1.5;margin-top:9px;text-wrap:pretty">{{ impactNote }}</div>
+          </div>
+        </div>
+
+        <div style="{{ threadPanelStyle }}">
+          <div style="{{ cornerTL }}"></div><div style="{{ cornerTR }}"></div><div style="{{ cornerBL }}"></div><div style="{{ cornerBR }}"></div>
+          <div style="padding:14px 18px">
+            <div style="display:flex;align-items:baseline;gap:9px;flex-wrap:wrap">
+              <span style="font-size:9px;letter-spacing:.22em;color:#75798c">CHANNEL</span>
+              <span style="{{ statusStyle }}">{{ statusLabel }}</span>
+              <span style="font-size:9px;letter-spacing:.14em;color:#595d6c;margin-left:auto">{{ roundLabel }}</span>
+            </div>
+            <div style="font-size:11px;color:#9397ab;line-height:1.55;margin-top:9px;text-wrap:pretty">{{ statusBody }}</div>
+
+            <div style="display:flex;gap:9px;margin-top:14px">
+              <sc-for list="{{ acceptChips }}" as="c" hint-placeholder-count="2">
+                <div style="{{ c.style }}">
+                  <span style="{{ c.dotStyle }}"></span>
+                  <span>{{ c.label }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:12px;margin-top:15px;max-height:32vh;overflow-y:auto">
+              <sc-for list="{{ thread }}" as="t" hint-placeholder-count="0">
+                <div style="{{ t.whoStyle }}">{{ t.who }}</div>
+                <div style="{{ t.bodyStyle }}">
+                  <div style="font-size:12px;color:#e9e9ed;line-height:1.5;text-wrap:pretty">{{ t.text }}</div>
+                  <div style="font-size:10px;color:#75798c;margin-top:4px;line-height:1.45">{{ t.terms }}</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+              <sc-for list="{{ actions }}" as="a" hint-placeholder-count="1">
+                <button onClick="{{ a.onClick }}" style="{{ a.style }}">{{ a.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="border:1px solid rgba(145,132,217,.18);background:rgba(16,19,32,.5);padding:13px 17px">
+          <div style="font-size:9px;letter-spacing:.22em;color:#75798c">2027 DRAFT PICKS</div>
+          <div style="font-size:11px;color:#9397ab;line-height:1.55;margin-top:7px;text-wrap:pretty">{{ pickNote }}</div>
+        </div>
+      </div>
+
+      <div style="{{ theirPanelStyle }}">
+        <div style="{{ cornerTLg }}"></div><div style="{{ cornerTRg }}"></div><div style="{{ cornerBLg }}"></div><div style="{{ cornerBRg }}"></div>
+        <div style="padding:13px 16px;border-bottom:1px solid rgba(145,132,217,.24);background:linear-gradient(180deg,rgba(58,46,30,.4),transparent)">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="width:5px;height:5px;background:#e0b573;box-shadow:0 0 8px #e0b573;animation:hx-pulse 2s infinite"></span>
+            <span style="font-size:9px;letter-spacing:.24em;color:#e0b573">INBOUND</span>
+          </div>
+          <div style="font-family:var(--font-heading);font-size:17px;margin-top:6px">{{ theirName }}</div>
+          <div style="font-size:10px;color:#75798c;margin-top:3px;letter-spacing:.06em">{{ theirNote }}</div>
+        </div>
+        <div style="display:flex;gap:3px;padding:9px 12px;border-bottom:1px solid rgba(145,132,217,.16);overflow-x:auto">
+          <sc-for list="{{ theirFilters }}" as="f" hint-placeholder-count="6">
+            <button onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</button>
+          </sc-for>
+        </div>
+        <div style="max-height:56vh;overflow-y:auto">
+          <sc-for list="{{ theirAssets }}" as="a" hint-placeholder-count="12">
+            <button onClick="{{ a.onClick }}" style="{{ a.style }}">
+              <span style="{{ a.markStyle }}"></span>
+              <span style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+                <span style="{{ a.posStyle }}">{{ a.pos }}</span>
+                <span style="font-size:13px;line-height:1.35;flex:1 1 auto;min-width:0">{{ a.name }}</span>
+                <span style="{{ a.starterStyle }}">{{ a.starter }}</span>
+                <span style="{{ a.listedStyle }}">{{ a.listed }}</span>
+                <span style="{{ a.valueStyle }}">{{ a.value }}</span>
+              </span>
+              <span style="display:block;font-size:10px;color:#75798c;margin-top:3px;letter-spacing:.03em">{{ a.meta }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ onBlock }}" hint-placeholder-val="{{ false }}">
+    <div style="position:relative;z-index:2;padding:20px 26px 44px">
+      <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+        <div style="font-size:12px;color:#9397ab;line-height:1.6;max-width:64ch;text-wrap:pretty">{{ blockIntro }}</div>
+        <div style="margin-left:auto;display:flex;gap:4px;flex-wrap:wrap">
+          <sc-for list="{{ blockFilters }}" as="f" hint-placeholder-count="6">
+            <button onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="position:relative;border:1px solid rgba(145,132,217,.26);background:rgba(16,19,32,.6)">
+        <div style="{{ cornerTL }}"></div><div style="{{ cornerTR }}"></div><div style="{{ cornerBL }}"></div><div style="{{ cornerBR }}"></div>
+        <div style="display:grid;grid-template-columns:56px minmax(0,1.4fr) minmax(0,1fr) 90px 90px 130px;gap:12px;padding:11px 18px;border-bottom:1px solid rgba(145,132,217,.24);font-size:9px;letter-spacing:.16em;color:#75798c">
+          <span>POS</span><span>PLAYER</span><span>FANTASY TEAM</span><span style="text-align:right">VALUE</span><span style="text-align:right">PTS/G</span><span></span>
+        </div>
+        <sc-for list="{{ blockRows }}" as="r" hint-placeholder-count="0">
+          <div style="{{ r.rowStyle }}">
+            <span style="{{ r.posStyle }}">{{ r.pos }}</span>
+            <span style="min-width:0">
+              <span style="display:block;font-size:13px;line-height:1.35">{{ r.name }}</span>
+              <span style="display:block;font-size:10px;color:#75798c;margin-top:3px">{{ r.meta }}</span>
+            </span>
+            <span style="min-width:0">
+              <span style="display:block;font-size:12px;color:#b2b6ca;line-height:1.35">{{ r.owner }}</span>
+              <span style="{{ r.mineStyle }}">{{ r.mineLabel }}</span>
+            </span>
+            <span style="font-family:var(--font-heading);font-size:14px;text-align:right;font-variant-numeric:tabular-nums;color:#d2cefd">{{ r.value }}</span>
+            <span style="font-size:12px;text-align:right;font-variant-numeric:tabular-nums;color:#9397ab">{{ r.ppg }}</span>
+            <span style="display:flex;justify-content:flex-end">
+              <button onClick="{{ r.onAction }}" style="{{ r.actionStyle }}">{{ r.actionLabel }}</button>
+            </span>
+          </div>
+        </sc-for>
+        <sc-for list="{{ blockEmpty }}" as="e" hint-placeholder-count="1">
+          <div style="padding:38px 20px;text-align:center;font-size:12px;color:#75798c;line-height:1.6;text-wrap:pretty">{{ e.text }}</div>
+        </sc-for>
+      </div>
+
+      <div style="margin-top:22px;border:1px solid rgba(145,132,217,.2);background:rgba(16,19,32,.5);position:relative">
+        <div style="{{ cornerTL }}"></div><div style="{{ cornerBR }}"></div>
+        <div style="padding:13px 18px;border-bottom:1px solid rgba(145,132,217,.18)">
+          <div style="font-size:9px;letter-spacing:.22em;color:#75798c">PUT SOMEONE UP</div>
+          <div style="font-size:11px;color:#9397ab;line-height:1.55;margin-top:6px;text-wrap:pretty">Your own roster. Anyone you list here is visible to all eleven other managers, and you can also do this from My Lineup.</div>
+        </div>
+        <div style="max-height:40vh;overflow-y:auto">
+          <sc-for list="{{ myBlockRows }}" as="r" hint-placeholder-count="8">
+            <div style="{{ r.rowStyle }}">
+              <span style="{{ r.posStyle }}">{{ r.pos }}</span>
+              <span style="font-size:13px;line-height:1.35;flex:1 1 auto;min-width:0">{{ r.name }}</span>
+              <span style="font-size:11px;color:#75798c;flex:0 0 auto;font-variant-numeric:tabular-nums">{{ r.value }}</span>
+              <button onClick="{{ r.onToggle }}" style="{{ r.toggleStyle }}">{{ r.toggleLabel }}</button>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ onLog }}" hint-placeholder-val="{{ false }}">
+    <div style="position:relative;z-index:2;padding:20px 26px 44px">
+      <div style="font-size:12px;color:#9397ab;line-height:1.6;max-width:80ch;margin-bottom:18px;text-wrap:pretty">{{ logIntro }}</div>
+      <div style="border:1px solid rgba(145,132,217,.24);background:rgba(16,19,32,.6);position:relative">
+        <div style="{{ cornerTL }}"></div><div style="{{ cornerTR }}"></div><div style="{{ cornerBL }}"></div><div style="{{ cornerBR }}"></div>
+        <sc-for list="{{ logRows }}" as="l" hint-placeholder-count="0">
+          <div style="{{ l.rowStyle }}">
+            <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+              <span style="font-family:var(--font-heading);font-size:11px;letter-spacing:.14em;color:#b5abfc">{{ l.pair }}</span>
+              <span style="font-size:9px;letter-spacing:.16em;color:#595d6c;margin-left:auto">{{ l.when }}</span>
+            </div>
+            <div style="font-size:12px;color:#b2b6ca;line-height:1.55;margin-top:6px;text-wrap:pretty">{{ l.terms }}</div>
+          </div>
+        </sc-for>
+        <sc-for list="{{ logEmpty }}" as="e" hint-placeholder-count="1">
+          <div style="padding:38px 20px;text-align:center;font-size:12px;color:#75798c;line-height:1.6">{{ e.text }}</div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1600,&quot;height&quot;:1080},&quot;week&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:1,&quot;min&quot;:1,&quot;max&quot;:17,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;tradePicksWeek&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:8,&quot;min&quot;:1,&quot;max&quot;:17,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;League state&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#e0b573&quot;,&quot;options&quot;:[&quot;#b5abfc&quot;,&quot;#7ad9d0&quot;,&quot;#e0b573&quot;,&quot;#d98ab5&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Look&quot;}}">
+// The trade desk. Both sides must accept the same terms before anything moves —
+// a counter replaces what is on the table and clears both acceptances, which is
+// the difference from a one-sided send-and-approve.
+const YEAR = 2026;
+const HISTORY = "gl.trades";
+
+class Component extends DCLogic {
+  state = {
+    data: null, sim: null, art: 0, tab: "desk",
+    partner: null,
+    mine: [], theirs: [],
+    myFilter: "ALL", theirFilter: "ALL",
+    thread: [], status: "building", round: 0,
+    iAccept: false, theyAccept: false,
+    finalGive: 0, finalGet: 0,
+    log: [], block: {}, blockFilter: "ALL"
+  };
+
+  componentDidMount() {
+    Promise.all([import("./league-data.js"), import("./league-sim.js"), import("./league-settings.js")])
+      .then(([m, sim, set]) => {
+        this.set = set;
+        // The lineup shape is the commissioner's, so register it before the
+        // draft replay reads it.
+        sim.useSettings(set.readSettings());
+        const rosters = sim.buildLeague(m);
+        const me = m.TEAMS.indexOf(m.myTeam());
+        const first = m.TEAMS.findIndex((t, i) => i !== me);
+        let log = [];
+        try { log = JSON.parse(localStorage.getItem(HISTORY)) || []; } catch (e) {}
+        this.setState({ data: m, sim: sim, rosters: rosters, me: me, partner: first, log: log, block: set.readBlock() });
+        m.loadArt(() => this.setState({ art: this.state.art + 1 }));
+      })
+      .catch(e => console.warn("[trades] data unavailable", e));
+  }
+
+  accent() { return this.props.accent ?? "#b5abfc"; }
+
+  // Listing a player is a league-wide act: every manager sees the same block.
+  toggleBlock(name, team) {
+    if (!this.set) return;
+    this.setState({ block: this.set.toggleBlock(name, team) });
+  }
+
+  // Where a 2027 pick is projected to land. The order is inverse finishing
+  // position — the weakest roster picks first — and the season has not been
+  // played, so the projection stands on each team's best legal lineup today.
+  // It moves as rosters change, which is exactly what a projection should do.
+  projectedOrder() {
+    const { data: m, sim } = this.state;
+    if (this._orderAt === this.state.rosters) return this._order;
+    const ranked = this.state.rosters
+      .map((r, i) => ({ i: i, pts: sim.lineupPoints(m, r) }))
+      .sort((a, b) => a.pts - b.pts);      // weakest first
+    const order = {};
+    ranked.forEach((x, slot) => { order[m.TEAMS[x.i]] = slot + 1; });
+    this._order = order;
+    this._orderAt = this.state.rosters;
+    return order;
+  }
+
+  // Snake: odd rounds run in order, even rounds reverse.
+  projectedSlot(team, round) {
+    const n = this.state.data.TEAMS.length;
+    const seed = this.projectedOrder()[team];
+    if (!seed) return null;
+    const slot = round % 2 === 1 ? seed : n - seed + 1;
+    return { seed: seed, slot: slot, label: round + "." + String(slot).padStart(2, "0") };
+  }
+
+  // Which fantasy roster a player sits on, by name.
+  ownerOf(name) {
+    const R = this.state.rosters;
+    if (!R) return -1;
+    for (let i = 0; i < R.length; i++) if (R[i].some(x => x.p.n === name)) return i;
+    return -1;
+  }
+  week() { return this.props.week ?? 1; }
+  picksOpen() { return this.week() >= (this.props.tradePicksWeek ?? 8); }
+
+  // Every asset a team can put up: its players, plus its future picks once the
+  // pick window has opened.
+  assetsOf(team, roster) {
+    const { data: m, sim } = this.state;
+    const starters = {};
+    sim.startersOf(m, roster).forEach(r => { if (r.x) starters[r.x.p.n] = r.slot; });
+    const out = roster.map(x => ({
+      id: "p:" + x.p.n, kind: "player", p: x.p, pos: x.p.p,
+      name: x.p.n, team: team,
+      starter: starters[x.p.n] || "",
+      value: sim.dynastyValue(m, x.p),
+      meta: x.p.t + " · age " + (m.ageOf(x.p) || "—") + " · " + sim.proj(m, x.p).toFixed(1) + " pts/g · " + (x.p.arch || "")
+    })).sort((a, b) => b.value - a.value);
+    if (this.picksOpen()) {
+      sim.pickAssets(team, YEAR + 1).forEach(k => {
+        const proj = this.projectedSlot(team, k.round);
+        out.push({
+          id: "k:" + k.id, kind: "pick", pick: k, pos: "PICK",
+          name: k.year + " " + ordinal(k.round), team: team,
+          // The projected landing spot rides in the starter badge, which is the
+          // one slot on the row already reserved for a short status mark.
+          starter: proj ? "PROJ " + proj.label : "",
+          value: sim.pickValue(k, YEAR),
+          meta: proj
+            ? k.year + " round " + k.round + " · projected " + ordinal(proj.slot) + " of " + this.state.data.TEAMS.length
+              + " · inverse finish, snake"
+            : k.year + " draft pick · round " + k.round
+        });
+      });
+    }
+    return out;
+  }
+
+  total(ids, assets) {
+    return ids.reduce((s, id) => {
+      const a = assets.find(x => x.id === id);
+      return s + (a ? a.value : 0);
+    }, 0);
+  }
+
+  toggle(side, id) {
+    if (this.state.status === "done") return;
+    const cur = this.state[side];
+    const next = cur.indexOf(id) > -1 ? cur.filter(x => x !== id) : cur.concat([id]);
+    // Changing the terms voids every acceptance, on both sides.
+    this.setState({ [side]: next, iAccept: false, theyAccept: false, status: "building" });
+  }
+
+  termsText(mine, theirs, myAssets, theirAssets) {
+    const names = (ids, assets) => ids.map(id => {
+      const a = assets.find(x => x.id === id);
+      return a ? a.name : id;
+    }).join(", ") || "nothing";
+    return "Out: " + names(mine, myAssets) + "  ·  In: " + names(theirs, theirAssets);
+  }
+
+  // What the roster loses and gains, measured as the best legal lineup before
+  // and after — the only honest way to say whether a trade helps this week.
+  simulate(sideIndex, out, incoming) {
+    const { data: m, sim } = this.state;
+    const roster = this.state.rosters[sideIndex];
+    const before = sim.lineupPoints(m, roster);
+    const gone = {};
+    out.forEach(a => { if (a.kind === "player") gone[a.p.n] = 1; });
+    const after = sim.lineupPoints(m, roster
+      .filter(x => !gone[x.p.n])
+      .concat(incoming.filter(a => a.kind === "player").map(a => ({ p: a.p, ov: 0, r: 0 }))));
+    return { before: before, after: after };
+  }
+
+  send() {
+    const view = this.view();
+    if (!view) return;
+    const { myAssets, theirAssets, partnerAbbr } = view;
+    const S = this.state;
+    if (!S.mine.length && !S.theirs.length) return;
+    const gain = this.total(S.mine, myAssets) - this.total(S.theirs, theirAssets);
+    const round = S.round + 1;
+    const thread = S.thread.concat([{
+      who: "you", text: round === 1 ? "Offer sent." : "Revised offer sent.",
+      terms: this.termsText(S.mine, S.theirs, myAssets, theirAssets)
+    }]);
+
+    // The partner reads the deal from its own side. Its patience runs out: by
+    // the third round it either takes the deal or walks.
+    if (gain >= 1.2) {
+      thread.push({ who: partnerAbbr, text: "We'll take that. Confirm on your end and it's done.", terms: "" });
+      this.setState({ thread: thread, status: "agreed", theyAccept: true, iAccept: false, round: round });
+      return;
+    }
+    if (gain > -7 && round < 3) {
+      const want = myAssets
+        .filter(a => S.mine.indexOf(a.id) === -1)
+        .filter(a => a.value <= Math.abs(gain) + 9 && a.value >= 1)
+        .sort((a, b) => Math.abs(a.value - (Math.abs(gain) + 2)) - Math.abs(b.value - (Math.abs(gain) + 2)))[0];
+      if (want) {
+        thread.push({
+          who: partnerAbbr,
+          text: round === 1
+            ? "Not far off. Add " + want.name + " and we have a deal."
+            : "Closer. " + want.name + " gets it over the line — that's our last word.",
+          terms: "Counter: + " + want.name + " (" + want.value.toFixed(1) + ")"
+        });
+        this.setState({
+          thread: thread, status: "countered", round: round,
+          mine: S.mine.concat([want.id]),
+          iAccept: false, theyAccept: true
+        });
+        return;
+      }
+    }
+    thread.push({
+      who: partnerAbbr,
+      text: round >= 3
+        ? "We've gone as far as we're going. Not for us."
+        : "That doesn't work for us — we'd be giving up " + Math.abs(gain).toFixed(1) + " in value.",
+      terms: ""
+    });
+    this.setState({ thread: thread, status: "declined", theyAccept: false, iAccept: false, round: round });
+  }
+
+  accept() {
+    const view = this.view();
+    if (!view) return;
+    const S = this.state;
+    const thread = S.thread.concat([{
+      who: "you", text: "Accepted. Both sides are on the same terms — trade is final.",
+      terms: this.termsText(S.mine, S.theirs, view.myAssets, view.theirAssets)
+    }]);
+    const rosters = S.rosters.map(r => r.slice());
+    const me = S.me, them = S.partner;
+    S.mine.forEach(id => {
+      if (id.indexOf("p:") !== 0) return;
+      const n = id.slice(2);
+      const i = rosters[me].findIndex(x => x.p.n === n);
+      if (i > -1) { rosters[them].push(rosters[me][i]); rosters[me].splice(i, 1); }
+    });
+    S.theirs.forEach(id => {
+      if (id.indexOf("p:") !== 0) return;
+      const n = id.slice(2);
+      const i = rosters[them].findIndex(x => x.p.n === n);
+      if (i > -1) { rosters[me].push(rosters[them][i]); rosters[them].splice(i, 1); }
+    });
+
+    const m = S.data;
+    const entry = {
+      pair: m.TEAMS[me] + " ⇄ " + m.TEAMS[them],
+      terms: this.termsText(S.mine, S.theirs, view.myAssets, view.theirAssets),
+      when: new Date().toISOString()
+    };
+    const log = [entry].concat(S.log).slice(0, 20);
+    try { localStorage.setItem(HISTORY, JSON.stringify(log)); } catch (e) {}
+
+    this.setState({
+      thread: thread, status: "done", iAccept: true, rosters: rosters, log: log,
+      finalGive: this.total(S.mine, view.myAssets),
+      finalGet: this.total(S.theirs, view.theirAssets)
+    });
+  }
+
+  reset(keepPartner) {
+    this.setState({
+      mine: [], theirs: [], thread: [], status: "building", round: 0,
+      iAccept: false, theyAccept: false, myFilter: "ALL", theirFilter: "ALL",
+      partner: keepPartner == null ? this.state.partner : keepPartner
+    });
+  }
+
+  view() {
+    const S = this.state;
+    if (!S.data || S.partner == null) return null;
+    const m = S.data;
+    return {
+      myAssets: this.assetsOf(m.TEAMS[S.me], S.rosters[S.me]),
+      theirAssets: this.assetsOf(m.TEAMS[S.partner], S.rosters[S.partner]),
+      partnerAbbr: m.TEAMS[S.partner]
+    };
+  }
+
+  renderVals() {
+    const S = this.state, self = this, m = S.data;
+    const A = self.accent();
+
+    // Corner brackets: the panel's edge is drawn at its corners rather than all
+    // the way round, which is what makes a surface read as projected.
+    const corner = (v, h, tint) => "position:absolute;" + v + ":-1px;" + h + ":-1px;width:14px;height:14px;pointer-events:none;border-"
+      + (v === "top" ? "top" : "bottom") + ":1px solid " + tint + ";border-"
+      + (h === "left" ? "left" : "right") + ":1px solid " + tint;
+    const brackets = {
+      cornerTL: corner("top", "left", A), cornerTR: corner("top", "right", A),
+      cornerBL: corner("bottom", "left", A), cornerBR: corner("bottom", "right", A),
+      cornerTLg: corner("top", "left", "#e0b573"), cornerTRg: corner("top", "right", "#e0b573"),
+      cornerBLg: corner("bottom", "left", "#e0b573"), cornerBRg: corner("bottom", "right", "#e0b573")
+    };
+
+    const btn = (on, tint) => "cursor:pointer;font:inherit;font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:7px 12px;border:1px solid "
+      + (on ? (tint || A) + "99" : "rgba(145,132,217,.24)")
+      + ";background:" + (on ? (tint || A) + "2e" : "transparent")
+      + ";color:" + (on ? "#e9e9ed" : "#8f94a8")
+      + (on ? ";box-shadow:0 0 14px " + (tint || A) + "44" : "");
+
+    const empty = Object.assign({}, brackets, {
+      weekLabel: "", intro: "Reading the league's rosters.", tabs: [], partners: [],
+      onDesk: true, onBlock: false, onLog: false,
+      myAssets: [], theirAssets: [], myFilters: [], theirFilters: [],
+      myName: "", theirName: "", myNote: "", theirNote: "",
+      myTotal: "0.0", theirTotal: "0.0", balanceValue: "—", balanceLabel: "", balanceStyle: "font-family:var(--font-heading);font-size:34px",
+      tiltStyle: "display:none", impact: [], impactNote: "",
+      statusLabel: "", statusStyle: "display:none", statusBody: "", roundLabel: "",
+      acceptChips: [], thread: [], actions: [], pickNote: "",
+      myPanelStyle: "display:none", theirPanelStyle: "display:none", consoleStyle: "display:none", threadPanelStyle: "display:none",
+      blockIntro: "", blockRows: [], blockEmpty: [], blockFilters: [], myBlockRows: [], logIntro: "", logRows: [], logEmpty: []
+    });
+    if (!m) return empty;
+
+    const v = this.view();
+    const myAssets = v.myAssets, theirAssets = v.theirAssets;
+    const give = S.status === "done" ? S.finalGive : this.total(S.mine, myAssets);
+    const get = S.status === "done" ? S.finalGet : this.total(S.theirs, theirAssets);
+    const diff = get - give;
+    const anything = S.mine.length || S.theirs.length;
+
+    const panel = tint => "position:relative;border:1px solid " + tint + "3d;background:linear-gradient(180deg,rgba(22,25,42,.82),rgba(14,16,28,.9));box-shadow:0 0 40px " + tint + "1f,inset 0 0 60px rgba(0,0,0,.35);overflow:hidden";
+
+    const assetRow = (a, side, tint) => {
+      const on = S[side].indexOf(a.id) > -1;
+      return {
+        name: a.name, pos: a.pos, meta: a.meta,
+        starter: a.starter || "",
+        value: a.value.toFixed(1),
+        onClick: () => self.toggle(side, a.id),
+        // A name is never abbreviated: the row grows to hold it.
+        posStyle: "font-family:var(--font-heading);font-size:10px;letter-spacing:.1em;flex:0 0 auto;width:30px;padding-top:1px;color:"
+          + (a.kind === "pick" ? "#e0b573" : on ? tint : "#75798c"),
+        starterStyle: a.starter
+          ? "font-size:8px;letter-spacing:.12em;padding:1px 5px;flex:0 0 auto;border:1px solid "
+            + (a.kind === "pick" ? "rgba(224,181,115,.5);color:#e0b573" : "rgba(145,132,217,.35);color:#9397ab")
+          : "display:none",
+        listed: S.block[a.name] ? "ON BLOCK" : "",
+        listedStyle: S.block[a.name]
+          ? "font-size:8px;letter-spacing:.12em;padding:1px 5px;border:1px solid rgba(127,209,168,.45);color:#7fd1a8;flex:0 0 auto"
+          : "display:none",
+        valueStyle: "font-size:11px;flex:0 0 auto;font-variant-numeric:tabular-nums;color:" + (on ? tint : "#75798c"),
+        // a selected row lights a bar down its leading edge rather than filling
+        markStyle: "position:absolute;left:0;top:0;bottom:0;width:2px;background:" + (on ? tint : "transparent")
+          + (on ? ";box-shadow:0 0 10px " + tint : ""),
+        style: "position:relative;text-align:left;width:100%;display:block;font:inherit;color:inherit;padding:10px 16px;border:0;border-top:1px solid rgba(145,132,217,.11);cursor:pointer;background:"
+          + (on ? tint + "24" : "transparent")
+      };
+    };
+
+    const posOf = list => {
+      const seen = {};
+      list.forEach(a => { seen[a.pos] = 1; });
+      return ["ALL"].concat(["QB", "RB", "WR", "TE", "K", "D/ST", "PICK"].filter(p => seen[p]));
+    };
+    const filterList = (list, key) => list.filter(a => S[key] === "ALL" || a.pos === S[key]);
+
+    // What each side's starting lineup becomes if this goes through.
+    const pick = (ids, assets) => ids.map(id => assets.find(x => x.id === id)).filter(Boolean);
+    const myOut = pick(S.mine, myAssets), theirOut = pick(S.theirs, theirAssets);
+    const mySim = anything ? this.simulate(S.me, myOut, theirOut) : null;
+    const theirSim = anything ? this.simulate(S.partner, theirOut, myOut) : null;
+    const impactRow = (who, sim, tint) => {
+      const d = sim.after - sim.before;
+      return {
+        who: who,
+        whoStyle: "font-family:var(--font-heading);font-size:10px;letter-spacing:.14em;width:52px;flex:0 0 auto;color:" + tint,
+        before: sim.before.toFixed(1),
+        after: sim.after.toFixed(1),
+        delta: (d > 0 ? "+" : "") + d.toFixed(1),
+        deltaStyle: "font-family:var(--font-heading);font-size:12px;margin-left:auto;flex:0 0 auto;color:"
+          + (Math.abs(d) < 0.3 ? "#595d6c" : d > 0 ? "#7fd1a8" : "#d98b8b")
+      };
+    };
+
+    const fair = Math.abs(diff) < 1.2;
+    const statusCopy = {
+      building: "Tap either side to build an offer. Nothing is sent until you send it, and changing the terms clears both acceptances.",
+      countered: v.partnerAbbr + " countered. Their terms are on the table now — accept them, adjust and send again, or walk.",
+      agreed: v.partnerAbbr + " has accepted. It needs your acceptance on the same terms before anything moves.",
+      done: "Both sides accepted. The players have changed rosters and the trade is in the log.",
+      declined: v.partnerAbbr + " walked away. Rebuild the offer and send again, or try another partner."
+    };
+    const statusName = { building: "OPEN", countered: "COUNTERED", agreed: "AWAITING YOU", done: "EXECUTED", declined: "CLOSED" };
+    const statusTone = { building: "#75798c", countered: "#e0b573", agreed: A, done: "#7fd1a8", declined: "#d98b8b" };
+
+    const actions = [];
+    if (S.status === "done") {
+      actions.push({ label: "New offer", style: btn(true), onClick: () => self.reset() });
+    } else if (S.status === "agreed" || S.status === "countered") {
+      actions.push({ label: "Accept — execute", style: btn(true, "#7fd1a8"), onClick: () => self.accept() });
+      actions.push({ label: "Send revised", style: btn(false), onClick: () => self.send() });
+      actions.push({ label: "Withdraw", style: btn(false), onClick: () => self.reset() });
+    } else if (S.status === "declined") {
+      actions.push({ label: "Start again", style: btn(true), onClick: () => self.reset() });
+    } else {
+      actions.push({ label: "Transmit offer", style: btn(!!anything), onClick: () => self.send() });
+      if (anything) actions.push({ label: "Clear", style: btn(false), onClick: () => self.reset() });
+    }
+
+    const counts = r => r.reduce((s, x) => (s[x.p.p] = (s[x.p.p] || 0) + 1, s), {});
+    const shape = r => ["QB","RB","WR","TE","K","D/ST"].map(p => (counts(r)[p] || 0) + p).join(" · ");
+
+    // The block: what each other team is deepest in, which is what they can
+    // afford to move.
+    const blockCards = m.TEAMS.map((t, i) => {
+      if (i === S.me) return null;
+      const assets = self.assetsOf(t, S.rosters[i]);
+      const byPos = {};
+      assets.forEach(a => { if (a.kind === "player") (byPos[a.pos] = byPos[a.pos] || []).push(a); });
+      const deep = Object.keys(byPos).sort((a, b) => byPos[b].length - byPos[a].length)[0];
+      const thin = ["QB","RB","WR","TE"].sort((a, b) => (byPos[a] || []).length - (byPos[b] || []).length)[0];
+      return {
+        abbr: t,
+        name: m.teamName(t),
+        need: "NEEDS " + thin,
+        needStyle: "font-size:8px;letter-spacing:.14em;margin-left:auto;flex:0 0 auto;padding:2px 6px;border:1px solid rgba(224,181,115,.4);color:#e0b573",
+        players: (byPos[deep] || []).slice(1, 4).map(a => ({ pos: a.pos, name: a.name, value: a.value.toFixed(1) })),
+        onOpen: () => self.setState({ tab: "desk", partner: i, mine: [], theirs: [], thread: [], status: "building", round: 0 }),
+        cardStyle: panel(A)
+      };
+    }).filter(Boolean);
+
+    return Object.assign({}, brackets, {
+      weekLabel: "Week " + this.week() + (this.picksOpen() ? " · picks unlocked" : " · picks locked"),
+      intro: "Values are dynasty values — 2025 points per game weighted by the years a player has left, so a 24-year-old and a 31-year-old at the same rate are not the same asset. Both managers must accept identical terms before anything moves.",
+
+      tabs: [
+        { key: "desk", label: "Desk" },
+        { key: "block", label: "Block" },
+        { key: "log", label: "Log" }
+      ].map(t => ({
+        label: t.label,
+        onClick: () => self.setState({ tab: t.key }),
+        style: "cursor:pointer;font:inherit;font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:7px 14px;border:0;background:"
+          + (S.tab === t.key ? A + "40" : "transparent")
+          + ";color:" + (S.tab === t.key ? "#e9e9ed" : "#75798c")
+      })),
+      onDesk: S.tab === "desk", onBlock: S.tab === "block", onLog: S.tab === "log",
+
+      partners: m.TEAMS.map((t, i) => ({
+        abbr: t, style: btn(i === S.partner), onClick: () => self.reset(i)
+      })).filter((x, i) => i !== S.me),
+
+      myPanelStyle: panel(A),
+      theirPanelStyle: panel("#e0b573"),
+      consoleStyle: panel(A),
+      threadPanelStyle: panel(A),
+
+      myName: m.teamName(m.TEAMS[S.me]),
+      myNote: shape(S.rosters[S.me]),
+      theirName: m.teamName(m.TEAMS[S.partner]),
+      theirNote: shape(S.rosters[S.partner]),
+
+      myFilters: posOf(myAssets).map(p => ({
+        label: p, style: btn(S.myFilter === p), onClick: () => self.setState({ myFilter: p })
+      })),
+      theirFilters: posOf(theirAssets).map(p => ({
+        label: p, style: btn(S.theirFilter === p, "#e0b573"), onClick: () => self.setState({ theirFilter: p })
+      })),
+      myAssets: filterList(myAssets, "myFilter").map(a => assetRow(a, "mine", A)),
+      theirAssets: filterList(theirAssets, "theirFilter").map(a => assetRow(a, "theirs", "#e0b573")),
+
+      myTotal: give.toFixed(1),
+      theirTotal: get.toFixed(1),
+
+      // The reticle: a needle that leans toward whichever side is winning.
+      balanceValue: !anything ? "—" : (diff > 0 ? "+" : "") + diff.toFixed(1),
+      balanceLabel: !anything ? "NOTHING ON THE TABLE" : fair ? "EVEN EXCHANGE" : diff > 0 ? "IN YOUR FAVOUR" : "IN THEIRS",
+      balanceStyle: "font-family:var(--font-heading);font-size:38px;line-height:1;letter-spacing:-.03em;color:"
+        + (!anything ? "#4d5060" : fair ? "#7fd1a8" : diff > 0 ? A : "#e0b573")
+        + (anything ? ";text-shadow:0 0 30px " + (fair ? "rgba(127,209,168,.5)" : diff > 0 ? A + "88" : "rgba(224,181,115,.5)") : ""),
+      tiltStyle: anything
+        ? "position:absolute;width:120px;height:120px;border:1px solid " + (diff > 0 ? A : "#e0b573") + "66;border-radius:50%;transform:rotateX(64deg) rotateZ("
+          + Math.max(-40, Math.min(40, diff * 3)).toFixed(1) + "deg);box-shadow:0 0 28px " + (diff > 0 ? A : "#e0b573") + "3a"
+        : "position:absolute;width:120px;height:120px;border:1px dashed rgba(145,132,217,.2);border-radius:50%;transform:rotateX(64deg)",
+
+      impact: anything ? [impactRow("YOURS", mySim, A), impactRow(m.TEAMS[S.partner], theirSim, "#e0b573")] : [],
+      impactNote: !anything
+        ? "Select players and the console projects what each starting lineup becomes."
+        : "Best legal lineup, before and after, on 2025 per-game rates. Bench depth does not show up here.",
+
+      statusLabel: statusName[S.status],
+      statusStyle: "font-family:var(--font-heading);font-size:10px;letter-spacing:.18em;color:" + statusTone[S.status],
+      statusBody: statusCopy[S.status],
+      roundLabel: S.round ? "EXCHANGE " + S.round + " OF 3" : "NOT YET SENT",
+
+      acceptChips: [
+        { who: "YOU", on: S.iAccept },
+        { who: m.TEAMS[S.partner], on: S.theyAccept }
+      ].map(c => ({
+        label: c.who + (c.on ? " ACCEPTED" : " PENDING"),
+        dotStyle: "width:5px;height:5px;border-radius:50%;flex:0 0 auto;background:" + (c.on ? "#7fd1a8" : "#3d4050")
+          + (c.on ? ";box-shadow:0 0 8px rgba(127,209,168,.8)" : ""),
+        style: "display:flex;align-items:center;gap:7px;font-size:9px;letter-spacing:.14em;padding:5px 10px;border:1px solid "
+          + (c.on ? "rgba(127,209,168,.4)" : "rgba(145,132,217,.2)")
+          + ";color:" + (c.on ? "#7fd1a8" : "#75798c")
+      })),
+
+      thread: S.thread.map(t => ({
+        who: t.who === "you" ? "YOU" : t.who,
+        text: t.text,
+        terms: t.terms,
+        whoStyle: "font-family:var(--font-heading);font-size:9px;letter-spacing:.14em;padding:10px 0 0;color:" + (t.who === "you" ? A : "#e0b573"),
+        bodyStyle: "padding:10px 0 0;min-width:0"
+      })),
+
+      actions: actions,
+
+      pickNote: this.picksOpen()
+        ? "Week " + this.week() + ": 2027 draft picks are on the table, rounds one through four. Order is inverse finishing position, still a snake — so a projected slot is only a projection until the season ends, and it moves every time a roster does."
+        : "2027 draft picks stay locked until week " + (this.props.tradePicksWeek ?? 8) + ". Until then this is a player-for-player market.",
+
+      blockIntro: "Every player in the league whose manager has said they will listen. Open a channel and the desk loads with that manager, the player already on the table.",
+
+      blockFilters: ["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"].map(p => ({
+        label: p, style: btn(S.blockFilter === p), onClick: () => self.setState({ blockFilter: p })
+      })),
+
+      blockRows: Object.keys(S.block)
+        .map(name => {
+          const owner = self.ownerOf(name);
+          if (owner < 0) return null;
+          const entry = S.rosters[owner].find(x => x.p.n === name);
+          return { name: name, owner: owner, p: entry.p };
+        })
+        .filter(Boolean)
+        .filter(r => S.blockFilter === "ALL" || r.p.p === S.blockFilter)
+        .sort((x, y) => S.sim.dynastyValue(m, y.p) - S.sim.dynastyValue(m, x.p))
+        .map((r, i) => {
+          const mine = r.owner === S.me;
+          return {
+            pos: r.p.p,
+            posStyle: "font-family:var(--font-heading);font-size:10px;letter-spacing:.1em;padding-top:2px;color:" + (mine ? A : "#75798c"),
+            name: r.name,
+            meta: r.p.t + " · age " + (m.ageOf(r.p) || "—") + " · " + (r.p.arch || ""),
+            owner: m.teamName(m.TEAMS[r.owner]),
+            mineLabel: mine ? "YOURS" : "",
+            mineStyle: mine
+              ? "display:inline-block;font-size:8px;letter-spacing:.14em;margin-top:4px;padding:1px 5px;border:1px solid " + A + "66;color:" + A
+              : "display:none",
+            value: S.sim.dynastyValue(m, r.p).toFixed(1),
+            ppg: S.sim.proj(m, r.p).toFixed(1),
+            actionLabel: mine ? "Take off block" : "Open channel",
+            actionStyle: btn(!mine, mine ? "#d98b8b" : A),
+            onAction: () => {
+              if (mine) { self.toggleBlock(r.name, m.TEAMS[r.owner]); return; }
+              // The desk opens with the deal already started on their side.
+              self.setState({
+                tab: "desk", partner: r.owner, mine: [], theirs: ["p:" + r.name],
+                thread: [], status: "building", round: 0, iAccept: false, theyAccept: false,
+                myFilter: "ALL", theirFilter: "ALL"
+              });
+            },
+            rowStyle: "display:grid;grid-template-columns:56px minmax(0,1.4fr) minmax(0,1fr) 90px 90px 130px;gap:12px;align-items:center;padding:12px 18px"
+              + (i ? ";border-top:1px solid rgba(145,132,217,.13)" : "")
+              + (mine ? ";background:" + A + "12" : "")
+          };
+        }),
+
+      blockEmpty: Object.keys(S.block).length ? [] : [{
+        text: "Nothing on the block. List one of your own below, or from My Lineup, and every manager in the league sees it."
+      }],
+
+      myBlockRows: S.rosters[S.me]
+        .slice()
+        .sort((x, y) => S.sim.dynastyValue(m, y.p) - S.sim.dynastyValue(m, x.p))
+        .map((x, i) => {
+          const listed = !!S.block[x.p.n];
+          return {
+            pos: x.p.p,
+            posStyle: "font-family:var(--font-heading);font-size:10px;letter-spacing:.1em;width:30px;flex:0 0 auto;color:" + (listed ? A : "#75798c"),
+            name: x.p.n,
+            value: S.sim.dynastyValue(m, x.p).toFixed(1),
+            toggleLabel: listed ? "Listed" : "List",
+            toggleStyle: btn(listed, listed ? "#7fd1a8" : A) + ";flex:0 0 auto",
+            onToggle: () => self.toggleBlock(x.p.n, m.TEAMS[S.me]),
+            rowStyle: "display:flex;align-items:center;gap:10px;padding:9px 18px"
+              + (i ? ";border-top:1px solid rgba(145,132,217,.11)" : "")
+              + (listed ? ";background:" + A + "12" : "")
+          };
+        }),
+
+      logIntro: "Every trade this desk has executed, newest first. Kept on this device.",
+      logRows: S.log.map((l, i) => ({
+        pair: l.pair,
+        terms: l.terms,
+        when: new Date(l.when).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }),
+        rowStyle: "padding:14px 18px" + (i ? ";border-top:1px solid rgba(145,132,217,.14)" : "")
+      })),
+      logEmpty: S.log.length ? [] : [{ text: "No trades executed yet. Anything you close on the desk lands here." }]
+    });
+  }
+}
+
+function ordinal(n) {
+  return n + (["th","st","nd","rd"][(n % 100 > 10 && n % 100 < 14) ? 0 : Math.min(n % 10, 4)] || "th");
+}
+</script>
+</body>
+</html>

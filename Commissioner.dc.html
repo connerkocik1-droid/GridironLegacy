@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
+<script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
+<style>
+  html, body { margin:0; background:#161826; color:#e9e9ed; font-family:var(--font-body); }
+  a { color:#b5abfc; text-decoration:none; }
+  a:hover { color:#d2cefd; }
+  input, select { font-family:inherit; }
+  input:focus-visible, select:focus-visible { outline:2px solid #9184d9; outline-offset:2px; }
+  ::-webkit-scrollbar { width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb { background:rgba(145,132,217,.3); border-radius:4px; }
+  @keyframes cm-in { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:radial-gradient(120% 80% at 50% -10%,rgba(66,58,106,.4),transparent 60%),#161826">
+
+  <div style="position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:10px 22px;border-bottom:1px solid rgba(145,132,217,.22);background:rgba(22,24,38,.9);backdrop-filter:blur(10px);overflow-x:auto">
+    <div style="display:flex;align-items:center;gap:10px;flex:0 0 auto">
+      <div style="width:8px;height:17px;background:linear-gradient(180deg,#b5abfc,#5d5294);box-shadow:0 0 14px #9184d9"></div>
+      <span style="font-family:var(--font-heading);letter-spacing:.2em;text-transform:uppercase;font-size:12px;white-space:nowrap">Gridiron<span style="color:#b5abfc"> Legacy</span></span>
+    </div>
+    <div style="display:flex;gap:2px;margin-left:6px;flex:0 0 auto">
+      <a href="Home.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Home</a>
+      <a href="Gridiron Legacy.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Draft</a>
+      <a href="League.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">League</a>
+      <a href="News.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">News</a>
+      <span style="background:rgba(145,132,217,.28);border:1px solid rgba(181,171,252,.6);color:#e9e9ed;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;border-radius:var(--radius-sm)">Commissioner</span>
+    </div>
+    <div style="margin-left:auto;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#75798c;white-space:nowrap;flex:0 0 auto">{{ savedLabel }}</div>
+  </div>
+
+  <div style="padding:24px 26px 6px">
+    <div style="font-size:9px;letter-spacing:.32em;color:#75798c">LEAGUE OFFICE</div>
+    <div style="font-family:var(--font-heading);font-size:44px;line-height:1.04;letter-spacing:-.035em;margin:8px 0 8px">Commissioner controls</div>
+    <div style="font-size:12px;color:#9397ab;max-width:80ch;line-height:1.6;text-wrap:pretty">Everything here writes straight through — there is no save button. Changes reach the draft room, the League page and every roster screen the next time they load.</div>
+  </div>
+
+  <div style="padding:18px 26px 44px;display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px;align-items:start">
+
+    <div style="border:1px solid rgba(145,132,217,.24);border-radius:var(--radius-lg);background:rgba(26,28,43,.6);padding:18px 20px">
+      <div style="font-size:9px;letter-spacing:.24em;color:#75798c">DRAFT INTRO REEL</div>
+      <h6 style="margin:8px 0 4px;color:#d2cefd">The video that plays before the board opens</h6>
+      <div onDrop="{{ onDrop }}" onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" style="{{ dropStyle }}">
+        <div style="font-family:var(--font-heading);font-size:17px">{{ dropTitle }}</div>
+        <div style="font-size:12px;color:#9397ab;line-height:1.55;max-width:46ch;margin:6px auto 0;text-wrap:pretty">{{ dropBody }}</div>
+        <label style="{{ dropButtonStyle }}">
+          {{ dropButtonLabel }}
+          <input type="file" accept="video/*" onChange="{{ onPick }}" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
+        </label>
+        <sc-for list="{{ dropClearRow }}" as="c" hint-placeholder-count="0">
+          <button onClick="{{ c.onClick }}" style="background:none;border:0;color:#595d6c;font:inherit;font-size:11px;letter-spacing:.12em;cursor:pointer;margin-left:12px">remove</button>
+        </sc-for>
+      </div>
+      <sc-for list="{{ previewRow }}" as="p" hint-placeholder-count="0">
+        <video src="{{ p.src }}" controls="{{ true }}" style="width:100%;margin-top:14px;border-radius:var(--radius-md);background:#05060a;max-height:220px"></video>
+      </sc-for>
+    </div>
+
+    <div style="border:1px solid rgba(145,132,217,.24);border-radius:var(--radius-lg);background:rgba(26,28,43,.6);padding:18px 20px">
+      <div style="font-size:9px;letter-spacing:.24em;color:#75798c">DRAFT DAY</div>
+      <h6 style="margin:8px 0 12px;color:#d2cefd">When the room opens</h6>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1 1 220px;min-width:0">
+          <label style="display:block;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#75798c;margin-bottom:7px">Date and time</label>
+          <input type="datetime-local" value="{{ draftAtValue }}" onInput="{{ onDraftAt }}" style="width:100%;box-sizing:border-box;padding:11px 13px;font-size:14px;color:#e9e9ed;background:rgba(20,22,35,.8);border:1px solid rgba(145,132,217,.3);border-radius:var(--radius-sm);color-scheme:dark">
+        </div>
+        <div style="flex:0 0 auto">
+          <div style="font-size:9px;letter-spacing:.2em;color:#75798c">SCHEDULED FOR</div>
+          <div style="font-family:var(--font-heading);font-size:17px;margin-top:5px;color:#d2cefd">{{ draftLabel }}</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#75798c;line-height:1.55;margin-top:10px;text-wrap:pretty">{{ draftNote }}</div>
+
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(145,132,217,.18)">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#75798c">Draft lottery</span>
+          <button onClick="{{ toggleLottery }}" style="{{ lotteryToggleStyle }}">{{ lotteryToggleLabel }}</button>
+        </div>
+        <div style="font-size:11px;color:#9397ab;line-height:1.55;margin-top:9px;text-wrap:pretty">{{ lotteryNote }}</div>
+        <sc-for list="{{ lotteryRows }}" as="l" hint-placeholder-count="0">
+          <div style="{{ l.rowStyle }}">
+            <span style="{{ l.pickStyle }}">{{ l.pick }}</span>
+            <span style="font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ l.name }}</span>
+            <span style="font-size:10px;letter-spacing:.12em;color:#595d6c;margin-left:auto;flex:0 0 auto">{{ l.abbr }}</span>
+          </div>
+        </sc-for>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <sc-for list="{{ lotteryActions }}" as="a" hint-placeholder-count="1">
+            <button onClick="{{ a.onClick }}" style="{{ a.style }}">{{ a.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <div style="border:1px solid rgba(145,132,217,.24);border-radius:var(--radius-lg);background:rgba(26,28,43,.6);padding:18px 20px;grid-column:1/-1">
+      <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:9px;letter-spacing:.24em;color:#75798c">DIVISIONS</div>
+          <h6 style="margin:8px 0 0;color:#d2cefd">Who plays whom twice</h6>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+          <sc-for list="{{ divisionActions }}" as="a" hint-placeholder-count="2">
+            <button onClick="{{ a.onClick }}" style="{{ a.style }}">{{ a.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#9397ab;line-height:1.55;margin-top:9px;max-width:80ch;text-wrap:pretty">{{ divisionNote }}</div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:16px">
+        <sc-for list="{{ divisions }}" as="d" hint-placeholder-count="3">
+          <div style="{{ d.cardStyle }}">
+            <div style="display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid rgba(145,132,217,.18)">
+              <input value="{{ d.name }}" onInput="{{ d.onRename }}" maxlength="18" style="flex:1;min-width:0;background:none;border:0;font-family:var(--font-heading);font-size:15px;color:#e9e9ed;padding:0">
+              <span style="{{ d.countStyle }}">{{ d.count }}</span>
+              <button onClick="{{ d.onRemove }}" style="{{ d.removeStyle }}">×</button>
+            </div>
+            <sc-for list="{{ d.teams }}" as="t" hint-placeholder-count="4">
+              <div style="{{ t.rowStyle }}">
+                <span style="font-family:var(--font-heading);font-size:10px;letter-spacing:.12em;color:#b5abfc;width:38px;flex:0 0 auto">{{ t.abbr }}</span>
+                <span style="font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.name }}</span>
+                <select value="{{ t.division }}" onChange="{{ t.onMove }}" style="margin-left:auto;flex:0 0 auto;font-size:10px;letter-spacing:.1em;color:#9397ab;background:rgba(20,22,35,.85);border:1px solid rgba(145,132,217,.24);border-radius:var(--radius-sm);padding:3px 5px;color-scheme:dark">
+                  <sc-for list="{{ t.options }}" as="o" hint-placeholder-count="3">
+                    <option value="{{ o.value }}">{{ o.label }}</option>
+                  </sc-for>
+                </select>
+              </div>
+            </sc-for>
+            <sc-for list="{{ d.emptyRow }}" as="e" hint-placeholder-count="0">
+              <div style="padding:16px 13px;font-size:11px;color:#595d6c;text-align:center">{{ e.text }}</div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="border:1px solid rgba(145,132,217,.24);border-radius:var(--radius-lg);background:rgba(26,28,43,.6);padding:18px 20px">
+      <div style="font-size:9px;letter-spacing:.24em;color:#75798c">STARTING LINEUP</div>
+      <h6 style="margin:8px 0 4px;color:#d2cefd">{{ lineupSummary }}</h6>
+      <div style="font-size:11px;color:#9397ab;line-height:1.55;margin-bottom:14px;text-wrap:pretty">{{ lineupNote }}</div>
+      <sc-for list="{{ starters }}" as="s" hint-placeholder-count="7">
+        <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid rgba(145,132,217,.13)">
+          <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.12em;color:#b5abfc;width:52px;flex:0 0 auto">{{ s.pos }}</span>
+          <span style="font-size:11px;color:#75798c;min-width:0;flex:1">{{ s.note }}</span>
+          <div style="display:flex;align-items:center;gap:8px;flex:0 0 auto">
+            <button onClick="{{ s.dec }}" style="{{ s.decStyle }}">−</button>
+            <span style="font-family:var(--font-heading);font-size:15px;width:18px;text-align:center">{{ s.count }}</span>
+            <button onClick="{{ s.inc }}" style="{{ s.incStyle }}">+</button>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="border:1px solid rgba(145,132,217,.24);border-radius:var(--radius-lg);background:rgba(26,28,43,.6);padding:18px 20px">
+      <div style="font-size:9px;letter-spacing:.24em;color:#75798c">ROSTER AND DRAFT</div>
+      <h6 style="margin:8px 0 14px;color:#d2cefd">Depth, clock and rules</h6>
+      <sc-for list="{{ numbers }}" as="n" hint-placeholder-count="5">
+        <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid rgba(145,132,217,.13)">
+          <div style="min-width:0;flex:1">
+            <div style="font-size:12px;color:#e9e9ed">{{ n.label }}</div>
+            <div style="font-size:11px;color:#75798c;line-height:1.45;margin-top:2px;text-wrap:pretty">{{ n.note }}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex:0 0 auto">
+            <button onClick="{{ n.dec }}" style="{{ n.decStyle }}">−</button>
+            <span style="font-family:var(--font-heading);font-size:15px;width:34px;text-align:center">{{ n.value }}</span>
+            <button onClick="{{ n.inc }}" style="{{ n.incStyle }}">+</button>
+          </div>
+        </div>
+      </sc-for>
+
+      <div style="padding:14px 0 0;margin-top:6px;border-top:1px solid rgba(145,132,217,.13)">
+        <div style="font-size:12px;color:#e9e9ed;margin-bottom:9px">Receiving scoring</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <sc-for list="{{ scoringOptions }}" as="o" hint-placeholder-count="3">
+            <button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:#75798c;line-height:1.55;margin-top:14px;text-wrap:pretty">{{ seasonNote }}</div>
+      <div style="{{ warnStyle }}">{{ warnText }}</div>
+    </div>
+
+    <div style="border:1px solid rgba(217,139,139,.34);border-radius:var(--radius-lg);background:rgba(38,24,28,.5);padding:18px 20px;grid-column:1/-1">
+      <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:9px;letter-spacing:.24em;color:#d98b8b">LEAGUE ADMINISTRATION</div>
+          <h6 style="margin:8px 0 0;color:#e9c4c4">Actions that cannot be undone from a page refresh</h6>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#c9a3a3;line-height:1.55;margin-top:9px;max-width:80ch;text-wrap:pretty">Everything above this line is a setting. Everything below changes the league's own record. Each one takes a snapshot first, and the last five are restorable.</div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:18px">
+
+        <div style="border:1px solid rgba(217,139,139,.26);border-radius:var(--radius-md);background:rgba(20,22,35,.6);padding:15px 17px">
+          <div style="font-family:var(--font-heading);font-size:15px">Reset all rosters</div>
+          <div style="font-size:11px;color:#9397ab;line-height:1.55;margin-top:7px;text-wrap:pretty">{{ resetBody }}</div>
+          <div style="margin-top:13px">
+            <label style="display:block;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#75798c;margin-bottom:6px">Type the league name to confirm</label>
+            <input value="{{ confirmValue }}" onInput="{{ onConfirm }}" placeholder="{{ leagueName }}" style="width:100%;box-sizing:border-box;padding:9px 12px;font-size:13px;color:#e9e9ed;background:rgba(14,16,26,.8);border:1px solid rgba(217,139,139,.3);border-radius:var(--radius-sm)">
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+            <button onClick="{{ onReset }}" style="{{ resetStyle }}">Reset rosters</button>
+            <sc-for list="{{ restoreRow }}" as="r" hint-placeholder-count="0">
+              <button onClick="{{ r.onClick }}" style="{{ r.style }}">{{ r.label }}</button>
+            </sc-for>
+          </div>
+          <div style="{{ resetNoteStyle }}">{{ resetNote }}</div>
+        </div>
+
+        <div style="border:1px solid rgba(217,139,139,.26);border-radius:var(--radius-md);background:rgba(20,22,35,.6);padding:15px 17px">
+          <div style="font-family:var(--font-heading);font-size:15px">Reset a manager's PIN</div>
+          <div style="font-size:11px;color:#9397ab;line-height:1.55;margin-top:7px;text-wrap:pretty">You clear a PIN; you never see or set one. The manager creates a new four digits the next time they sign in — which is what stops the league office being able to sign in as anybody.</div>
+          <div style="margin-top:13px;max-height:30vh;overflow-y:auto">
+            <sc-for list="{{ pinRows }}" as="p" hint-placeholder-count="0">
+              <div style="{{ p.rowStyle }}">
+                <span style="font-family:var(--font-heading);font-size:10px;letter-spacing:.14em;color:#b5abfc;width:44px;flex:0 0 auto">{{ p.slot }}</span>
+                <span style="min-width:0;flex:1">
+                  <span style="display:block;font-size:12px;line-height:1.35">{{ p.franchise }}</span>
+                  <span style="display:block;font-size:10px;color:#75798c;margin-top:2px">{{ p.manager }}</span>
+                </span>
+                <span style="{{ p.stateStyle }}">{{ p.state }}</span>
+                <button onClick="{{ p.onClear }}" style="{{ p.buttonStyle }}">{{ p.buttonLabel }}</button>
+              </div>
+            </sc-for>
+            <sc-for list="{{ pinEmpty }}" as="e" hint-placeholder-count="1">
+              <div style="padding:20px 8px;font-size:11px;color:#75798c;line-height:1.55;text-wrap:pretty">{{ e.text }}</div>
+            </sc-for>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1500,&quot;height&quot;:1100},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#b5abfc&quot;,&quot;options&quot;:[&quot;#b5abfc&quot;,&quot;#7fd1a8&quot;,&quot;#e0b573&quot;,&quot;#d98ab5&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Look&quot;}}">
+// Commissioner controls. Every change writes through immediately — the draft
+// room, League and the roster screens read the same settings object, so there is
+// nothing to save and nothing to get out of step.
+
+class Component extends DCLogic {
+  state = { s: null, teams: [], names: {}, dragging: false, introUrl: null, saved: 0, drawing: false, mod: null,
+    confirm: "", resetNote: "", accounts: {}, snapshots: [] };
+
+  // Destructive actions are gated on the league's own name being typed out.
+  confirmed() {
+    return this.state.confirm.trim().toLowerCase() === this.leagueName().toLowerCase();
+  }
+  leagueName() { return "Gridiron Legacy"; }
+
+  resetRosters() {
+    if (!this.confirmed() || !this.state.mod) return;
+    const out = this.state.mod.resetRosters();
+    this.setState({
+      s: out.settings, snapshots: out.snapshots, confirm: "",
+      resetNote: "Rosters, the drawn lottery order, the trade block and the trade log are cleared. A snapshot was taken first."
+    });
+  }
+
+  restore() {
+    if (!this.state.mod) return;
+    const back = this.state.mod.restoreSnapshot(0);
+    if (!back) return;
+    this.setState({ s: back, resetNote: "Restored from the last snapshot." });
+  }
+
+  clearPin(slot) {
+    if (!this.state.mod) return;
+    this.setState({ accounts: this.state.mod.clearPin(slot) });
+  }
+
+  componentDidMount() {
+    Promise.all([import("./league-settings.js"), import("./league-data.js")])
+      .then(([mod, m]) => {
+        const s = mod.readSettings();
+        this.setState({
+          mod: mod, s: s, teams: m.TEAMS, names: m.TEAM_NAMES,
+          accounts: mod.readAccounts(), snapshots: mod.readSnapshots()
+        });
+        // A video saved on an earlier visit comes back from IndexedDB.
+        mod.loadIntro().then(file => {
+          if (file) this.setState({ introUrl: URL.createObjectURL(file) });
+        });
+      })
+      .catch(e => console.warn("[commissioner] settings unavailable", e));
+  }
+
+  componentWillUnmount() {
+    if (this.state.introUrl) { try { URL.revokeObjectURL(this.state.introUrl); } catch (e) {} }
+  }
+
+  accent() { return this.props.accent ?? "#b5abfc"; }
+
+  patch(changes) {
+    const next = Object.assign({}, this.state.s, changes);
+    this.state.mod.writeSettings(next);
+    this.setState({ s: next, saved: this.state.saved + 1 });
+  }
+
+  takeVideo(file) {
+    if (!file || !/^video\//.test(file.type || "")) return;
+    if (this.state.introUrl) { try { URL.revokeObjectURL(this.state.introUrl); } catch (e) {} }
+    this.setState({ introUrl: URL.createObjectURL(file), dragging: false });
+    this.patch({ introName: file.name });
+    this.state.mod.saveIntro(file).catch(e => console.warn("[commissioner] video too large to store", e));
+  }
+
+  clearVideo() {
+    if (this.state.introUrl) { try { URL.revokeObjectURL(this.state.introUrl); } catch (e) {} }
+    this.setState({ introUrl: null });
+    this.patch({ introName: "" });
+    this.state.mod.clearIntro();
+  }
+
+  // Moving a team is a swap of membership, not a copy: it leaves whichever
+  // division it was in.
+  moveTeam(abbr, toIndex) {
+    const divisions = this.state.s.divisions.map((d, i) => ({
+      name: d.name,
+      teams: i === toIndex
+        ? d.teams.concat(d.teams.indexOf(abbr) > -1 ? [] : [abbr])
+        : d.teams.filter(t => t !== abbr)
+    }));
+    this.patch({ divisions: divisions });
+  }
+
+  renderVals() {
+    const S = this.state, self = this;
+    const s = S.s;
+
+    const btn = (on, dim) => "cursor:" + (dim ? "default" : "pointer")
+      + ";font:inherit;font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:7px 12px;border-radius:var(--radius-sm);border:1px solid "
+      + (on ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.26)")
+      + ";background:" + (on ? "rgba(145,132,217,.26)" : "transparent")
+      + ";color:" + (on ? "#e9e9ed" : "#9397ab") + (dim ? ";opacity:.4" : "");
+    const step = dim => "cursor:" + (dim ? "default" : "pointer")
+      + ";font:inherit;font-size:14px;line-height:1;width:26px;height:26px;border-radius:var(--radius-sm);border:1px solid rgba(145,132,217,.28);background:rgba(20,22,35,.7);color:"
+      + (dim ? "#4d5060" : "#b5abfc") + (dim ? ";opacity:.5" : "");
+
+    if (!s) {
+      return {
+        leagueName: "", resetBody: "", confirmValue: "", onConfirm: () => {}, onReset: () => {},
+        resetStyle: "display:none", resetNote: "", resetNoteStyle: "display:none", restoreRow: [],
+        pinRows: [], pinEmpty: [],
+        seasonNote: "", savedLabel: "", dropStyle: "display:none", dropTitle: "", dropBody: "", dropButtonLabel: "",
+        dropButtonStyle: "display:none", dropClearRow: [], previewRow: [], draftAtValue: "", draftLabel: "",
+        draftNote: "Reading league settings.", lotteryNote: "", lotteryRows: [], lotteryActions: [],
+        lotteryToggleLabel: "", lotteryToggleStyle: "display:none", divisions: [], divisionActions: [],
+        divisionNote: "", starters: [], numbers: [], scoringOptions: [], lineupSummary: "", lineupNote: "",
+        warnText: "", warnStyle: "display:none",
+        onDrop: () => {}, onDragOver: () => {}, onDragLeave: () => {}, onPick: () => {},
+        onDraftAt: () => {}, toggleLottery: () => {}
+      };
+    }
+
+    const size = S.mod.rosterSize(s);
+    const startersTotal = Object.keys(s.starters).reduce((n, k) => n + s.starters[k], 0);
+    const unassigned = S.teams.filter(t => !s.divisions.some(d => d.teams.indexOf(t) > -1));
+
+    const num = (label, note, key, min, max, stepBy) => ({
+      label: label, note: note, value: s[key],
+      dec: () => self.patch({ [key]: Math.max(min, s[key] - (stepBy || 1)) }),
+      inc: () => self.patch({ [key]: Math.min(max, s[key] + (stepBy || 1)) }),
+      decStyle: step(s[key] <= min), incStyle: step(s[key] >= max)
+    });
+
+    return {
+      savedLabel: S.saved ? "Saved" : "League settings",
+
+      // ── intro reel ──────────────────────────────────────────────────────
+      onPick: e => { const f = e.target.files && e.target.files[0]; self.takeVideo(f); },
+      onDrop: e => { e.preventDefault(); const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; self.takeVideo(f); },
+      onDragOver: e => { e.preventDefault(); if (!S.dragging) self.setState({ dragging: true }); },
+      onDragLeave: () => self.setState({ dragging: false }),
+      dropStyle: "margin-top:14px;padding:20px;border-radius:var(--radius-md);text-align:center;border:1px "
+        + (S.introUrl ? "solid rgba(181,171,252,.5)" : "dashed rgba(145,132,217,.4)")
+        + ";background:" + (S.dragging ? "rgba(145,132,217,.2)" : S.introUrl ? "rgba(30,33,54,.6)" : "rgba(22,24,38,.45)")
+        + ";transition:background .18s ease,border-color .18s ease",
+      dropTitle: S.introUrl ? (s.introName || "Intro video loaded") : S.dragging ? "Drop it here" : "No intro video loaded",
+      dropBody: S.introUrl
+        ? "Stored on this device and played full screen when the countdown ends. The lottery follows it, then the board opens."
+        : "Drop an .mp4 here, or choose one. It is kept on this device, so it survives a reload and is waiting when the draft starts.",
+      dropButtonLabel: S.introUrl ? "Replace video" : "Choose a video",
+      dropButtonStyle: "position:relative;display:inline-block;cursor:pointer;margin-top:13px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:8px 15px;border-radius:var(--radius-sm);border:1px solid rgba(181,171,252,.5);color:#d2cefd",
+      dropClearRow: S.introUrl ? [{ onClick: () => self.clearVideo() }] : [],
+      previewRow: S.introUrl ? [{ src: S.introUrl }] : [],
+
+      // ── draft day ───────────────────────────────────────────────────────
+      draftAtValue: s.draftAt,
+      onDraftAt: e => self.patch({ draftAt: e.target.value }),
+      draftLabel: S.mod.draftLabel(s),
+      draftNote: s.draftAt
+        ? "Managers see this on the home page and in the draft lobby. The five-minute countdown is still started by hand on draft day."
+        : "Set a date and the league sees it on the home page. Without one the lobby simply waits for you to start the countdown.",
+
+      toggleLottery: () => self.patch({ lottery: !s.lottery }),
+      lotteryToggleLabel: s.lottery ? "On" : "Off",
+      lotteryToggleStyle: btn(s.lottery),
+      lotteryNote: !s.lottery
+        ? "Off — the board opens in the order the teams are listed."
+        : s.lotteryOrder
+          ? "Drawn. This is the order the board will run, first pick at the top."
+          : "On — after the intro reel the room draws the order live, from the twelfth pick up to the first. Draw it early here if you would rather have it settled.",
+      lotteryRows: (s.lottery && s.lotteryOrder ? s.lotteryOrder : []).map((abbr, i) => ({
+        pick: i + 1,
+        abbr: abbr,
+        name: S.names[abbr] || abbr,
+        pickStyle: "font-family:var(--font-heading);font-size:12px;width:26px;flex:0 0 auto;color:" + (i === 0 ? self.accent() : "#75798c"),
+        rowStyle: "display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid rgba(145,132,217,.12)"
+      })),
+      lotteryActions: !s.lottery ? [] : [
+        {
+          label: s.lotteryOrder ? "Redraw" : "Draw the order now",
+          style: btn(!s.lotteryOrder),
+          onClick: () => self.patch({ lotteryOrder: S.mod.drawLottery(S.teams) })
+        }
+      ].concat(s.lotteryOrder ? [{
+        label: "Clear",
+        style: btn(false),
+        onClick: () => self.patch({ lotteryOrder: null })
+      }] : []),
+
+      // ── divisions ───────────────────────────────────────────────────────
+      divisionNote: unassigned.length
+        ? unassigned.length + " team" + (unassigned.length === 1 ? " is" : "s are") + " not in a division yet: " + unassigned.join(", ") + "."
+        : "All " + S.teams.length + " teams are placed across " + s.divisions.length + " of a maximum "
+          + S.mod.MAX_DIVISIONS + ". Divisions decide who you play twice and how the standings are grouped. Removing one moves its teams into the other.",
+      divisionActions: [
+        {
+          label: "Add division",
+          style: btn(false, s.divisions.length >= S.mod.MAX_DIVISIONS),
+          onClick: () => {
+            if (s.divisions.length >= S.mod.MAX_DIVISIONS) return;
+            self.patch({ divisions: s.divisions.concat([{ name: "Division " + (s.divisions.length + 1), teams: [] }]) });
+          }
+        },
+        {
+          label: "Even them out",
+          style: btn(false),
+          onClick: () => {
+            // Deal the teams round-robin so every division ends within one of
+            // the others, keeping the current names.
+            const per = s.divisions.map(d => ({ name: d.name, teams: [] }));
+            S.teams.forEach((t, i) => per[i % per.length].teams.push(t));
+            self.patch({ divisions: per });
+          }
+        }
+      ],
+      divisions: s.divisions.map((d, di) => ({
+        name: d.name,
+        onRename: e => {
+          const next = s.divisions.slice();
+          next[di] = { name: e.target.value, teams: d.teams };
+          self.patch({ divisions: next });
+        },
+        // Removing a division rehomes its teams; below two there is nothing to
+        // remove, so the control goes quiet rather than stranding anyone.
+        onRemove: () => {
+          if (s.divisions.length <= 1) return;
+          const next = self.state.mod.removeDivision(s, di);
+          self.setState({ s: next, saved: self.state.saved + 1 });
+        },
+        removeStyle: s.divisions.length > 1
+          ? "cursor:pointer;font:inherit;font-size:15px;line-height:1;width:22px;height:22px;flex:0 0 auto;border:1px solid rgba(217,139,139,.35);background:transparent;color:#d98b8b;border-radius:var(--radius-sm)"
+          : "display:none",
+        count: d.teams.length,
+        countStyle: "font-size:9px;letter-spacing:.16em;flex:0 0 auto;color:" + (d.teams.length === Math.round(S.teams.length / s.divisions.length) ? "#75798c" : "#e0b573"),
+        cardStyle: "border:1px solid rgba(145,132,217,.24);border-radius:var(--radius-md);background:rgba(20,22,35,.55);overflow:hidden",
+        emptyRow: d.teams.length ? [] : [{ text: "No teams — move one in from another division." }],
+        teams: d.teams.map((abbr, ti) => ({
+          abbr: abbr,
+          name: S.names[abbr] || abbr,
+          division: String(di),
+          options: s.divisions.map((o, oi) => ({ value: String(oi), label: o.name })),
+          onMove: e => self.moveTeam(abbr, Number(e.target.value)),
+          rowStyle: "display:flex;align-items:center;gap:9px;padding:8px 13px"
+            + (ti ? ";border-top:1px solid rgba(145,132,217,.11)" : "")
+        }))
+      })),
+
+      // ── lineup ──────────────────────────────────────────────────────────
+      lineupSummary: startersTotal + " starters, " + s.bench + " bench, " + s.ir + " IR",
+      lineupNote: "Two flex spots take a back, receiver or tight end. A quarterback can only fill the quarterback slot.",
+      starters: ["QB", "RB", "WR", "TE", "FLEX", "D/ST", "K"].map(pos => ({
+        pos: pos,
+        count: s.starters[pos] || 0,
+        note: pos === "FLEX" ? "RB, WR or TE" : pos === "D/ST" ? "Team defense" : pos === "K" ? "Kicker" : "Dedicated slot",
+        dec: () => self.patch({ starters: Object.assign({}, s.starters, { [pos]: Math.max(0, (s.starters[pos] || 0) - 1) }) }),
+        inc: () => self.patch({ starters: Object.assign({}, s.starters, { [pos]: Math.min(4, (s.starters[pos] || 0) + 1) }) }),
+        decStyle: step((s.starters[pos] || 0) <= 0),
+        incStyle: step((s.starters[pos] || 0) >= 4)
+      })),
+
+      // ── numbers ─────────────────────────────────────────────────────────
+      numbers: [
+        num("Bench spots", "Players you carry beyond the starting lineup.", "bench", 0, 20),
+        num("IR spots", "Do not count against the active roster.", "ir", 0, 4),
+        num("Draft rounds", "Should equal the roster size, or teams finish with empty spots.", "rounds", 1, 30),
+        num("Pick clock", "Seconds a manager has before the queue picks for them.", "pickSeconds", 30, 300, 15),
+        num("Cinematic rounds", "Rounds that get the full-screen reveal on every pick.", "cinematicRounds", 0, 6),
+        num("Regular season weeks", "Weeks 1 through this number. Playoffs follow.", "regularWeeks", 8, 15),
+        num("Playoff weeks", "Weeks 14-17 by default. Week 18 is never played.", "playoffWeeks", 1, 5),
+        num("Pick trading opens", "The week future picks become tradeable.", "tradePicksWeek", 1, 17)
+      ],
+
+      scoringOptions: [
+        { key: "standard", label: "Standard" },
+        { key: "half", label: "Half PPR" },
+        { key: "ppr", label: "Full PPR" }
+      ].map(o => ({
+        label: o.label,
+        style: btn(s.scoring === o.key),
+        onClick: () => self.patch({ scoring: o.key })
+      })),
+
+      seasonNote: "Weeks 1–" + s.regularWeeks + " regular season, "
+        + (s.regularWeeks + 1) + "–" + (s.regularWeeks + s.playoffWeeks) + " playoffs. Week 18 is not played.",
+
+      // ── administration ──────────────────────────────────────────────────
+      leagueName: this.leagueName(),
+      resetBody: "Clears every roster, the draft record, the drawn lottery order, the trade block and the trade log. The placeholder teams go with it — this is how you start a real season from empty.",
+      confirmValue: S.confirm,
+      onConfirm: e => self.setState({ confirm: e.target.value, resetNote: "" }),
+      onReset: () => self.resetRosters(),
+      resetStyle: "cursor:" + (self.confirmed() ? "pointer" : "default")
+        + ";font:inherit;font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:9px 16px;border-radius:var(--radius-sm);border:1px solid "
+        + (self.confirmed() ? "rgba(217,139,139,.7);background:rgba(74,34,38,.7);color:#f0c9c9" : "rgba(145,132,217,.2);background:transparent;color:#4d5060"),
+      resetNote: S.resetNote,
+      resetNoteStyle: S.resetNote
+        ? "font-size:11px;line-height:1.5;margin-top:11px;color:#7fd1a8"
+        : "display:none",
+      restoreRow: S.snapshots.filter(x => x.kind === "rosters").length ? [{
+        label: "Restore last snapshot",
+        style: btn(false),
+        onClick: () => self.restore()
+      }] : [],
+
+      pinRows: S.teams.filter(t => S.accounts[t]).map((t, i) => {
+        const a = S.accounts[t];
+        const cleared = !a.pin;
+        return {
+          slot: t,
+          franchise: a.franchise || S.names[t] || t,
+          manager: a.name,
+          state: cleared ? "MUST SET" : "PIN SET",
+          stateStyle: "font-size:8px;letter-spacing:.14em;flex:0 0 auto;padding:2px 6px;border:1px solid "
+            + (cleared ? "rgba(224,181,115,.45);color:#e0b573" : "rgba(127,209,168,.35);color:#7fd1a8"),
+          buttonLabel: cleared ? "Cleared" : "Clear PIN",
+          buttonStyle: cleared
+            ? "font:inherit;font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:5px 10px;border:1px solid rgba(145,132,217,.18);background:transparent;color:#4d5060;flex:0 0 auto"
+            : "cursor:pointer;font:inherit;font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:5px 10px;border:1px solid rgba(217,139,139,.5);background:rgba(74,34,38,.4);color:#e9c4c4;flex:0 0 auto",
+          onClear: () => { if (!cleared) self.clearPin(t); },
+          rowStyle: "display:flex;align-items:center;gap:10px;padding:9px 0"
+            + (i ? ";border-top:1px solid rgba(145,132,217,.12)" : "")
+        };
+      }),
+      pinEmpty: S.teams.filter(t => S.accounts[t]).length ? [] : [{
+        text: "No accounts have been created yet. Once managers sign up, each appears here with a PIN you can clear."
+      }],
+
+      // The one place these settings can genuinely contradict each other.
+      warnText: size === s.rounds
+        ? "Roster size and draft length agree: " + size + " spots, " + s.rounds + " rounds."
+        : "Roster holds " + size + " but the draft runs " + s.rounds + " rounds — teams would end "
+          + (size > s.rounds ? (size - s.rounds) + " short." : (s.rounds - size) + " over."),
+      warnStyle: "margin-top:16px;padding:11px 13px;border-radius:var(--radius-sm);font-size:11px;line-height:1.55;border:1px solid "
+        + (size === s.rounds ? "rgba(127,209,168,.35);color:#7fd1a8;background:rgba(30,54,44,.3)" : "rgba(224,181,115,.4);color:#e0b573;background:rgba(54,44,30,.35)")
+    };
+  }
+}
+</script>
+</body>
+</html>

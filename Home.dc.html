@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
+<script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
+<style>
+  body { margin:0; background:#0f111c; }
+  a { color:#b5abfc; text-decoration:none; }
+  a:hover { color:#d2cefd; }
+  @keyframes gl-pulse { 0%,100% { opacity:.3;} 50% { opacity:1;} }
+  @keyframes gl-in { from { opacity:0; transform:translateY(12px);} to { opacity:1; transform:none;} }
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:radial-gradient(1200px 620px at 12% -14%, #1d2137 0%, #0f111c 64%);color:var(--color-text);font-family:var(--font-body);font-size:15px;font-variant-numeric:tabular-nums">
+  <div style="{{ scanlineStyle }}"></div>
+
+  <div style="display:flex;align-items:center;gap:20px;padding:0 24px;height:54px;border-bottom:1px solid rgba(145,132,217,.28);background:rgba(15,17,28,.86);backdrop-filter:blur(10px);position:sticky;top:0;z-index:50;box-shadow:0 1px 26px rgba(145,132,217,.14)">
+    <div style="display:flex;align-items:center;gap:10px;flex:0 0 auto">
+      <div style="width:8px;height:17px;background:linear-gradient(180deg,#b5abfc,#5d5294);box-shadow:0 0 14px #9184d9"></div>
+      <span style="font-family:var(--font-heading);letter-spacing:.2em;text-transform:uppercase;font-size:12px;white-space:nowrap">Gridiron<span style="color:#b5abfc"> Legacy</span></span>
+    </div>
+    <div style="display:flex;gap:2px;margin-left:6px;flex:0 0 auto">
+      <span style="background:rgba(145,132,217,.28);border:1px solid rgba(181,171,252,.6);color:#e9e9ed;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;border-radius:var(--radius-sm)">Home</span>
+      <a href="Gridiron Legacy.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Draft</a>
+      <a href="League.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">League</a>
+      <a href="News.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">News</a>
+      <a href="Commissioner.dc.html" style="color:#8f94a8;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:8px 12px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Commissioner</a>
+    </div>
+    <div style="display:flex;gap:2px;margin-left:12px;padding-left:12px;border-left:1px solid rgba(145,132,217,.22);flex:0 0 auto">
+      <a href="My Team.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">My Lineup</a>
+      <a href="Matchup.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Matchup</a>
+      <a href="Player News.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Player News</a>
+      <a href="Trades.dc.html" style="color:#75798c;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:6px 11px;white-space:nowrap;flex:0 0 auto;text-decoration:none">Trades</a>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#75798c;white-space:nowrap;flex:0 0 auto">
+      <span>Dynasty · 12 Tm · SF</span>
+      <span style="display:flex;align-items:center;gap:3px;padding:2px;border:1px solid rgba(145,132,217,.24);border-radius:var(--radius-sm);background:rgba(20,22,35,.7)">
+        <sc-for list="{{ phaseToggle }}" as="o" hint-placeholder-count="2">
+          <button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button>
+        </sc-for>
+      </span>
+      <span style="display:flex;align-items:center;gap:6px;color:#b5abfc"><span style="width:5px;height:5px;border-radius:50%;background:#b5abfc;box-shadow:0 0 8px #b5abfc;animation:gl-pulse 1.6s infinite"></span>Link Active</span>
+    </div>
+  </div>
+
+  <div style="max-width:1240px;margin:0 auto;padding:52px 24px 72px">
+
+    <div style="display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.9fr);gap:52px;align-items:start;animation:gl-in .5s ease">
+      <div>
+        <div style="font-size:10px;letter-spacing:.42em;color:#75798c">{{ kicker }}</div>
+        <h1 style="font-family:var(--font-heading);font-size:64px;font-weight:500;line-height:1.02;letter-spacing:-.04em;margin:20px 0 0;max-width:15ch">{{ headline }}</h1>
+        <p style="font-size:15px;line-height:1.7;color:#9397ab;max-width:56ch;margin:20px 0 0;text-wrap:pretty">{{ blurb }}</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:32px">
+          <sc-for list="{{ ctas }}" as="c" hint-placeholder-count="3">
+            <a class="{{ c.cls }}" href="{{ c.href }}" style="font-size:12px;letter-spacing:.14em;padding:13px 24px">{{ c.label }}</a>
+          </sc-for>
+        </div>
+      </div>
+
+      <div class="card elev-md" style="padding:24px;background:rgba(26,28,43,.72);border:1px solid rgba(145,132,217,.28)">
+        <div style="font-size:9px;letter-spacing:.26em;color:#75798c">{{ statusKicker }}</div>
+        <div style="font-family:var(--font-heading);font-size:38px;line-height:1.05;letter-spacing:-.03em;margin:12px 0 4px;color:#d2cefd">{{ statusTitle }}</div>
+        <div style="font-size:12px;color:#9397ab;line-height:1.6">{{ statusBody }}</div>
+        <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(145,132,217,.4) 18%,rgba(145,132,217,.4) 82%,transparent);margin:20px 0"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 12px">
+          <sc-for list="{{ draftFacts }}" as="f" hint-placeholder-count="4">
+            <div>
+              <div style="font-family:var(--font-heading);font-size:21px;line-height:1.1">{{ f.value }}</div>
+              <div style="font-size:8px;letter-spacing:.2em;color:#75798c;margin-top:3px">{{ f.label }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(145,132,217,.32) 48px,rgba(145,132,217,.32) calc(100% - 48px),transparent);margin:56px 0 40px"></div>
+
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:20px">
+      <h2 style="font-family:var(--font-heading);font-size:13px;font-weight:500;letter-spacing:.26em;text-transform:uppercase;color:#d2cefd;margin:0">{{ bandTitle }}</h2>
+      <span style="font-size:10px;letter-spacing:.14em;color:#595d6c">{{ bandNote }}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;background:rgba(145,132,217,.18);border:1px solid rgba(145,132,217,.18);border-radius:var(--radius-md);overflow:hidden">
+      <sc-for list="{{ bandCards }}" as="p" hint-placeholder-count="4">
+        <div style="padding:18px 20px;background:rgba(22,24,38,.9)">
+          <div style="display:flex;align-items:center;gap:9px">
+            <span style="font-family:var(--font-heading);font-size:11px;color:#b5abfc;letter-spacing:.1em">{{ p.adp }}</span>
+            <span style="font-size:9px;letter-spacing:.14em;color:#75798c">{{ p.posTeam }}</span>
+          </div>
+          <div style="font-family:var(--font-heading);font-size:19px;line-height:1.15;margin:8px 0 5px;letter-spacing:-.01em">{{ p.name }}</div>
+          <div style="font-size:11px;color:#9397ab;line-height:1.5">{{ p.arch }}</div>
+          <div style="font-size:9px;letter-spacing:.14em;color:#595d6c;margin-top:10px">{{ p.fin }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(260px,.85fr);gap:44px;margin-top:52px;align-items:start">
+      <div>
+        <h2 style="font-family:var(--font-heading);font-size:13px;font-weight:500;letter-spacing:.26em;text-transform:uppercase;color:#d2cefd;margin:0 0 18px">League wire</h2>
+        <div style="display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:18px">
+          <sc-for list="{{ wire }}" as="w" hint-placeholder-count="4">
+            <div style="{{ w.whenStyle }}">{{ w.when }}</div>
+            <div style="{{ w.bodyStyle }}">
+              <div style="font-size:14px;line-height:1.45;color:#e9e9ed;text-wrap:pretty">{{ w.head }}</div>
+              <div style="font-size:11px;color:#75798c;letter-spacing:.06em;margin-top:5px">{{ w.src }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div>
+        <h2 style="font-family:var(--font-heading);font-size:13px;font-weight:500;letter-spacing:.26em;text-transform:uppercase;color:#d2cefd;margin:0 0 18px">Sideline</h2>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <a class="card" href="20-0 Mode.dc.html" style="display:block;padding:20px;background:linear-gradient(150deg,rgba(30,33,54,.9),rgba(22,24,38,.7));border:1px solid rgba(181,171,252,.42);color:inherit">
+            <div style="font-size:9px;letter-spacing:.24em;color:#b5abfc">MINIGAME</div>
+            <div style="font-family:var(--font-heading);font-size:23px;line-height:1.1;letter-spacing:-.02em;margin:9px 0 4px">20-0 Minigame</div>
+            <div style="font-size:13px;color:#d2cefd;line-height:1.4">Pick the Perfect Roster</div>
+            <div style="font-size:12px;color:#9397ab;line-height:1.55;margin-top:9px">Twelve spins across three eras, 2002 to 2025. QB, EDGE and CB carry 1.5×. Nothing here touches your dynasty team.</div>
+            <div style="font-size:10px;letter-spacing:.14em;color:#b5abfc;margin-top:14px">PLAY →</div>
+          </a>
+          <div class="card" style="padding:18px 20px;background:rgba(26,28,43,.66);border:1px solid rgba(145,132,217,.24)">
+            <div style="font-size:9px;letter-spacing:.24em;color:#75798c">WEEKLY PICK-EM</div>
+            <div style="font-family:var(--font-heading);font-size:18px;margin:8px 0 6px">{{ pickemTitle }}</div>
+            <div style="font-size:12px;color:#9397ab;line-height:1.55">{{ pickemBody }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#b5abfc&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#b5abfc&quot;,&quot;#7ad9d0&quot;,&quot;#e0b573&quot;,&quot;#d98ab5&quot;],&quot;section&quot;:&quot;Look&quot;},&quot;scanlines&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Look&quot;}}">
+class Component extends DCLogic {
+  state = { leaders: [], phase: "pre", data: null, sim: null, league: null };
+
+  componentDidMount() {
+    import("./board-leaders.js")
+      .then(m => this.setState({ leaders: m.BOARD_LEADERS }))
+      .catch(e => console.warn("[home] board leaders unavailable", e));
+    // The post-draft view needs real rosters, so it reads the same replayed
+    // league every other screen does.
+    Promise.all([import("./league-data.js"), import("./league-sim.js"), import("./league-settings.js")])
+      .then(([m, sim, set]) => {
+        const league = set.readSettings();
+        sim.useSettings(league);
+        this.setState({ data: m, sim: sim, league: league });
+      })
+      .catch(e => console.warn("[home] league unavailable", e));
+  }
+
+  post() { return this.state.phase === "post"; }
+
+  renderVals() {
+    const accent = this.props.accent ?? "#b5abfc";
+    const post = this.post();
+    const m = this.state.data, sim = this.state.sim;
+
+    // The post-draft band shows the lineup the roster actually produces, not a
+    // written-out list, so it stays true if the roster changes.
+    let starters = [], projTotal = "—", myName = "";
+    if (post && m && sim) {
+      const rosters = sim.buildLeague(m);
+      const me = m.TEAMS.indexOf(m.myTeam());
+      myName = m.teamName(m.TEAMS[me]);
+      const lineup = sim.startersOf(m, rosters[me]);
+      projTotal = lineup.reduce((s, r) => s + (r.x ? sim.proj(m, r.x.p) : 0), 0).toFixed(1);
+      starters = lineup.slice(0, 4).map(r => ({
+        adp: r.slot,
+        posTeam: r.x ? r.x.p.p + " · " + r.x.p.t : "—",
+        name: r.x ? r.x.p.n : "Empty",
+        arch: r.x ? (r.x.p.arch || "") : "Nothing slotted here",
+        fin: r.x ? sim.proj(m, r.x.p).toFixed(1) + " PROJECTED" : ""
+      }));
+    }
+
+    return {
+      scanlineStyle: (this.props.scanlines ?? true)
+        ? "position:fixed;inset:0;background:repeating-linear-gradient(180deg," + accent + "0f 0 1px,transparent 1px 3px);pointer-events:none;z-index:60"
+        : "display:none",
+
+      // ── the toggle ──────────────────────────────────────────────────────
+      phaseToggle: [
+        { key: "pre", label: "Pre-draft" },
+        { key: "post", label: "Post-draft" }
+      ].map(o => ({
+        label: o.label,
+        onClick: () => this.setState({ phase: o.key }),
+        style: "cursor:pointer;font:inherit;font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:4px 9px;border:0;border-radius:2px;background:"
+          + (this.state.phase === o.key ? "rgba(145,132,217,.3)" : "transparent")
+          + ";color:" + (this.state.phase === o.key ? "#e9e9ed" : "#75798c")
+      })),
+
+      // ── hero ────────────────────────────────────────────────────────────
+      kicker: post ? "SEASON 2026 · WEEK 1 OF 13" : "SEASON 2026 · DYNASTY STARTUP",
+      headline: post ? (myName ? myName + " is built." : "Your roster is built.") : "The league has not drafted yet.",
+      blurb: post
+        ? "Twenty-four rounds are in the books. Weeks 1 through 13 are the regular season, 14 through 17 the playoffs — week 18 is never played. Set a lineup before kickoff and the matchup screen carries it from there."
+        : "Twelve teams, twenty-four rounds, superflex with a team defense. The board opens at 1.01 and the first three rounds run on the cinematic reveal. Everything below is live off the consensus board.",
+      ctas: post
+        ? [
+            { label: "Set my lineup", href: "My Team.dc.html", cls: "btn btn-primary" },
+            { label: "This week's matchup", href: "Matchup.dc.html", cls: "btn btn-ghost" },
+            { label: "Open a trade", href: "Trades.dc.html", cls: "btn btn-ghost" }
+          ]
+        : [
+            { label: "Enter draft lobby", href: "Gridiron Legacy.dc.html", cls: "btn btn-primary" },
+            { label: "Open my roster", href: "My Team.dc.html", cls: "btn btn-ghost" },
+            { label: "Join the league", href: "Sign Up.dc.html", cls: "btn btn-ghost" }
+          ],
+
+      // ── status card ─────────────────────────────────────────────────────
+      statusKicker: post ? "WEEK 1" : "DRAFT STATUS",
+      statusTitle: post ? "Lineups open" : "Lobby open",
+      statusBody: post
+        ? "Your starters lock at the first kickoff. Bench points do not count."
+        : "Waiting on the commissioner to start the five-minute clock.",
+      draftFacts: post
+        ? [
+            { value: "1–0", label: "RECORD" },
+            { value: projTotal, label: "PROJECTED" },
+            { value: "13", label: "REGULAR WEEKS" },
+            { value: "14–17", label: "PLAYOFFS" }
+          ]
+        : [
+            { value: "12", label: "TEAMS" },
+            { value: "24", label: "ROUNDS" },
+            { value: "585", label: "PLAYER POOL" },
+            { value: "1.01", label: "FIRST PICK" }
+          ],
+
+      // ── the middle band ─────────────────────────────────────────────────
+      bandTitle: post ? "Your starters" : "Board leaders",
+      bandNote: post ? "BEST LEGAL LINEUP · 2025 PER-GAME RATES" : "CONSENSUS ADP · ESPN · SLEEPER · RTSPORTS",
+      bandCards: post ? starters : this.state.leaders,
+
+      pickemTitle: post ? "Week 1 board is up" : "Opens week 1",
+      pickemBody: post
+        ? "Pick every game against the league, with live scoring through Sunday. No effect on your dynasty side."
+        : "Live scoring against the league. No effect on your dynasty side.",
+
+      leaders: this.state.leaders,
+
+      wire: [
+        { when: "22 MIN", head: "Commissioner set the draft window — lobby opens with a five-minute clock.", src: "League office" },
+        { when: "2 HRS", head: "Rookie class rankings updated ahead of the startup draft.", src: "NFL.com" },
+        { when: "5 HRS", head: "Nico Collins carries a questionable tag into the week, market has not moved.", src: "ESPN" },
+        { when: "YESTERDAY", head: "Trade window for future picks stays locked until week 8.", src: "League rules" }
+      ].map((w, i) => Object.assign({}, w, {
+        whenStyle: "font-size:9px;letter-spacing:.16em;color:#75798c;padding:18px 0 15px;" + (i ? "border-top:1px solid rgba(145,132,217,.16)" : ""),
+        bodyStyle: "min-width:0;padding:15px 0;" + (i ? "border-top:1px solid rgba(145,132,217,.16)" : "")
+      }))
+    };
+  }
+}
+
+</script>
+</body>
+</html>
