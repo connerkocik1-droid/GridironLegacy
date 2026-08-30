@@ -31,7 +31,11 @@ const label: React.CSSProperties = {
   margin: "14px 0 6px",
 };
 
-export default function SignIn() {
+export default function SignIn({
+  leagueName,
+}: {
+  leagueName?: string | null;
+} = {}) {
   const router = useRouter();
   const [slots, setSlots] = useState<Slot[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -125,9 +129,9 @@ export default function SignIn() {
   }
 
   return (
-    <div style={{ maxWidth: 420, margin: "0 auto", padding: "40px 26px 60px" }}>
+    <div>
       <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>
-        DYNASTY · 12 TEAM · SUPERFLEX
+        DYNASTY · {slots.length} TEAM · SUPERFLEX
       </div>
       <h1
         style={{
@@ -139,7 +143,7 @@ export default function SignIn() {
           fontWeight: 500,
         }}
       >
-        Gridiron Legacy
+        {leagueName ?? "Gridiron Legacy"}
       </h1>
       <p style={{ fontSize: 13, color: "#9397ab", lineHeight: 1.6, margin: "0 0 8px" }}>
         Pick your franchise and enter your four-digit PIN. If nobody has claimed

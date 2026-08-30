@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 const PRIMARY = [
-  { href: "/", label: "Home" },
   { href: "/draft", label: "Draft" },
   { href: "/league", label: "League" },
   { href: "/news", label: "News" },

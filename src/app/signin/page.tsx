@@ -1,17 +1,6 @@
-import SignIn from "@/components/SignIn";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Sign in · Gridiron Legacy" };
-
+// Sign-in is the landing page. This route stays so older links still work.
 export default function SignInPage() {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(120% 80% at 50% -10%,rgba(66,58,106,.4),transparent 60%),#161826",
-      }}
-    >
-      <SignIn />
-    </div>
-  );
+  redirect("/");
 }
