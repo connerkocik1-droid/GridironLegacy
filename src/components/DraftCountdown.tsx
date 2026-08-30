@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import IntroVideo from "./IntroVideo";
 
 /**
  * The waiting room: what a manager sees before the draft opens.
@@ -16,6 +17,7 @@ export default function DraftCountdown({
   managers,
   onStart,
   busy,
+  introVideo,
 }: {
   draftAt: string | null;
   skew: number;
@@ -24,15 +26,64 @@ export default function DraftCountdown({
   managers: { id: string; franchise: string }[];
   onStart: () => void;
   busy: boolean;
+  introVideo?: string | null;
 }) {
   const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const [playing, setPlaying] = useState(false);
 
   const target = draftAt ? new Date(draftAt).getTime() : null;
+
+  // Whether this browser has already sat through the intro for this particular
+  // draft date. Kept in localStorage rather than in the database: the film is a
+  // moment, not a record, and "has this person seen it" is a fact about this
+  // browser rather than about the league. Moving the draft date makes it new
+  // again, which is what a postponed draft ought to mean.
+  const seenKey = draftAt ? `gl.intro.${draftAt}` : null;
+
+  useEffect(() => {
+    // The decision to play is taken on the tick that already runs the
+    // countdown, not in an effect of its own. That way the crossing of zero is
+    // noticed the same way whether the page was open all along or opened a
+    // minute late, and there is one clock rather than two.
+    const timer = setInterval(() => {
+      const at = Date.now();
+      setNow(at);
+
+      if (!introVideo || target == null) return;
+
+      const since = at + skew - target;
+      // A window rather than an instant, so somebody who opened the page
+      // shortly after the hour still catches the opening titles. Past it the
+      // draft is under way and the film would be an interruption.
+      if (since < 0 || since > 5 * 60_000) return;
+
+      try {
+        if (seenKey && window.localStorage.getItem(seenKey)) return;
+      } catch {
+        // Private browsing, or storage turned off. Play it; seeing the intro
+        // twice is not worth failing over.
+      }
+
+      setPlaying(true);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [introVideo, target, skew, seenKey]);
+
+  /**
+   * Remembers the film has been watched — on finishing or skipping, never on
+   * starting, so a refresh partway through plays it again rather than losing
+   * it for good.
+   */
+  function finishIntro() {
+    setPlaying(false);
+    try {
+      if (seenKey) window.localStorage.setItem(seenKey, "1");
+    } catch {
+      // As above: nothing here is worth an error.
+    }
+  }
+
   const remaining = target ? Math.max(0, target - (now + skew)) : null;
 
   const parts =
@@ -49,6 +100,10 @@ export default function DraftCountdown({
 
   return (
     <div style={{ padding: "48px 26px 60px", textAlign: "center" }}>
+      {playing && introVideo ? (
+        <IntroVideo src={introVideo} onDone={finishIntro} />
+      ) : null}
+
       <div style={{ fontSize: 9, letterSpacing: ".4em", color: "#75798c" }}>
         {state === "paused" ? "DRAFT PAUSED" : past ? "DRAFT DAY" : "THE DRAFT"}
       </div>

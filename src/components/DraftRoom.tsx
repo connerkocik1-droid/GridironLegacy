@@ -38,6 +38,7 @@ interface Board {
     serverNow: string;
     draftAt: string | null;
     cinematicRounds: number;
+    introVideo: string | null;
   };
   onTheClock: Pick | null;
   myTurn: boolean;
@@ -294,6 +295,7 @@ export default function DraftRoom() {
           managers={board.managers}
           onStart={() => void setDraftState("running")}
           busy={picking != null}
+          introVideo={board.league.introVideo}
         />
         {board.me.is_commissioner && picksMade > 0 ? (
           <div style={{ textAlign: "center", padding: "0 26px 48px" }}>

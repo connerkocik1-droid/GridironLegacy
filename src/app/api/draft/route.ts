@@ -77,6 +77,9 @@ export async function GET() {
       // How many rounds get the full-screen reveal. Past these the board just
       // updates, because ten seconds a pick stops being a thrill by round four.
       cinematicRounds: Number(league.settings?.cinematicRounds ?? 3),
+      // Played once, by everyone waiting, the moment the countdown runs out.
+      introVideo:
+        typeof league.settings?.introVideo === "string" ? league.settings.introVideo : null,
     },
     onTheClock,
     myTurn: onTheClock?.manager_id === me.id,

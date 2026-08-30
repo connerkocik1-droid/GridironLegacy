@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
+import IntroVideoSlot from "./IntroVideoSlot";
 
 interface Manager {
   id: string;
@@ -19,7 +20,7 @@ interface Admin {
     id: string;
     name: string;
     season: number;
-    settings: { rounds?: number; pickSeconds?: number };
+    settings: { rounds?: number; pickSeconds?: number; introVideo?: string };
     draft_state: string;
     current_pick: number;
     draft_at: string | null;
@@ -399,6 +400,13 @@ export default function Commissioner() {
           you whether the browser is blocking the chime — which is the failure
           worth finding early.
         </p>
+      </div>
+
+      <div style={card}>
+        <IntroVideoSlot
+          introVideo={admin.league?.settings?.introVideo ?? null}
+          onSaved={() => void load()}
+        />
       </div>
 
       <div style={card}>
