@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const PRIMARY = [
   { href: "/draft", label: "Draft" },
+  { href: "/draft/rehearsal", label: "Rehearsal" },
   { href: "/league", label: "League" },
   { href: "/news", label: "News" },
   { href: "/commissioner", label: "Commissioner" },
