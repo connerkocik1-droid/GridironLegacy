@@ -1,11 +1,13 @@
 import Link from "next/link";
+import CommissionerLink from "./CommissionerLink";
 
 const PRIMARY = [
   { href: "/draft", label: "Draft" },
   { href: "/draft/rehearsal", label: "Rehearsal" },
   { href: "/league", label: "League" },
   { href: "/news", label: "News" },
-  { href: "/commissioner", label: "Commissioner" },
+  // The league office is not here: it is appended below, and only for the
+  // manager who holds it.
 ];
 
 const SECONDARY = [
@@ -90,6 +92,10 @@ export default function Nav({ current, note }: { current: string; note?: string 
             {item.label}
           </Link>
         ))}
+        <CommissionerLink
+          active={current === "/commissioner"}
+          style={primaryLink(current === "/commissioner")}
+        />
       </div>
 
       <div
