@@ -350,6 +350,17 @@ export default function Commissioner() {
             Save
           </button>
         </div>
+
+        <p style={{ fontSize: 11.5, color: "#75798c", lineHeight: 1.6, margin: "14px 0 0" }}>
+          Before the night itself, walk through the reveal, the chime and the
+          countdown at{" "}
+          <a href="/draft/rehearsal" style={{ color: "#b5abfc" }}>
+            /draft/rehearsal
+          </a>
+          . It drives the same screens without touching the league, and tells
+          you whether the browser is blocking the chime — which is the failure
+          worth finding early.
+        </p>
       </div>
 
       <div style={card}>
