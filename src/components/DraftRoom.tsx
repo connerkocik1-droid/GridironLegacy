@@ -275,7 +275,6 @@ export default function DraftRoom() {
   }
 
   const recent = board.picks.filter((p) => p.player_name).slice(-12).reverse();
-  // There is only something to reset once something has happened.
   const picksMade = board.picks.filter((p) => p.player_name).length;
   const urgent = remaining <= 15 && board.league.state === "running";
 
@@ -297,7 +296,7 @@ export default function DraftRoom() {
           busy={picking != null}
           introVideo={board.league.introVideo}
         />
-        {board.me.is_commissioner && picksMade > 0 ? (
+        {board.me.is_commissioner ? (
           <div style={{ textAlign: "center", padding: "0 26px 48px" }}>
             <ResetDraft
               picksMade={picksMade}
@@ -361,7 +360,7 @@ export default function DraftRoom() {
             </button>
           ))}
 
-          {board.me.is_commissioner && picksMade > 0 ? (
+          {board.me.is_commissioner ? (
             <>
               {/* Kept apart from the view toggle: one of these changes what
                   you are looking at, the other throws the draft away. */}
