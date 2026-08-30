@@ -52,3 +52,40 @@ a:hover {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+
+
+/* ---------------------------------------------------------------- ticker ---
+   The best-available strip over the draft board. The track holds the same
+   players twice and slides exactly half its own width, so the seam lands on an
+   identical frame and the loop has no visible start.
+
+   It pauses under the cursor and while anything inside it has focus: a ticker
+   you cannot stop to read is decoration, not information. */
+
+@keyframes gl-ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.gl-ticker-track {
+  animation-name: gl-ticker;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+.gl-ticker:hover .gl-ticker-track,
+.gl-ticker:focus-within .gl-ticker-track {
+  animation-play-state: paused;
+}
+
+/* Motion that cannot be turned off is motion imposed on somebody. Without it
+   the strip is still the same list — it just waits to be scrolled. */
+@media (prefers-reduced-motion: reduce) {
+  .gl-ticker-track {
+    animation: none;
+  }
+  .gl-ticker-rail {
+    overflow-x: auto;
+  }
+}

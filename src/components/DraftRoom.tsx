@@ -5,6 +5,7 @@ import { headshot, logo } from "@/data/league-data";
 import DraftBoard from "./DraftBoard";
 import DraftCountdown from "./DraftCountdown";
 import DraftReveal, { type RevealPick } from "./DraftReveal";
+import DraftTicker from "./DraftTicker";
 import ResetDraft from "./ResetDraft";
 
 const BLANK =
@@ -413,6 +414,11 @@ export default function DraftRoom() {
               overflow: "hidden",
             }}
           >
+            {/* Above the board rather than below it: the point is to see who
+                is left without losing sight of who has gone. */}
+            {board.league.state === "complete" ? null : (
+              <DraftTicker available={board.available} />
+            )}
             <DraftBoard
               picks={board.picks}
               managers={board.managers}
