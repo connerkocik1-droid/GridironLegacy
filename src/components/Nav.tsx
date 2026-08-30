@@ -1,5 +1,6 @@
 import Link from "next/link";
 import CommissionerOnly from "./CommissionerOnly";
+import ProfileMenu from "./ProfileMenu";
 
 const PRIMARY = [
   { href: "/draft", label: "Draft" },
@@ -143,6 +144,7 @@ export default function Nav({ current, note }: { current: string; note?: string 
         }}
       >
         {note ? <span>{note}</span> : null}
+        <ProfileMenu />
       </div>
     </div>
   );

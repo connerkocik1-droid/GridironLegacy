@@ -86,3 +86,90 @@ select expect('and then the trade executes',
 select expect('moving the player',
   (select m.slot from roster_slots r join managers m on m.id = r.manager_id
     where r.league_id = :'L' and r.player_name = 'Their Star'), 'AAA');
+
+-- ---------------------------------------------------------------- crests ---
+-- A manager sets their own team photo and nobody else's. Run as authenticated,
+-- because that is the only role the policies on team_logos apply to.
+
+\o /dev/null
+\set OTHER 'ffff2222-0000-0000-0000-000000000002'
+
+insert into leagues (id, name, season, commissioner_slot)
+values (:'OTHER', 'Elsewhere', 2026, 'ZZZ');
+insert into managers (league_id, slot, name, franchise)
+values (:'OTHER', 'ZZZ', 'Z', 'Zenith');
+
+insert into team_logos (manager_id, league_id, image)
+select id, :'OTHER', 'data:image/webp;base64,ZZZZ' from managers where league_id = :'OTHER';
+
+select set_config('test.uid', :'U1', false);
+set role authenticated;
+\o
+
+\echo ''
+\echo '--- team photos ---'
+
+select expect('a manager sets their own crest',
+  refuses(format(
+    'insert into team_logos (manager_id, league_id, image) values (%L, %L, %L)',
+    (select id from managers where league_id = :'L' and slot = 'AAA'), :'L',
+    'data:image/webp;base64,AAAA')),
+  null::text);
+
+select expect('but cannot put one on somebody else''s franchise',
+  refuses(format(
+    'insert into team_logos (manager_id, league_id, image) values (%L, %L, %L)',
+    (select id from managers where league_id = :'L' and slot = 'BBB'), :'L',
+    'data:image/webp;base64,BBBB')) like '%row-level security%', true);
+
+-- Bravo's crest, put there by nobody in particular, so the checks below are
+-- about whether Alpha can touch it rather than whether it exists.
+\o /dev/null
+reset role;
+insert into team_logos (manager_id, league_id, image)
+select id, :'L', 'data:image/webp;base64,BBBB'
+  from managers where league_id = :'L' and slot = 'BBB'
+ on conflict (manager_id) do update set image = excluded.image;
+set role authenticated;
+
+update team_logos set image = 'data:image/webp;base64,STOLEN'
+ where manager_id = (select id from managers where league_id = :'L' and slot = 'BBB');
+\o
+
+select expect('nor overwrite the one somebody else chose',
+  (select image from team_logos
+    where manager_id = (select id from managers where league_id = :'L' and slot = 'BBB')),
+  'data:image/webp;base64,BBBB');
+
+\o /dev/null
+delete from team_logos
+ where manager_id = (select id from managers where league_id = :'L' and slot = 'BBB');
+\o
+
+select expect('nor take it away',
+  (select count(*)::int from team_logos
+    where manager_id = (select id from managers where league_id = :'L' and slot = 'BBB')), 1);
+
+select expect('every crest in the league is visible, which is the point of one',
+  (select count(*)::int from team_logos), 2);
+
+select expect('but not one from another league',
+  (select count(*)::int from team_logos where league_id = :'OTHER'), 0);
+
+select expect('a picture too big for a crest is refused',
+  refuses(format(
+    'update team_logos set image = %L where manager_id = %L',
+    'data:image/webp;base64,' || repeat('A', 300000),
+    (select id from managers where league_id = :'L' and slot = 'AAA')))
+    like '%team_logos_image_size%', true);
+
+select expect('and so is something that is not an image at all',
+  refuses(format(
+    'update team_logos set image = %L where manager_id = %L',
+    'javascript:alert(1)',
+    (select id from managers where league_id = :'L' and slot = 'AAA')))
+    like '%team_logos_image_kind%', true);
+
+\o /dev/null
+reset role;
+\o

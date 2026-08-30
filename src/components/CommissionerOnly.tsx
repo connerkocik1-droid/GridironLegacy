@@ -1,6 +1,6 @@
 "use client";
 
-import { useOffice } from "@/lib/use-commissioner";
+import { useOffice } from "@/lib/use-me";
 
 /**
  * Shows its children to the commissioner, and to nobody else.
