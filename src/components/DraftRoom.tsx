@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { headshot, logo } from "@/data/league-data";
+import DraftBoard from "./DraftBoard";
 import DraftCountdown from "./DraftCountdown";
 import DraftReveal, { type RevealPick } from "./DraftReveal";
 
@@ -53,6 +54,8 @@ export default function DraftRoom() {
   const [picking, setPicking] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [reveal, setReveal] = useState<RevealPick | null>(null);
+  // The board is the reference view; the player list is where you pick from.
+  const [view, setView] = useState<"players" | "board">("players");
 
   // The chime, and whether the browser has let us play it yet. Autoplay is
   // blocked until the page has been interacted with, so it is primed silently
@@ -301,8 +304,31 @@ export default function DraftRoom() {
           </div>
         </div>
 
+        <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+          {(["players", "board"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              style={{
+                padding: "6px 13px",
+                fontSize: 10,
+                letterSpacing: ".12em",
+                textTransform: "uppercase",
+                border: `1px solid ${view === v ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
+                background: view === v ? "rgba(145,132,217,.26)" : "transparent",
+                color: view === v ? "#e9e9ed" : "#9397ab",
+                borderRadius: "var(--radius-sm)",
+                font: "inherit",
+                cursor: "pointer",
+              }}
+            >
+              {v === "players" ? "Players" : "Board"}
+            </button>
+          ))}
+        </div>
+
         {board.league.state === "running" ? (
-          <div style={{ marginLeft: "auto", textAlign: "right" }}>
+          <div style={{ textAlign: "right" }}>
             <div
               style={{
                 fontFamily: "var(--font-heading)",
@@ -324,6 +350,25 @@ export default function DraftRoom() {
         <div style={{ padding: "0 26px 8px", fontSize: 12, color: "#e0b573" }}>{error}</div>
       ) : null}
 
+      {view === "board" ? (
+        <div style={{ padding: "6px 26px 40px" }}>
+          <div
+            style={{
+              border: "1px solid rgba(145,132,217,.22)",
+              borderRadius: "var(--radius-lg)",
+              background: "rgba(26,28,43,.55)",
+              overflow: "hidden",
+            }}
+          >
+            <DraftBoard
+              picks={board.picks}
+              managers={board.managers}
+              meId={board.me.id}
+              currentPick={board.league.currentPick}
+            />
+          </div>
+        </div>
+      ) : (
       <div
         style={{
           display: "grid",
@@ -494,6 +539,7 @@ export default function DraftRoom() {
           ))}
         </div>
       </div>
+      )}
     </>
   );
 }
