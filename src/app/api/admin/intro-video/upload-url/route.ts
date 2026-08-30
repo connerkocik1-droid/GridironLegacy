@@ -1,4 +1,4 @@
-import { MEDIA_BUCKET, MAX_VIDEO_BYTES, VIDEO_TYPES, introVideoPath, readableSize } from "@/lib/league-media";
+import { MEDIA_BUCKET, VIDEO_TYPES, introVideoPath } from "@/lib/league-media";
 import { isConfigured, serverClient, serviceClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -49,19 +49,16 @@ export async function POST(req: Request) {
   if (!Number.isFinite(size) || size <= 0) {
     return Response.json({ error: "That file appears to be empty" }, { status: 400 });
   }
-  if (size > MAX_VIDEO_BYTES) {
-    return Response.json(
-      { error: `That film is ${readableSize(size)}. Keep it under ${readableSize(MAX_VIDEO_BYTES)}.` },
-      { status: 413 },
-    );
-  }
+
+  // No ceiling of our own. Storage has one — the project's Global file size
+  // limit — and it is the only one that can be right, because it is the one
+  // that will actually refuse the upload.
 
   const filename = typeof body.filename === "string" ? body.filename : "intro.mp4";
   const path = introVideoPath(me.league_id, filename);
 
-  const { data, error } = await serviceClient()
-    .storage.from(MEDIA_BUCKET)
-    .createSignedUploadUrl(path);
+  const admin = serviceClient();
+  const { data, error } = await admin.storage.from(MEDIA_BUCKET).createSignedUploadUrl(path);
 
   if (error || !data) {
     console.error("[intro-video] could not mint an upload URL", error);
@@ -74,5 +71,13 @@ export async function POST(req: Request) {
     );
   }
 
-  return Response.json({ bucket: MEDIA_BUCKET, path: data.path, token: data.token });
+  // signedUrl as well as the token: the browser uploads to it directly so it
+  // can watch the bytes go, which the library's own helper cannot report. The
+  // token comes too, as the fallback path if that request will not go through.
+  return Response.json({
+    bucket: MEDIA_BUCKET,
+    path: data.path,
+    token: data.token,
+    signedUrl: data.signedUrl,
+  });
 }

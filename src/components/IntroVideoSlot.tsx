@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { MAX_VIDEO_BYTES, MEDIA_BUCKET, VIDEO_TYPES, readableSize } from "@/lib/league-media";
+import { MEDIA_BUCKET, VIDEO_TYPES, readableSize } from "@/lib/league-media";
+import { uploadWithProgress } from "@/lib/upload-with-progress";
 import { browserClient } from "@/lib/supabase-browser";
 import IntroVideo from "./IntroVideo";
 
@@ -47,11 +48,9 @@ export default function IntroVideoSlot({
     if (!VIDEO_TYPES.includes(chosen.type)) {
       return setError("That is not an MP4, WebM or MOV video.");
     }
-    if (chosen.size > MAX_VIDEO_BYTES) {
-      return setError(
-        `That film is ${readableSize(chosen.size)}. Keep it under ${readableSize(MAX_VIDEO_BYTES)} — twelve people fetch it at once.`,
-      );
-    }
+
+    // No size check. Whether the film is too big is Supabase's question, and
+    // it answers it in words worth passing on rather than pre-empting.
 
     setBusy(true);
     try {
@@ -64,12 +63,29 @@ export default function IntroVideoSlot({
       const minted = await ticket.json().catch(() => ({}));
       if (!ticket.ok) throw new Error(minted.error ?? "Could not start the upload.");
 
-      setProgress(`Uploading ${readableSize(chosen.size)}…`);
-      const { error: uploadError } = await browserClient()
-        .storage.from(minted.bucket ?? MEDIA_BUCKET)
-        .uploadToSignedUrl(minted.path, minted.token, chosen, { contentType: chosen.type });
+      const total = readableSize(chosen.size);
+      setProgress(`Uploading ${total}…`);
 
-      if (uploadError) throw new Error(uploadError.message || "The upload did not finish.");
+      try {
+        await uploadWithProgress(minted.signedUrl, chosen, (fraction) =>
+          setProgress(`Uploading ${total} — ${Math.round(fraction * 100)}%`),
+        );
+      } catch (direct) {
+        // The hand-written request did not go through. Before giving up, try
+        // the library's own call: it is maintained alongside the endpoint, and
+        // if it also fails the message it gives is the one worth showing.
+        setProgress(`Uploading ${total}…`);
+        const { error: uploadError } = await browserClient()
+          .storage.from(minted.bucket ?? MEDIA_BUCKET)
+          .uploadToSignedUrl(minted.path, minted.token, chosen, { contentType: chosen.type });
+
+        if (uploadError) {
+          throw new Error(
+            uploadError.message ||
+              (direct instanceof Error ? direct.message : "The upload did not finish."),
+          );
+        }
+      }
 
       setProgress("Checking it arrived…");
       const adopt = await fetch("/api/admin/intro-video", {
@@ -83,7 +99,15 @@ export default function IntroVideoSlot({
       setNotice("Intro saved. Watch it below to be sure it plays here.");
       onSaved();
     } catch (e) {
-      const message = e instanceof Error ? e.message : "The upload did not finish.";
+      let message = e instanceof Error ? e.message : "The upload did not finish.";
+
+      // The one refusal worth translating: storage says the object is too big,
+      // but not that the number is a project setting the commissioner owns and
+      // can raise. Nothing in this app can lift it, so say where it lives.
+      if (/exceed|too large|maximum allowed size|413/i.test(message)) {
+        message = `${message} That ceiling is your project's Global file size limit, in Supabase under Storage → Settings — 50MB on the free plan, up to 500GB above it.`;
+      }
+
       setError(message);
       // Storage was not there. Offer the other way in rather than leaving the
       // commissioner with an error and no next step.
@@ -149,9 +173,9 @@ export default function IntroVideoSlot({
       <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Intro video</h6>
       <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 10px" }}>
         Plays over the whole room the moment the countdown runs out, once per
-        person, and can be skipped. Upload it here and it goes straight from
-        this browser to the league&rsquo;s storage — MP4, WebM or MOV, under{" "}
-        {readableSize(MAX_VIDEO_BYTES)}.
+        person, and can be skipped. Upload it here — MP4, WebM or MOV — and it
+        goes straight from this browser to the league&rsquo;s storage without
+        passing through the site, so a long film is no harder than a short one.
       </p>
       <p style={{ fontSize: 11.5, color: "#75798c", lineHeight: 1.6, margin: "0 0 14px" }}>
         Browsers will not start a video with sound until the person watching has

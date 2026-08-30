@@ -4,15 +4,17 @@ export const MEDIA_BUCKET = "league-media";
 /** What a browser will actually play, and what the picker offers. */
 export const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 
-/**
- * The ceiling on an intro film, in bytes.
+/*
+ * There is no size limit here on purpose.
  *
- * Not a technical limit so much as a kindness: twelve people are about to
- * fetch this at the same moment, several on a phone, and a 200MB title
- * sequence would still be buffering when the first pick was due. A minute of
- * 1080p at a sane bitrate is comfortably inside this.
+ * There used to be, and it was this code inventing a rule that was not its to
+ * invent. The real ceiling is the project's own Global file size limit in
+ * Supabase's Storage settings — 50MB on the free plan, up to 500GB above it —
+ * and a second guess in front of it could only ever refuse a film the project
+ * would have accepted. When storage does refuse one, its answer is passed
+ * through rather than replaced, because the fix lives in that settings page
+ * and nowhere in here.
  */
-export const MAX_VIDEO_BYTES = 64 * 1024 * 1024;
 
 export function readableSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
