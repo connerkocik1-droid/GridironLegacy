@@ -128,12 +128,21 @@ export async function GET(req: Request) {
     }
   }
 
+  // Grade the week from the scores just written. This is what turns points
+  // into records; it freezes the week once its games are over.
+  const { error: gradeError } = await db.rpc("grade_week", {
+    p_league_id: leagueId,
+    p_week: week,
+  });
+  if (gradeError) console.error("[cron/scores] grading failed", gradeError);
+
   return Response.json({
     week,
     games: games.length,
     live: live.length,
     failed,
     players: rows.length,
+    graded: !gradeError,
   });
 }
 

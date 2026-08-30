@@ -15,6 +15,7 @@ interface Franchise {
   claimed: boolean;
   isCommissioner: boolean;
   pointsFor: number;
+  record: { wins: number; losses: number; ties: number; pointsFor: number; pointsAgainst: number } | null;
   roster: { name: string; slot: string; acquired: string }[];
 }
 
@@ -22,6 +23,7 @@ interface Feed {
   meId: string;
   league: { name: string; season: number } | null;
   weeksScored: number;
+  played: boolean;
   franchises: Franchise[];
 }
 
@@ -59,7 +61,16 @@ export default function LeagueBoard() {
     return <div style={{ padding: "24px 26px", color: "#75798c" }}>Reading the league…</div>;
   }
 
-  const ranked = [...feed.franchises].sort((a, b) => b.pointsFor - a.pointsFor);
+  // Once weeks have been graded the table is the standings: wins first, then
+  // points as the tiebreak. Before that there is nothing to stand on but
+  // production, and the note below says as much.
+  const ranked = [...feed.franchises].sort((a, b) => {
+    if (feed.played) {
+      const w = (b.record?.wins ?? 0) - (a.record?.wins ?? 0);
+      if (w) return w;
+    }
+    return b.pointsFor - a.pointsFor;
+  });
 
   return (
     <div style={{ padding: "24px 26px 40px" }}>
@@ -78,9 +89,11 @@ export default function LeagueBoard() {
         {feed.league?.name ?? "League"}
       </h1>
       <p style={{ fontSize: 12, color: "#9397ab", margin: "0 0 20px", maxWidth: "70ch", lineHeight: 1.6 }}>
-        {feed.weeksScored > 0
-          ? `Ordered by points scored across ${feed.weeksScored} scored ${feed.weeksScored === 1 ? "week" : "weeks"}. Win–loss records arrive with the season schedule.`
-          : "Nothing has been scored yet. Once games are played, franchises are ordered by points."}
+        {feed.played
+          ? "Standings by record, with points as the tiebreak. A week counts once its games are over."
+          : feed.weeksScored > 0
+            ? `Ordered by points across ${feed.weeksScored} scored ${feed.weeksScored === 1 ? "week" : "weeks"}. No week has finished yet, so there are no records to stand on.`
+            : "Nothing has been played yet. Once the schedule is built and games are graded, this becomes the standings."}
       </p>
 
       <div
@@ -162,14 +175,35 @@ export default function LeagueBoard() {
                   </div>
                 </div>
 
-                <div style={{ textAlign: "right", flex: "0 0 auto" }}>
+                {feed.played ? (
+                  <div style={{ textAlign: "right", flex: "0 0 auto", width: 66 }}>
+                    <div style={{ fontFamily: "var(--font-heading)", fontSize: 18 }}>
+                      {f.record?.wins ?? 0}–{f.record?.losses ?? 0}
+                      {f.record?.ties ? `–${f.record.ties}` : ""}
+                    </div>
+                    <div style={{ fontSize: 8, letterSpacing: ".16em", color: "#75798c" }}>
+                      RECORD
+                    </div>
+                  </div>
+                ) : null}
+
+                <div style={{ textAlign: "right", flex: "0 0 auto", width: 74 }}>
                   <div style={{ fontFamily: "var(--font-heading)", fontSize: 18, color: "#d2cefd" }}>
-                    {f.pointsFor.toFixed(1)}
+                    {(feed.played ? (f.record?.pointsFor ?? 0) : f.pointsFor).toFixed(1)}
                   </div>
                   <div style={{ fontSize: 8, letterSpacing: ".16em", color: "#75798c" }}>
-                    POINTS FOR
+                    {feed.played ? "PF" : "POINTS FOR"}
                   </div>
                 </div>
+
+                {feed.played ? (
+                  <div style={{ textAlign: "right", flex: "0 0 auto", width: 66 }}>
+                    <div style={{ fontFamily: "var(--font-heading)", fontSize: 18, color: "#9397ab" }}>
+                      {(f.record?.pointsAgainst ?? 0).toFixed(1)}
+                    </div>
+                    <div style={{ fontSize: 8, letterSpacing: ".16em", color: "#75798c" }}>PA</div>
+                  </div>
+                ) : null}
               </div>
 
               {isOpen ? (

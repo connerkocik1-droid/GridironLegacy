@@ -118,6 +118,27 @@ export default function Commissioner() {
     }
   }
 
+  async function buildSchedule() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const res = await fetch("/api/admin/schedule", { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not build the schedule.");
+      else
+        setNotice(
+          `Schedule built: ${body.matchups} matchups over ${body.weeks} weeks` +
+            (body.byes ? `, with ${body.byes} byes.` : "."),
+        );
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function clearPin(manager: Manager) {
     if (busy) return;
     setBusy(true);
@@ -228,6 +249,20 @@ export default function Commissioner() {
             ? `Board: ${admin.board.picks} picks.`
             : `The draft has started — ${admin.board.made} picks are in, so the size is fixed now.`}
         </div>
+      </div>
+
+      <div style={card}>
+        <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Season schedule</h6>
+        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 14px" }}>
+          A round robin across the regular season: everyone meets everyone
+          before anyone is met twice, and an odd league gives someone a bye each
+          week. Build it once the franchises are settled — it cannot be rebuilt
+          after a week has been played, because that would discard results that
+          already stand.
+        </p>
+        <button onClick={buildSchedule} disabled={busy} style={action(!busy)}>
+          Build schedule
+        </button>
       </div>
 
       <div style={card}>

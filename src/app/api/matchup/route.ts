@@ -47,16 +47,41 @@ export async function GET(req: Request) {
     .order("slot");
 
   const roster = managers ?? [];
-  const myIndex = roster.findIndex((m) => m.id === me.id);
 
-  // Until a real schedule exists, managers are paired off in slot order. The
-  // opponent can be overridden so any two teams can be compared.
+  // The week's real fixture. A manager with no row that week has a bye, which
+  // is a genuine outcome in an odd league rather than an error.
+  const { data: fixture } = await db
+    .from("matchups")
+    .select("home_manager, away_manager, final, home_points, away_points")
+    .eq("league_id", me.league_id)
+    .eq("week", week)
+    .or(`home_manager.eq.${me.id},away_manager.eq.${me.id}`)
+    .maybeSingle();
+
+  const scheduledOpponentId = fixture
+    ? fixture.home_manager === me.id
+      ? fixture.away_manager
+      : fixture.home_manager
+    : null;
+
+  // An explicit opponent overrides the fixture, so any two teams can be
+  // compared; otherwise the schedule decides.
   const opponent = oppParam
     ? roster.find((m) => m.id === oppParam)
-    : roster[myIndex % 2 === 0 ? myIndex + 1 : myIndex - 1];
+    : roster.find((m) => m.id === scheduledOpponentId);
 
   if (!opponent) {
-    return Response.json({ error: "No opponent for this week" }, { status: 404 });
+    return Response.json({
+      week,
+      bye: fixture == null && !oppParam,
+      scheduled: fixture != null,
+      me,
+      managers: roster,
+      error:
+        fixture == null && !oppParam
+          ? "You have a bye this week."
+          : "No opponent for this week",
+    }, { status: fixture == null && !oppParam ? 200 : 404 });
   }
 
   const { data: slots } = await db
@@ -88,6 +113,8 @@ export async function GET(req: Request) {
 
   return Response.json({
     week,
+    scheduled: fixture != null && !oppParam,
+    final: fixture?.final ?? false,
     // "home" is always the signed-in manager, so the client never has to work
     // out which column is theirs.
     home: { ...me, total: totalOf(rows, "home") },

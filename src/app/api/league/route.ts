@@ -26,7 +26,7 @@ export async function GET() {
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
 
-  const [{ data: league }, { data: managers }, { data: slots }, { data: scores }] =
+  const [{ data: league }, { data: managers }, { data: slots }, { data: scores }, { data: table }] =
     await Promise.all([
       db.from("leagues").select("name, season, settings").eq("id", me.league_id).single(),
       db
@@ -39,7 +39,28 @@ export async function GET() {
         .select("manager_id, player_name, lineup_slot, acquired")
         .eq("league_id", me.league_id),
       db.from("player_scores").select("player_name, points, week").eq("league_id", me.league_id),
+      db.rpc("standings", { p_league_id: me.league_id }),
     ]);
+
+  // Records come from graded weeks; a league that has not played yet has none,
+  // and the page says so rather than showing a table of zeroes as if it were
+  // standings.
+  const record = new Map(
+    (table ?? []).map((r: { manager_id: string; wins: number; losses: number; ties: number; points_for: number; points_against: number }) => [
+      r.manager_id,
+      {
+        wins: r.wins,
+        losses: r.losses,
+        ties: r.ties,
+        pointsFor: Number(r.points_for),
+        pointsAgainst: Number(r.points_against),
+      },
+    ]),
+  );
+
+  const played = (table ?? []).some(
+    (r: { wins: number; losses: number; ties: number }) => r.wins + r.losses + r.ties > 0,
+  );
 
   // Points for, by manager: every week a rostered player has scored. Without a
   // season schedule there are no records to stand on, so this is the honest
@@ -59,6 +80,7 @@ export async function GET() {
     meId: me.id,
     league,
     weeksScored: weeks.size,
+    played,
     franchises: (managers ?? []).map((m) => ({
       id: m.id,
       slot: m.slot,
@@ -67,6 +89,7 @@ export async function GET() {
       claimed: m.pin_hash != null,
       isCommissioner: m.is_commissioner,
       pointsFor: Math.round((pointsFor.get(m.id) ?? 0) * 10) / 10,
+      record: record.get(m.id) ?? null,
       roster: (slots ?? [])
         .filter((s) => s.manager_id === m.id)
         .map((s) => ({ name: s.player_name, slot: s.lineup_slot, acquired: s.acquired })),

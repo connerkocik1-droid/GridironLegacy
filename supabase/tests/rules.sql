@@ -368,3 +368,187 @@ select expect('so an add is allowed again',
 
 select expect('every move is logged',
   (select count(*)::int > 0 from transactions where league_id = :'W' and kind = 'waiver'), true);
+
+\echo ''
+\echo '--- schedule ---'
+
+\o /dev/null
+\set S '99999999-0000-0000-0000-000000000003'
+\set S1 'dddd0000-0000-0000-0000-000000000001'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'S', 'Sched', 2026, 'AAA', '{"regularWeeks": 3, "starters": {"QB": 1}, "bench": 1}'::jsonb);
+
+insert into auth.users (id) values (:'S1');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'S', 'AAA', 'A', 'Alpha',   true,  :'S1'),
+  (:'S', 'BBB', 'B', 'Bravo',   false, null),
+  (:'S', 'CCC', 'C', 'Charlie', false, null),
+  (:'S', 'DDD', 'D', 'Delta',   false, null);
+
+select signin(:'S1');
+select generate_schedule(:'S');
+\o
+
+select expect('every week is fully paired',
+  (select count(*)::int from matchups where league_id = :'S'), 6);
+
+select expect('two games a week for four teams',
+  (select count(distinct week)::int from matchups where league_id = :'S'), 3);
+
+-- Nobody may play twice in one week, and nobody may play themselves.
+select expect('nobody appears twice in a week',
+  (select count(*)::int from (
+     select week, m from matchups, lateral (values (home_manager), (away_manager)) v(m)
+      where league_id = :'S'
+      group by week, m having count(*) > 1
+   ) dupes), 0);
+
+select expect('nobody plays themselves',
+  (select count(*)::int from matchups
+    where league_id = :'S' and home_manager = away_manager), 0);
+
+select expect('a round robin meets everyone once',
+  (select count(*)::int from (
+     select least(home_manager::text, away_manager::text) a,
+            greatest(home_manager::text, away_manager::text) b
+       from matchups where league_id = :'S'
+      group by 1, 2 having count(*) > 1
+   ) repeats), 0);
+
+-- An odd league gives someone a bye each week rather than a broken pairing.
+\o /dev/null
+insert into managers (league_id, slot, name, franchise) values (:'S', 'EEE', 'E', 'Echo');
+select generate_schedule(:'S');
+\o
+
+select expect('an odd league still pairs cleanly',
+  (select count(*)::int from matchups where league_id = :'S' and home_manager = away_manager), 0);
+
+select expect('and gives two games a week, not two and a half',
+  (select bool_and(n = 2) from (
+     select week, count(*) n from matchups where league_id = :'S' group by week
+   ) per_week), true);
+
+-- Grading, on its own two-franchise league so the pairing is not in doubt.
+\o /dev/null
+\set G '99999999-0000-0000-0000-000000000004'
+\set G1 'eeee0000-0000-0000-0000-000000000001'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'G', 'Grade', 2026, 'AAA', '{"regularWeeks": 1, "starters": {"QB": 1}, "bench": 1}'::jsonb);
+
+insert into auth.users (id) values (:'G1');
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'G', 'AAA', 'A', 'Alpha', true,  :'G1'),
+  (:'G', 'BBB', 'B', 'Bravo', false, null);
+
+select signin(:'G1');
+select generate_schedule(:'G');
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot) values
+  (:'G', (select id from managers where league_id = :'G' and slot = 'AAA'), 'Starter A', 'QB'),
+  (:'G', (select id from managers where league_id = :'G' and slot = 'AAA'), 'Bench A', 'BENCH'),
+  (:'G', (select id from managers where league_id = :'G' and slot = 'BBB'), 'Starter B', 'QB');
+
+insert into player_scores (league_id, week, player_name, points) values
+  (:'G', 1, 'Starter A', 20), (:'G', 1, 'Bench A', 99), (:'G', 1, 'Starter B', 15);
+
+-- Week 1 games are still being played.
+insert into nfl_games (id, season, week, season_type, starts_at, home_team, away_team, state, completed)
+values ('g1', 2026, 1, 2, now(), 'SEA', 'SF', 'in', false);
+
+select grade_week(:'G', 1);
+\o
+
+select expect('only starters count — the bench is ignored',
+  lineup_points(:'G', (select id from managers where league_id = :'G' and slot = 'AAA'), 1),
+  20::numeric);
+
+select expect('an unfinished week is not final',
+  (select bool_or(final) from matchups where league_id = :'G' and week = 1), false);
+
+select expect('an unfinished week has no winner',
+  (select count(*)::int from matchups where league_id = :'G' and week = 1 and winner is not null), 0);
+
+select expect('but it still carries live points',
+  (select max(greatest(home_points, away_points)) from matchups where league_id = :'G' and week = 1),
+  20::numeric);
+
+select expect('an unfinished week counts for nothing in the table',
+  (select sum(wins + losses + ties)::int from standings(:'G')), 0);
+
+-- The games finish.
+\o /dev/null
+update nfl_games set completed = true, state = 'post' where id = 'g1';
+select grade_week(:'G', 1);
+\o
+
+select expect('a finished week is final',
+  (select bool_and(final) from matchups where league_id = :'G' and week = 1), true);
+
+select expect('the higher score wins',
+  (select m.slot from matchups x join managers m on m.id = x.winner
+    where x.league_id = :'G' and x.week = 1), 'AAA');
+
+select expect('the winner has a win',
+  (select wins from standings(:'G') where slot = 'AAA'), 1);
+
+select expect('the loser has a loss',
+  (select losses from standings(:'G') where slot = 'BBB'), 1);
+
+select expect('points for and against are recorded',
+  (select points_for::int || '/' || points_against::int from standings(:'G') where slot = 'AAA'),
+  '20/15');
+
+select expect('the starters are snapshotted',
+  (select jsonb_array_length(home_starters) > 0 from matchups
+    where league_id = :'G' and week = 1), true);
+
+-- A later lineup change must not rewrite a finished week.
+\o /dev/null
+update roster_slots set lineup_slot = 'BENCH'
+ where league_id = :'G' and player_name = 'Starter A';
+select grade_week(:'G', 1);
+\o
+
+select expect('a final week is not regraded',
+  (select max(greatest(home_points, away_points)) from matchups where league_id = :'G' and week = 1),
+  20::numeric);
+
+select expect('and the record still stands',
+  (select wins from standings(:'G') where slot = 'AAA'), 1);
+
+select expect('the schedule cannot be rebuilt once a week is final',
+  refuses(format('select generate_schedule(%L)', :'G')) like '%schedule is fixed%', true);
+
+select expect('a non-commissioner cannot build the schedule',
+  (select refuses(format('select commissioner_generate_schedule(%L)', :'G'))
+     from (select signin(:'U2')) _),
+  'Only the commissioner can build the schedule');
+
+-- A tie is a tie, not a win for whoever is listed first.
+\o /dev/null
+\set T3 '99999999-0000-0000-0000-000000000005'
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'T3', 'Tie', 2026, 'AAA', '{"regularWeeks": 1, "starters": {"QB": 1}, "bench": 1}'::jsonb);
+insert into managers (league_id, slot, name, franchise) values
+  (:'T3', 'AAA', 'A', 'Alpha'), (:'T3', 'BBB', 'B', 'Bravo');
+select generate_schedule(:'T3');
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot) values
+  (:'T3', (select id from managers where league_id = :'T3' and slot = 'AAA'), 'Tie A', 'QB'),
+  (:'T3', (select id from managers where league_id = :'T3' and slot = 'BBB'), 'Tie B', 'QB');
+insert into player_scores (league_id, week, player_name, points) values
+  (:'T3', 1, 'Tie A', 12), (:'T3', 1, 'Tie B', 12);
+select grade_week(:'T3', 1);
+\o
+
+select expect('an equal score is a tie',
+  (select is_tie from matchups where league_id = :'T3' and week = 1), true);
+
+select expect('a tie has no winner',
+  (select winner is null from matchups where league_id = :'T3' and week = 1), true);
+
+select expect('a tie is recorded for both',
+  (select sum(ties)::int from standings(:'T3')), 2);
