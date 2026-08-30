@@ -1,13 +1,18 @@
 import Link from "next/link";
-import CommissionerLink from "./CommissionerLink";
+import CommissionerOnly from "./CommissionerOnly";
 
 const PRIMARY = [
   { href: "/draft", label: "Draft" },
-  { href: "/draft/rehearsal", label: "Rehearsal" },
   { href: "/league", label: "League" },
   { href: "/news", label: "News" },
-  // The league office is not here: it is appended below, and only for the
-  // manager who holds it.
+];
+
+// The commissioner's own two: the office, and the room for walking through
+// draft night before anybody is watching. Appended after the rest, and only
+// for the manager who holds the office.
+const OFFICE = [
+  { href: "/draft/rehearsal", label: "Rehearsal" },
+  { href: "/commissioner", label: "Commissioner" },
 ];
 
 const SECONDARY = [
@@ -92,10 +97,18 @@ export default function Nav({ current, note }: { current: string; note?: string 
             {item.label}
           </Link>
         ))}
-        <CommissionerLink
-          active={current === "/commissioner"}
-          style={primaryLink(current === "/commissioner")}
-        />
+        <CommissionerOnly>
+          {OFFICE.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              style={primaryLink(item.href === current)}
+              aria-current={item.href === current ? "page" : undefined}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </CommissionerOnly>
       </div>
 
       <div
