@@ -255,3 +255,116 @@ select expect('the commissioner clears a PIN',
   (select pin_hash from managers where league_id = :'L' and slot = 'BBB'), null::text);
 
 \echo ''
+
+\echo ''
+\echo '--- waivers ---'
+
+\o /dev/null
+\set W '99999999-0000-0000-0000-000000000002'
+\set W1 'bbbb0000-0000-0000-0000-000000000001'
+\set W2 'bbbb0000-0000-0000-0000-000000000002'
+\set W3 'bbbb0000-0000-0000-0000-000000000003'
+
+-- A small league: capacity is 2 starters + 1 bench = 3.
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'W', 'Waivers', 2026, 'AAA',
+        '{"starters": {"QB": 1, "RB": 1}, "bench": 1, "rounds": 1}'::jsonb);
+
+insert into auth.users (id) values (:'W1'), (:'W2'), (:'W3');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id, waiver_priority) values
+  (:'W', 'AAA', 'A', 'Alpha',   true,  :'W1', 1),
+  (:'W', 'BBB', 'B', 'Bravo',   false, :'W2', 2),
+  (:'W', 'CCC', 'C', 'Charlie', false, :'W3', 3);
+\o
+
+select expect('capacity is starters plus bench',
+  roster_capacity('{"starters": {"QB": 1, "RB": 1}, "bench": 1}'::jsonb), 3);
+
+-- All three want the same player; Alpha has the best priority.
+\o /dev/null
+insert into waiver_claims (league_id, manager_id, add_player) values
+  (:'W', (select id from managers where league_id = :'W' and slot = 'AAA'), 'Star Player'),
+  (:'W', (select id from managers where league_id = :'W' and slot = 'BBB'), 'Star Player'),
+  (:'W', (select id from managers where league_id = :'W' and slot = 'CCC'), 'Star Player');
+select process_waivers(:'W');
+\o
+
+select expect('exactly one manager gets the contested player',
+  (select count(*)::int from roster_slots where league_id = :'W' and player_name = 'Star Player'), 1);
+
+select expect('the best priority wins it',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'W' and r.player_name = 'Star Player'), 'AAA');
+
+select expect('the losers are told why',
+  (select count(*)::int from waiver_claims
+    where league_id = :'W' and status = 'lost' and reason like '%already rostered%'), 2);
+
+select expect('winning sends you to the back of the queue',
+  (select waiver_priority from managers where league_id = :'W' and slot = 'AAA'), 3);
+
+select expect('everyone below moves up',
+  (select string_agg(slot, ',' order by waiver_priority) from managers where league_id = :'W'),
+  'BBB,CCC,AAA');
+
+-- A second round: Bravo now has priority, and rolling order must hold.
+\o /dev/null
+insert into waiver_claims (league_id, manager_id, add_player) values
+  (:'W', (select id from managers where league_id = :'W' and slot = 'BBB'), 'Second Player'),
+  (:'W', (select id from managers where league_id = :'W' and slot = 'CCC'), 'Second Player');
+select process_waivers(:'W');
+\o
+
+select expect('the new best priority wins the next one',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'W' and r.player_name = 'Second Player'), 'BBB');
+
+select expect('priority rolls again',
+  (select string_agg(slot, ',' order by waiver_priority) from managers where league_id = :'W'),
+  'CCC,AAA,BBB');
+
+-- Roster capacity.
+\o /dev/null
+select signin(:'W3');
+select add_player(:'W', 'Filler One');
+select add_player(:'W', 'Filler Two');
+select add_player(:'W', 'Filler Three');
+\o
+
+select expect('a roster fills to capacity',
+  roster_count((select id from managers where league_id = :'W' and slot = 'CCC')), 3);
+
+select expect('a full roster refuses another add',
+  refuses(format('select add_player(%L, %L)', :'W', 'One Too Many')) like '%roster is full%',
+  true);
+
+select expect('the refused add did not land',
+  (select count(*)::int from roster_slots where league_id = :'W' and player_name = 'One Too Many'), 0);
+
+select expect('adding with a drop makes room',
+  (select (add_player(:'W', 'Swapped In', 'Filler One') ->> 'ok')::boolean), true);
+
+select expect('the dropped player is gone',
+  (select count(*)::int from roster_slots where league_id = :'W' and player_name = 'Filler One'), 0);
+
+select expect('dropping someone you do not hold is refused',
+  refuses(format('select drop_player(%L, %L)', :'W', 'Not Yours')) like '%do not hold%', true);
+
+select expect('a rostered player cannot be added by someone else',
+  refuses(format('select add_player(%L, %L)', :'W', 'Star Player')) like '%already rostered%', true);
+
+-- IR does not count against capacity.
+\o /dev/null
+update roster_slots set lineup_slot = 'IR'
+ where league_id = :'W' and player_name = 'Filler Two';
+\o
+
+select expect('IR sits outside the roster count',
+  roster_count((select id from managers where league_id = :'W' and slot = 'CCC')), 2);
+
+select expect('so an add is allowed again',
+  (select (add_player(:'W', 'Back In', null) ->> 'ok')::boolean), true);
+
+select expect('every move is logged',
+  (select count(*)::int > 0 from transactions where league_id = :'W' and kind = 'waiver'), true);

@@ -12,6 +12,7 @@ const SECONDARY = [
   { href: "/my-team", label: "My Lineup" },
   { href: "/matchup", label: "Matchup" },
   { href: "/player-news", label: "Player News" },
+  { href: "/players", label: "Players" },
   { href: "/trades", label: "Trades" },
   { href: "/pickem", label: "Pick-'Em" },
 ];
