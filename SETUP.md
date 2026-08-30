@@ -39,7 +39,13 @@ was, rather than half migrated with no record of how far it got.
 **It is safe to run again.** Each migration records itself in a
 `schema_migrations` table and is skipped after that, so when new migrations
 are added you re-run the same file rather than working out which ones are
-new. To see what a database has:
+new.
+
+It is also safe on a database set up before that tracking table existed. Such
+a database has the early schema with nothing recording it, so the file
+recognises it and writes the record down instead of failing on the tables that
+are already there — then applies only what is genuinely missing. To see what a
+database has:
 
 ```sql
 select name, applied_at from schema_migrations order by name;

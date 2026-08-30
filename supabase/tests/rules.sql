@@ -767,3 +767,243 @@ select expect('the owner can hand the office over',
 
 select expect('and it is still held by exactly one',
   (select count(*)::int from managers where league_id = :'C' and is_commissioner), 1);
+
+\echo ''
+\echo '--- resizing rebuilds the season ---'
+
+\o /dev/null
+\set R  '99999999-0000-0000-0000-000000000009'
+\set R1 'a9990000-0000-0000-0000-000000000001'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'R', 'Resize', 2026, 'STL', '{"rounds": 2}'::jsonb);
+
+insert into auth.users (id) values (:'R1');
+
+-- The office holder sorts near the end of the alphabet on purpose. Removal
+-- runs from the back, so this is exactly the arrangement that used to delete
+-- the commissioner's own franchise and fail on the admin log's foreign key.
+insert into managers (league_id, slot, name, franchise)
+select :'R', 'F' || lpad(i::text, 2, '0'), 'Open', 'Franchise ' || i
+  from generate_series(1, 11) i;
+
+insert into managers (league_id, slot, name, franchise, auth_user_id)
+values (:'R', 'STL', 'Boss', 'Steel Cartel', :'R1');
+
+select signin(:'R1');
+select generate_schedule(:'R');
+\o
+
+select expect('the twelve-team season starts out right',
+  (select max(week)::int || '/' || count(*)::int from matchups where league_id = :'R'),
+  '16/96');
+
+-- The bug: this used to rebuild the board and leave the season alone, so the
+-- departed franchises' fixtures cascaded out and left a twelve-team shape with
+-- holes in it — sixteen weeks, sixty-six games, two franchises idle a week.
+\o /dev/null
+select set_team_count(:'R', 10);
+\o
+
+select expect('shrinking leaves the right number of franchises',
+  (select count(*)::int from managers where league_id = :'R'), 10);
+
+select expect('and never removes the commissioner',
+  (select slot from managers where league_id = :'R' and is_commissioner), 'STL');
+
+select expect('the divisions are evened up, not left lopsided',
+  (select string_agg(division || ':' || n, ' ' order by division) from (
+     select division, count(*) n from managers where league_id = :'R' group by division
+   ) d), 'East:5 West:5');
+
+select expect('the season is regenerated at the new size',
+  (select max(week)::int || '/' || count(*)::int from matchups where league_id = :'R'),
+  '14/65');
+
+select expect('and the new length is written back to the league',
+  (select (settings ->> 'regularWeeks')::int from leagues where id = :'R'), 14);
+
+select expect('everybody plays thirteen games',
+  (select bool_and(n = 13) from (
+     select m, count(*) n from matchups, lateral (values (home_manager), (away_manager)) v(m)
+      where league_id = :'R' group by m
+   ) per_team), true);
+
+select expect('nobody appears twice in a week',
+  (select count(*)::int from (
+     select week, m from matchups, lateral (values (home_manager), (away_manager)) v(m)
+      where league_id = :'R'
+      group by week, m having count(*) > 1
+   ) dupes), 0);
+
+select expect('the full round robin seats every franchise every week',
+  (select bool_and(n = 5) from (
+     select week, count(*) n from matchups where league_id = :'R' and week <= 9 group by week
+   ) per_week), true);
+
+select expect('divisional rivals still meet twice',
+  (select bool_and(n = 2) from (
+     select count(*) n from matchups x
+       join managers h on h.id = x.home_manager
+       join managers a on a.id = x.away_manager
+      where x.league_id = :'R' and h.division = a.division
+      group by least(x.home_manager::text, x.away_manager::text),
+               greatest(x.home_manager::text, x.away_manager::text)
+   ) pairs), true);
+
+select expect('the board is rebuilt at the new size too',
+  (select count(*)::int from draft_picks where league_id = :'R'), 20);
+
+-- Rebalancing on its own: it moves as few franchises as it can, and it leaves
+-- a league that is already close enough entirely alone.
+\o /dev/null
+update managers set division = 'East'
+ where id = (select id from managers where league_id = :'R' and division = 'West'
+              order by slot limit 1);
+\o
+
+select expect('a six-four split takes one move to fix', rebalance_divisions(:'R'), 1);
+
+select expect('and comes out even',
+  (select string_agg(division || ':' || n, ' ' order by division) from (
+     select division, count(*) n from managers where league_id = :'R' group by division
+   ) d), 'East:5 West:5');
+
+select expect('an even league is left alone', rebalance_divisions(:'R'), 0);
+
+\o /dev/null
+insert into managers (league_id, slot, name, franchise) values (:'R', 'ODD', 'O', 'Odd One');
+select assign_missing_divisions(:'R');
+\o
+
+select expect('an odd league is close enough at one apart', rebalance_divisions(:'R'), 0);
+
+select expect('so it stays six and five',
+  (select string_agg(n::text, '/' order by n desc) from (
+     select count(*) n from managers where league_id = :'R' group by division
+   ) d), '6/5');
+
+-- A season under way fixes the shape as firmly as a made pick does.
+\o /dev/null
+select set_team_count(:'R', 10);
+update matchups set final = true where league_id = :'R' and week = 1;
+\o
+
+select expect('a played week freezes the league size',
+  refuses(format('select set_team_count(%L, 8)', :'R')),
+  'Weeks have already been played — the league size is fixed now');
+
+select expect('and the season survives the refusal',
+  (select max(week)::int || '/' || count(*)::int from matchups where league_id = :'R'),
+  '14/65');
+
+\echo ''
+\echo '--- repairing a schedule left over from a bigger league ---'
+
+\o /dev/null
+\set Q '99999999-0000-0000-0000-000000000010'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'Q', 'Repair', 2026, 'F01', '{"rounds": 2}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise)
+select :'Q', 'F' || lpad(i::text, 2, '0'), 'Open', 'Franchise ' || i
+  from generate_series(1, 12) i;
+
+select generate_schedule(:'Q');
+
+create temp table before_repair as
+select md5(string_agg(week || ':' || home_manager || ':' || away_manager, ','
+             order by week, home_manager, away_manager)) h
+  from matchups where league_id = :'Q';
+\o
+
+select expect('a healthy league is left alone', repair_schedule(:'Q'), false);
+
+select expect('right down to the fixtures',
+  (select md5(string_agg(week || ':' || home_manager || ':' || away_manager, ','
+                order by week, home_manager, away_manager))
+     from matchups where league_id = :'Q'),
+  (select h from before_repair));
+
+-- Break it the way the old set_team_count did: drop two franchises from one
+-- division and leave the season exactly as it was.
+\o /dev/null
+delete from managers
+ where id in (select id from managers
+               where league_id = :'Q' and division = 'East'
+               order by slot desc limit 2);
+\o
+
+select expect('which leaves a twelve-team season for ten franchises',
+  (select max(week)::int || '/' || count(*)::int from matchups where league_id = :'Q'),
+  '16/66');
+
+select expect('and lopsided divisions',
+  (select string_agg(division || ':' || n, ' ' order by division) from (
+     select division, count(*) n from managers where league_id = :'Q' group by division
+   ) d), 'East:4 West:6');
+
+select expect('the repair spots it', repair_schedule(:'Q'), true);
+
+select expect('and rebuilds the season the league actually implies',
+  (select max(week)::int || '/' || count(*)::int from matchups where league_id = :'Q'),
+  '14/65');
+
+select expect('evening the divisions on the way past',
+  (select string_agg(division || ':' || n, ' ' order by division) from (
+     select division, count(*) n from managers where league_id = :'Q' group by division
+   ) d), 'East:5 West:5');
+
+select expect('everybody plays thirteen again',
+  (select bool_and(n = 13) from (
+     select m, count(*) n from matchups, lateral (values (home_manager), (away_manager)) v(m)
+      where league_id = :'Q' group by m
+   ) per_team), true);
+
+select expect('running it a second time changes nothing', repair_schedule(:'Q'), false);
+
+-- Five to a division means one sits out each rematch week. That is the shape
+-- of a correct schedule, not a broken one, and the repair must not chase it.
+select expect('an idle franchise in a rematch week is not treated as damage',
+  (select bool_and(n = 4) from (
+     select week, count(*) n from matchups where league_id = :'Q' and week > 9 group by week
+   ) per_week), true);
+
+-- Once a week has been played the season is history, however wrong it looks.
+\o /dev/null
+update matchups set final = true where league_id = :'Q' and week = 1;
+delete from managers
+ where id = (select id from managers where league_id = :'Q' and division = 'West'
+              order by slot desc limit 1);
+
+create temp table mid_season as
+select md5(string_agg(week || ':' || home_manager || ':' || away_manager, ','
+             order by week, home_manager, away_manager)) h
+  from matchups where league_id = :'Q';
+\o
+
+select expect('a season under way is never rebuilt', repair_schedule(:'Q'), false);
+
+select expect('however badly it now matches the league',
+  (select md5(string_agg(week || ':' || home_manager || ':' || away_manager, ','
+                order by week, home_manager, away_manager))
+     from matchups where league_id = :'Q'),
+  (select h from mid_season));
+
+-- A league that has never had a schedule generated has nothing to compare
+-- against, so the repair leaves it be rather than inventing one.
+\o /dev/null
+\set Q2 '99999999-0000-0000-0000-000000000011'
+insert into leagues (id, name, season, commissioner_slot)
+values (:'Q2', 'Unscheduled', 2026, 'F01');
+insert into managers (league_id, slot, name, franchise)
+select :'Q2', 'F' || lpad(i::text, 2, '0'), 'Open', 'Franchise ' || i
+  from generate_series(1, 8) i;
+\o
+
+select expect('a league with no schedule yet has nothing to repair',
+  repair_schedule(:'Q2'), false);
+
+select expect('and is not given one behind the commissioner''s back',
+  (select count(*)::int from matchups where league_id = :'Q2'), 0);
