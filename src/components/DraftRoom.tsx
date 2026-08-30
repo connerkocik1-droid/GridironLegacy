@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { headshot, logo } from "@/data/league-data";
+import DraftCountdown from "./DraftCountdown";
+import DraftReveal, { type RevealPick } from "./DraftReveal";
 
 const BLANK =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -31,6 +33,8 @@ interface Board {
     pickStartedAt: string | null;
     pickSeconds: number;
     serverNow: string;
+    draftAt: string | null;
+    cinematicRounds: number;
   };
   onTheClock: Pick | null;
   myTurn: boolean;
@@ -48,6 +52,15 @@ export default function DraftRoom() {
   const [search, setSearch] = useState("");
   const [picking, setPicking] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [reveal, setReveal] = useState<RevealPick | null>(null);
+
+  // The chime, and whether the browser has let us play it yet. Autoplay is
+  // blocked until the page has been interacted with, so it is primed silently
+  // on the first click anywhere — by the time a pick lands it is unblocked.
+  const chime = useRef<HTMLAudioElement | null>(null);
+  const primed = useRef(false);
+  // What the board looked like last time, so a new pick can be spotted.
+  const seen = useRef<Set<number> | null>(null);
 
   // The offset between this browser's clock and the server's, measured on
   // every refresh. The countdown is drawn through it, so a manager whose
@@ -81,6 +94,34 @@ export default function DraftRoom() {
     return () => clearInterval(timer);
   }, [load]);
 
+  // Unblock the chime on the first interaction anywhere: play it muted, stop
+  // it, and it is allowed to sound for real later.
+  useEffect(() => {
+    const prime = () => {
+      const audio = chime.current;
+      if (!audio || primed.current) return;
+      primed.current = true;
+      audio.volume = 0;
+      audio
+        .play()
+        .then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+          audio.volume = 0.85;
+        })
+        .catch(() => {
+          audio.volume = 0.85;
+        });
+    };
+
+    window.addEventListener("pointerdown", prime, { once: true });
+    window.addEventListener("keydown", prime, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", prime);
+      window.removeEventListener("keydown", prime);
+    };
+  }, []);
+
   // The clock only advances local time; the countdown itself is derived below
   // from the server's pick_started_at, never from a timer that started when
   // this page happened to open.
@@ -110,6 +151,50 @@ export default function DraftRoom() {
     return map;
   }, [board]);
 
+  // A pick landing is what triggers the reveal. The board is polled, so a new
+  // pick is one this browser has not seen before — on the first load every
+  // pick is "new", which would fire a reveal for the whole board, so the first
+  // sighting only records what is already there.
+  useEffect(() => {
+    if (!board) return;
+
+    const made = board.picks.filter((p) => p.player_name);
+    const ids = new Set(made.map((p) => p.overall));
+
+    if (seen.current === null) {
+      seen.current = ids;
+      return;
+    }
+
+    const fresh = made
+      .filter((p) => !seen.current!.has(p.overall))
+      .sort((a, b) => a.overall - b.overall);
+
+    seen.current = ids;
+    if (!fresh.length) return;
+
+    // Several picks can land between two polls; the latest is the one worth
+    // watching, and the rest are already in the board's history.
+    const latest = fresh[fresh.length - 1];
+    if (latest.round > board.league.cinematicRounds) return;
+
+    const audio = chime.current;
+    if (audio) {
+      audio.currentTime = 0;
+      // A blocked chime is not worth failing the reveal over.
+      audio.play().catch(() => {});
+    }
+
+    setReveal({
+      playerName: latest.player_name!,
+      franchise: managerName.get(latest.manager_id ?? "") ?? "—",
+      slot: "",
+      overall: latest.overall,
+      round: latest.round,
+      mine: latest.manager_id === board.me.id,
+    });
+  }, [board, managerName]);
+
   const visible = useMemo(() => {
     if (!board) return [];
     const q = search.trim().toLowerCase();
@@ -119,6 +204,24 @@ export default function DraftRoom() {
       return true;
     });
   }, [board, filter, search]);
+
+  async function setDraftState(state: "running" | "paused") {
+    if (picking) return;
+    setPicking("__state__");
+    try {
+      const res = await fetch("/api/admin/draft", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ state }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "That did not go through.");
+      else setError(null);
+      await load();
+    } finally {
+      setPicking(null);
+    }
+  }
 
   async function pick(name: string) {
     if (!board?.myTurn || picking) return;
@@ -148,8 +251,31 @@ export default function DraftRoom() {
   const recent = board.picks.filter((p) => p.player_name).slice(-12).reverse();
   const urgent = remaining <= 15 && board.league.state === "running";
 
+  // Nothing to show a board for until the draft is open.
+  if (board.league.state === "pending" || board.league.state === "paused") {
+    return (
+      <>
+        <audio ref={chime} src="/assets/nfl-draft-chime.mp3" preload="auto" />
+        {error ? (
+          <div style={{ padding: "0 26px", fontSize: 12, color: "#e0b573" }}>{error}</div>
+        ) : null}
+        <DraftCountdown
+          draftAt={board.league.draftAt}
+          skew={skew}
+          state={board.league.state}
+          isCommissioner={board.me.is_commissioner}
+          managers={board.managers}
+          onStart={() => void setDraftState("running")}
+          busy={picking != null}
+        />
+      </>
+    );
+  }
+
   return (
     <>
+      <audio ref={chime} src="/assets/nfl-draft-chime.mp3" preload="auto" />
+      <DraftReveal pick={reveal} onClose={() => setReveal(null)} />
       <div
         style={{
           display: "flex",

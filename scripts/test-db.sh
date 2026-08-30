@@ -65,6 +65,12 @@ create or replace function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('test.uid', true), '')::uuid;
 $$;
 
+-- Supabase lets the authenticated role reach auth.uid(); without mirroring
+-- that, any check running as that role fails on the schema rather than on the
+-- rule it is meant to be testing.
+grant usage on schema auth to authenticated, anon;
+grant execute on function auth.uid() to authenticated, anon;
+
 create publication supabase_realtime;
 SQL
 
@@ -73,6 +79,10 @@ for migration in "$ROOT"/supabase/migrations/*.sql; do
 done
 
 OUTPUT=$(psql -q -f "$ROOT/supabase/tests/rules.sql" 2>&1)
+# The forgery checks run as the authenticated role, which cannot be switched
+# from inside a function, so they are a separate script rather than a section.
+OUTPUT="$OUTPUT
+$(psql -q -f "$ROOT/supabase/tests/forgery.sql" 2>&1)"
 echo "$OUTPUT"
 
 FAILED=$(echo "$OUTPUT" | grep -c '^FAIL' || true)

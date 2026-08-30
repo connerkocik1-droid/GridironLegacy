@@ -642,3 +642,56 @@ select expect('a tie has no winner',
 
 select expect('a tie is recorded for both',
   (select sum(ties)::int from standings(:'T3')), 2);
+
+\echo ''
+\echo '--- column privileges ---'
+-- Row-level security says which rows you may touch, not which columns. These
+-- check the half that policies do not cover.
+
+\o /dev/null
+\set P '99999999-0000-0000-0000-000000000007'
+\set P1 'ffff0000-0000-0000-0000-000000000001'
+\set P2 'ffff0000-0000-0000-0000-000000000002'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'P', 'Privs', 2026, 'AAA', '{"starters":{"QB":1},"bench":4}'::jsonb);
+insert into auth.users (id) values (:'P1'), (:'P2');
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'P', 'AAA', 'A', 'Alpha', true,  :'P1'),
+  (:'P', 'BBB', 'B', 'Bravo', false, :'P2');
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'P', id, 'Mine', 'BENCH' from managers where league_id = :'P' and slot = 'BBB';
+\o
+
+-- The grants are what enforce this, so they are read directly: a test running
+-- as the owner would bypass them.
+select expect('a manager cannot update is_commissioner',
+  has_column_privilege('authenticated', 'managers', 'is_commissioner', 'UPDATE'), false);
+
+select expect('nor waiver_priority',
+  has_column_privilege('authenticated', 'managers', 'waiver_priority', 'UPDATE'), false);
+
+select expect('nor their own PIN hash',
+  has_column_privilege('authenticated', 'managers', 'pin_hash', 'UPDATE'), false);
+
+select expect('nor which auth user they are',
+  has_column_privilege('authenticated', 'managers', 'auth_user_id', 'UPDATE'), false);
+
+select expect('but may rename their franchise',
+  has_column_privilege('authenticated', 'managers', 'franchise', 'UPDATE'), true);
+
+select expect('a manager cannot rewrite who is on their roster',
+  has_column_privilege('authenticated', 'roster_slots', 'player_name', 'UPDATE'), false);
+
+select expect('nor move a player to another manager',
+  has_column_privilege('authenticated', 'roster_slots', 'manager_id', 'UPDATE'), false);
+
+select expect('nor relabel how they acquired him',
+  has_column_privilege('authenticated', 'roster_slots', 'acquired', 'UPDATE'), false);
+
+select expect('but may set who starts',
+  has_column_privilege('authenticated', 'roster_slots', 'lineup_slot', 'UPDATE'), true);
+
+-- The trade-forgery guard keys on the current role, which cannot be switched
+-- from inside a function, so those checks live in tests/forgery.sql and are
+-- run separately by scripts/test-db.sh.

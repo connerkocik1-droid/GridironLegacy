@@ -1,6 +1,6 @@
-import Link from "next/link";
-import Nav from "@/components/Nav";
-import { isConfigured, serviceClient } from "@/lib/supabase";
+import { redirect } from "next/navigation";
+import SignIn from "@/components/SignIn";
+import { isConfigured, serverClient, serviceClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -8,8 +8,23 @@ interface Franchise {
   slot: string;
   name: string;
   franchise: string;
+  division: string | null;
   claimed: boolean;
   isCommissioner: boolean;
+}
+
+/** Whether anyone is signed in, without throwing when Supabase is not set up. */
+async function signedIn(): Promise<boolean> {
+  if (!isConfigured()) return false;
+  try {
+    const db = await serverClient();
+    const {
+      data: { user },
+    } = await db.auth.getUser();
+    return Boolean(user);
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -29,7 +44,7 @@ async function loadFranchises(): Promise<{ league: string | null; franchises: Fr
 
     const { data } = await db
       .from("managers")
-      .select("slot, name, franchise, pin_hash, is_commissioner")
+      .select("slot, name, franchise, pin_hash, is_commissioner, division")
       .eq("league_id", process.env.LEAGUE_ID)
       .order("slot");
 
@@ -39,6 +54,7 @@ async function loadFranchises(): Promise<{ league: string | null; franchises: Fr
         slot: m.slot,
         name: m.name,
         franchise: m.franchise,
+        division: m.division,
         claimed: m.pin_hash != null,
         isCommissioner: m.is_commissioner,
       })),
@@ -49,8 +65,13 @@ async function loadFranchises(): Promise<{ league: string | null; franchises: Fr
 }
 
 export default async function HomePage() {
+  // Somebody already signed in has no use for a sign-in page; send them to
+  // their own team instead.
+  if (await signedIn()) redirect("/my-team");
+
   const { league, franchises } = await loadFranchises();
   const claimed = franchises.filter((f) => f.claimed).length;
+  const open = franchises.length - claimed;
 
   return (
     <div
@@ -60,42 +81,55 @@ export default async function HomePage() {
           "radial-gradient(120% 80% at 50% -10%,rgba(66,58,106,.4),transparent 60%),#161826",
       }}
     >
-      <Nav current="/" />
+      {/* No nav for a signed-out visitor: every link behind it would only ask
+          them to sign in, which is what this page is for. */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0,420px) minmax(0,1fr)",
+          gap: 40,
+          alignItems: "start",
+          maxWidth: 1100,
+          margin: "0 auto",
+          padding: "48px 26px 60px",
+        }}
+      >
+        <SignIn leagueName={league} />
 
-      <div style={{ padding: "24px 26px 40px" }}>
-        <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>
-          DYNASTY · SUPERFLEX
-        </div>
-        <h1
-          style={{
-            fontFamily: "var(--font-heading)",
-            fontSize: 44,
-            lineHeight: 1.04,
-            letterSpacing: "-.035em",
-            margin: "8px 0 6px",
-            fontWeight: 500,
-          }}
-        >
-          {league ?? "Gridiron Legacy"}
-        </h1>
-
-        {franchises.length === 0 ? (
-          <p style={{ fontSize: 13, color: "#9397ab", lineHeight: 1.6, maxWidth: "60ch" }}>
-            No league yet. Run <code>node scripts/seed.mjs</code> against your
-            database to create one, then set <code>LEAGUE_ID</code>.
-          </p>
-        ) : (
-          <>
-            <p style={{ fontSize: 13, color: "#9397ab", margin: "0 0 20px" }}>
-              {claimed} of {franchises.length} franchises claimed ·{" "}
-              <Link href="/signin">claim one</Link>
-            </p>
+        {franchises.length ? (
+          <div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 10,
+                margin: "0 0 12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 15,
+                  fontWeight: 500,
+                  margin: 0,
+                  color: "#d2cefd",
+                }}
+              >
+                The league
+              </h2>
+              <span style={{ fontSize: 11, color: "#75798c" }}>
+                {open > 0
+                  ? `${open} of ${franchises.length} still open`
+                  : "every franchise claimed"}
+              </span>
+            </div>
 
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))",
-                gap: 10,
+                gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))",
+                gap: 8,
               }}
             >
               {franchises.map((f) => (
@@ -104,28 +138,29 @@ export default async function HomePage() {
                   style={{
                     border: `1px solid ${f.claimed ? "rgba(145,132,217,.34)" : "rgba(145,132,217,.16)"}`,
                     borderRadius: "var(--radius-md)",
-                    padding: "12px 14px",
-                    background: f.claimed ? "rgba(35,37,50,.6)" : "rgba(28,30,42,.4)",
+                    padding: "10px 12px",
+                    background: f.claimed ? "rgba(35,37,50,.6)" : "rgba(28,30,42,.35)",
                   }}
                 >
                   <div
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: 8,
-                      fontSize: 9,
-                      letterSpacing: ".2em",
+                      gap: 6,
+                      fontSize: 8,
+                      letterSpacing: ".18em",
                       color: "#75798c",
                     }}
                   >
                     {f.slot}
-                    {f.isCommissioner ? <span style={{ color: "#b5abfc" }}>· COMMISSIONER</span> : null}
+                    {f.division ? <span>· {f.division.toUpperCase()}</span> : null}
+                    {f.isCommissioner ? <span style={{ color: "#b5abfc" }}>· COMM</span> : null}
                   </div>
                   <div
                     style={{
                       fontFamily: "var(--font-heading)",
-                      fontSize: 16,
-                      marginTop: 4,
+                      fontSize: 14,
+                      marginTop: 3,
                       color: f.claimed ? "#e9e9ed" : "#9397ab",
                     }}
                   >
@@ -133,9 +168,9 @@ export default async function HomePage() {
                   </div>
                   <div
                     style={{
-                      fontSize: 10,
+                      fontSize: 9,
                       letterSpacing: ".14em",
-                      marginTop: 6,
+                      marginTop: 5,
                       color: f.claimed ? "#7fd1a8" : "#75798c",
                     }}
                   >
@@ -144,7 +179,15 @@ export default async function HomePage() {
                 </div>
               ))}
             </div>
-          </>
+          </div>
+        ) : (
+          <div style={{ fontSize: 13, color: "#9397ab", lineHeight: 1.7, maxWidth: "52ch" }}>
+            <p style={{ margin: "0 0 10px" }}>No league yet.</p>
+            <p style={{ margin: 0 }}>
+              Run <code>supabase/seed.sql</code> against your database, then set{" "}
+              <code>LEAGUE_ID</code>. <code>SETUP.md</code> has the steps in order.
+            </p>
+          </div>
         )}
       </div>
     </div>

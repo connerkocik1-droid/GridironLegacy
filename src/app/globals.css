@@ -45,3 +45,10 @@ a:hover {
     opacity: 1;
   }
 }
+
+
+/* The reveal fades the room out from under itself. */
+@keyframes gl-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

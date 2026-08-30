@@ -27,7 +27,7 @@ export async function GET() {
 
   const { data: league } = await db
     .from("leagues")
-    .select("id, settings, draft_state, current_pick, pick_started_at")
+    .select("id, settings, draft_state, current_pick, pick_started_at, draft_at")
     .eq("id", me.league_id)
     .single();
   if (!league) return Response.json({ error: "League not found" }, { status: 404 });
@@ -73,6 +73,10 @@ export async function GET() {
       pickStartedAt: league.pick_started_at,
       pickSeconds,
       serverNow: new Date().toISOString(),
+      draftAt: league.draft_at,
+      // How many rounds get the full-screen reveal. Past these the board just
+      // updates, because ten seconds a pick stops being a thrill by round four.
+      cinematicRounds: Number(league.settings?.cinematicRounds ?? 3),
     },
     onTheClock,
     myTurn: onTheClock?.manager_id === me.id,
