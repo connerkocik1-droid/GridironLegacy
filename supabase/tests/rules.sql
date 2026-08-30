@@ -1007,3 +1007,131 @@ select expect('a league with no schedule yet has nothing to repair',
 
 select expect('and is not given one behind the commissioner''s back',
   (select count(*)::int from matchups where league_id = :'Q2'), 0);
+
+\echo ''
+\echo '--- resetting the draft ---'
+
+\o /dev/null
+\set X  '99999999-0000-0000-0000-000000000012'
+\set X1 'a9990000-0000-0000-0000-000000000011'
+\set X2 'a9990000-0000-0000-0000-000000000012'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'X', 'Reset', 2026, 'AAA', '{"rounds": 3, "starters": {"QB": 1}, "bench": 5}'::jsonb);
+
+insert into auth.users (id) values (:'X1'), (:'X2');
+
+insert into managers (league_id, slot, name, franchise, auth_user_id) values
+  (:'X', 'AAA', 'One', 'Alpha', :'X1'),
+  (:'X', 'BBB', 'Two', 'Bravo', :'X2');
+
+select signin(:'X1');
+select rebuild_draft_board(:'X');
+update leagues set draft_state = 'running', pick_started_at = now() where id = :'X';
+
+-- A draft in progress, plus everything that hangs off one: a trade agreed but
+-- not executed, a pending claim, a listing, and a manager's own queue.
+select make_pick(:'X', 'Alpha One');
+select signin(:'X2');
+select make_pick(:'X', 'Bravo One');
+select signin(:'X2');
+select make_pick(:'X', 'Bravo Two');
+select signin(:'X1');
+select make_pick(:'X', 'Alpha Two');
+
+insert into trades (league_id, from_manager, to_manager, offer, status, from_accepted, to_accepted)
+values (:'X',
+  (select id from managers where league_id = :'X' and slot = 'AAA'),
+  (select id from managers where league_id = :'X' and slot = 'BBB'),
+  '{"give": ["Alpha One"], "get": ["Bravo One"]}'::jsonb, 'agreed', true, true);
+
+insert into waiver_claims (league_id, manager_id, add_player, drop_player)
+values (:'X', (select id from managers where league_id = :'X' and slot = 'BBB'),
+        'Somebody Else', 'Bravo One');
+
+insert into trade_block (league_id, player_name, manager_id)
+values (:'X', 'Alpha One', (select id from managers where league_id = :'X' and slot = 'AAA'));
+
+insert into draft_queue (league_id, manager_id, player_name, rank)
+values (:'X', (select id from managers where league_id = :'X' and slot = 'AAA'), 'Wanted Later', 1);
+\o
+
+select expect('four picks are in the book',
+  (select count(*)::int from draft_picks where league_id = :'X' and player_name is not null), 4);
+
+select expect('a manager cannot reset the draft',
+  (select refuses(format('select reset_draft(%L)', :'X'))
+     from (select signin(:'X2')) _),
+  'Only the commissioner can reset the draft');
+
+select expect('and nothing was undone by the attempt',
+  (select count(*)::int from roster_slots where league_id = :'X'), 4);
+
+\o /dev/null
+select signin(:'X1');
+select reset_draft(:'X');
+\o
+
+select expect('the rosters are empty',
+  (select count(*)::int from roster_slots where league_id = :'X'), 0);
+
+select expect('no pick has a player on it',
+  (select count(*)::int from draft_picks where league_id = :'X' and player_name is not null), 0);
+
+select expect('but the board is still there, at the league size',
+  (select count(*)::int from draft_picks where league_id = :'X'), 6);
+
+select expect('and it snakes the way a fresh board does',
+  (select string_agg(m.slot, ',' order by p.overall) from draft_picks p
+     join managers m on m.id = p.manager_id
+    where p.league_id = :'X'), 'AAA,BBB,BBB,AAA,AAA,BBB');
+
+select expect('the room is closed again',
+  (select draft_state from leagues where id = :'X'), 'pending');
+
+select expect('back on the first pick',
+  (select current_pick from leagues where id = :'X'), 1);
+
+select expect('with nobody on the clock',
+  (select pick_started_at from leagues where id = :'X'), null::timestamptz);
+
+select expect('the standing offer is declined, not left unrunnable',
+  (select status from trades where league_id = :'X'), 'declined');
+
+select expect('the pending claim is cancelled',
+  (select status from waiver_claims where league_id = :'X'), 'cancelled');
+
+select expect('and says why',
+  (select reason from waiver_claims where league_id = :'X'), 'The draft was reset');
+
+select expect('nobody is shopping anybody',
+  (select count(*)::int from trade_block where league_id = :'X'), 0);
+
+select expect('a manager keeps their own queue',
+  (select player_name from draft_queue where league_id = :'X'), 'Wanted Later');
+
+select expect('the reset is on the record',
+  (select detail ->> 'picks_undone' from admin_log
+    where league_id = :'X' and action = 'draft_reset'), '4');
+
+-- The whole point of resetting: draft it again from the top.
+\o /dev/null
+update leagues set draft_state = 'running', pick_started_at = now() where id = :'X';
+\o
+
+select expect('a player taken in the old draft can be taken again',
+  (select refuses(format('select make_pick(%L, %L)', :'X', 'Alpha One'))
+     from (select signin(:'X1')) _),
+  null::text);
+
+-- Once a week is graded the rosters are part of the record.
+\o /dev/null
+select signin(:'X1');
+select reset_draft(:'X');
+select generate_schedule(:'X');
+update matchups set final = true where league_id = :'X' and week = 1;
+\o
+
+select expect('a played week closes the door on resetting',
+  refuses(format('select reset_draft(%L)', :'X')),
+  'Weeks have already been played — the draft cannot be reset now');
