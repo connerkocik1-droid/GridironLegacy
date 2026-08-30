@@ -1114,6 +1114,10 @@ select expect('the reset is on the record',
   (select detail ->> 'picks_undone' from admin_log
     where league_id = :'X' and action = 'draft_reset'), '4');
 
+select expect('and the rosters were photographed before they went',
+  (select jsonb_array_length(payload) from roster_backups
+    where league_id = :'X' and kind = 'draft_reset'), 4);
+
 -- The whole point of resetting: draft it again from the top.
 \o /dev/null
 update leagues set draft_state = 'running', pick_started_at = now() where id = :'X';
@@ -1135,3 +1139,145 @@ update matchups set final = true where league_id = :'X' and week = 1;
 select expect('a played week closes the door on resetting',
   refuses(format('select reset_draft(%L)', :'X')),
   'Weeks have already been played — the draft cannot be reset now');
+
+\echo ''
+\echo '--- resetting the league ---'
+
+\o /dev/null
+\set Y  '99999999-0000-0000-0000-000000000013'
+\set Y1 'a9990000-0000-0000-0000-000000000021'
+\set Y2 'a9990000-0000-0000-0000-000000000022'
+
+insert into leagues (id, name, season, commissioner_slot, settings, lottery_order)
+values (:'Y', 'Wipe', 2026, 'AAA', '{"rounds": 2, "starters": {"QB": 1}, "bench": 5}'::jsonb,
+        array['BBB', 'AAA']);
+
+insert into auth.users (id) values (:'Y1'), (:'Y2');
+
+insert into managers (league_id, slot, name, franchise, auth_user_id, ready) values
+  (:'Y', 'AAA', 'Boss', 'Alpha', :'Y1', true),
+  (:'Y', 'BBB', 'Two',  'Bravo', :'Y2', true);
+
+update managers set pin_hash = 'hashed' where league_id = :'Y';
+
+select signin(:'Y1');
+select rebuild_draft_board(:'Y');
+update leagues set draft_state = 'running', pick_started_at = now() where id = :'Y';
+
+-- A league with a season's worth of everything in it. The lottery order above
+-- puts Bravo on the clock first, which is the point of setting one.
+select signin(:'Y2');
+select make_pick(:'Y', 'Bravo One');
+select signin(:'Y1');
+select make_pick(:'Y', 'Alpha One');
+
+select generate_schedule(:'Y');
+update matchups set final = true, home_points = 101, winner = home_manager
+ where league_id = :'Y' and week = 1;
+
+insert into player_scores (league_id, week, player_name, points) values (:'Y', 1, 'Alpha One', 22);
+insert into trade_block (league_id, player_name, manager_id)
+values (:'Y', 'Alpha One', (select id from managers where league_id = :'Y' and slot = 'AAA'));
+insert into waiver_claims (league_id, manager_id, add_player)
+values (:'Y', (select id from managers where league_id = :'Y' and slot = 'BBB'), 'Somebody');
+insert into draft_queue (league_id, manager_id, player_name, rank)
+values (:'Y', (select id from managers where league_id = :'Y' and slot = 'AAA'), 'Wanted', 1);
+insert into nfl_games (id, season, week, starts_at, home_team, away_team)
+values ('evt-reset', 2026, 1, now(), 'BUF', 'MIA');
+insert into pickem_picks (league_id, manager_id, game_id, pick)
+values (:'Y', (select id from managers where league_id = :'Y' and slot = 'AAA'), 'evt-reset', 'BUF');
+\o
+
+select expect('a played week does not stop a league reset the way it stops a draft reset',
+  refuses(format('select reset_draft(%L)', :'Y')),
+  'Weeks have already been played — the draft cannot be reset now');
+
+select expect('a manager cannot reset the league',
+  (select refuses(format('select reset_league(%L)', :'Y'))
+     from (select signin(:'Y2')) _),
+  'Only the commissioner can reset the league');
+
+select expect('and nothing was wiped by the attempt',
+  (select count(*)::int from roster_slots where league_id = :'Y'), 2);
+
+\o /dev/null
+select signin(:'Y1');
+select reset_league(:'Y');
+\o
+
+select expect('the rosters are gone',
+  (select count(*)::int from roster_slots where league_id = :'Y'), 0);
+
+select expect('the season is gone, played weeks and all',
+  (select count(*)::int from matchups where league_id = :'Y'), 0);
+
+select expect('so are the scores',
+  (select count(*)::int from player_scores where league_id = :'Y'), 0);
+
+select expect('the transaction log is cleared',
+  (select count(*)::int from transactions where league_id = :'Y'), 0);
+
+select expect('claims, trade block, queues and pick-em go too',
+  (select (select count(*) from waiver_claims where league_id = :'Y')
+        + (select count(*) from trade_block  where league_id = :'Y')
+        + (select count(*) from draft_queue  where league_id = :'Y')
+        + (select count(*) from pickem_picks where league_id = :'Y'))::int, 0);
+
+select expect('the board is redrawn empty',
+  (select count(*)::int from draft_picks where league_id = :'Y' and player_name is not null), 0);
+
+select expect('and is still the right size',
+  (select count(*)::int from draft_picks where league_id = :'Y'), 4);
+
+select expect('the room is closed',
+  (select draft_state || ':' || current_pick from leagues where id = :'Y'), 'pending:1');
+
+select expect('the lottery is not carried into a season that is not happening',
+  (select lottery_order from leagues where id = :'Y'), null::text[]);
+
+-- What survives is the point: the league, not what happened in it.
+select expect('the franchises are still here',
+  (select count(*)::int from managers where league_id = :'Y'), 2);
+
+select expect('nobody has to sign up again',
+  (select count(*)::int from managers where league_id = :'Y' and pin_hash is not null), 2);
+
+select expect('the commissioner is still the commissioner',
+  (select slot from managers where league_id = :'Y' and is_commissioner), 'AAA');
+
+select expect('waiver order goes back to the order the league was written in',
+  (select string_agg(slot || ':' || waiver_priority, ' ' order by slot)
+     from managers where league_id = :'Y'), 'AAA:1 BBB:2');
+
+select expect('and nobody is marked ready for a draft that has not happened',
+  (select bool_and(not ready) from managers where league_id = :'Y'), true);
+
+select expect('the rosters were photographed on the way past',
+  (select jsonb_array_length(payload) from roster_backups
+    where league_id = :'Y' and kind = 'league_reset'), 2);
+
+select expect('the photograph names the franchise, not just an id',
+  (select payload -> 0 ->> 'slot' from roster_backups
+    where league_id = :'Y' and kind = 'league_reset'), 'AAA');
+
+select expect('and the reset is on the record',
+  (select detail ->> 'weeks_played' from admin_log
+    where league_id = :'Y' and action = 'league_reset'), '1');
+
+-- Releasing the franchises as well, which is the other thing a reset can mean.
+\o /dev/null
+update managers set pin_hash = 'hashed', name = 'Two'
+ where league_id = :'Y' and slot = 'BBB';
+select reset_league(:'Y', true);
+\o
+
+select expect('a released franchise is open again',
+  (select name || '/' || coalesce(pin_hash, 'none') from managers
+    where league_id = :'Y' and slot = 'BBB'), 'Open/none');
+
+select expect('but the commissioner keeps their own way in',
+  (select coalesce(pin_hash, 'none') from managers
+    where league_id = :'Y' and slot = 'AAA'), 'hashed');
+
+select expect('so the office is still reachable afterwards',
+  (select refuses(format('select reset_league(%L)', :'Y'))), null::text);
