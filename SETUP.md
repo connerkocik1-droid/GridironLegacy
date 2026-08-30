@@ -28,8 +28,20 @@ From **Project Settings → API**, copy three values — you will need them twic
 
 ## 2. Run the migrations
 
-In the Supabase dashboard, open **SQL Editor**. Run each file in
-`supabase/migrations/` **in numerical order**, one at a time:
+In the Supabase dashboard, open **SQL Editor** and click **New query**.
+
+Paste in the whole of **`supabase/all-migrations.sql`** and run it once.
+
+That one file is every migration in order, wrapped in a transaction: if
+anything fails, nothing is applied and your database is left exactly as it
+was, rather than half migrated with no record of how far it got. You should
+see 16 tables and 64 functions created.
+
+<details>
+<summary>If you would rather run them one at a time</summary>
+
+The individual files live in `supabase/migrations/` and must be run in
+numerical order, since later ones depend on earlier ones:
 
 ```
 0001_schema.sql        tables, row-level security
@@ -43,10 +55,10 @@ In the Supabase dashboard, open **SQL Editor**. Run each file in
 0009_divisions.sql     two divisions, divisional rematches
 ```
 
-Each is idempotent enough to re-run if one fails midway, but run them in order:
-later files depend on earlier ones.
+`node scripts/build-migration.mjs` regenerates the combined file after any
+change to these.
 
----
+</details>
 
 ## 3. Seed the league
 
