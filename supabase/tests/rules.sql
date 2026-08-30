@@ -695,3 +695,75 @@ select expect('but may set who starts',
 -- The trade-forgery guard keys on the current role, which cannot be switched
 -- from inside a function, so those checks live in tests/forgery.sql and are
 -- run separately by scripts/test-db.sh.
+
+\echo ''
+\echo '--- the commissioner is one franchise ---'
+
+\o /dev/null
+\set C '99999999-0000-0000-0000-000000000008'
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'C', 'Office', 2026, 'STL', '{"starters":{"QB":1},"bench":2}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise) values
+  (:'C', 'STL', 'Open', 'Steel Cartel'),
+  (:'C', 'BLZ', 'Open', 'Blaze Syndicate'),
+  (:'C', 'RVN', 'Open', 'Ravenous');
+\o
+
+select expect('the named franchise holds the office',
+  (select slot from managers where league_id = :'C' and is_commissioner), 'STL');
+
+select expect('and it is the only one',
+  (select count(*)::int from managers where league_id = :'C' and is_commissioner), 1);
+
+-- Inserting a franchise that claims the office does not get it.
+\o /dev/null
+insert into managers (league_id, slot, name, franchise, is_commissioner)
+values (:'C', 'HELX', 'Open', 'Helix Nine', true);
+\o
+
+select expect('a new franchise cannot arrive as commissioner',
+  (select is_commissioner from managers where league_id = :'C' and slot = 'HELX'), false);
+
+select expect('the office is still only Steel Cartel',
+  (select string_agg(slot, ',') from managers where league_id = :'C' and is_commissioner), 'STL');
+
+-- Nor can an existing one take it, even writing directly as the owner.
+\o /dev/null
+update managers set is_commissioner = true where league_id = :'C' and slot = 'BLZ';
+\o
+
+select expect('an existing franchise cannot take the office',
+  (select is_commissioner from managers where league_id = :'C' and slot = 'BLZ'), false);
+
+select expect('nor can Steel Cartel be stripped of it',
+  (select is_commissioner from managers where league_id = :'C' and slot = 'STL'), true);
+
+\o /dev/null
+update managers set is_commissioner = false where league_id = :'C' and slot = 'STL';
+\o
+
+select expect('even setting it false directly does not stick',
+  (select is_commissioner from managers where league_id = :'C' and slot = 'STL'), true);
+
+select expect('a browser session cannot move the office',
+  has_column_privilege('authenticated', 'leagues', 'commissioner_slot', 'UPDATE'), false);
+
+select expect('but may still save league settings',
+  has_column_privilege('authenticated', 'leagues', 'settings', 'UPDATE'), true);
+
+select expect('and the draft date',
+  has_column_privilege('authenticated', 'leagues', 'draft_at', 'UPDATE'), true);
+
+-- Handing the office over is deliberate, with the service key.
+\o /dev/null
+update leagues set commissioner_slot = 'BLZ' where id = :'C';
+update managers m set is_commissioner = (m.slot = l.commissioner_slot)
+  from leagues l where l.id = m.league_id and m.league_id = :'C';
+\o
+
+select expect('the owner can hand the office over',
+  (select slot from managers where league_id = :'C' and is_commissioner), 'BLZ');
+
+select expect('and it is still held by exactly one',
+  (select count(*)::int from managers where league_id = :'C' and is_commissioner), 1);
