@@ -1,8 +1,10 @@
 import coreWebVitals from "eslint-config-next/core-web-vitals";
 import typescript from "eslint-config-next/typescript";
 
-export default [
+const config = [
   { ignores: ["prototype/**", "src/data/**", ".next/**", "node_modules/**"] },
   ...coreWebVitals,
   ...typescript,
 ];
+
+export default config;

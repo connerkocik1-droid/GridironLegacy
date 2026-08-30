@@ -1,10 +1,18 @@
 import Link from "next/link";
+import CommissionerOnly from "./CommissionerOnly";
+import ProfileMenu from "./ProfileMenu";
 
 const PRIMARY = [
   { href: "/draft", label: "Draft" },
-  { href: "/draft/rehearsal", label: "Rehearsal" },
   { href: "/league", label: "League" },
   { href: "/news", label: "News" },
+];
+
+// The commissioner's own two: the office, and the room for walking through
+// draft night before anybody is watching. Appended after the rest, and only
+// for the manager who holds the office.
+const OFFICE = [
+  { href: "/draft/rehearsal", label: "Rehearsal" },
   { href: "/commissioner", label: "Commissioner" },
 ];
 
@@ -90,6 +98,18 @@ export default function Nav({ current, note }: { current: string; note?: string 
             {item.label}
           </Link>
         ))}
+        <CommissionerOnly>
+          {OFFICE.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              style={primaryLink(item.href === current)}
+              aria-current={item.href === current ? "page" : undefined}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </CommissionerOnly>
       </div>
 
       <div
@@ -124,6 +144,7 @@ export default function Nav({ current, note }: { current: string; note?: string 
         }}
       >
         {note ? <span>{note}</span> : null}
+        <ProfileMenu />
       </div>
     </div>
   );

@@ -19,6 +19,28 @@ import path from "node:path";
 const DIR = "supabase/migrations";
 const OUT = "supabase/all-migrations.sql";
 
+// Databases set up before this file grew its tracking table were built from a
+// version of it that ended at 0009. They have the schema but no record of it,
+// so re-running would abort on "relation leagues already exists" — which is
+// what a catch-up file used to work around, one hand-maintained copy per
+// migration added.
+//
+// Instead the file adopts them: a database that has the schema and an empty
+// tracking table is, by that history, one of these, and the nine migrations
+// below are already in it. Recording that once lets every later run work out
+// for itself what is actually missing.
+const ADOPTED = [
+  "0001_schema.sql",
+  "0002_trades.sql",
+  "0003_draft.sql",
+  "0004_auth.sql",
+  "0005_team_count.sql",
+  "0006_draft_control.sql",
+  "0007_waivers.sql",
+  "0008_schedule.sql",
+  "0009_divisions.sql",
+];
+
 // The dollar tag wrapping each migration. Migrations quote function bodies
 // with $$, so the wrapper needs its own tag or the nesting collapses.
 const TAG = "$__migration__$";
@@ -39,6 +61,13 @@ for (const file of files) {
   }
 }
 
+for (const file of ADOPTED) {
+  if (!files.includes(file)) {
+    console.error(`ADOPTED names ${file}, which is not in ${DIR}.`);
+    process.exit(1);
+  }
+}
+
 const parts = [
   `-- Gridiron Legacy — the whole schema, in order.
 --
@@ -49,6 +78,10 @@ const parts = [
 -- again later: each migration is recorded once applied and skipped after
 -- that, so adding a migration means re-running this file, not hunting for
 -- which ones are new.
+--
+-- Safe on an older database too. One built before the tracking table existed
+-- has the early schema and no record of it; this file recognises that and
+-- writes the record down rather than failing on the tables already there.
 --
 -- Built from ${files.length} migrations:
 ${files.map((f) => `--   ${f}`).join("\n")}
@@ -61,6 +94,21 @@ create table if not exists schema_migrations (
   name        text primary key,
   applied_at  timestamptz not null default now()
 );
+
+-- A database built before this file tracked anything has the early schema
+-- with no record of it. Recognise it and write the record down, rather than
+-- failing on the tables it already has.
+do $__adopt__$
+begin
+  if to_regclass('public.leagues') is not null
+     and not exists (select 1 from schema_migrations) then
+    insert into schema_migrations (name) values
+${ADOPTED.map((f) => `      ('${f}')`).join(",\n")}
+    on conflict (name) do nothing;
+    raise notice 'adopted % migrations this database already had', ${ADOPTED.length};
+  end if;
+end
+$__adopt__$;
 `,
 ];
 

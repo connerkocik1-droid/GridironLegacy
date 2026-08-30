@@ -1,4 +1,5 @@
 import Nav from "@/components/Nav";
+import CommissionerOnly from "@/components/CommissionerOnly";
 import DraftRehearsal from "@/components/DraftRehearsal";
 
 export const metadata = { title: "Draft rehearsal · Gridiron Legacy" };
@@ -13,7 +14,17 @@ export default function DraftRehearsalPage() {
       }}
     >
       <Nav current="/draft/rehearsal" />
-      <DraftRehearsal />
+      {/* The room drives the real reveal and countdown, so it belongs to
+          whoever is running draft night rather than to everyone. */}
+      <CommissionerOnly
+        fallback={
+          <div style={{ padding: "24px 26px", color: "#9397ab" }}>
+            The rehearsal room is the commissioner&apos;s.
+          </div>
+        }
+      >
+        <DraftRehearsal />
+      </CommissionerOnly>
     </div>
   );
 }

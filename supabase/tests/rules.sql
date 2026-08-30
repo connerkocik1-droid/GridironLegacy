@@ -695,3 +695,589 @@ select expect('but may set who starts',
 -- The trade-forgery guard keys on the current role, which cannot be switched
 -- from inside a function, so those checks live in tests/forgery.sql and are
 -- run separately by scripts/test-db.sh.
+
+\echo ''
+\echo '--- the commissioner is one franchise ---'
+
+\o /dev/null
+\set C '99999999-0000-0000-0000-000000000008'
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'C', 'Office', 2026, 'STL', '{"starters":{"QB":1},"bench":2}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise) values
+  (:'C', 'STL', 'Open', 'Steel Cartel'),
+  (:'C', 'BLZ', 'Open', 'Blaze Syndicate'),
+  (:'C', 'RVN', 'Open', 'Ravenous');
+\o
+
+select expect('the named franchise holds the office',
+  (select slot from managers where league_id = :'C' and is_commissioner), 'STL');
+
+select expect('and it is the only one',
+  (select count(*)::int from managers where league_id = :'C' and is_commissioner), 1);
+
+-- Inserting a franchise that claims the office does not get it.
+\o /dev/null
+insert into managers (league_id, slot, name, franchise, is_commissioner)
+values (:'C', 'HELX', 'Open', 'Helix Nine', true);
+\o
+
+select expect('a new franchise cannot arrive as commissioner',
+  (select is_commissioner from managers where league_id = :'C' and slot = 'HELX'), false);
+
+select expect('the office is still only Steel Cartel',
+  (select string_agg(slot, ',') from managers where league_id = :'C' and is_commissioner), 'STL');
+
+-- Nor can an existing one take it, even writing directly as the owner.
+\o /dev/null
+update managers set is_commissioner = true where league_id = :'C' and slot = 'BLZ';
+\o
+
+select expect('an existing franchise cannot take the office',
+  (select is_commissioner from managers where league_id = :'C' and slot = 'BLZ'), false);
+
+select expect('nor can Steel Cartel be stripped of it',
+  (select is_commissioner from managers where league_id = :'C' and slot = 'STL'), true);
+
+\o /dev/null
+update managers set is_commissioner = false where league_id = :'C' and slot = 'STL';
+\o
+
+select expect('even setting it false directly does not stick',
+  (select is_commissioner from managers where league_id = :'C' and slot = 'STL'), true);
+
+select expect('a browser session cannot move the office',
+  has_column_privilege('authenticated', 'leagues', 'commissioner_slot', 'UPDATE'), false);
+
+select expect('but may still save league settings',
+  has_column_privilege('authenticated', 'leagues', 'settings', 'UPDATE'), true);
+
+select expect('and the draft date',
+  has_column_privilege('authenticated', 'leagues', 'draft_at', 'UPDATE'), true);
+
+-- Handing the office over is deliberate, with the service key.
+\o /dev/null
+update leagues set commissioner_slot = 'BLZ' where id = :'C';
+update managers m set is_commissioner = (m.slot = l.commissioner_slot)
+  from leagues l where l.id = m.league_id and m.league_id = :'C';
+\o
+
+select expect('the owner can hand the office over',
+  (select slot from managers where league_id = :'C' and is_commissioner), 'BLZ');
+
+select expect('and it is still held by exactly one',
+  (select count(*)::int from managers where league_id = :'C' and is_commissioner), 1);
+
+\echo ''
+\echo '--- resizing rebuilds the season ---'
+
+\o /dev/null
+\set R  '99999999-0000-0000-0000-000000000009'
+\set R1 'a9990000-0000-0000-0000-000000000001'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'R', 'Resize', 2026, 'STL', '{"rounds": 2}'::jsonb);
+
+insert into auth.users (id) values (:'R1');
+
+-- The office holder sorts near the end of the alphabet on purpose. Removal
+-- runs from the back, so this is exactly the arrangement that used to delete
+-- the commissioner's own franchise and fail on the admin log's foreign key.
+insert into managers (league_id, slot, name, franchise)
+select :'R', 'F' || lpad(i::text, 2, '0'), 'Open', 'Franchise ' || i
+  from generate_series(1, 11) i;
+
+insert into managers (league_id, slot, name, franchise, auth_user_id)
+values (:'R', 'STL', 'Boss', 'Steel Cartel', :'R1');
+
+select signin(:'R1');
+select generate_schedule(:'R');
+\o
+
+select expect('the twelve-team season starts out right',
+  (select max(week)::int || '/' || count(*)::int from matchups where league_id = :'R'),
+  '16/96');
+
+-- The bug: this used to rebuild the board and leave the season alone, so the
+-- departed franchises' fixtures cascaded out and left a twelve-team shape with
+-- holes in it — sixteen weeks, sixty-six games, two franchises idle a week.
+\o /dev/null
+select set_team_count(:'R', 10);
+\o
+
+select expect('shrinking leaves the right number of franchises',
+  (select count(*)::int from managers where league_id = :'R'), 10);
+
+select expect('and never removes the commissioner',
+  (select slot from managers where league_id = :'R' and is_commissioner), 'STL');
+
+select expect('the divisions are evened up, not left lopsided',
+  (select string_agg(division || ':' || n, ' ' order by division) from (
+     select division, count(*) n from managers where league_id = :'R' group by division
+   ) d), 'East:5 West:5');
+
+select expect('the season is regenerated at the new size',
+  (select max(week)::int || '/' || count(*)::int from matchups where league_id = :'R'),
+  '14/65');
+
+select expect('and the new length is written back to the league',
+  (select (settings ->> 'regularWeeks')::int from leagues where id = :'R'), 14);
+
+select expect('everybody plays thirteen games',
+  (select bool_and(n = 13) from (
+     select m, count(*) n from matchups, lateral (values (home_manager), (away_manager)) v(m)
+      where league_id = :'R' group by m
+   ) per_team), true);
+
+select expect('nobody appears twice in a week',
+  (select count(*)::int from (
+     select week, m from matchups, lateral (values (home_manager), (away_manager)) v(m)
+      where league_id = :'R'
+      group by week, m having count(*) > 1
+   ) dupes), 0);
+
+select expect('the full round robin seats every franchise every week',
+  (select bool_and(n = 5) from (
+     select week, count(*) n from matchups where league_id = :'R' and week <= 9 group by week
+   ) per_week), true);
+
+select expect('divisional rivals still meet twice',
+  (select bool_and(n = 2) from (
+     select count(*) n from matchups x
+       join managers h on h.id = x.home_manager
+       join managers a on a.id = x.away_manager
+      where x.league_id = :'R' and h.division = a.division
+      group by least(x.home_manager::text, x.away_manager::text),
+               greatest(x.home_manager::text, x.away_manager::text)
+   ) pairs), true);
+
+select expect('the board is rebuilt at the new size too',
+  (select count(*)::int from draft_picks where league_id = :'R'), 20);
+
+-- Rebalancing on its own: it moves as few franchises as it can, and it leaves
+-- a league that is already close enough entirely alone.
+\o /dev/null
+update managers set division = 'East'
+ where id = (select id from managers where league_id = :'R' and division = 'West'
+              order by slot limit 1);
+\o
+
+select expect('a six-four split takes one move to fix', rebalance_divisions(:'R'), 1);
+
+select expect('and comes out even',
+  (select string_agg(division || ':' || n, ' ' order by division) from (
+     select division, count(*) n from managers where league_id = :'R' group by division
+   ) d), 'East:5 West:5');
+
+select expect('an even league is left alone', rebalance_divisions(:'R'), 0);
+
+\o /dev/null
+insert into managers (league_id, slot, name, franchise) values (:'R', 'ODD', 'O', 'Odd One');
+select assign_missing_divisions(:'R');
+\o
+
+select expect('an odd league is close enough at one apart', rebalance_divisions(:'R'), 0);
+
+select expect('so it stays six and five',
+  (select string_agg(n::text, '/' order by n desc) from (
+     select count(*) n from managers where league_id = :'R' group by division
+   ) d), '6/5');
+
+-- A season under way fixes the shape as firmly as a made pick does.
+\o /dev/null
+select set_team_count(:'R', 10);
+update matchups set final = true where league_id = :'R' and week = 1;
+\o
+
+select expect('a played week freezes the league size',
+  refuses(format('select set_team_count(%L, 8)', :'R')),
+  'Weeks have already been played — the league size is fixed now');
+
+select expect('and the season survives the refusal',
+  (select max(week)::int || '/' || count(*)::int from matchups where league_id = :'R'),
+  '14/65');
+
+\echo ''
+\echo '--- repairing a schedule left over from a bigger league ---'
+
+\o /dev/null
+\set Q '99999999-0000-0000-0000-000000000010'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'Q', 'Repair', 2026, 'F01', '{"rounds": 2}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise)
+select :'Q', 'F' || lpad(i::text, 2, '0'), 'Open', 'Franchise ' || i
+  from generate_series(1, 12) i;
+
+select generate_schedule(:'Q');
+
+create temp table before_repair as
+select md5(string_agg(week || ':' || home_manager || ':' || away_manager, ','
+             order by week, home_manager, away_manager)) h
+  from matchups where league_id = :'Q';
+\o
+
+select expect('a healthy league is left alone', repair_schedule(:'Q'), false);
+
+select expect('right down to the fixtures',
+  (select md5(string_agg(week || ':' || home_manager || ':' || away_manager, ','
+                order by week, home_manager, away_manager))
+     from matchups where league_id = :'Q'),
+  (select h from before_repair));
+
+-- Break it the way the old set_team_count did: drop two franchises from one
+-- division and leave the season exactly as it was.
+\o /dev/null
+delete from managers
+ where id in (select id from managers
+               where league_id = :'Q' and division = 'East'
+               order by slot desc limit 2);
+\o
+
+select expect('which leaves a twelve-team season for ten franchises',
+  (select max(week)::int || '/' || count(*)::int from matchups where league_id = :'Q'),
+  '16/66');
+
+select expect('and lopsided divisions',
+  (select string_agg(division || ':' || n, ' ' order by division) from (
+     select division, count(*) n from managers where league_id = :'Q' group by division
+   ) d), 'East:4 West:6');
+
+select expect('the repair spots it', repair_schedule(:'Q'), true);
+
+select expect('and rebuilds the season the league actually implies',
+  (select max(week)::int || '/' || count(*)::int from matchups where league_id = :'Q'),
+  '14/65');
+
+select expect('evening the divisions on the way past',
+  (select string_agg(division || ':' || n, ' ' order by division) from (
+     select division, count(*) n from managers where league_id = :'Q' group by division
+   ) d), 'East:5 West:5');
+
+select expect('everybody plays thirteen again',
+  (select bool_and(n = 13) from (
+     select m, count(*) n from matchups, lateral (values (home_manager), (away_manager)) v(m)
+      where league_id = :'Q' group by m
+   ) per_team), true);
+
+select expect('running it a second time changes nothing', repair_schedule(:'Q'), false);
+
+-- Five to a division means one sits out each rematch week. That is the shape
+-- of a correct schedule, not a broken one, and the repair must not chase it.
+select expect('an idle franchise in a rematch week is not treated as damage',
+  (select bool_and(n = 4) from (
+     select week, count(*) n from matchups where league_id = :'Q' and week > 9 group by week
+   ) per_week), true);
+
+-- Once a week has been played the season is history, however wrong it looks.
+\o /dev/null
+update matchups set final = true where league_id = :'Q' and week = 1;
+delete from managers
+ where id = (select id from managers where league_id = :'Q' and division = 'West'
+              order by slot desc limit 1);
+
+create temp table mid_season as
+select md5(string_agg(week || ':' || home_manager || ':' || away_manager, ','
+             order by week, home_manager, away_manager)) h
+  from matchups where league_id = :'Q';
+\o
+
+select expect('a season under way is never rebuilt', repair_schedule(:'Q'), false);
+
+select expect('however badly it now matches the league',
+  (select md5(string_agg(week || ':' || home_manager || ':' || away_manager, ','
+                order by week, home_manager, away_manager))
+     from matchups where league_id = :'Q'),
+  (select h from mid_season));
+
+-- A league that has never had a schedule generated has nothing to compare
+-- against, so the repair leaves it be rather than inventing one.
+\o /dev/null
+\set Q2 '99999999-0000-0000-0000-000000000011'
+insert into leagues (id, name, season, commissioner_slot)
+values (:'Q2', 'Unscheduled', 2026, 'F01');
+insert into managers (league_id, slot, name, franchise)
+select :'Q2', 'F' || lpad(i::text, 2, '0'), 'Open', 'Franchise ' || i
+  from generate_series(1, 8) i;
+\o
+
+select expect('a league with no schedule yet has nothing to repair',
+  repair_schedule(:'Q2'), false);
+
+select expect('and is not given one behind the commissioner''s back',
+  (select count(*)::int from matchups where league_id = :'Q2'), 0);
+
+\echo ''
+\echo '--- resetting the draft ---'
+
+\o /dev/null
+\set X  '99999999-0000-0000-0000-000000000012'
+\set X1 'a9990000-0000-0000-0000-000000000011'
+\set X2 'a9990000-0000-0000-0000-000000000012'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'X', 'Reset', 2026, 'AAA', '{"rounds": 3, "starters": {"QB": 1}, "bench": 5}'::jsonb);
+
+insert into auth.users (id) values (:'X1'), (:'X2');
+
+insert into managers (league_id, slot, name, franchise, auth_user_id) values
+  (:'X', 'AAA', 'One', 'Alpha', :'X1'),
+  (:'X', 'BBB', 'Two', 'Bravo', :'X2');
+
+select signin(:'X1');
+select rebuild_draft_board(:'X');
+update leagues set draft_state = 'running', pick_started_at = now() where id = :'X';
+
+-- A draft in progress, plus everything that hangs off one: a trade agreed but
+-- not executed, a pending claim, a listing, and a manager's own queue.
+select make_pick(:'X', 'Alpha One');
+select signin(:'X2');
+select make_pick(:'X', 'Bravo One');
+select signin(:'X2');
+select make_pick(:'X', 'Bravo Two');
+select signin(:'X1');
+select make_pick(:'X', 'Alpha Two');
+
+insert into trades (league_id, from_manager, to_manager, offer, status, from_accepted, to_accepted)
+values (:'X',
+  (select id from managers where league_id = :'X' and slot = 'AAA'),
+  (select id from managers where league_id = :'X' and slot = 'BBB'),
+  '{"give": ["Alpha One"], "get": ["Bravo One"]}'::jsonb, 'agreed', true, true);
+
+insert into waiver_claims (league_id, manager_id, add_player, drop_player)
+values (:'X', (select id from managers where league_id = :'X' and slot = 'BBB'),
+        'Somebody Else', 'Bravo One');
+
+insert into trade_block (league_id, player_name, manager_id)
+values (:'X', 'Alpha One', (select id from managers where league_id = :'X' and slot = 'AAA'));
+
+insert into draft_queue (league_id, manager_id, player_name, rank)
+values (:'X', (select id from managers where league_id = :'X' and slot = 'AAA'), 'Wanted Later', 1);
+\o
+
+select expect('four picks are in the book',
+  (select count(*)::int from draft_picks where league_id = :'X' and player_name is not null), 4);
+
+select expect('a manager cannot reset the draft',
+  (select refuses(format('select reset_draft(%L)', :'X'))
+     from (select signin(:'X2')) _),
+  'Only the commissioner can reset the draft');
+
+select expect('and nothing was undone by the attempt',
+  (select count(*)::int from roster_slots where league_id = :'X'), 4);
+
+\o /dev/null
+select signin(:'X1');
+select reset_draft(:'X');
+\o
+
+select expect('the rosters are empty',
+  (select count(*)::int from roster_slots where league_id = :'X'), 0);
+
+select expect('no pick has a player on it',
+  (select count(*)::int from draft_picks where league_id = :'X' and player_name is not null), 0);
+
+select expect('but the board is still there, at the league size',
+  (select count(*)::int from draft_picks where league_id = :'X'), 6);
+
+select expect('and it snakes the way a fresh board does',
+  (select string_agg(m.slot, ',' order by p.overall) from draft_picks p
+     join managers m on m.id = p.manager_id
+    where p.league_id = :'X'), 'AAA,BBB,BBB,AAA,AAA,BBB');
+
+select expect('the room is closed again',
+  (select draft_state from leagues where id = :'X'), 'pending');
+
+select expect('back on the first pick',
+  (select current_pick from leagues where id = :'X'), 1);
+
+select expect('with nobody on the clock',
+  (select pick_started_at from leagues where id = :'X'), null::timestamptz);
+
+select expect('the standing offer is declined, not left unrunnable',
+  (select status from trades where league_id = :'X'), 'declined');
+
+select expect('the pending claim is cancelled',
+  (select status from waiver_claims where league_id = :'X'), 'cancelled');
+
+select expect('and says why',
+  (select reason from waiver_claims where league_id = :'X'), 'The draft was reset');
+
+select expect('nobody is shopping anybody',
+  (select count(*)::int from trade_block where league_id = :'X'), 0);
+
+select expect('a manager keeps their own queue',
+  (select player_name from draft_queue where league_id = :'X'), 'Wanted Later');
+
+select expect('the reset is on the record',
+  (select detail ->> 'picks_undone' from admin_log
+    where league_id = :'X' and action = 'draft_reset'), '4');
+
+select expect('and the rosters were photographed before they went',
+  (select jsonb_array_length(payload) from roster_backups
+    where league_id = :'X' and kind = 'draft_reset'), 4);
+
+-- The whole point of resetting: draft it again from the top.
+\o /dev/null
+update leagues set draft_state = 'running', pick_started_at = now() where id = :'X';
+\o
+
+select expect('a player taken in the old draft can be taken again',
+  (select refuses(format('select make_pick(%L, %L)', :'X', 'Alpha One'))
+     from (select signin(:'X1')) _),
+  null::text);
+
+-- Once a week is graded the rosters are part of the record.
+\o /dev/null
+select signin(:'X1');
+select reset_draft(:'X');
+select generate_schedule(:'X');
+update matchups set final = true where league_id = :'X' and week = 1;
+\o
+
+select expect('a played week closes the door on resetting',
+  refuses(format('select reset_draft(%L)', :'X')),
+  'Weeks have already been played — the draft cannot be reset now');
+
+\echo ''
+\echo '--- resetting the league ---'
+
+\o /dev/null
+\set Y  '99999999-0000-0000-0000-000000000013'
+\set Y1 'a9990000-0000-0000-0000-000000000021'
+\set Y2 'a9990000-0000-0000-0000-000000000022'
+
+insert into leagues (id, name, season, commissioner_slot, settings, lottery_order)
+values (:'Y', 'Wipe', 2026, 'AAA', '{"rounds": 2, "starters": {"QB": 1}, "bench": 5}'::jsonb,
+        array['BBB', 'AAA']);
+
+insert into auth.users (id) values (:'Y1'), (:'Y2');
+
+insert into managers (league_id, slot, name, franchise, auth_user_id, ready) values
+  (:'Y', 'AAA', 'Boss', 'Alpha', :'Y1', true),
+  (:'Y', 'BBB', 'Two',  'Bravo', :'Y2', true);
+
+update managers set pin_hash = 'hashed' where league_id = :'Y';
+
+select signin(:'Y1');
+select rebuild_draft_board(:'Y');
+update leagues set draft_state = 'running', pick_started_at = now() where id = :'Y';
+
+-- A league with a season's worth of everything in it. The lottery order above
+-- puts Bravo on the clock first, which is the point of setting one.
+select signin(:'Y2');
+select make_pick(:'Y', 'Bravo One');
+select signin(:'Y1');
+select make_pick(:'Y', 'Alpha One');
+
+select generate_schedule(:'Y');
+update matchups set final = true, home_points = 101, winner = home_manager
+ where league_id = :'Y' and week = 1;
+
+insert into player_scores (league_id, week, player_name, points) values (:'Y', 1, 'Alpha One', 22);
+insert into trade_block (league_id, player_name, manager_id)
+values (:'Y', 'Alpha One', (select id from managers where league_id = :'Y' and slot = 'AAA'));
+insert into waiver_claims (league_id, manager_id, add_player)
+values (:'Y', (select id from managers where league_id = :'Y' and slot = 'BBB'), 'Somebody');
+insert into draft_queue (league_id, manager_id, player_name, rank)
+values (:'Y', (select id from managers where league_id = :'Y' and slot = 'AAA'), 'Wanted', 1);
+insert into nfl_games (id, season, week, starts_at, home_team, away_team)
+values ('evt-reset', 2026, 1, now(), 'BUF', 'MIA');
+insert into pickem_picks (league_id, manager_id, game_id, pick)
+values (:'Y', (select id from managers where league_id = :'Y' and slot = 'AAA'), 'evt-reset', 'BUF');
+\o
+
+select expect('a played week does not stop a league reset the way it stops a draft reset',
+  refuses(format('select reset_draft(%L)', :'Y')),
+  'Weeks have already been played — the draft cannot be reset now');
+
+select expect('a manager cannot reset the league',
+  (select refuses(format('select reset_league(%L)', :'Y'))
+     from (select signin(:'Y2')) _),
+  'Only the commissioner can reset the league');
+
+select expect('and nothing was wiped by the attempt',
+  (select count(*)::int from roster_slots where league_id = :'Y'), 2);
+
+\o /dev/null
+select signin(:'Y1');
+select reset_league(:'Y');
+\o
+
+select expect('the rosters are gone',
+  (select count(*)::int from roster_slots where league_id = :'Y'), 0);
+
+select expect('the season is gone, played weeks and all',
+  (select count(*)::int from matchups where league_id = :'Y'), 0);
+
+select expect('so are the scores',
+  (select count(*)::int from player_scores where league_id = :'Y'), 0);
+
+select expect('the transaction log is cleared',
+  (select count(*)::int from transactions where league_id = :'Y'), 0);
+
+select expect('claims, trade block, queues and pick-em go too',
+  (select (select count(*) from waiver_claims where league_id = :'Y')
+        + (select count(*) from trade_block  where league_id = :'Y')
+        + (select count(*) from draft_queue  where league_id = :'Y')
+        + (select count(*) from pickem_picks where league_id = :'Y'))::int, 0);
+
+select expect('the board is redrawn empty',
+  (select count(*)::int from draft_picks where league_id = :'Y' and player_name is not null), 0);
+
+select expect('and is still the right size',
+  (select count(*)::int from draft_picks where league_id = :'Y'), 4);
+
+select expect('the room is closed',
+  (select draft_state || ':' || current_pick from leagues where id = :'Y'), 'pending:1');
+
+select expect('the lottery is not carried into a season that is not happening',
+  (select lottery_order from leagues where id = :'Y'), null::text[]);
+
+-- What survives is the point: the league, not what happened in it.
+select expect('the franchises are still here',
+  (select count(*)::int from managers where league_id = :'Y'), 2);
+
+select expect('nobody has to sign up again',
+  (select count(*)::int from managers where league_id = :'Y' and pin_hash is not null), 2);
+
+select expect('the commissioner is still the commissioner',
+  (select slot from managers where league_id = :'Y' and is_commissioner), 'AAA');
+
+select expect('waiver order goes back to the order the league was written in',
+  (select string_agg(slot || ':' || waiver_priority, ' ' order by slot)
+     from managers where league_id = :'Y'), 'AAA:1 BBB:2');
+
+select expect('and nobody is marked ready for a draft that has not happened',
+  (select bool_and(not ready) from managers where league_id = :'Y'), true);
+
+select expect('the rosters were photographed on the way past',
+  (select jsonb_array_length(payload) from roster_backups
+    where league_id = :'Y' and kind = 'league_reset'), 2);
+
+select expect('the photograph names the franchise, not just an id',
+  (select payload -> 0 ->> 'slot' from roster_backups
+    where league_id = :'Y' and kind = 'league_reset'), 'AAA');
+
+select expect('and the reset is on the record',
+  (select detail ->> 'weeks_played' from admin_log
+    where league_id = :'Y' and action = 'league_reset'), '1');
+
+-- Releasing the franchises as well, which is the other thing a reset can mean.
+\o /dev/null
+update managers set pin_hash = 'hashed', name = 'Two'
+ where league_id = :'Y' and slot = 'BBB';
+select reset_league(:'Y', true);
+\o
+
+select expect('a released franchise is open again',
+  (select name || '/' || coalesce(pin_hash, 'none') from managers
+    where league_id = :'Y' and slot = 'BBB'), 'Open/none');
+
+select expect('but the commissioner keeps their own way in',
+  (select coalesce(pin_hash, 'none') from managers
+    where league_id = :'Y' and slot = 'AAA'), 'hashed');
+
+select expect('so the office is still reachable afterwards',
+  (select refuses(format('select reset_league(%L)', :'Y'))), null::text);

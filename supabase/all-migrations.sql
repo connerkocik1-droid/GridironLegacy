@@ -8,7 +8,11 @@
 -- that, so adding a migration means re-running this file, not hunting for
 -- which ones are new.
 --
--- Built from 10 migrations:
+-- Safe on an older database too. One built before the tracking table existed
+-- has the early schema and no record of it; this file recognises that and
+-- writes the record down rather than failing on the tables already there.
+--
+-- Built from 15 migrations:
 --   0001_schema.sql
 --   0002_trades.sql
 --   0003_draft.sql
@@ -19,6 +23,11 @@
 --   0008_schedule.sql
 --   0009_divisions.sql
 --   0010_column_privileges.sql
+--   0011_commissioner_lock.sql
+--   0012_resize_rebuilds_schedule.sql
+--   0013_reset_draft.sql
+--   0014_reset_league.sql
+--   0015_team_logos.sql
 
 begin;
 
@@ -28,6 +37,29 @@ create table if not exists schema_migrations (
   name        text primary key,
   applied_at  timestamptz not null default now()
 );
+
+-- A database built before this file tracked anything has the early schema
+-- with no record of it. Recognise it and write the record down, rather than
+-- failing on the tables it already has.
+do $__adopt__$
+begin
+  if to_regclass('public.leagues') is not null
+     and not exists (select 1 from schema_migrations) then
+    insert into schema_migrations (name) values
+      ('0001_schema.sql'),
+      ('0002_trades.sql'),
+      ('0003_draft.sql'),
+      ('0004_auth.sql'),
+      ('0005_team_count.sql'),
+      ('0006_draft_control.sql'),
+      ('0007_waivers.sql'),
+      ('0008_schedule.sql'),
+      ('0009_divisions.sql')
+    on conflict (name) do nothing;
+    raise notice 'adopted % migrations this database already had', 9;
+  end if;
+end
+$__adopt__$;
 
 
 -- ======================================================================
@@ -2386,6 +2418,849 @@ begin
 
     insert into schema_migrations (name) values ('0010_column_privileges.sql');
     raise notice 'applied %', '0010_column_privileges.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0011_commissioner_lock.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0011_commissioner_lock.sql') then
+    raise notice 'skipping %, already applied', '0011_commissioner_lock.sql';
+  else
+    -- The league office belongs to one franchise, and to no other.
+    --
+    -- leagues.commissioner_slot already records which franchise that is — the seed
+    -- writes it, and it defaults to STL. But nothing enforced it: is_commissioner
+    -- was an ordinary boolean that happened to be set correctly once. Migration
+    -- 0010 stopped a manager writing it from a browser, which closed the way in,
+    -- but left the rule itself unstated.
+    --
+    -- Here it becomes an invariant. is_commissioner is not a field anyone sets; it
+    -- is derived from the franchise the league names, on every insert and update,
+    -- by whoever is asking — a browser session, the service key, a future
+    -- migration written carelessly. There is no path that can put the office
+    -- somewhere else.
+
+    /**
+     * Forces is_commissioner to match the league's commissioner_slot.
+     *
+     * It overwrites rather than refuses on purpose: a refusal would make ordinary
+     * writes fail for reasons the caller did not intend and probably cannot see —
+     * renaming a franchise should not error because the row also carried a stale
+     * flag. Overwriting means the invariant simply always holds.
+     */
+    create or replace function enforce_commissioner_slot()
+    returns trigger
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_slot text;
+    begin
+      select commissioner_slot into v_slot from leagues where id = new.league_id;
+
+      -- A league that names nobody keeps whatever it has, so an existing league
+      -- is not stripped of its commissioner by a null.
+      if v_slot is null then return new; end if;
+
+      new.is_commissioner := (new.slot = v_slot);
+      return new;
+    end;
+    $$;
+
+    drop trigger if exists managers_commissioner_slot on managers;
+    create trigger managers_commissioner_slot
+      before insert or update on managers
+      for each row execute function enforce_commissioner_slot();
+
+    -- Bring any league already in flight into line with its own record.
+    update managers m
+       set is_commissioner = (m.slot = l.commissioner_slot)
+      from leagues l
+     where l.id = m.league_id
+       and l.commissioner_slot is not null
+       and m.is_commissioner is distinct from (m.slot = l.commissioner_slot);
+
+    -- --------------------------------------------------------------- leagues ---
+    -- Moving the office means changing commissioner_slot, so that column must not
+    -- be writable from a browser either — otherwise the commissioner could hand
+    -- the league to themselves by another name, and the trigger above would
+    -- faithfully follow.
+    --
+    -- The two columns the app does write through a manager's own session are the
+    -- settings blob and the draft date. Everything else on the league row goes
+    -- through a security-definer function that checks who is asking.
+
+    revoke update on leagues from authenticated, anon;
+    grant update (settings, draft_at) on leagues to authenticated;
+
+    -- Changing who holds the office is deliberate, and done with the service key:
+    --
+    --   update leagues set commissioner_slot = 'BLZ';
+    --
+    -- The trigger moves is_commissioner to match on the next write to each
+    -- manager, so run this afterwards to apply it at once:
+    --
+    --   update managers m set is_commissioner = (m.slot = l.commissioner_slot)
+    --     from leagues l where l.id = m.league_id;
+
+    insert into schema_migrations (name) values ('0011_commissioner_lock.sql');
+    raise notice 'applied %', '0011_commissioner_lock.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0012_resize_rebuilds_schedule.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0012_resize_rebuilds_schedule.sql') then
+    raise notice 'skipping %, already applied', '0012_resize_rebuilds_schedule.sql';
+  else
+    -- Resizing a league must rebuild its schedule, not just its draft board.
+    --
+    -- set_team_count() rebuilt the board and stopped there. The schedule was left
+    -- as it was, and the franchises that went took their fixtures with them by
+    -- cascade — so a league resized from twelve to ten kept a twelve-team season:
+    -- sixteen weeks instead of fourteen, four games in most weeks instead of five,
+    -- and two franchises idle each week for no reason anyone could see.
+    --
+    -- The board and the season are both derived from the league. Changing the
+    -- league has to regenerate both, or one of them is quietly lying.
+    --
+    -- Divisions had the same shape of problem: franchises were only ever assigned
+    -- when they had none, never rebalanced. Removing two from one side left six
+    -- against four, and since a six-team division needs five rematch rounds while
+    -- a four-team one needs three, the small division sat out entirely for two
+    -- weeks of every season.
+
+    /**
+     * Evens the divisions up, moving as few franchises as possible.
+     *
+     * Deliberate assignments are worth keeping, so this does not reshuffle: it
+     * moves the fewest franchises from the larger division to the smaller, newest
+     * slot first, and stops as soon as they are within one of each other.
+     */
+    create or replace function rebalance_divisions(p_league_id uuid)
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_big    text;
+      v_small  text;
+      v_n_big  int;
+      v_n_small int;
+      v_moved  int := 0;
+      v_id     uuid;
+    begin
+      loop
+        select division, n into v_big, v_n_big
+          from (select division, count(*) n from managers
+                 where league_id = p_league_id and division is not null
+                 group by division) d
+         order by n desc, division limit 1;
+
+        select division, n into v_small, v_n_small
+          from (select division, count(*) n from managers
+                 where league_id = p_league_id and division is not null
+                 group by division) d
+         order by n, division limit 1;
+
+        exit when v_big is null or v_small is null or v_big = v_small;
+        exit when v_n_big - v_n_small <= 1;
+
+        select id into v_id
+          from managers
+         where league_id = p_league_id and division = v_big
+         order by slot desc
+         limit 1;
+
+        exit when v_id is null;
+
+        update managers set division = v_small where id = v_id;
+        v_moved := v_moved + 1;
+
+        -- Bounded: every pass moves one franchise across, so the gap always
+        -- shrinks. The guard is only here so a surprise cannot spin forever.
+        exit when v_moved > 32;
+      end loop;
+
+      return v_moved;
+    end;
+    $$;
+
+    revoke all on function rebalance_divisions(uuid) from public;
+
+    create or replace function set_team_count(p_league_id uuid, p_count int)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me       managers;
+      v_current  int;
+      v_blocked  text[];
+      v_removing uuid[];
+      v_slot     text;
+      v_i        int;
+      v_made     int;
+      v_sched    jsonb;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can change the league size'
+          using errcode = '42501';
+      end if;
+
+      if p_count < 2 or p_count > 16 then
+        raise exception 'A league runs from 2 to 16 franchises' using errcode = '22003';
+      end if;
+
+      select count(*) into v_made
+        from draft_picks
+       where league_id = p_league_id and player_name is not null;
+
+      if v_made > 0 then
+        raise exception 'The draft has already started — the league size is fixed now'
+          using errcode = '55000';
+      end if;
+
+      -- A played week fixes the league's shape just as firmly as a made pick:
+      -- generate_schedule would refuse below anyway, but failing here says why.
+      if exists (select 1 from matchups where league_id = p_league_id and final) then
+        raise exception 'Weeks have already been played — the league size is fixed now'
+          using errcode = '55000';
+      end if;
+
+      select count(*) into v_current from managers where league_id = p_league_id;
+
+      if p_count < v_current then
+        -- Removal runs from the end of the alphabet, and the commissioner's slot
+        -- has no reason to be safe there — STL sorts near the back. Deleting the
+        -- office holder would leave a league nobody can administer, so the
+        -- commissioner is never a candidate.
+        select array_agg(id order by slot desc)
+          into v_removing
+          from (
+            select id, slot from managers
+             where league_id = p_league_id
+               and not is_commissioner
+             order by slot desc
+             limit (v_current - p_count)
+          ) doomed;
+
+        if coalesce(array_length(v_removing, 1), 0) < v_current - p_count then
+          raise exception
+            'Cannot shrink to % — only the commissioner''s franchise would be left to remove',
+            p_count using errcode = '55000';
+        end if;
+
+        select array_agg(distinct m.franchise)
+          into v_blocked
+          from managers m
+         where m.id = any (v_removing)
+           and (
+             m.pin_hash is not null
+             or exists (select 1 from roster_slots r where r.manager_id = m.id)
+           );
+
+        if v_blocked is not null then
+          raise exception 'These franchises are claimed or hold players: %',
+            array_to_string(v_blocked, ', ')
+            using errcode = '55000';
+        end if;
+
+        delete from managers where id = any (v_removing);
+
+      elsif p_count > v_current then
+        for v_i in (v_current + 1)..p_count loop
+          v_slot := 'T' || lpad(v_i::text, 2, '0');
+          while exists (select 1 from managers where league_id = p_league_id and slot = v_slot) loop
+            v_slot := v_slot || 'X';
+          end loop;
+
+          insert into managers (league_id, slot, name, franchise, pin_hash, is_commissioner)
+          values (p_league_id, v_slot, 'Open', 'Franchise ' || v_i, null, false);
+        end loop;
+      end if;
+
+      perform assign_missing_divisions(p_league_id);
+      -- Without this a resize leaves the divisions lopsided, and the smaller one
+      -- sits out whole weeks of the rematch phase.
+      perform rebalance_divisions(p_league_id);
+      perform rebuild_draft_board(p_league_id);
+
+      -- The season is derived from the league too. Without this the old schedule
+      -- survives with holes in it where the departed franchises used to be.
+      v_sched := generate_schedule(p_league_id);
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'team_count_changed',
+              jsonb_build_object('from', v_current, 'to', p_count,
+                                 'weeks', v_sched -> 'weeks'));
+
+      return jsonb_build_object(
+        'ok', true,
+        'teams', p_count,
+        'was', v_current,
+        'weeks', v_sched -> 'weeks',
+        'matchups', v_sched -> 'matchups'
+      );
+    end;
+    $$;
+
+    revoke all on function set_team_count(uuid, int) from public;
+    grant execute on function set_team_count(uuid, int) to authenticated;
+
+    /**
+     * Rebuilds a league's season if the one it has does not match the league.
+     *
+     * Returns true if it rebuilt. The test is the only honest one available:
+     * work out how many games the current roster implies for each franchise —
+     * everyone once, then divisional rivals a second time — and see whether the
+     * fixtures on record agree. A schedule left over from a larger league shows
+     * up as franchises short of their games, which is exactly the hole a resize
+     * used to leave behind.
+     *
+     * Counting idle weeks would not do: a division with an odd number of
+     * franchises leaves somebody out every rematch week quite legitimately, and
+     * flagging that would reshuffle healthy leagues every time this ran.
+     */
+    create or replace function repair_schedule(p_league_id uuid)
+    returns boolean
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_n  int;
+      v_ok boolean;
+    begin
+      -- A season under way is never touched, whatever shape it is in.
+      if exists (select 1 from matchups where league_id = p_league_id and final) then
+        return false;
+      end if;
+
+      -- Nothing to repair until a schedule exists.
+      if not exists (select 1 from matchups where league_id = p_league_id) then
+        return false;
+      end if;
+
+      perform rebalance_divisions(p_league_id);
+
+      select count(*) into v_n from managers where league_id = p_league_id;
+      if v_n < 2 then return false; end if;
+
+      select bool_and(
+               played = v_n - 1 + case when m.division is null then 0 else sizes.d - 1 end
+             )
+        into v_ok
+        from managers m
+        join (
+          select division, count(*) d from managers
+           where league_id = p_league_id group by division
+        ) sizes on sizes.division is not distinct from m.division
+        cross join lateral (
+          select count(*) as played from matchups x
+           where x.league_id = p_league_id
+             and (x.home_manager = m.id or x.away_manager = m.id)
+        ) mine
+       where m.league_id = p_league_id;
+
+      if coalesce(v_ok, false) then return false; end if;
+
+      perform generate_schedule(p_league_id);
+      return true;
+    end;
+    $$;
+
+    revoke all on function repair_schedule(uuid) from public;
+
+    -- Repair any league already carrying a schedule from a size it no longer is.
+    do $repair$
+    declare
+      v_league uuid;
+    begin
+      for v_league in select id from leagues loop
+        if repair_schedule(v_league) then
+          raise notice 'rebuilt the schedule for league %', v_league;
+        end if;
+      end loop;
+    end
+    $repair$;
+
+    insert into schema_migrations (name) values ('0012_resize_rebuilds_schedule.sql');
+    raise notice 'applied %', '0012_resize_rebuilds_schedule.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0013_reset_draft.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0013_reset_draft.sql') then
+    raise notice 'skipping %, already applied', '0013_reset_draft.sql';
+  else
+    -- Resetting the draft: putting the league back to the morning of draft day.
+    --
+    -- A draft can go wrong in ways no rule catches. The board was built before two
+    -- franchises were added, somebody was autodrafted through a whole round while
+    -- their power was out, half the room turned up an hour late. The commissioner
+    -- needs a way to say "none of that happened" without a database console.
+    --
+    -- It undoes the draft, not the season. Once a week has been graded the rosters
+    -- are part of the record — those players scored those points — so a reset is
+    -- refused from that moment on.
+
+    /**
+     * Puts the league back to before the draft: no rosters, a fresh board, the
+     * room closed.
+     *
+     * Every roster goes, not only the players taken in the draft. A player who was
+     * drafted and later traded is carried as a trade, and one picked up off waivers
+     * was never drafted at all — leaving either behind would reopen the board with
+     * players already owned, and the room would offer them to somebody else.
+     *
+     * The board is rebuilt rather than blanked, so it reflects the league as it
+     * stands now: a franchise count or a lottery order that changed since the last
+     * board was drawn is picked up here.
+     *
+     * Draft queues are left alone. They are a manager's own preparation, and
+     * players taken in the draft were removed from every queue as they went — that
+     * ordering cannot be recovered, but wiping what remains would destroy work
+     * nobody asked to lose.
+     */
+    create or replace function reset_draft(p_league_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me       managers;
+      v_picks    int;
+      v_rostered int;
+      v_claims   int;
+      v_trades   int;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can reset the draft' using errcode = '42501';
+      end if;
+
+      -- A graded week is history. Undoing the draft under it would leave scores
+      -- that no roster in the league can account for.
+      if exists (select 1 from matchups where league_id = p_league_id and final) then
+        raise exception 'Weeks have already been played — the draft cannot be reset now'
+          using errcode = '55000';
+      end if;
+
+      select count(*) into v_picks
+        from draft_picks where league_id = p_league_id and player_name is not null;
+
+      select count(*) into v_rostered
+        from roster_slots where league_id = p_league_id;
+
+      delete from roster_slots where league_id = p_league_id;
+
+      -- An offer names players on rosters that no longer exist. execute_trade
+      -- would refuse it, but leaving offers standing that can never go through is
+      -- its own confusion, so they are declined here where the reason is plain.
+      update trades
+         set status = 'declined'
+       where league_id = p_league_id
+         and status in ('open', 'countered', 'agreed');
+      get diagnostics v_trades = row_count;
+
+      -- Same for claims: everyone named is a free agent again, and the drop they
+      -- were paired with is gone. Settling them as cancelled leaves the reason on
+      -- the record rather than deleting a manager's work without explanation.
+      update waiver_claims
+         set status = 'cancelled',
+             reason = 'The draft was reset',
+             settled_at = now()
+       where league_id = p_league_id and status = 'pending';
+      get diagnostics v_claims = row_count;
+
+      -- Nobody owns anybody, so nobody has anybody to shop.
+      delete from trade_block where league_id = p_league_id;
+
+      -- rebuild_draft_board refuses while picks are made, which is the point of
+      -- that guard everywhere else. Here the picks are being deliberately undone,
+      -- so they go first.
+      delete from draft_picks where league_id = p_league_id;
+      perform rebuild_draft_board(p_league_id);
+
+      update leagues
+         set draft_state = 'pending',
+             current_pick = 1,
+             -- Nobody is on the clock, and autodraft_expired refuses on a null.
+             pick_started_at = null
+       where id = p_league_id;
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'draft_reset',
+              jsonb_build_object('picks_undone', v_picks,
+                                 'players_returned', v_rostered,
+                                 'trades_declined', v_trades,
+                                 'claims_cancelled', v_claims));
+
+      return jsonb_build_object(
+        'ok', true,
+        'picksUndone', v_picks,
+        'playersReturned', v_rostered,
+        'tradesDeclined', v_trades,
+        'claimsCancelled', v_claims
+      );
+    end;
+    $$;
+
+    revoke all on function reset_draft(uuid) from public;
+    grant execute on function reset_draft(uuid) to authenticated;
+
+    insert into schema_migrations (name) values ('0013_reset_draft.sql');
+    raise notice 'applied %', '0013_reset_draft.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0014_reset_league.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0014_reset_league.sql') then
+    raise notice 'skipping %, already applied', '0014_reset_league.sql';
+  else
+    -- Resetting the whole league, and a snapshot so it is not the end of the world.
+    --
+    -- reset_draft undoes draft night. This undoes the season: every roster, every
+    -- result, every transaction, the schedule, the board, the pick-'em. What it
+    -- keeps is the league itself — who is in it, what their franchises are called,
+    -- the divisions, the settings, and the PINs people already chose.
+    --
+    -- Unlike the draft reset it is NOT refused once a week has been played. That is
+    -- the whole point of it: it is the way back from a season that went wrong, and
+    -- a season cannot go wrong before it has started. The protection is that it is
+    -- the commissioner's alone, that it says exactly what it will do, and that the
+    -- rosters are photographed on the way past.
+
+    /**
+     * Writes the league's rosters into roster_backups before something eats them.
+     *
+     * Returns how many players were recorded. The payload is plain JSON keyed by
+     * franchise slot rather than by manager id, so it still reads as something
+     * afterwards even if the franchises are rebuilt.
+     */
+    create or replace function snapshot_rosters(p_league_id uuid, p_kind text)
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_rows jsonb;
+    begin
+      select coalesce(jsonb_agg(jsonb_build_object(
+               'slot', m.slot,
+               'franchise', m.franchise,
+               'player', r.player_name,
+               'acquired', r.acquired,
+               'overall_pick', r.overall_pick,
+               'lineup_slot', r.lineup_slot
+             ) order by m.slot, r.player_name), '[]'::jsonb)
+        into v_rows
+        from roster_slots r
+        join managers m on m.id = r.manager_id
+       where r.league_id = p_league_id;
+
+      -- Nothing on the rosters is nothing worth photographing.
+      if jsonb_array_length(v_rows) = 0 then return 0; end if;
+
+      insert into roster_backups (league_id, kind, payload) values (p_league_id, p_kind, v_rows);
+      return jsonb_array_length(v_rows);
+    end;
+    $$;
+
+    revoke all on function snapshot_rosters(uuid, text) from public;
+
+    -- The draft reset gets the same photograph. It was already refused once a week
+    -- had been played, so nothing irreplaceable was ever at stake — but four rounds
+    -- of picks is somebody's evening, and recovering them should not depend on
+    -- anyone having thought to write them down.
+    create or replace function reset_draft(p_league_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me       managers;
+      v_picks    int;
+      v_rostered int;
+      v_claims   int;
+      v_trades   int;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can reset the draft' using errcode = '42501';
+      end if;
+
+      if exists (select 1 from matchups where league_id = p_league_id and final) then
+        raise exception 'Weeks have already been played — the draft cannot be reset now'
+          using errcode = '55000';
+      end if;
+
+      select count(*) into v_picks
+        from draft_picks where league_id = p_league_id and player_name is not null;
+
+      select count(*) into v_rostered
+        from roster_slots where league_id = p_league_id;
+
+      perform snapshot_rosters(p_league_id, 'draft_reset');
+
+      delete from roster_slots where league_id = p_league_id;
+
+      update trades
+         set status = 'declined'
+       where league_id = p_league_id
+         and status in ('open', 'countered', 'agreed');
+      get diagnostics v_trades = row_count;
+
+      update waiver_claims
+         set status = 'cancelled',
+             reason = 'The draft was reset',
+             settled_at = now()
+       where league_id = p_league_id and status = 'pending';
+      get diagnostics v_claims = row_count;
+
+      delete from trade_block where league_id = p_league_id;
+
+      delete from draft_picks where league_id = p_league_id;
+      perform rebuild_draft_board(p_league_id);
+
+      update leagues
+         set draft_state = 'pending',
+             current_pick = 1,
+             pick_started_at = null
+       where id = p_league_id;
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'draft_reset',
+              jsonb_build_object('picks_undone', v_picks,
+                                 'players_returned', v_rostered,
+                                 'trades_declined', v_trades,
+                                 'claims_cancelled', v_claims));
+
+      return jsonb_build_object(
+        'ok', true,
+        'picksUndone', v_picks,
+        'playersReturned', v_rostered,
+        'tradesDeclined', v_trades,
+        'claimsCancelled', v_claims
+      );
+    end;
+    $$;
+
+    /**
+     * Puts the league back to the day it was created, keeping who is in it.
+     *
+     * Gone: rosters, the draft, the schedule and every result, scores, waiver
+     * claims, trades, the trade block, draft queues, pick-'em picks, and the
+     * transaction log. The board is redrawn empty and the draft room closes.
+     *
+     * Kept: the franchises and their names, divisions, league settings, the draft
+     * date, and the PINs managers already chose — so twelve people do not have to
+     * sign up again over a mistake in week three. The admin log is kept too,
+     * including the record of this.
+     *
+     * p_release_franchises hands the franchises back as well: PINs cleared, sign-in
+     * links broken, names back to Open. The commissioner is excluded from that on
+     * purpose — clearing their own link would leave a league whose office nobody
+     * can reach, since every commissioner function finds them by it.
+     */
+    create or replace function reset_league(
+      p_league_id uuid,
+      p_release_franchises boolean default false
+    )
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me        managers;
+      v_players   int;
+      v_weeks     int;
+      v_played    int;
+      v_released  int := 0;
+      v_saved     int;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can reset the league' using errcode = '42501';
+      end if;
+
+      select count(*) into v_players from roster_slots where league_id = p_league_id;
+      select count(distinct week) into v_weeks from matchups where league_id = p_league_id;
+      select count(*) into v_played from matchups where league_id = p_league_id and final;
+
+      -- Taken before anything is deleted, and returned to the caller so the
+      -- commissioner is told where the rosters went rather than having to trust it.
+      v_saved := snapshot_rosters(p_league_id, 'league_reset');
+
+      delete from roster_slots   where league_id = p_league_id;
+      delete from matchups       where league_id = p_league_id;
+      delete from player_scores  where league_id = p_league_id;
+      delete from transactions   where league_id = p_league_id;
+      delete from waiver_claims  where league_id = p_league_id;
+      delete from trades         where league_id = p_league_id;
+      delete from trade_block    where league_id = p_league_id;
+      delete from draft_queue    where league_id = p_league_id;
+      delete from pickem_picks   where league_id = p_league_id;
+
+      -- Waiver order is a consequence of a season that no longer happened, so it
+      -- goes back to the order the league was written down in.
+      update managers m
+         set waiver_priority = seq.rn,
+             ready = false
+        from (
+          select id, row_number() over (order by slot) as rn
+            from managers where league_id = p_league_id
+        ) seq
+       where seq.id = m.id;
+
+      if p_release_franchises then
+        update managers
+           set pin_hash = null,
+               auth_user_id = null,
+               name = 'Open'
+         where league_id = p_league_id
+           and not is_commissioner;
+        get diagnostics v_released = row_count;
+      end if;
+
+      delete from draft_picks where league_id = p_league_id;
+      perform rebuild_draft_board(p_league_id);
+
+      update leagues
+         set draft_state = 'pending',
+             current_pick = 1,
+             pick_started_at = null,
+             -- A lottery is drawn for one season. This is not that season anymore.
+             lottery_order = null
+       where id = p_league_id;
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'league_reset',
+              jsonb_build_object('players_returned', v_players,
+                                 'weeks_removed', v_weeks,
+                                 'weeks_played', v_played,
+                                 'franchises_released', v_released,
+                                 'roster_rows_saved', v_saved));
+
+      return jsonb_build_object(
+        'ok', true,
+        'playersReturned', v_players,
+        'weeksRemoved', v_weeks,
+        'weeksPlayed', v_played,
+        'franchisesReleased', v_released,
+        'rosterRowsSaved', v_saved
+      );
+    end;
+    $$;
+
+    revoke all on function reset_league(uuid, boolean) from public;
+    grant execute on function reset_league(uuid, boolean) to authenticated;
+
+    insert into schema_migrations (name) values ('0014_reset_league.sql');
+    raise notice 'applied %', '0014_reset_league.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0015_team_logos.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0015_team_logos.sql') then
+    raise notice 'skipping %, already applied', '0015_team_logos.sql';
+  else
+    -- A franchise gets a face.
+    --
+    -- Managers could rename their franchise from the first day, but it has always
+    -- been a word on a list. This gives them a crest to go with it, and somewhere
+    -- for it to appear: the profile button in the corner of every page.
+    --
+    -- The image lives in its own table rather than on managers, deliberately. The
+    -- managers row is read constantly — the draft room polls it four times a
+    -- minute — and a picture on it would be dragged through every one of those
+    -- reads whether anyone was going to draw it or not. Here it is fetched when it
+    -- is wanted and not otherwise.
+    --
+    -- It is stored inline as a data URI rather than in object storage. Twelve
+    -- small crests do not need a bucket, a policy, and a second thing to configure
+    -- before the league can start; the size limit below is what keeps that honest.
+
+    create table if not exists team_logos (
+      manager_id  uuid primary key references managers(id) on delete cascade,
+      league_id   uuid not null references leagues(id) on delete cascade,
+      -- A data URI: 'data:image/webp;base64,...'. The browser squares and shrinks
+      -- the picture before it is sent, so what arrives is already small.
+      image       text not null,
+      updated_at  timestamptz not null default now(),
+
+      -- Roughly 200KB of base64, which is a generous 256-pixel crest and nowhere
+      -- near a phone photograph. Without this a manager could put a ten-megabyte
+      -- picture in a row everyone else has to read.
+      constraint team_logos_image_size check (length(image) <= 300000),
+      constraint team_logos_image_kind check (image like 'data:image/%')
+    );
+
+    create index if not exists team_logos_league_idx on team_logos (league_id);
+
+    alter table team_logos enable row level security;
+
+    -- Everyone in the league sees every crest: that is the point of having one.
+    drop policy if exists logos_read on team_logos;
+    create policy logos_read on team_logos
+      for select using (league_id = (select league_id from current_manager()));
+
+    -- A manager sets their own, and only their own.
+    drop policy if exists logos_write on team_logos;
+    create policy logos_write on team_logos
+      for all
+      using (manager_id = (select id from current_manager()))
+      with check (
+        manager_id = (select id from current_manager())
+        and league_id = (select league_id from current_manager())
+      );
+
+    grant select, insert, update, delete on team_logos to authenticated;
+
+    insert into schema_migrations (name) values ('0015_team_logos.sql');
+    raise notice 'applied %', '0015_team_logos.sql';
   end if;
 end
 $__migration__$;

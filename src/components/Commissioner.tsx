@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import ConfirmDialog from "./ConfirmDialog";
 
 interface Manager {
   id: string;
@@ -69,6 +70,8 @@ export default function Commissioner() {
   const [rounds, setRounds] = useState("");
   const [draftAt, setDraftAt] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  const [releaseFranchises, setReleaseFranchises] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -191,6 +194,41 @@ export default function Commissioner() {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) setError(body.error ?? "Could not move that franchise.");
       else setNotice(`${manager.franchise} is in the ${division}. Rebuild the schedule to apply it.`);
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resetLeague() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const res = await fetch("/api/admin/league/reset", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ releaseFranchises }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(body.error ?? "The league was not reset.");
+      } else {
+        setNotice(
+          `League reset. ${body.playersReturned} players returned to the pool, ` +
+            `${body.weeksRemoved} weeks of fixtures removed` +
+            (body.franchisesReleased
+              ? `, ${body.franchisesReleased} franchises released`
+              : "") +
+            (body.rosterRowsSaved
+              ? `. The rosters were saved to backups first.`
+              : ".") +
+            " Build the schedule again when the divisions are settled.",
+        );
+        setReleaseFranchises(false);
+      }
       await load();
     } finally {
       setBusy(false);
@@ -461,6 +499,104 @@ export default function Commissioner() {
           </div>
         ))}
       </div>
+
+      <div
+        style={{
+          ...card,
+          border: "1px solid rgba(224,131,131,.26)",
+          background: "rgba(43,28,32,.3)",
+        }}
+      >
+        <h6 style={{ margin: "0 0 4px", color: "#e5a3a3" }}>Reset the league</h6>
+        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 10px" }}>
+          Puts the league back to the day it was created. Every roster, the
+          draft, the schedule and every result, live scores, trades, waiver
+          claims, draft queues and pick-&rsquo;em picks are removed, and the
+          board is redrawn empty.
+        </p>
+        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 10px" }}>
+          The league itself stays: the franchises and their names, the
+          divisions, these settings, the draft date, and the PINs people have
+          already chosen &mdash; so nobody has to sign up again over a mistake
+          in week three. The rosters are saved to the league&rsquo;s backups
+          first, so they can be read back out with the service key.
+        </p>
+        <p style={{ fontSize: 11.5, color: "#75798c", lineHeight: 1.6, margin: "0 0 14px" }}>
+          Unlike the draft reset, this is not refused once weeks have been
+          played. That is what it is for. You will need to build the schedule
+          again afterwards.
+        </p>
+
+        <label
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 9,
+            fontSize: 12,
+            color: "#9397ab",
+            lineHeight: 1.55,
+            margin: "0 0 16px",
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={releaseFranchises}
+            onChange={(e) => setReleaseFranchises(e.target.checked)}
+            style={{ marginTop: 2, accentColor: "#c98f8f" }}
+          />
+          <span>
+            Also release the franchises &mdash; PINs cleared and sign-ins
+            broken, so they are open for new managers to claim. Yours is left
+            alone; clearing it would lock you out of this page.
+          </span>
+        </label>
+
+        <button
+          onClick={() => setConfirmingReset(true)}
+          disabled={busy}
+          style={{
+            padding: "8px 14px",
+            border: "1px solid rgba(224,131,131,.5)",
+            background: "transparent",
+            color: "#e5a3a3",
+            borderRadius: "var(--radius-sm)",
+            font: "inherit",
+            fontSize: 12,
+            letterSpacing: ".1em",
+            textTransform: "uppercase",
+            cursor: busy ? "default" : "pointer",
+            opacity: busy ? 0.45 : 1,
+          }}
+        >
+          Reset the league
+        </button>
+      </div>
+
+      <ConfirmDialog
+        open={confirmingReset}
+        title="Reset the league?"
+        confirmLabel="Reset the league"
+        confirmWord={admin.league?.name ?? "reset"}
+        busy={busy}
+        onCancel={() => setConfirmingReset(false)}
+        onConfirm={() => {
+          setConfirmingReset(false);
+          void resetLeague();
+        }}
+      >
+        <p style={{ fontSize: 13, lineHeight: 1.75, color: "#9397ab", margin: "0 0 10px" }}>
+          Everything that has happened in {admin.league?.name ?? "the league"} is
+          removed: rosters, the draft, the schedule and any results already in
+          it, scores, trades, claims and pick-&rsquo;em.
+        </p>
+        <p style={{ fontSize: 12, lineHeight: 1.7, color: "#75798c", margin: 0 }}>
+          {releaseFranchises
+            ? "The franchises are released too — every PIN but yours is cleared, and they are open to claim again."
+            : "The franchises, their names and everyone's PIN are kept."}{" "}
+          The rosters are saved to backups first.
+        </p>
+      </ConfirmDialog>
     </div>
   );
 }

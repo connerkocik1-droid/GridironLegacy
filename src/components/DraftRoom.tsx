@@ -5,6 +5,8 @@ import { headshot, logo } from "@/data/league-data";
 import DraftBoard from "./DraftBoard";
 import DraftCountdown from "./DraftCountdown";
 import DraftReveal, { type RevealPick } from "./DraftReveal";
+import DraftTicker from "./DraftTicker";
+import ResetDraft from "./ResetDraft";
 
 const BLANK =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -226,6 +228,26 @@ export default function DraftRoom() {
     }
   }
 
+  async function resetDraft() {
+    if (picking) return;
+    setPicking("__reset__");
+    try {
+      const res = await fetch("/api/admin/draft/reset", { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "The draft was not reset.");
+      else setError(null);
+      // A reset empties the board, so the "new pick" tracker is emptied with
+      // it — otherwise the re-drafted pick 1 is an overall this browser has
+      // already seen, and its reveal never fires. An empty set rather than
+      // null, so the next pick counts as new instead of only being recorded.
+      seen.current = new Set();
+      setReveal(null);
+      await load();
+    } finally {
+      setPicking(null);
+    }
+  }
+
   async function pick(name: string) {
     if (!board?.myTurn || picking) return;
     setPicking(name);
@@ -252,6 +274,8 @@ export default function DraftRoom() {
   }
 
   const recent = board.picks.filter((p) => p.player_name).slice(-12).reverse();
+  // There is only something to reset once something has happened.
+  const picksMade = board.picks.filter((p) => p.player_name).length;
   const urgent = remaining <= 15 && board.league.state === "running";
 
   // Nothing to show a board for until the draft is open.
@@ -271,6 +295,15 @@ export default function DraftRoom() {
           onStart={() => void setDraftState("running")}
           busy={picking != null}
         />
+        {board.me.is_commissioner && picksMade > 0 ? (
+          <div style={{ textAlign: "center", padding: "0 26px 48px" }}>
+            <ResetDraft
+              picksMade={picksMade}
+              busy={picking != null}
+              onConfirm={() => void resetDraft()}
+            />
+          </div>
+        ) : null}
       </>
     );
   }
@@ -325,6 +358,27 @@ export default function DraftRoom() {
               {v === "players" ? "Players" : "Board"}
             </button>
           ))}
+
+          {board.me.is_commissioner && picksMade > 0 ? (
+            <>
+              {/* Kept apart from the view toggle: one of these changes what
+                  you are looking at, the other throws the draft away. */}
+              <span
+                aria-hidden
+                style={{
+                  width: 1,
+                  alignSelf: "stretch",
+                  margin: "0 5px",
+                  background: "rgba(145,132,217,.22)",
+                }}
+              />
+              <ResetDraft
+                picksMade={picksMade}
+                busy={picking != null}
+                onConfirm={() => void resetDraft()}
+              />
+            </>
+          ) : null}
         </div>
 
         {board.league.state === "running" ? (
@@ -360,6 +414,11 @@ export default function DraftRoom() {
               overflow: "hidden",
             }}
           >
+            {/* Above the board rather than below it: the point is to see who
+                is left without losing sight of who has gone. */}
+            {board.league.state === "complete" ? null : (
+              <DraftTicker available={board.available} />
+            )}
             <DraftBoard
               picks={board.picks}
               managers={board.managers}

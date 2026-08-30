@@ -18,5 +18,19 @@ export async function GET() {
     .eq("auth_user_id", user.id)
     .single();
 
-  return Response.json({ manager: manager ?? null, configured: true });
+  if (!manager) return Response.json({ manager: null, configured: true });
+
+  // Their own crest comes along, so the button in the corner has something to
+  // draw without a second round trip. Everyone else's is fetched only by the
+  // pages that draw the whole league.
+  const { data: logo } = await db
+    .from("team_logos")
+    .select("image")
+    .eq("manager_id", manager.id)
+    .maybeSingle();
+
+  return Response.json({
+    manager: { ...manager, logo: logo?.image ?? null },
+    configured: true,
+  });
 }
