@@ -108,30 +108,24 @@ export function managerName(abbr) {
   return null;
 }
 
-// A player's team mark. Vendored marks load from logos.state.json at runtime;
-// the CDN is the fallback.
-export let LOGOS = {};
-export function setLogos(d) { LOGOS = d || {}; }
+import LOGO_INDEX from "./logos.index.json" with { type: "json" };
+import HEADSHOTS from "./headshots.state.json" with { type: "json" };
+
+export { LOGO_INDEX as LOGOS, HEADSHOTS };
+
+// A player's team mark, served from public/assets/logos. The CDN is the
+// fallback for any abbreviation the vendored set does not cover.
 export function logo(team) {
   if (!team) return "";
   // "FA" is not a franchise, so there is no mark to request — asking the CDN for
   // one 404s on every surface that shows a free agent.
   if (String(team).toUpperCase() === "FA") return "";
   const k = String(team).toLowerCase() === "was" ? "wsh" : String(team).toLowerCase();
-  return LOGOS[k] || "https://a.espncdn.com/i/teamlogos/nfl/500-dark/" + k + ".png";
+  const file = LOGO_INDEX[k];
+  return file ? "/assets/logos/" + file : "https://a.espncdn.com/i/teamlogos/nfl/500-dark/" + k + ".png";
 }
 
-export let HEADSHOTS = {};
-export function setHeadshots(d) { HEADSHOTS = d || {}; }
 export function headshot(name) { return HEADSHOTS[name] || ""; }
-
-// Loads the vendored marks and portraits once, then calls back.
-export function loadArt(done) {
-  let left = 2;
-  const tick = () => { if (--left === 0 && done) done(); };
-  fetch("logos.state.json").then(r => r.ok ? r.json() : null).then(d => { setLogos(d); tick(); }).catch(tick);
-  fetch("headshots.state.json").then(r => r.ok ? r.json() : null).then(d => { setHeadshots(d); tick(); }).catch(tick);
-}
 
 // 2025 season line for a player, in the vocabulary of his own position.
 export function statLine(p) {

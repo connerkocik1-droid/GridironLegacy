@@ -1,0 +1,37 @@
+{
+  "name": "gridiron-legacy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "extract-images": "node scripts/extract-images.mjs",
+    "seed": "node scripts/seed.mjs",
+    "test": "tsx src/lib/__tests__/scoring.test.mts && tsx src/lib/__tests__/lineup.test.mts && tsx src/lib/__tests__/news.test.mts",
+    "verify-espn": "node scripts/verify-espn.mjs",
+    "test:db": "./scripts/test-db.sh",
+    "test:all": "npm run test && npm run test:db"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.45.4",
+    "bcryptjs": "^2.4.3",
+    "next": "^16.3.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.7.5",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.3",
+    "tsx": "^4.23.12",
+    "typescript": "^5.6.3"
+  }
+}
