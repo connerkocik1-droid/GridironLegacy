@@ -21,6 +21,7 @@ interface Admin {
     settings: { rounds?: number; pickSeconds?: number };
     draft_state: string;
     current_pick: number;
+    draft_at: string | null;
   } | null;
   managers: Manager[];
   board: { picks: number; made: number };
@@ -66,6 +67,7 @@ export default function Commissioner() {
   const [notice, setNotice] = useState<string | null>(null);
   const [teams, setTeams] = useState("");
   const [rounds, setRounds] = useState("");
+  const [draftAt, setDraftAt] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -82,6 +84,18 @@ export default function Commissioner() {
       setAdmin(data);
       setTeams(String(data.managers.length));
       setRounds(String(data.league?.settings?.rounds ?? 24));
+      // datetime-local wants the browser's own wall clock, not an ISO string
+      // in UTC, or the picker shows a time nobody chose.
+      setDraftAt(
+        data.league?.draft_at
+          ? new Date(
+              new Date(data.league.draft_at).getTime() -
+                new Date().getTimezoneOffset() * 60_000,
+            )
+              .toISOString()
+              .slice(0, 16)
+          : "",
+      );
       setError(null);
     } catch {
       setError("Could not load the league office.");
@@ -113,6 +127,28 @@ export default function Commissioner() {
       } else {
         setNotice("Saved. The draft board has been rebuilt to match.");
       }
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveDraftDate() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const res = await fetch("/api/admin/league", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        // An empty box clears the date rather than saving a blank one.
+        body: JSON.stringify({ draftAt: draftAt ? new Date(draftAt).toISOString() : null }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not save the draft date.");
+      else setNotice(draftAt ? "Draft date saved. The countdown is live." : "Draft date cleared.");
       await load();
     } finally {
       setBusy(false);
@@ -284,6 +320,35 @@ export default function Commissioner() {
           {admin.canResize
             ? `Board: ${admin.board.picks} picks.`
             : `The draft has started — ${admin.board.made} picks are in, so the size is fixed now.`}
+        </div>
+      </div>
+
+      <div style={card}>
+        <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Draft day</h6>
+        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 14px" }}>
+          What the countdown in the draft room counts to, in your own time zone.
+          Reaching it does not open the room — you still do that, so a late
+          arrival does not miss their pick.
+        </p>
+        <div style={{ display: "flex", gap: 14, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div>
+            <label
+              htmlFor="draftAt"
+              style={{ display: "block", fontSize: 10, letterSpacing: ".2em", color: "#75798c", marginBottom: 6 }}
+            >
+              DATE AND TIME
+            </label>
+            <input
+              id="draftAt"
+              type="datetime-local"
+              value={draftAt}
+              onChange={(e) => setDraftAt(e.target.value)}
+              style={{ ...numberField, width: 232 }}
+            />
+          </div>
+          <button onClick={saveDraftDate} disabled={busy} style={action(!busy)}>
+            Save
+          </button>
         </div>
       </div>
 

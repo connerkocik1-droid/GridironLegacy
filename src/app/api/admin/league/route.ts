@@ -26,7 +26,7 @@ export async function GET() {
 
   const { data: league } = await db
     .from("leagues")
-    .select("id, name, season, settings, draft_state, current_pick, commissioner_slot")
+    .select("id, name, season, settings, draft_state, current_pick, commissioner_slot, draft_at")
     .eq("id", me.league_id)
     .single();
 
@@ -80,11 +80,35 @@ export async function PATCH(req: Request) {
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
 
-  let body: { teams?: unknown; rounds?: unknown };
+  let body: { teams?: unknown; rounds?: unknown; draftAt?: unknown };
   try {
     body = await req.json();
   } catch {
     return Response.json({ error: "Body must be JSON" }, { status: 400 });
+  }
+
+  // The date the countdown counts to. Null clears it, which is how a league
+  // says "no date yet" rather than counting to the epoch.
+  if (body.draftAt !== undefined) {
+    if (!me.is_commissioner) {
+      return Response.json({ error: "Only the commissioner can change this" }, { status: 403 });
+    }
+
+    let draftAt: string | null = null;
+    if (typeof body.draftAt === "string" && body.draftAt) {
+      const when = new Date(body.draftAt);
+      if (Number.isNaN(when.getTime())) {
+        return Response.json({ error: "That is not a date" }, { status: 400 });
+      }
+      draftAt = when.toISOString();
+    }
+
+    const { error } = await db
+      .from("leagues")
+      .update({ draft_at: draftAt })
+      .eq("id", me.league_id);
+
+    if (error) return Response.json({ error: "Could not save the draft date" }, { status: 400 });
   }
 
   // Rounds change the board's depth, so it is rebuilt afterwards too.
