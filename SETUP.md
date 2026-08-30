@@ -34,8 +34,16 @@ Paste in the whole of **`supabase/all-migrations.sql`** and run it once.
 
 That one file is every migration in order, wrapped in a transaction: if
 anything fails, nothing is applied and your database is left exactly as it
-was, rather than half migrated with no record of how far it got. You should
-see 16 tables and 64 functions created.
+was, rather than half migrated with no record of how far it got.
+
+**It is safe to run again.** Each migration records itself in a
+`schema_migrations` table and is skipped after that, so when new migrations
+are added you re-run the same file rather than working out which ones are
+new. To see what a database has:
+
+```sql
+select name, applied_at from schema_migrations order by name;
+```
 
 <details>
 <summary>If you would rather run them one at a time</summary>
