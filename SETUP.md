@@ -62,19 +62,35 @@ change to these.
 
 ## 3. Seed the league
 
-From a checkout on your own machine, with `SUPABASE_URL` and
-`SUPABASE_SERVICE_KEY` set (a `.env.local` file works):
+Still in the SQL editor. Paste **`supabase/seed.sql`**, run it, then run one
+more line with however many franchises you expect:
+
+```sql
+select * from seed_league('Gridiron Legacy', 12);
+```
+
+It returns four columns. **`new_league_id` is your `LEAGUE_ID`** — copy it.
+
+Every franchise is created **open**: no PIN, no owner. People claim one at
+`/signin`, and claiming is what sets the PIN. The draft board and the season
+schedule are both generated from the league, so they match it exactly.
+
+Seeding twice is refused — two leagues and no way to tell the app which one it
+serves. To start over: `delete from leagues;` removes everything, since every
+other table cascades from it.
+
+<details>
+<summary>If you would rather run it from a terminal</summary>
+
+`scripts/seed.mjs` does the same thing, with `SUPABASE_URL` and
+`SUPABASE_SERVICE_KEY` set locally:
 
 ```bash
 npm install
-node scripts/seed.mjs                 # twelve franchises
-node scripts/seed.mjs --teams 8       # or however many you expect
+node scripts/seed.mjs --teams 12
 ```
 
-Every franchise is created **open** — no PIN, no owner. People claim one at
-`/signin`, and claiming is what sets the PIN.
-
-The script prints a league id. Keep it: that is `LEAGUE_ID`.
+</details>
 
 ---
 
