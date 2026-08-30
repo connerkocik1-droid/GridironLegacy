@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "extract-images": "node scripts/extract-images.mjs",
     "seed": "node scripts/seed.mjs",
