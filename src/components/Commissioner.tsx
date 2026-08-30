@@ -7,6 +7,7 @@ interface Manager {
   slot: string;
   name: string;
   franchise: string;
+  division: string | null;
   claimed: boolean;
   isCommissioner: boolean;
 }
@@ -139,6 +140,27 @@ export default function Commissioner() {
     }
   }
 
+  async function moveDivision(manager: Manager, division: string) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const res = await fetch("/api/admin/divisions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ managerId: manager.id, division }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not move that franchise.");
+      else setNotice(`${manager.franchise} is in the ${division}. Rebuild the schedule to apply it.`);
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function clearPin(manager: Manager) {
     if (busy) return;
     setBusy(true);
@@ -175,6 +197,20 @@ export default function Commissioner() {
   }
 
   const claimed = admin.managers.filter((m) => m.claimed).length;
+
+  // The two divisions actually in use, so a renamed pair still shows.
+  const divisions = Array.from(
+    new Set(admin.managers.map((m) => m.division).filter(Boolean) as string[]),
+  ).sort();
+  if (divisions.length < 2) divisions.push(...["East", "West"].filter((d) => !divisions.includes(d)));
+
+  // Everyone once, then the divisional rematches: (n-1) + (largest division - 1).
+  const perDivision = divisions.map(
+    (d) => admin.managers.filter((m) => m.division === d).length,
+  );
+  const n = admin.managers.length;
+  const seasonWeeks =
+    (n % 2 === 1 ? n : n - 1) + Math.max(0, Math.max(...perDivision, 0) - 1);
   const changed =
     Number(teams) !== admin.managers.length ||
     Number(rounds) !== (admin.league?.settings?.rounds ?? 24);
@@ -253,12 +289,21 @@ export default function Commissioner() {
 
       <div style={card}>
         <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Season schedule</h6>
-        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 14px" }}>
-          A round robin across the regular season: everyone meets everyone
-          before anyone is met twice, and an odd league gives someone a bye each
-          week. Build it once the franchises are settled — it cannot be rebuilt
-          after a week has been played, because that would discard results that
-          already stand.
+        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 10px" }}>
+          Everyone plays everyone once, then divisional rivals meet a second
+          time. That decides the season length rather than the other way round:
+          {" "}
+          <strong style={{ color: "#d2cefd", fontWeight: 500 }}>
+            {seasonWeeks} weeks
+          </strong>{" "}
+          for {admin.managers.length} franchises. Build it once the divisions
+          are settled — it cannot be rebuilt after a week has been played,
+          because that would discard results that already stand.
+        </p>
+        <p style={{ fontSize: 11.5, color: "#75798c", lineHeight: 1.6, margin: "0 0 14px" }}>
+          {seasonWeeks > 15
+            ? "That is longer than an NFL regular season leaves room for once you add playoffs — consider fewer franchises, or divisional rivals once."
+            : "That leaves room for playoffs inside an 18-week NFL season."}
         </p>
         <button onClick={buildSchedule} disabled={busy} style={action(!busy)}>
           Build schedule
@@ -266,9 +311,11 @@ export default function Commissioner() {
       </div>
 
       <div style={card}>
-        <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Franchises</h6>
+        <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Franchises and divisions</h6>
         <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 10px" }}>
-          Clearing a PIN does not set a new one — the manager chooses theirs at
+          {divisions.join(" and ")} — {perDivision.join(" and ")} franchises.
+          Moving a franchise takes effect when you rebuild the schedule, and is
+          refused once a week has been played. Clearing a PIN does not set a new one — the manager chooses theirs at
           sign-in, so nobody can sign in as their team.
         </p>
 
@@ -294,6 +341,29 @@ export default function Commissioner() {
                 </span>
               ) : null}
             </span>
+            <div style={{ display: "flex", gap: 3, flex: "0 0 auto" }}>
+              {divisions.map((d) => (
+                <button
+                  key={d}
+                  onClick={() => moveDivision(m, d)}
+                  disabled={busy || m.division === d}
+                  style={{
+                    padding: "3px 8px",
+                    fontSize: 9,
+                    letterSpacing: ".12em",
+                    border: `1px solid ${m.division === d ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.22)"}`,
+                    background: m.division === d ? "rgba(145,132,217,.26)" : "transparent",
+                    color: m.division === d ? "#e9e9ed" : "#75798c",
+                    borderRadius: "var(--radius-sm)",
+                    font: "inherit",
+                    cursor: busy || m.division === d ? "default" : "pointer",
+                  }}
+                >
+                  {d.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
             <span
               style={{
                 fontSize: 9,

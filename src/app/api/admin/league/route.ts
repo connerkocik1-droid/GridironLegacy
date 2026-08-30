@@ -32,7 +32,7 @@ export async function GET() {
 
   const { data: managers } = await db
     .from("managers")
-    .select("id, slot, name, franchise, pin_hash, is_commissioner")
+    .select("id, slot, name, franchise, pin_hash, is_commissioner, division")
     .eq("league_id", me.league_id)
     .order("slot");
 
@@ -52,6 +52,7 @@ export async function GET() {
       slot: m.slot,
       name: m.name,
       franchise: m.franchise,
+      division: m.division,
       claimed: m.pin_hash != null,
       isCommissioner: m.is_commissioner,
     })),

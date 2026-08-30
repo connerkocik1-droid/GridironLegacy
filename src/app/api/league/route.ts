@@ -31,7 +31,7 @@ export async function GET() {
       db.from("leagues").select("name, season, settings").eq("id", me.league_id).single(),
       db
         .from("managers")
-        .select("id, slot, name, franchise, is_commissioner, pin_hash")
+        .select("id, slot, name, franchise, is_commissioner, pin_hash, division")
         .eq("league_id", me.league_id)
         .order("slot"),
       db
@@ -46,9 +46,11 @@ export async function GET() {
   // and the page says so rather than showing a table of zeroes as if it were
   // standings.
   const record = new Map(
-    (table ?? []).map((r: { manager_id: string; wins: number; losses: number; ties: number; points_for: number; points_against: number }) => [
+    (table ?? []).map((r: { manager_id: string; wins: number; losses: number; ties: number; div_wins: number; div_losses: number; points_for: number; points_against: number }) => [
       r.manager_id,
       {
+        divWins: r.div_wins,
+        divLosses: r.div_losses,
         wins: r.wins,
         losses: r.losses,
         ties: r.ties,
@@ -86,6 +88,7 @@ export async function GET() {
       slot: m.slot,
       name: m.name,
       franchise: m.franchise,
+      division: m.division,
       claimed: m.pin_hash != null,
       isCommissioner: m.is_commissioner,
       pointsFor: Math.round((pointsFor.get(m.id) ?? 0) * 10) / 10,

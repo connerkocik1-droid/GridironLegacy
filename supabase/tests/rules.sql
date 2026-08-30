@@ -391,13 +391,21 @@ select signin(:'S1');
 select generate_schedule(:'S');
 \o
 
-select expect('every week is fully paired',
-  (select count(*)::int from matchups where league_id = :'S'), 6);
+select expect('four franchises split into two divisions',
+  (select string_agg(division || ':' || n, ' ' order by division) from (
+     select division, count(*) n from managers where league_id = :'S' group by division
+   ) d), 'East:2 West:2');
 
-select expect('two games a week for four teams',
-  (select count(distinct week)::int from matchups where league_id = :'S'), 3);
+-- Everyone once (3 weeks) plus the divisional rematch (1 week) = 4 weeks, 8 games.
+select expect('the season is a full round robin plus the divisional rematches',
+  (select count(*)::int from matchups where league_id = :'S'), 8);
 
--- Nobody may play twice in one week, and nobody may play themselves.
+select expect('over the weeks that implies',
+  (select max(week)::int from matchups where league_id = :'S'), 4);
+
+select expect('the season length is written back to the league',
+  (select (settings ->> 'regularWeeks')::int from leagues where id = :'S'), 4);
+
 select expect('nobody appears twice in a week',
   (select count(*)::int from (
      select week, m from matchups, lateral (values (home_manager), (away_manager)) v(m)
@@ -409,13 +417,35 @@ select expect('nobody plays themselves',
   (select count(*)::int from matchups
     where league_id = :'S' and home_manager = away_manager), 0);
 
-select expect('a round robin meets everyone once',
-  (select count(*)::int from (
-     select least(home_manager::text, away_manager::text) a,
-            greatest(home_manager::text, away_manager::text) b
-       from matchups where league_id = :'S'
-      group by 1, 2 having count(*) > 1
-   ) repeats), 0);
+-- The point of the exercise: division rivals twice, everyone else once.
+select expect('divisional rivals meet twice',
+  (select bool_and(n = 2) from (
+     select count(*) n from matchups x
+       join managers h on h.id = x.home_manager
+       join managers a on a.id = x.away_manager
+      where x.league_id = :'S' and h.division = a.division
+      group by least(x.home_manager::text, x.away_manager::text),
+               greatest(x.home_manager::text, x.away_manager::text)
+   ) pairs), true);
+
+select expect('everyone outside the division is met once',
+  (select bool_and(n = 1) from (
+     select count(*) n from matchups x
+       join managers h on h.id = x.home_manager
+       join managers a on a.id = x.away_manager
+      where x.league_id = :'S' and h.division <> a.division
+      group by least(x.home_manager::text, x.away_manager::text),
+               greatest(x.home_manager::text, x.away_manager::text)
+   ) pairs), true);
+
+select expect('divisional games are flagged as such',
+  (select count(*)::int from matchups x
+     join managers h on h.id = x.home_manager
+     join managers a on a.id = x.away_manager
+    where x.league_id = :'S' and x.divisional <> (h.division = a.division)), 0);
+
+select expect('and there are four of them',
+  (select count(*)::int from matchups where league_id = :'S' and divisional), 4);
 
 -- An odd league gives someone a bye each week rather than a broken pairing.
 \o /dev/null
@@ -426,10 +456,70 @@ select generate_schedule(:'S');
 select expect('an odd league still pairs cleanly',
   (select count(*)::int from matchups where league_id = :'S' and home_manager = away_manager), 0);
 
-select expect('and gives two games a week, not two and a half',
-  (select bool_and(n = 2) from (
+select expect('and never puts more games in a week than there are pairs',
+  (select bool_and(n <= 2) from (
      select week, count(*) n from matchups where league_id = :'S' group by week
    ) per_week), true);
+
+select expect('an odd league still never plays anyone twice in a week',
+  (select count(*)::int from (
+     select week, m from matchups, lateral (values (home_manager), (away_manager)) v(m)
+      where league_id = :'S'
+      group by week, m having count(*) > 1
+   ) dupes), 0);
+
+-- The real shape: twelve franchises, six a side.
+\o /dev/null
+\set D '99999999-0000-0000-0000-000000000006'
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'D', 'Twelve', 2026, 'F01', '{"regularWeeks": 13}'::jsonb);
+insert into managers (league_id, slot, name, franchise)
+select :'D', 'F' || lpad(i::text, 2, '0'), 'Open', 'Franchise ' || i
+  from generate_series(1, 12) i;
+select generate_schedule(:'D');
+\o
+
+select expect('twelve franchises split six and six',
+  (select string_agg(division || ':' || n, ' ' order by division) from (
+     select division, count(*) n from managers where league_id = :'D' group by division
+   ) d), 'East:6 West:6');
+
+select expect('a twelve-team season runs sixteen weeks',
+  (select max(week)::int from matchups where league_id = :'D'), 16);
+
+select expect('which is 96 games',
+  (select count(*)::int from matchups where league_id = :'D'), 96);
+
+select expect('six games every week, nobody idle',
+  (select bool_and(n = 6) from (
+     select week, count(*) n from matchups where league_id = :'D' group by week
+   ) per_week), true);
+
+select expect('every divisional rival is met twice',
+  (select bool_and(n = 2) from (
+     select count(*) n from matchups x
+       join managers h on h.id = x.home_manager
+       join managers a on a.id = x.away_manager
+      where x.league_id = :'D' and h.division = a.division
+      group by least(x.home_manager::text, x.away_manager::text),
+               greatest(x.home_manager::text, x.away_manager::text)
+   ) pairs), true);
+
+select expect('every cross-division rival exactly once',
+  (select bool_and(n = 1) from (
+     select count(*) n from matchups x
+       join managers h on h.id = x.home_manager
+       join managers a on a.id = x.away_manager
+      where x.league_id = :'D' and h.division <> a.division
+      group by least(x.home_manager::text, x.away_manager::text),
+               greatest(x.home_manager::text, x.away_manager::text)
+   ) pairs), true);
+
+select expect('so everyone plays sixteen games',
+  (select bool_and(n = 16) from (
+     select m, count(*) n from matchups, lateral (values (home_manager), (away_manager)) v(m)
+      where league_id = :'D' group by m
+   ) per_team), true);
 
 -- Grading, on its own two-franchise league so the pairing is not in doubt.
 \o /dev/null
