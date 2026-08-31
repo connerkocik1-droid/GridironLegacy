@@ -17,6 +17,7 @@ const OFFICE = [
 ];
 
 const SECONDARY = [
+  { href: "/draft/mock", label: "Mock Draft" },
   { href: "/my-team", label: "My Lineup" },
   { href: "/matchup", label: "Matchup" },
   { href: "/player-news", label: "Player News" },
