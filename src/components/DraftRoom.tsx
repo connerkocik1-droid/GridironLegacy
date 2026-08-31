@@ -6,6 +6,7 @@ import DraftBoard from "./DraftBoard";
 import DraftCountdown from "./DraftCountdown";
 import DraftReveal, { type RevealPick } from "./DraftReveal";
 import DraftTicker from "./DraftTicker";
+import IntroVideo, { type IntroHandle } from "./IntroVideo";
 import ResetDraft from "./ResetDraft";
 import TeamCrest from "./TeamCrest";
 import { useLogos } from "@/lib/use-logos";
@@ -65,6 +66,29 @@ const control = (): React.CSSProperties => ({
   cursor: "pointer",
 });
 
+/**
+ * Which showing of the film this is, for remembering it was watched.
+ *
+ * Keyed on the draft date so moving the date makes it new again — a postponed
+ * draft ought to get its opening titles back. A league that never set a date
+ * still needs a key, or the film would start over on every poll once everyone
+ * was ready.
+ */
+function introKey(data: Board): string {
+  return `gl.intro.${data.league.draftAt ?? "start"}`;
+}
+
+/** Whether this browser has already sat through this showing. */
+function alreadyWatched(data: Board): boolean {
+  try {
+    return window.localStorage.getItem(introKey(data)) != null;
+  } catch {
+    // Private browsing, or storage turned off. Play it; seeing the intro
+    // twice is not worth failing over.
+    return false;
+  }
+}
+
 export default function DraftRoom() {
   const logos = useLogos();
   const [board, setBoard] = useState<Board | null>(null);
@@ -90,6 +114,37 @@ export default function DraftRoom() {
   // machine is minutes off still sees the same time as everyone else.
   const [skew, setSkew] = useState(0);
 
+  /**
+   * The intro film belongs to the room, not to the countdown.
+   *
+   * It used to live inside the countdown, which is only on screen while the
+   * draft is pending — so a commissioner who opened the room early skipped
+   * straight past the film and nobody ever saw it. Held here it survives that
+   * change, and can be started by any of the three things that mean "we are
+   * beginning": the clock reaching zero, everybody pressing ready, or the
+   * commissioner opening the room.
+   */
+  const intro = useRef<IntroHandle | null>(null);
+  const [introPlaying, setIntroPlaying] = useState(false);
+  // Set the moment a decision to play is taken, so the poll that follows a
+  // second later does not take it again.
+  const introStarted = useRef(false);
+
+  /**
+   * Remembers the film has been watched — on finishing or skipping, never on
+   * starting, so a refresh partway through plays it again rather than losing
+   * it for good.
+   */
+  function finishIntro() {
+    setIntroPlaying(false);
+    if (!board) return;
+    try {
+      window.localStorage.setItem(introKey(board), "1");
+    } catch {
+      // As above: nothing here is worth an error.
+    }
+  }
+
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/draft", { cache: "no-store" });
@@ -104,6 +159,23 @@ export default function DraftRoom() {
       setSkew(new Date(data.league.serverNow).getTime() - Date.now());
       setBoard(data);
       setError(null);
+
+      // Everybody in, or the commissioner has opened the room. The countdown
+      // reaching zero is the third way in, and it reports itself from the tick
+      // that already draws it.
+      const everyoneIn =
+        data.managers.length > 0 && data.managers.every((m) => m.ready === true);
+      const opened = data.league.state === "running";
+
+      if (
+        (everyoneIn || opened) &&
+        data.league.introVideo &&
+        !introStarted.current &&
+        !alreadyWatched(data)
+      ) {
+        introStarted.current = true;
+        setIntroPlaying(true);
+      }
     } catch {
       setError("Could not load the draft board.");
     }
@@ -359,10 +431,23 @@ export default function DraftRoom() {
   const picksMade = board.picks.filter((p) => p.player_name).length;
   const urgent = remaining <= 15 && board.league.state === "running";
 
+  // The film, in one tree position for the life of the room. Moving it — or
+  // letting it be unmounted when the draft opens — destroys the element the
+  // Ready button unlocked the sound on, and it plays silently.
+  const film = board.league.introVideo ? (
+    <IntroVideo
+      ref={intro}
+      src={board.league.introVideo}
+      open={introPlaying}
+      onDone={finishIntro}
+    />
+  ) : null;
+
   // Nothing to show a board for until the draft is open.
   if (board.league.state === "pending" || board.league.state === "paused") {
     return (
       <>
+        {film}
         <audio ref={chime} src="/assets/nfl-draft-chime.mp3" preload="auto" />
         {error ? (
           <div style={{ padding: "0 26px", fontSize: 12, color: "#e0b573" }}>{error}</div>
@@ -375,9 +460,16 @@ export default function DraftRoom() {
           managers={board.managers}
           onStart={() => void setDraftState("running")}
           busy={picking != null}
-          introVideo={board.league.introVideo}
           meReady={board.me.ready}
           onReady={markReady}
+          hasIntro={Boolean(board.league.introVideo)}
+          onPrimeIntro={() => intro.current?.prime()}
+          onCountdownReached={() => {
+            if (!board.league.introVideo || introStarted.current) return;
+            if (alreadyWatched(board)) return;
+            introStarted.current = true;
+            setIntroPlaying(true);
+          }}
         />
         {board.me.is_commissioner ? (
           <div style={{ textAlign: "center", padding: "0 26px 48px" }}>
@@ -394,6 +486,7 @@ export default function DraftRoom() {
 
   return (
     <>
+      {film}
       <audio ref={chime} src="/assets/nfl-draft-chime.mp3" preload="auto" />
       <DraftReveal pick={reveal} onClose={() => setReveal(null)} />
       <div

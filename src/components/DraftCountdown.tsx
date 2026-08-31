@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import IntroVideo, { type IntroHandle } from "./IntroVideo";
 
 /**
  * The waiting room: what a manager sees before the draft opens.
@@ -17,9 +16,11 @@ export default function DraftCountdown({
   managers,
   onStart,
   busy,
-  introVideo,
   meReady = false,
   onReady,
+  hasIntro = false,
+  onPrimeIntro,
+  onCountdownReached,
 }: {
   draftAt: string | null;
   skew: number;
@@ -28,13 +29,24 @@ export default function DraftCountdown({
   managers: { id: string; franchise: string; ready?: boolean }[];
   onStart: () => void;
   busy: boolean;
-  introVideo?: string | null;
   meReady?: boolean;
   onReady?: () => void | Promise<void>;
+  /** Only to word the Ready button's explanation; the room owns the film. */
+  hasIntro?: boolean;
+  /** Unlocks the film's sound on a real click. See markReady below. */
+  onPrimeIntro?: () => void;
+  /** The clock has reached the hour. The room decides what to do about it. */
+  onCountdownReached?: () => void;
 }) {
   const [now, setNow] = useState(() => Date.now());
-  const [playing, setPlaying] = useState(false);
-  const intro = useRef<IntroHandle | null>(null);
+
+  // Held in a ref so the tick below does not restart every time the room
+  // re-renders around it. Written from an effect rather than during render,
+  // which is the rule the compiler enforces.
+  const reached = useRef(onCountdownReached);
+  useEffect(() => {
+    reached.current = onCountdownReached;
+  }, [onCountdownReached]);
 
   /**
    * Ready does two things, and the second is the one that matters tonight.
@@ -45,29 +57,22 @@ export default function DraftCountdown({
    * element that plays later. Anywhere else and it is refused.
    */
   async function markReady() {
-    intro.current?.prime();
+    onPrimeIntro?.();
     await onReady?.();
   }
 
   const target = draftAt ? new Date(draftAt).getTime() : null;
 
-  // Whether this browser has already sat through the intro for this particular
-  // draft date. Kept in localStorage rather than in the database: the film is a
-  // moment, not a record, and "has this person seen it" is a fact about this
-  // browser rather than about the league. Moving the draft date makes it new
-  // again, which is what a postponed draft ought to mean.
-  const seenKey = draftAt ? `gl.intro.${draftAt}` : null;
-
   useEffect(() => {
-    // The decision to play is taken on the tick that already runs the
-    // countdown, not in an effect of its own. That way the crossing of zero is
-    // noticed the same way whether the page was open all along or opened a
-    // minute late, and there is one clock rather than two.
+    // The crossing of zero is noticed on the tick that already runs the
+    // countdown, not in an effect of its own. That way it is spotted the same
+    // way whether the page was open all along or opened a minute late, and
+    // there is one clock rather than two.
     const timer = setInterval(() => {
       const at = Date.now();
       setNow(at);
 
-      if (!introVideo || target == null) return;
+      if (target == null) return;
 
       const since = at + skew - target;
       // A window rather than an instant, so somebody who opened the page
@@ -75,37 +80,11 @@ export default function DraftCountdown({
       // draft is under way and the film would be an interruption.
       if (since < 0 || since > 5 * 60_000) return;
 
-      try {
-        if (seenKey && window.localStorage.getItem(seenKey)) return;
-      } catch {
-        // Private browsing, or storage turned off. Play it; seeing the intro
-        // twice is not worth failing over.
-      }
-
-      setPlaying(true);
+      reached.current?.();
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [introVideo, target, skew, seenKey]);
-
-  /**
-   * Remembers the film has been watched — on finishing or skipping, never on
-   * starting, so a refresh partway through plays it again rather than losing
-   * it for good.
-   */
-  function finishIntro() {
-    // The hidden element is played for an instant when Ready is pressed, and
-    // anything it says about having finished is about that instant, not about
-    // the film. Only a film that was on screen can have been watched.
-    if (!playing) return;
-
-    setPlaying(false);
-    try {
-      if (seenKey) window.localStorage.setItem(seenKey, "1");
-    } catch {
-      // As above: nothing here is worth an error.
-    }
-  }
+  }, [target, skew]);
 
   const remaining = target ? Math.max(0, target - (now + skew)) : null;
 
@@ -124,10 +103,6 @@ export default function DraftCountdown({
 
   return (
     <div style={{ padding: "48px 26px 60px", textAlign: "center" }}>
-      {introVideo ? (
-        <IntroVideo ref={intro} src={introVideo} open={playing} onDone={finishIntro} />
-      ) : null}
-
       <div style={{ fontSize: 10, letterSpacing: ".4em", color: "#75798c" }}>
         {state === "paused" ? "DRAFT PAUSED" : past ? "DRAFT DAY" : "THE DRAFT"}
       </div>
@@ -234,10 +209,10 @@ export default function DraftCountdown({
         >
           {readyCount} of {managers.length} in.{" "}
           {meReady
-            ? introVideo
+            ? hasIntro
               ? "Sound is unlocked — the opening film will play out loud."
               : "Sound is unlocked for the draft room."
-            : introVideo
+            : hasIntro
               ? "Press it before the clock runs out: browsers keep a video silent until you have pressed something, and this is what lets the opening film play out loud."
               : "Press it before the clock runs out: browsers keep sound off until you have pressed something, and this is what turns the pick chime on."}
         </p>
