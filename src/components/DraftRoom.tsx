@@ -10,6 +10,7 @@ import IntroVideo, { type IntroHandle } from "./IntroVideo";
 import ResetDraft from "./ResetDraft";
 import TeamCrest from "./TeamCrest";
 import { useLogos } from "@/lib/use-logos";
+import { setPickAnimations, usePickAnimations } from "@/lib/use-pick-animations";
 
 const BLANK =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -91,6 +92,7 @@ function alreadyWatched(data: Board): boolean {
 
 export default function DraftRoom() {
   const logos = useLogos();
+  const animations = usePickAnimations();
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("ALL");
@@ -280,6 +282,10 @@ export default function DraftRoom() {
       audio.play().catch(() => {});
     }
 
+    // This browser's own choice. The other eleven screens are unaffected —
+    // nothing about it leaves this machine.
+    if (!animations) return;
+
     setReveal({
       playerName: latest.player_name!,
       franchise: managerName.get(latest.manager_id ?? "") ?? "—",
@@ -288,7 +294,7 @@ export default function DraftRoom() {
       round: latest.round,
       mine: latest.manager_id === board.me.id,
     });
-  }, [board, managerName]);
+  }, [board, managerName, animations]);
 
   const visible = useMemo(() => {
     if (!board) return [];
@@ -419,7 +425,6 @@ export default function DraftRoom() {
     return <div style={{ padding: "24px 26px", color: "#75798c" }}>Opening the draft room…</div>;
   }
 
-  const recent = board.picks.filter((p) => p.player_name).slice(-12).reverse();
 
   // The commissioner can take the pick in hand for whoever is on the clock.
   // One value rather than the condition written twice, so what the button
@@ -567,6 +572,34 @@ export default function DraftRoom() {
             </button>
           ))}
 
+          {/* This screen's own choice, not the league's. Everyone else still
+              gets the reveal. */}
+          <label
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "6px 11px",
+              fontSize: 10,
+              letterSpacing: ".1em",
+              textTransform: "uppercase",
+              color: "#9397ab",
+              border: "1px solid rgba(145,132,217,.24)",
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+            title="Only on this screen. The other managers still see the reveal."
+          >
+            <input
+              type="checkbox"
+              checked={animations}
+              onChange={(e) => setPickAnimations(e.target.checked)}
+              style={{ accentColor: "#9184d9", cursor: "pointer" }}
+            />
+            Pick animation
+          </label>
+
           {board.me.is_commissioner ? (
             <>
               {/* Kept apart from the view toggle: one of these changes what
@@ -664,13 +697,14 @@ export default function DraftRoom() {
           </div>
         </div>
       ) : (
+      // One column, centred. The recent-picks panel that used to sit beside
+      // this said the same thing as the board tab, and on a phone it pushed
+      // the players — the only thing you are here to read — into a strip.
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0,1fr) minmax(260px,320px)",
-          gap: 18,
+          maxWidth: 780,
+          margin: "0 auto",
           padding: "6px 26px 40px",
-          alignItems: "start",
         }}
       >
         <div
@@ -811,38 +845,6 @@ export default function DraftRoom() {
               </div>
             ))}
           </div>
-        </div>
-
-        <div
-          style={{
-            border: "1px solid rgba(145,132,217,.22)",
-            borderRadius: "var(--radius-lg)",
-            background: "rgba(26,28,43,.55)",
-            padding: "14px 16px",
-          }}
-        >
-          <h6 style={{ margin: "0 0 8px", color: "#d2cefd" }}>Recent picks</h6>
-          {recent.length === 0 ? (
-            <div style={{ fontSize: 11, color: "#75798c" }}>Nothing yet.</div>
-          ) : null}
-          {recent.map((p) => (
-            <div
-              key={p.overall}
-              style={{ padding: "7px 0", borderTop: "1px solid rgba(145,132,217,.12)" }}
-            >
-              <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
-                <span style={{ fontSize: 10, color: "#75798c", width: 34, flex: "0 0 auto" }}>
-                  {p.round}.{String(p.overall).padStart(2, "0")}
-                </span>
-                <span style={{ fontFamily: "var(--font-heading)", fontSize: 13, minWidth: 0 }}>
-                  {p.player_name}
-                </span>
-              </div>
-              <div style={{ fontSize: 10, color: "#75798c", marginLeft: 41 }}>
-                {managerName.get(p.manager_id ?? "") ?? "—"}
-              </div>
-            </div>
-          ))}
         </div>
       </div>
       )}
