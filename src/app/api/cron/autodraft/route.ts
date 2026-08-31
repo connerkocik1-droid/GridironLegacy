@@ -1,5 +1,4 @@
 import { POOL } from "@/data/league-data";
-import { byDynastyAdp, valueOf } from "@/lib/dynasty";
 import { serviceClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -41,11 +40,7 @@ export async function GET(req: Request) {
     .eq("league_id", leagueId);
 
   const rostered = new Set((taken ?? []).map((r) => r.player_name));
-  // The clock taking a pick for somebody should take the pick their league
-  // would rate highest, which in a dynasty is the age-adjusted one.
-  const best = POOL.filter((p) => !rostered.has(p.n))
-    .map((p) => ({ player: p, value: valueOf(p) }))
-    .sort((a, b) => byDynastyAdp(a.value, b.value))[0]?.player;
+  const best = POOL.filter((p) => !rostered.has(p.n)).sort((a, b) => a.adp - b.adp)[0];
 
   const { data, error } = await db.rpc("autodraft_expired", {
     p_league_id: leagueId,

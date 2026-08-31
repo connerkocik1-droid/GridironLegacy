@@ -7,7 +7,6 @@ import DraftCountdown from "./DraftCountdown";
 import DraftReveal, { type RevealPick } from "./DraftReveal";
 import DraftTicker from "./DraftTicker";
 import ResetDraft from "./ResetDraft";
-import { adpLabel } from "@/lib/dynasty";
 
 const BLANK =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -25,9 +24,6 @@ interface Available {
   position: string;
   team: string;
   adp: number;
-  dynastyAdp: number;
-  age: number | null;
-  modifier: number;
   posRank: string;
   bye: number;
 }
@@ -652,7 +648,7 @@ export default function DraftRoom() {
                     ) : null}
                   </div>
                   <div style={{ fontSize: 10, color: "#75798c", marginTop: 2 }}>
-                    {p.posRank} · {adpLabel(p)} · bye {p.bye}
+                    {p.posRank} · ADP {p.adp} · bye {p.bye}
                   </div>
                 </div>
                 <button

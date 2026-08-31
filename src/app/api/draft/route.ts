@@ -1,5 +1,4 @@
 import { POOL } from "@/data/league-data";
-import { byDynastyAdp, valueOf } from "@/lib/dynasty";
 import { MEDIA_BUCKET } from "@/lib/league-media";
 import { isConfigured, serverClient, serviceClient } from "@/lib/supabase";
 
@@ -126,21 +125,13 @@ export async function GET() {
     .eq("league_id", me.league_id);
 
   const taken = new Set((rostered ?? []).map((r) => r.player_name));
-  // Ordered as a dynasty league takes them: the consensus board, moved by age.
-  // Sorting has to come before the slice, or the two hundred names sent to the
-  // room would be the redraft two hundred with a dynasty order inside them.
   const available = POOL.filter((p) => !taken.has(p.n))
-    .map((p) => ({ player: p, value: valueOf(p) }))
-    .sort((a, b) => byDynastyAdp(a.value, b.value))
     .slice(0, 200)
-    .map(({ player: p, value }) => ({
+    .map((p) => ({
       name: p.n,
       position: p.p,
       team: p.t,
       adp: p.adp,
-      dynastyAdp: value.dynastyAdp,
-      age: value.age,
-      modifier: value.modifier,
       posRank: p.posRank,
       bye: p.bye,
     }));
