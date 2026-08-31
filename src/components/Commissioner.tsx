@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
 import DraftSettings from "./DraftSettings";
+import NextSeason from "./NextSeason";
 import RosterFix from "./RosterFix";
 import SeasonRules from "./SeasonRules";
 import IntroVideoSlot from "./IntroVideoSlot";
@@ -86,6 +87,21 @@ export default function Commissioner() {
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [releasing, setReleasing] = useState<Manager | null>(null);
   const [releaseFranchises, setReleaseFranchises] = useState(false);
+  // Kept apart from the rest of the office: whether a season is finished is a
+  // different question from how the league is configured, and asking for it
+  // separately means the rest of this page still loads if it fails.
+  const [season, setSeason] = useState<{ season: number; champion: string | null } | null>(null);
+
+  const loadSeason = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/season", { cache: "no-store" });
+      if (!res.ok) return;
+      const body = await res.json();
+      if (body.season != null) setSeason({ season: body.season, champion: body.champion ?? null });
+    } catch {
+      // The card simply does not appear. Nothing else on the page needs it.
+    }
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -123,7 +139,8 @@ export default function Commissioner() {
     // Sets state only once the request resolves, not synchronously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-  }, [load]);
+    void loadSeason();
+  }, [load, loadSeason]);
 
   async function save() {
     if (busy || !admin) return;
@@ -167,6 +184,27 @@ export default function Commissioner() {
       if (!res.ok) setError(body.error ?? "Could not save the draft date.");
       else setNotice(draftAt ? "Draft date saved. The countdown is live." : "Draft date cleared.");
       await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function rollSeason() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/admin/season", { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not start the next season.");
+      else
+        setNotice(
+          `The ${body.season} season is open. ${body.playersKept} players kept, ` +
+            `${body.weeksRemoved} weeks cleared, ${body.rosterRowsSaved} roster rows photographed first.`,
+        );
+      await load();
+      await loadSeason();
     } finally {
       setBusy(false);
     }
@@ -498,6 +536,17 @@ export default function Commissioner() {
       <div style={card}>
         <RosterFix />
       </div>
+
+      {season ? (
+        <div style={card}>
+          <NextSeason
+            season={season.season}
+            champion={season.champion}
+            busy={busy}
+            onRoll={() => void rollSeason()}
+          />
+        </div>
+      ) : null}
 
       <div style={card}>
         <SeasonRules

@@ -882,6 +882,119 @@ drop function seed_record(text, int, numeric, text);
 \o
 
 \echo ''
+\echo '--- rolling into next season ---'
+
+-- Reuses the postseason league, which has a played season and a champion.
+\o /dev/null
+select signin(:'Y1');
+
+-- Give it the things a rollover has to keep and the things it has to clear.
+insert into roster_slots (league_id, manager_id, player_name, acquired, lineup_slot, overall_pick)
+select :'Y', id, 'Kept ' || slot, 'draft', 'QB', 3 from managers where league_id = :'Y';
+insert into roster_slots (league_id, manager_id, player_name, acquired, lineup_slot)
+select :'Y', id, 'Hurt ' || slot, 'add', 'IR' from managers where league_id = :'Y';
+insert into trade_block (league_id, manager_id, player_name)
+select :'Y', id, 'Kept AAA' from managers where league_id = :'Y' and slot = 'AAA';
+-- A move made last season, on a player who is still on the roster. In a
+-- dynasty the answer to "where did he come from" may be years old.
+insert into transactions (league_id, manager_id, kind, player_name)
+select :'Y', id, 'add', 'Kept AAA' from managers where league_id = :'Y' and slot = 'AAA';
+insert into waiver_claims (league_id, manager_id, add_player)
+select :'Y', id, 'Somebody' from managers where league_id = :'Y' and slot = 'BBB';
+insert into trades (id, league_id, from_manager, to_manager, offer, status)
+select 'aa209000-0000-0000-0000-0000000000f1', :'Y',
+       (select id from managers where league_id = :'Y' and slot = 'AAA'),
+       (select id from managers where league_id = :'Y' and slot = 'BBB'),
+       '{"give": ["Kept AAA"], "get": []}'::jsonb, 'open';
+\o
+
+select expect('a manager cannot start the next season',
+  (select signin(:'Y1')) is null and
+  (select count(*)::int from managers where league_id = :'Y' and slot = 'BBB') = 1, true);
+
+\o /dev/null
+-- Bravo is not the commissioner; sign in as them via their own auth row.
+insert into auth.users (id) values ('aa209000-0000-0000-0000-0000000000b2');
+update managers set auth_user_id = 'aa209000-0000-0000-0000-0000000000b2'
+ where league_id = :'Y' and slot = 'BBB';
+select signin('aa209000-0000-0000-0000-0000000000b2');
+\o
+
+select expect('only the commissioner may roll the season',
+  refuses(format('select roll_season(%L)', :'Y')) like '%Only the commissioner%', true);
+
+\o /dev/null
+select signin(:'Y1');
+\o
+
+select expect('and it cannot go backwards',
+  refuses(format('select roll_season(%L, 2025)', :'Y')) like '%must come after 2026%', true);
+
+-- Now do it.
+select expect('the rollover names the champion it is closing the book on',
+  (select roll_season(:'Y') ->> 'champion'), 'Echo');
+
+select expect('the league is in the new season',
+  (select season from leagues where id = :'Y'), 2027);
+
+select expect('every roster is kept, to the player',
+  (select count(*)::int from roster_slots where league_id = :'Y'), 16);
+
+select expect('but nobody starts where they finished',
+  (select count(*)::int from roster_slots
+    where league_id = :'Y' and lineup_slot <> 'BENCH'), 0);
+
+select expect('and last year''s draft position is not carried into this one',
+  (select count(*)::int from roster_slots
+    where league_id = :'Y' and overall_pick is not null), 0);
+
+select expect('the schedule is gone',
+  (select count(*)::int from matchups where league_id = :'Y'), 0);
+
+select expect('so is the bracket that decided it',
+  (select count(*)::int from playoff_seeds where league_id = :'Y' and season = 2026), 0);
+
+select expect('but the title is not — that is what a dynasty is for',
+  (select franchise from league_champions where league_id = :'Y' and season = 2026), 'Echo');
+
+select expect('live claims and the wire are cleared',
+  (select count(*)::int from waiver_claims where league_id = :'Y')
+  + (select count(*)::int from waiver_wire where league_id = :'Y'), 0);
+
+select expect('the trade block is cleared',
+  (select count(*)::int from trade_block where league_id = :'Y'), 0);
+
+select expect('an open offer is declined rather than deleted',
+  (select status from trades where id = 'aa209000-0000-0000-0000-0000000000f1'), 'declined');
+
+select expect('waiver order goes back to the league''s own order',
+  (select string_agg(slot, ' ' order by waiver_priority) from managers where league_id = :'Y'),
+  'AAA BBB CCC DDD EEE FFF GGG HHH');
+
+select expect('and nobody is still ready from last year',
+  (select bool_or(ready) from managers where league_id = :'Y'), false);
+
+select expect('the transaction log survives — a dynasty roster has a history',
+  (select count(*)::int from transactions
+    where league_id = :'Y' and player_name = 'Kept AAA'), 1);
+
+-- The draft that was already being traded for.
+select expect('the picks awarded a year ago are the picks for this draft',
+  (select count(*)::int from draft_pick_assets where league_id = :'Y' and season = 2027), 40);
+
+select expect('and the board is rebuilt for them',
+  (select count(*)::int > 0 from draft_picks where league_id = :'Y'), true);
+
+select expect('with the room closed until the commissioner opens it',
+  (select draft_state from leagues where id = :'Y'), 'pending');
+
+select expect('the new season''s picks are tradeable, the inaugural ones never were',
+  (select picks_are_tradeable(:'Y', 2027) and not picks_are_tradeable(:'Y', 2026)), true);
+
+select expect('a season with no champion yet cannot be rolled',
+  refuses(format('select roll_season(%L)', :'Y')) like '%no champion yet%', true);
+
+\echo ''
 \echo '--- the commissioner fixing a roster ---'
 
 \o /dev/null
