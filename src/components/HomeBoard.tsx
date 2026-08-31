@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import ActivityFeed from "./ActivityFeed";
 import HomeButtons from "./HomeButtons";
 import LeagueOverview from "./LeagueOverview";
 import MiniGamesStrip from "./MiniGamesStrip";
@@ -74,6 +75,13 @@ export default function HomeBoard() {
         ) : (
           <WeekScoreboard games={home.games} byes={home.byes} live={home.live} />
         )}
+      </Section>
+
+      {/* Between the week and the standings, because it is the answer to the
+          question the standings make you ask: how did that roster get like
+          that. Five rows here; the rest is a page. */}
+      <Section eyebrow="COMINGS AND GOINGS" title="Recent moves" collapseId="home.moves">
+        <ActivityFeed limit={5} />
       </Section>
 
       <Section eyebrow="ON THE SIDE" title="Mini-games" collapseId="home.games">

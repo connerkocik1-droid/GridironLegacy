@@ -563,6 +563,120 @@ update leagues set settings = settings || '{"waiverDays": 3}'::jsonb where id = 
 select expect('but a league may make it longer', waiver_days(:'X'), 3);
 
 \echo ''
+\echo '--- the trade deadline, and the record a trade leaves ---'
+
+\o /dev/null
+\set D  '99999999-0000-0000-0000-000000000019'
+\set D1 'ddd90000-0000-0000-0000-000000000001'
+\set D2 'ddd90000-0000-0000-0000-000000000002'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'D', 'Deadline', 2026, 'AAA',
+        '{"starters": {"QB": 1}, "bench": 4, "regularWeeks": 13, "rounds": 1}'::jsonb);
+
+insert into auth.users (id) values (:'D1'), (:'D2');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'D', 'AAA', 'A', 'Alpha', true,  :'D1'),
+  (:'D', 'BBB', 'B', 'Bravo', false, :'D2');
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'D', id, 'Alpha Star', 'BENCH' from managers where league_id = :'D' and slot = 'AAA';
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'D', id, 'Bravo Star', 'BENCH' from managers where league_id = :'D' and slot = 'BBB';
+
+-- A season played up to week four.
+insert into matchups (league_id, week, home_manager, away_manager, final)
+select :'D', w,
+       (select id from managers where league_id = :'D' and slot = 'AAA'),
+       (select id from managers where league_id = :'D' and slot = 'BBB'),
+       w < 4
+  from generate_series(1, 13) w;
+\o
+
+select expect('the week is the first one still to be played', current_week(:'D'), 4);
+
+select expect('the deadline defaults to two weeks short of the end',
+  trade_deadline_week(:'D'), 11);
+
+-- A straight swap, both sides agreed, comfortably inside the deadline.
+\o /dev/null
+insert into trades (id, league_id, from_manager, to_manager, offer,
+                    status, from_accepted, to_accepted)
+select 'ddd90000-0000-0000-0000-0000000000a1', :'D',
+       (select id from managers where league_id = :'D' and slot = 'AAA'),
+       (select id from managers where league_id = :'D' and slot = 'BBB'),
+       '{"give": ["Alpha Star"], "get": ["Bravo Star"]}'::jsonb, 'agreed', true, true;
+select signin(:'D1');
+select execute_trade('ddd90000-0000-0000-0000-0000000000a1');
+\o
+
+select expect('a trade inside the deadline goes through',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'D' and r.player_name = 'Alpha Star'), 'BBB');
+
+select expect('and both players are written into the record',
+  (select count(*)::int from transactions
+    where league_id = :'D' and kind = 'trade'), 2);
+
+select expect('filed under whoever received each one',
+  (select m.slot from transactions t join managers m on m.id = t.manager_id
+    where t.league_id = :'D' and t.player_name = 'Alpha Star'), 'BBB');
+
+select expect('naming the franchise he came from, in words',
+  (select detail ->> 'fromFranchise' from transactions
+    where league_id = :'D' and player_name = 'Alpha Star'), 'Alpha');
+
+-- The season runs on past the deadline.
+\o /dev/null
+update matchups set final = true where league_id = :'D' and week <= 12;
+\o
+
+select expect('the week moves on with the season', current_week(:'D'), 13);
+
+select expect('an offer past the deadline is refused when it is made',
+  refuses(format($f$insert into trades (league_id, from_manager, to_manager, offer, status)
+                    select %L,
+                      (select id from managers where league_id = %L and slot = 'AAA'),
+                      (select id from managers where league_id = %L and slot = 'BBB'),
+                      '{"give": [], "get": ["Alpha Star"]}'::jsonb, 'open'$f$,
+                 :'D', :'D', :'D')),
+  null);
+
+\o /dev/null
+-- Written with the service key, which is past the trigger on purpose: this is
+-- an offer made in week three that nobody answered until week thirteen.
+insert into trades (id, league_id, from_manager, to_manager, offer,
+                    status, from_accepted, to_accepted)
+select 'ddd90000-0000-0000-0000-0000000000a2', :'D',
+       (select id from managers where league_id = :'D' and slot = 'BBB'),
+       (select id from managers where league_id = :'D' and slot = 'AAA'),
+       '{"give": ["Alpha Star"], "get": []}'::jsonb, 'agreed', true, true;
+\o
+
+select expect('a stale offer accepted past the deadline is refused too',
+  refuses($x$select execute_trade('ddd90000-0000-0000-0000-0000000000a2')$x$)
+    like '%deadline passed in week 11%', true);
+
+select expect('and the player did not move',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'D' and r.player_name = 'Alpha Star'), 'BBB');
+
+-- A league that wants no deadline says so.
+\o /dev/null
+update leagues set settings = settings || '{"tradeDeadlineWeek": 0}'::jsonb where id = :'D';
+\o
+
+select expect('a league may turn the deadline off', trade_deadline_week(:'D'), 0);
+
+select expect('and then a trade in the last week goes through',
+  (select (execute_trade('ddd90000-0000-0000-0000-0000000000a2') ->> 'ok')::boolean), true);
+
+select expect('the record shows the player coming back',
+  (select count(*)::int from transactions
+    where league_id = :'D' and kind = 'trade' and player_name = 'Alpha Star'), 2);
+
+\echo ''
 \echo '--- schedule ---'
 
 \o /dev/null
@@ -1821,6 +1935,11 @@ select set_draft_pick_order(:'P', 2027);
 \set PICK '(select id from draft_pick_assets a join managers m on m.id = a.origin_manager where a.league_id = :''P'' and a.season = 2027 and a.round = 1 and m.slot = ''CCC'')'
 
 \o /dev/null
+-- This league plays a three-week season, so the default deadline lands in
+-- week one and every trade below would be refused on the calendar rather than
+-- on what these checks are about. Turned off explicitly; the deadline has its
+-- own section further down.
+update leagues set settings = settings || '{"tradeDeadlineWeek": 0}'::jsonb where id = :'P';
 -- Charlie sends their first-rounder to Alpha for nothing, which is Charlie's
 -- business. Both accept, Alpha executes.
 insert into trades (id, league_id, from_manager, to_manager, offer,

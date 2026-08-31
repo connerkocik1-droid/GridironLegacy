@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
 import DraftSettings from "./DraftSettings";
+import SeasonRules from "./SeasonRules";
 import IntroVideoSlot from "./IntroVideoSlot";
 
 interface Manager {
@@ -26,6 +27,9 @@ interface Admin {
       pickSeconds?: number;
       cinematicRounds?: number;
       introVideo?: string;
+      regularWeeks?: number;
+      tradeDeadlineWeek?: number;
+      waiverDays?: number;
     };
     lottery_order?: string[] | null;
     draft_state: string;
@@ -167,7 +171,7 @@ export default function Commissioner() {
     }
   }
 
-  async function saveDraftSettings(changes: { pickSeconds?: number; cinematicRounds?: number }) {
+  async function saveSettings(changes: Record<string, number>, what: string) {
     if (busy) return;
     setBusy(true);
     setError(null);
@@ -179,8 +183,8 @@ export default function Commissioner() {
         body: JSON.stringify(changes),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) setError(body.error ?? "Could not save the draft settings.");
-      else setNotice("Draft settings saved.");
+      if (!res.ok) setError(body.error ?? `Could not save the ${what}.`);
+      else setNotice(`${what[0].toUpperCase()}${what.slice(1)} saved.`);
       await load();
     } finally {
       setBusy(false);
@@ -485,8 +489,21 @@ export default function Commissioner() {
           managers={admin.managers}
           canChange={admin.canResize}
           busy={busy}
-          onSave={(changes) => void saveDraftSettings(changes)}
+          onSave={(changes) => void saveSettings(changes, "draft settings")}
           onOrder={(slots) => void saveOrder(slots)}
+        />
+      </div>
+
+      <div style={card}>
+        <SeasonRules
+          tradeDeadlineWeek={
+            admin.league?.settings?.tradeDeadlineWeek ??
+            Math.max(1, (admin.league?.settings?.regularWeeks ?? 13) - 2)
+          }
+          waiverDays={admin.league?.settings?.waiverDays ?? 1}
+          regularWeeks={admin.league?.settings?.regularWeeks ?? 13}
+          busy={busy}
+          onSave={(changes) => void saveSettings(changes as Record<string, number>, "season rules")}
         />
       </div>
 
