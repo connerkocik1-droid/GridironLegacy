@@ -32,10 +32,6 @@ export default function IntroVideoSlot({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [watching, setWatching] = useState(false);
-  // The way in when uploading is not available — a bucket that was never
-  // created, a project with storage turned off — or when the film is already
-  // hosted somewhere. Folded away, because it is the uncommon path.
-  const [byAddress, setByAddress] = useState(false);
   const [address, setAddress] = useState("");
   const file = useRef<HTMLInputElement | null>(null);
 
@@ -58,10 +54,15 @@ export default function IntroVideoSlot({
       const ticket = await fetch("/api/admin/intro-video/upload-url", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ filename: chosen.name, type: chosen.type, size: chosen.size }),
+        body: JSON.stringify({
+          filename: chosen.name,
+          type: chosen.type,
+          size: chosen.size,
+        }),
       });
       const minted = await ticket.json().catch(() => ({}));
-      if (!ticket.ok) throw new Error(minted.error ?? "Could not start the upload.");
+      if (!ticket.ok)
+        throw new Error(minted.error ?? "Could not start the upload.");
 
       const total = readableSize(chosen.size);
       setProgress(`Uploading ${total}…`);
@@ -77,12 +78,16 @@ export default function IntroVideoSlot({
         setProgress(`Uploading ${total}…`);
         const { error: uploadError } = await browserClient()
           .storage.from(minted.bucket ?? MEDIA_BUCKET)
-          .uploadToSignedUrl(minted.path, minted.token, chosen, { contentType: chosen.type });
+          .uploadToSignedUrl(minted.path, minted.token, chosen, {
+            contentType: chosen.type,
+          });
 
         if (uploadError) {
           throw new Error(
             uploadError.message ||
-              (direct instanceof Error ? direct.message : "The upload did not finish."),
+              (direct instanceof Error
+                ? direct.message
+                : "The upload did not finish."),
           );
         }
       }
@@ -94,12 +99,14 @@ export default function IntroVideoSlot({
         body: JSON.stringify({ path: minted.path }),
       });
       const saved = await adopt.json().catch(() => ({}));
-      if (!adopt.ok) throw new Error(saved.error ?? "Could not save the intro video.");
+      if (!adopt.ok)
+        throw new Error(saved.error ?? "Could not save the intro video.");
 
       setNotice("Intro saved. Watch it below to be sure it plays here.");
       onSaved();
     } catch (e) {
-      let message = e instanceof Error ? e.message : "The upload did not finish.";
+      let message =
+        e instanceof Error ? e.message : "The upload did not finish.";
 
       // The one refusal worth translating: storage says the object is too big,
       // but not that the number is a project setting the commissioner owns and
@@ -108,10 +115,8 @@ export default function IntroVideoSlot({
         message = `${message} That ceiling is your project's Global file size limit, in Supabase under Storage → Settings — 50MB on the free plan, up to 500GB above it.`;
       }
 
+      // Whatever went wrong, the link route below is untouched by it.
       setError(message);
-      // Storage was not there. Offer the other way in rather than leaving the
-      // commissioner with an error and no next step.
-      if (message.includes("Storage is not ready")) setByAddress(true);
     } finally {
       setBusy(false);
       setProgress(null);
@@ -134,7 +139,6 @@ export default function IntroVideoSlot({
       else {
         setNotice("Intro saved. Watch it below to be sure it plays here.");
         setAddress("");
-        setByAddress(false);
         onSaved();
       }
     } finally {
@@ -171,13 +175,27 @@ export default function IntroVideoSlot({
       ) : null}
 
       <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Intro video</h6>
-      <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 10px" }}>
+      <p
+        style={{
+          fontSize: 12,
+          color: "#9397ab",
+          lineHeight: 1.6,
+          margin: "0 0 10px",
+        }}
+      >
         Plays over the whole room the moment the countdown runs out, once per
         person, and can be skipped. Upload it here — MP4, WebM or MOV — and it
         goes straight from this browser to the league&rsquo;s storage without
         passing through the site, so a long film is no harder than a short one.
       </p>
-      <p style={{ fontSize: 11.5, color: "#75798c", lineHeight: 1.6, margin: "0 0 14px" }}>
+      <p
+        style={{
+          fontSize: 11.5,
+          color: "#75798c",
+          lineHeight: 1.6,
+          margin: "0 0 14px",
+        }}
+      >
         Browsers will not start a video with sound until the person watching has
         clicked something, so the room may hear it muted with a button to turn
         the sound on. Watch it below, and walk through it again in the{" "}
@@ -188,13 +206,19 @@ export default function IntroVideoSlot({
       </p>
 
       {error ? (
-        <div style={{ fontSize: 12, color: "#e0b573", marginBottom: 12 }}>{error}</div>
+        <div style={{ fontSize: 12, color: "#e0b573", marginBottom: 12 }}>
+          {error}
+        </div>
       ) : null}
       {notice ? (
-        <div style={{ fontSize: 12, color: "#7fd1a8", marginBottom: 12 }}>{notice}</div>
+        <div style={{ fontSize: 12, color: "#7fd1a8", marginBottom: 12 }}>
+          {notice}
+        </div>
       ) : null}
       {progress ? (
-        <div style={{ fontSize: 12, color: "#9397ab", marginBottom: 12 }}>{progress}</div>
+        <div style={{ fontSize: 12, color: "#9397ab", marginBottom: 12 }}>
+          {progress}
+        </div>
       ) : null}
 
       {introVideo ? (
@@ -228,19 +252,31 @@ export default function IntroVideoSlot({
       />
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button onClick={() => file.current?.click()} disabled={busy} style={action(!busy)}>
+        <button
+          onClick={() => file.current?.click()}
+          disabled={busy}
+          style={action(!busy)}
+        >
           {introVideo ? "Replace the film" : "Upload a film"}
         </button>
 
         {introVideo ? (
           <>
-            <button onClick={() => setWatching(true)} disabled={busy} style={action(!busy)}>
+            <button
+              onClick={() => setWatching(true)}
+              disabled={busy}
+              style={action(!busy)}
+            >
               Watch it as the room will
             </button>
             <button
               onClick={() => void clear()}
               disabled={busy}
-              style={{ ...action(!busy), border: "1px solid rgba(224,131,131,.45)", color: "#c98f8f" }}
+              style={{
+                ...action(!busy),
+                border: "1px solid rgba(224,131,131,.45)",
+                color: "#c98f8f",
+              }}
             >
               Remove
             </button>
@@ -248,58 +284,82 @@ export default function IntroVideoSlot({
         ) : null}
       </div>
 
-      <div style={{ marginTop: 14 }}>
-        <button
-          onClick={() => setByAddress((was) => !was)}
+      <div
+        style={{
+          marginTop: 18,
+          paddingTop: 16,
+          borderTop: "1px solid rgba(145,132,217,.16)",
+        }}
+      >
+        <div
           style={{
-            border: "none",
-            background: "transparent",
+            fontSize: 9,
+            letterSpacing: ".2em",
             color: "#75798c",
-            font: "inherit",
-            fontSize: 11.5,
-            padding: 0,
-            cursor: "pointer",
-            textDecoration: "underline",
+            marginBottom: 8,
           }}
         >
-          {byAddress ? "Never mind — upload a file" : "Or point at a film already online"}
-        </button>
+          OR LINK TO IT INSTEAD
+        </div>
 
-        {byAddress ? (
-          <div style={{ marginTop: 10 }}>
-            <p style={{ fontSize: 11.5, color: "#75798c", lineHeight: 1.6, margin: "0 0 9px" }}>
-              An https address, or a path inside this site like{" "}
-              <code style={{ color: "#9397ab" }}>/assets/intro.mp4</code> for a file
-              committed to the repository. Use this if uploading is not working —
-              nothing else about the intro changes.
-            </p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <input
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="https://… or /assets/intro.mp4"
-                aria-label="Intro video address"
-                style={{
-                  flex: "1 1 260px",
-                  padding: "8px 10px",
-                  background: "rgba(20,22,35,.8)",
-                  border: "1px solid rgba(145,132,217,.3)",
-                  borderRadius: "var(--radius-sm)",
-                  color: "#e9e9ed",
-                  font: "inherit",
-                  fontSize: 13,
-                }}
-              />
-              <button
-                onClick={() => void saveAddress()}
-                disabled={busy || !address.trim()}
-                style={action(!busy && Boolean(address.trim()))}
-              >
-                Save
-              </button>
-            </div>
+        <div>
+          <p
+            style={{
+              fontSize: 11.5,
+              color: "#9397ab",
+              lineHeight: 1.6,
+              margin: "0 0 9px",
+            }}
+          >
+            A link has no size limit at all — uploading does, and it is not this
+            app&rsquo;s to raise: Supabase caps a project&rsquo;s files at 50MB
+            on the free plan. For a long film this is the easier road. The room
+            plays it exactly the same way.
+          </p>
+          <p
+            style={{
+              fontSize: 11.5,
+              color: "#75798c",
+              lineHeight: 1.6,
+              margin: "0 0 9px",
+            }}
+          >
+            It must be a{" "}
+            <strong style={{ color: "#9397ab", fontWeight: 500 }}>
+              direct link to the video file
+            </strong>{" "}
+            — one ending in .mp4 or .webm, or a share link set to serve the file
+            itself. A YouTube or Vimeo page will not play here; those hand out a
+            web page, not a video. Anything on this site works too, like{" "}
+            <code style={{ color: "#9397ab" }}>/assets/intro.mp4</code> for a
+            file committed to the repository.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="https://… or /assets/intro.mp4"
+              aria-label="Intro video address"
+              style={{
+                flex: "1 1 260px",
+                padding: "8px 10px",
+                background: "rgba(20,22,35,.8)",
+                border: "1px solid rgba(145,132,217,.3)",
+                borderRadius: "var(--radius-sm)",
+                color: "#e9e9ed",
+                font: "inherit",
+                fontSize: 13,
+              }}
+            />
+            <button
+              onClick={() => void saveAddress()}
+              disabled={busy || !address.trim()}
+              style={action(!busy && Boolean(address.trim()))}
+            >
+              Save
+            </button>
           </div>
-        ) : null}
+        </div>
       </div>
     </>
   );

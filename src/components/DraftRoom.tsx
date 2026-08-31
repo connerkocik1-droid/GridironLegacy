@@ -29,7 +29,7 @@ interface Available {
 }
 
 interface Board {
-  me: { id: string; slot: string; franchise: string; is_commissioner: boolean };
+  me: { id: string; slot: string; franchise: string; is_commissioner: boolean; ready: boolean };
   league: {
     state: "pending" | "running" | "paused" | "complete";
     currentPick: number;
@@ -43,7 +43,7 @@ interface Board {
   onTheClock: Pick | null;
   myTurn: boolean;
   picks: Pick[];
-  managers: { id: string; slot: string; franchise: string }[];
+  managers: { id: string; slot: string; franchise: string; ready?: boolean }[];
   available: Available[];
 }
 
@@ -229,6 +229,27 @@ export default function DraftRoom() {
     }
   }
 
+  async function markReady() {
+    if (picking) return;
+    setPicking("__ready__");
+    try {
+      const res = await fetch("/api/draft/ready", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ready: true }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? "Could not mark you ready.");
+      } else {
+        setError(null);
+      }
+      await load();
+    } finally {
+      setPicking(null);
+    }
+  }
+
   async function resetDraft() {
     if (picking) return;
     setPicking("__reset__");
@@ -295,6 +316,8 @@ export default function DraftRoom() {
           onStart={() => void setDraftState("running")}
           busy={picking != null}
           introVideo={board.league.introVideo}
+          meReady={board.me.ready}
+          onReady={markReady}
         />
         {board.me.is_commissioner ? (
           <div style={{ textAlign: "center", padding: "0 26px 48px" }}>

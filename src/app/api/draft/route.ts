@@ -20,7 +20,7 @@ export async function GET() {
 
   const { data: me } = await db
     .from("managers")
-    .select("id, slot, franchise, league_id, is_commissioner")
+    .select("id, slot, franchise, league_id, is_commissioner, ready")
     .eq("auth_user_id", user.id)
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
@@ -40,7 +40,7 @@ export async function GET() {
 
   const { data: managers } = await db
     .from("managers")
-    .select("id, slot, franchise")
+    .select("id, slot, franchise, ready")
     .eq("league_id", me.league_id);
 
   const { data: rostered } = await db

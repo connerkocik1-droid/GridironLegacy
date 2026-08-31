@@ -61,6 +61,69 @@ select expect('nor mark the trade executed to fake it through',
 select expect('so execute_trade still refuses',
   refuses(format('select execute_trade(%L)', :'T')) like '%Both managers must accept%', true);
 
+-- ----------------------------------------------------------------- ready ---
+-- A manager says they are ready, and says it only about themselves.
+
+\o /dev/null
+select set_config('test.uid', :'U1', false);
+set role authenticated;
+\o
+
+\echo ''
+\echo '--- ready ---'
+
+select expect('a manager marks themselves ready',
+  refuses(format('update managers set ready = true where id = %L',
+    (select id from managers where league_id = :'L' and slot = 'AAA'))),
+  null::text);
+
+select expect('and it took',
+  (select ready from managers where league_id = :'L' and slot = 'AAA'), true);
+
+select expect('nor is ready a way to reach anything else on the row',
+  has_column_privilege('authenticated', 'managers', 'is_commissioner', 'UPDATE'), false);
+
+-- Bravo is nobody in particular, which is the case that matters.
+\o /dev/null
+reset role;
+select set_config('test.uid', :'U2', false);
+set role authenticated;
+
+update managers set ready = true where league_id = :'L' and slot = 'AAA';
+\o
+
+select expect('a manager cannot mark somebody else in',
+  (select ready from managers where league_id = :'L' and slot = 'AAA'), true);
+
+\o /dev/null
+update managers set ready = false where league_id = :'L' and slot = 'AAA';
+\o
+
+select expect('nor mark them out again',
+  (select ready from managers where league_id = :'L' and slot = 'AAA'), true);
+
+select expect('though they can still speak for themselves',
+  (select refuses(format('update managers set ready = true where id = %L',
+     (select id from managers where league_id = :'L' and slot = 'BBB')))),
+  null::text);
+
+select expect('and that took',
+  (select ready from managers where league_id = :'L' and slot = 'BBB'), true);
+
+-- The commissioner reaching another franchise's row is managers_admin doing
+-- what it has always done, not this grant widening anything. Marking somebody
+-- present is a reasonable thing for the person running the room to do.
+\o /dev/null
+reset role;
+update managers set ready = false where league_id = :'L' and slot = 'BBB';
+select set_config('test.uid', :'U1', false);
+set role authenticated;
+update managers set ready = true where league_id = :'L' and slot = 'BBB';
+\o
+
+select expect('the commissioner may mark a franchise in, as they always could',
+  (select ready from managers where league_id = :'L' and slot = 'BBB'), true);
+
 \o /dev/null
 reset role;
 \o

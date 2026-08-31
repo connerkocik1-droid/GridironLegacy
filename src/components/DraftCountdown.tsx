@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import IntroVideo from "./IntroVideo";
+import { useEffect, useRef, useState } from "react";
+import IntroVideo, { type IntroHandle } from "./IntroVideo";
 
 /**
  * The waiting room: what a manager sees before the draft opens.
@@ -18,18 +18,36 @@ export default function DraftCountdown({
   onStart,
   busy,
   introVideo,
+  meReady = false,
+  onReady,
 }: {
   draftAt: string | null;
   skew: number;
   state: "pending" | "running" | "paused" | "complete";
   isCommissioner: boolean;
-  managers: { id: string; franchise: string }[];
+  managers: { id: string; franchise: string; ready?: boolean }[];
   onStart: () => void;
   busy: boolean;
   introVideo?: string | null;
+  meReady?: boolean;
+  onReady?: () => void | Promise<void>;
 }) {
   const [now, setNow] = useState(() => Date.now());
   const [playing, setPlaying] = useState(false);
+  const intro = useRef<IntroHandle | null>(null);
+
+  /**
+   * Ready does two things, and the second is the one that matters tonight.
+   *
+   * It marks the franchise in, which the room can count. And because it is a
+   * real click, it is the moment the browser will let us unlock the film's
+   * sound — so the unlocking happens here, inside the handler, on the very
+   * element that plays later. Anywhere else and it is refused.
+   */
+  async function markReady() {
+    intro.current?.prime();
+    await onReady?.();
+  }
 
   const target = draftAt ? new Date(draftAt).getTime() : null;
 
@@ -76,6 +94,11 @@ export default function DraftCountdown({
    * it for good.
    */
   function finishIntro() {
+    // The hidden element is played for an instant when Ready is pressed, and
+    // anything it says about having finished is about that instant, not about
+    // the film. Only a film that was on screen can have been watched.
+    if (!playing) return;
+
     setPlaying(false);
     try {
       if (seenKey) window.localStorage.setItem(seenKey, "1");
@@ -97,11 +120,12 @@ export default function DraftCountdown({
         };
 
   const past = remaining != null && remaining <= 0;
+  const readyCount = managers.filter((m) => m.ready).length;
 
   return (
     <div style={{ padding: "48px 26px 60px", textAlign: "center" }}>
-      {playing && introVideo ? (
-        <IntroVideo src={introVideo} onDone={finishIntro} />
+      {introVideo ? (
+        <IntroVideo ref={intro} src={introVideo} open={playing} onDone={finishIntro} />
       ) : null}
 
       <div style={{ fontSize: 9, letterSpacing: ".4em", color: "#75798c" }}>
@@ -177,6 +201,47 @@ export default function DraftCountdown({
               ? "The clock has run out. The commissioner opens the room."
               : `${managers.length} franchises. The room opens on its own schedule — the commissioner starts it.`}
       </p>
+
+      <div style={{ marginBottom: 26 }}>
+        <button
+          onClick={() => void markReady()}
+          disabled={busy || meReady}
+          style={{
+            padding: "13px 30px",
+            border: `1px solid ${meReady ? "rgba(127,209,168,.55)" : "rgba(181,171,252,.6)"}`,
+            background: meReady ? "rgba(127,209,168,.1)" : "rgba(145,132,217,.16)",
+            color: meReady ? "#7fd1a8" : "#e9e9ed",
+            borderRadius: "var(--radius-sm)",
+            font: "inherit",
+            fontSize: 13,
+            letterSpacing: ".14em",
+            textTransform: "uppercase",
+            cursor: busy || meReady ? "default" : "pointer",
+            opacity: busy ? 0.5 : 1,
+          }}
+        >
+          {meReady ? "You're ready" : "I'm ready"}
+        </button>
+
+        <p
+          style={{
+            fontSize: 11.5,
+            color: "#75798c",
+            lineHeight: 1.6,
+            maxWidth: "48ch",
+            margin: "12px auto 0",
+          }}
+        >
+          {readyCount} of {managers.length} in.{" "}
+          {meReady
+            ? introVideo
+              ? "Sound is unlocked — the opening film will play out loud."
+              : "Sound is unlocked for the draft room."
+            : introVideo
+              ? "Press it before the clock runs out: browsers keep a video silent until you have pressed something, and this is what lets the opening film play out loud."
+              : "Press it before the clock runs out: browsers keep sound off until you have pressed something, and this is what turns the pick chime on."}
+        </p>
+      </div>
 
       {isCommissioner ? (
         <button
