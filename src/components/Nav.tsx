@@ -3,9 +3,11 @@ import CommissionerOnly from "./CommissionerOnly";
 import ProfileMenu from "./ProfileMenu";
 
 const PRIMARY = [
+  { href: "/", label: "Home" },
   { href: "/draft", label: "Draft" },
   { href: "/league", label: "League" },
   { href: "/news", label: "News" },
+  { href: "/minigames", label: "Mini-games" },
 ];
 
 // The commissioner's own two: the office, and the room for walking through
@@ -16,15 +18,11 @@ const OFFICE = [
   { href: "/commissioner", label: "Commissioner" },
 ];
 
+// The two places a manager goes to change their roster. Everything else that
+// used to sit here is on the home page or behind Mini-games.
 const SECONDARY = [
-  { href: "/draft/mock", label: "Mock Draft" },
-  { href: "/20-0", label: "20-0" },
-  { href: "/my-team", label: "My Lineup" },
-  { href: "/matchup", label: "Matchup" },
-  { href: "/player-news", label: "Player News" },
-  { href: "/players", label: "Players" },
-  { href: "/trades", label: "Trades" },
-  { href: "/pickem", label: "Pick-'Em" },
+  { href: "/free-agents", label: "Free Agents" },
+  { href: "/trade-builder", label: "Trade Builder" },
 ];
 
 const bar: React.CSSProperties = {

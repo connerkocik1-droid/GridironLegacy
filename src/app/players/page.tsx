@@ -1,19 +1,6 @@
-import Nav from "@/components/Nav";
-import PlayersBoard from "@/components/PlayersBoard";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Free agents · Gridiron Legacy" };
-
-export default function PlayersPage() {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(120% 80% at 50% -10%,rgba(66,58,106,.4),transparent 60%),#161826",
-      }}
-    >
-      <Nav current="/players" />
-      <PlayersBoard />
-    </div>
-  );
+// Moved. This route stays so older links still work.
+export default function MovedPage() {
+  redirect("/free-agents");
 }

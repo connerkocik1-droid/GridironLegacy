@@ -22,7 +22,15 @@ interface Score {
   statLine: string;
 }
 
-export default function LineupEditor({ scores }: { scores: Map<string, Score> }) {
+export default function LineupEditor({
+  scores,
+  embedded = false,
+}: {
+  scores: Map<string, Score>;
+  /** On the home page the section already says whose lineup this is, so the
+      editor drops its own page-sized title rather than saying it twice. */
+  embedded?: boolean;
+}) {
   const [feed, setFeed] = useState<Feed | null>(null);
   const [draft, setDraft] = useState<Assignment[] | null>(null);
   const [armed, setArmed] = useState<number | null>(null);
@@ -146,7 +154,7 @@ export default function LineupEditor({ scores }: { scores: Map<string, Score> })
     <>
       <div
         style={{
-          padding: "24px 26px 12px",
+          padding: embedded ? "0 26px 8px" : "24px 26px 12px",
           display: "flex",
           alignItems: "flex-end",
           gap: 26,
@@ -154,16 +162,18 @@ export default function LineupEditor({ scores }: { scores: Map<string, Score> })
         }}
       >
         <div>
-          <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>
-            DYNASTY · SUPERFLEX
-          </div>
+          {embedded ? null : (
+            <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>
+              DYNASTY · SUPERFLEX
+            </div>
+          )}
           <div
             style={{
               fontFamily: "var(--font-heading)",
-              fontSize: 44,
+              fontSize: embedded ? 20 : 44,
               lineHeight: 1.04,
               letterSpacing: "-.035em",
-              margin: "8px 0 0",
+              margin: embedded ? 0 : "8px 0 0",
             }}
           >
             {feed.me.franchise}
@@ -189,7 +199,7 @@ export default function LineupEditor({ scores }: { scores: Map<string, Score> })
         <div style={{ padding: "0 26px 8px", fontSize: 12, color: "#e0b573" }}>{error}</div>
       ) : null}
 
-      <div style={{ padding: "12px 26px 40px" }}>
+      <div style={{ padding: embedded ? "12px 26px 0" : "12px 26px 40px" }}>
         <div
           style={{
             border: "1px solid rgba(145,132,217,.22)",

@@ -1,10 +1,13 @@
+import { Suspense } from "react";
 import Nav from "@/components/Nav";
 import NewsWire from "@/components/NewsWire";
+import PlayerNewsFilter from "@/components/PlayerNewsFilter";
 import { fetchNews } from "@/lib/news";
 
 export const metadata = { title: "News · Gridiron Legacy" };
 // The wire is the same for everyone, so it is fetched once and shared rather
-// than re-fetched per visitor.
+// than re-fetched per visitor. Only the roster it is matched against is
+// per-manager, and that is fetched in the client.
 export const revalidate = 900;
 
 export default async function NewsPage() {
@@ -21,9 +24,7 @@ export default async function NewsPage() {
       <Nav current="/news" />
 
       <div style={{ padding: "24px 26px 40px" }}>
-        <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>
-          THE WIRE
-        </div>
+        <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>THE WIRE</div>
         <h1
           style={{
             fontFamily: "var(--font-heading)",
@@ -33,19 +34,16 @@ export default async function NewsPage() {
             fontWeight: 500,
           }}
         >
-          NFL news
+          News
         </h1>
 
-        <div
-          style={{
-            border: "1px solid rgba(145,132,217,.22)",
-            borderRadius: "var(--radius-lg)",
-            background: "rgba(26,28,43,.55)",
-            overflow: "hidden",
-          }}
-        >
-          <NewsWire stories={stories} />
-        </div>
+        {/* The filter reads the view from the URL, which needs a boundary
+            while the page is served from the shared cache. */}
+        <Suspense fallback={<div style={{ color: "#75798c", fontSize: 12 }}>Loading…</div>}>
+          <PlayerNewsFilter stories={stories}>
+            <NewsWire stories={stories} />
+          </PlayerNewsFilter>
+        </Suspense>
       </div>
     </div>
   );
