@@ -1394,3 +1394,84 @@ select set_draft_state(:'Z', 'paused');
 select expect('and there is nothing to move when the draft is paused',
   refuses(format('select nudge_clock(%L, 30)', :'Z')),
   'Nobody is on the clock');
+
+\echo ''
+\echo '--- letting somebody go ---'
+
+\o /dev/null
+\set R2  '99999999-0000-0000-0000-000000000015'
+\set RA  'a9990000-0000-0000-0000-000000000041'
+\set RB  'a9990000-0000-0000-0000-000000000042'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'R2', 'Leavers', 2026, 'AAA', '{"rounds": 2}'::jsonb);
+
+insert into auth.users (id) values (:'RA'), (:'RB');
+
+insert into managers (league_id, slot, name, franchise, auth_user_id, ready) values
+  (:'R2', 'AAA', 'Boss',   'Alpha',  :'RA', true),
+  (:'R2', 'BBB', 'Quitter','Bravo',  :'RB', true),
+  (:'R2', 'CCC', 'Open',   'Charlie', null, false);
+
+update managers set pin_hash = 'hashed' where league_id = :'R2' and auth_user_id is not null;
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+select :'R2', id, 'Their Best Player', 'BENCH'
+  from managers where league_id = :'R2' and slot = 'BBB';
+
+select signin(:'RA');
+\o
+
+select expect('a manager cannot let anybody go',
+  (select refuses(format('select release_franchise(%L)',
+     (select id from managers where league_id = :'R2' and slot = 'AAA')))
+     from (select signin(:'RB')) _),
+  'Only the commissioner can release a franchise');
+
+\o /dev/null
+select signin(:'RA');
+\o
+
+select expect('nor can the commissioner let themselves go',
+  refuses(format('select release_franchise(%L)',
+    (select id from managers where league_id = :'R2' and slot = 'AAA'))),
+  'The commissioner cannot release their own franchise');
+
+select expect('and an open franchise has nobody to let go',
+  refuses(format('select release_franchise(%L)',
+    (select id from managers where league_id = :'R2' and slot = 'CCC'))),
+  'Nobody holds that franchise');
+
+\o /dev/null
+select release_franchise((select id from managers where league_id = :'R2' and slot = 'BBB'));
+\o
+
+select expect('the person is gone',
+  (select coalesce(pin_hash, 'none') || '/' || coalesce(auth_user_id::text, 'none') || '/' || name
+     from managers where league_id = :'R2' and slot = 'BBB'), 'none/none/Open');
+
+select expect('and is not left marked ready',
+  (select ready from managers where league_id = :'R2' and slot = 'BBB'), false);
+
+select expect('but the franchise stays',
+  (select franchise from managers where league_id = :'R2' and slot = 'BBB'), 'Bravo');
+
+select expect('with its roster intact for whoever comes next',
+  (select count(*)::int from roster_slots r
+     join managers m on m.id = r.manager_id
+    where m.league_id = :'R2' and m.slot = 'BBB'), 1);
+
+select expect('the league is still the same size',
+  (select count(*)::int from managers where league_id = :'R2'), 3);
+
+select expect('and the seat is open to be claimed',
+  (select pin_hash is null from managers where league_id = :'R2' and slot = 'BBB'), true);
+
+select expect('it is on the record, with who it was',
+  (select detail ->> 'was' from admin_log
+    where league_id = :'R2' and action = 'franchise_released'), 'Quitter');
+
+select expect('and letting go of nobody twice is refused',
+  refuses(format('select release_franchise(%L)',
+    (select id from managers where league_id = :'R2' and slot = 'BBB'))),
+  'Nobody holds that franchise');
