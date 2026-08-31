@@ -53,13 +53,14 @@ export default function HomeBoard() {
           about the actual football rather than the league. */}
       <ScoreTicker />
 
-      <Section eyebrow="THE LEAGUE" title="Where to">
+      <Section eyebrow="THE LEAGUE" title="Where to" collapseId="home.where">
         <HomeButtons />
       </Section>
 
       <Section
         eyebrow="RIGHT NOW"
         title="This week"
+        collapseId="home.week"
         aside={
           home?.week != null
             ? `Week ${home.week}${home.live ? " · live" : " · projected"}`
@@ -75,13 +76,14 @@ export default function HomeBoard() {
         )}
       </Section>
 
-      <Section eyebrow="ON THE SIDE" title="Mini-games">
+      <Section eyebrow="ON THE SIDE" title="Mini-games" collapseId="home.games">
         <MiniGamesStrip />
       </Section>
 
       <Section
         eyebrow="WHERE YOU STAND"
         title="League overview"
+        collapseId="home.standing"
         aside={home?.played ? undefined : "Nothing graded yet — ranked on points alone."}
       >
         {home ? (
