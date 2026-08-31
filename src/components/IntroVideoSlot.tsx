@@ -334,6 +334,23 @@ export default function IntroVideoSlot({
             <code style={{ color: "#9397ab" }}>/assets/intro.mp4</code> for a
             file committed to the repository.
           </p>
+          <p
+            style={{
+              fontSize: 11.5,
+              color: "#75798c",
+              lineHeight: 1.6,
+              margin: "0 0 9px",
+            }}
+          >
+            For a large file, encode it so it can start before it has finished
+            downloading —{" "}
+            <code style={{ color: "#9397ab" }}>
+              ffmpeg -i in.mp4 -movflags +faststart out.mp4
+            </code>
+            . Without that the browser downloads the whole thing before the
+            first frame, which on draft night is a room full of people watching
+            a blank screen.
+          </p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input
               value={address}
