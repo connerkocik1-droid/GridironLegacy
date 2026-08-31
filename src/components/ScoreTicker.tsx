@@ -32,6 +32,8 @@ interface Board {
   games: Game[];
   week: number | null;
   seasonType: number | null;
+  /** Whether anything on this slate has been played. */
+  played: boolean;
   error?: string;
   fetchedAt: string | null;
 }
@@ -120,7 +122,7 @@ export default function ScoreTicker() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/scoreboard", { cache: "no-store" });
+      const res = await fetch("/api/scoreboard?prefer=results", { cache: "no-store" });
       if (!res.ok) return;
       setBoard(await res.json());
     } catch {
@@ -188,7 +190,11 @@ export default function ScoreTicker() {
         <span
           style={{ fontSize: 8.5, letterSpacing: ".12em", color: "#75798c", whiteSpace: "nowrap" }}
         >
-          {live ? `${live} LIVE` : `${games.length} ${games.length === 1 ? "GAME" : "GAMES"}`}
+          {live
+            ? `${live} LIVE`
+            : board?.played
+              ? `${games.length} FINAL`
+              : `${games.length} ${games.length === 1 ? "GAME" : "GAMES"}`}
         </span>
       </div>
 
