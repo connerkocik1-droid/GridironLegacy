@@ -22,10 +22,17 @@ export async function POST(req: Request) {
 
   const { data: me } = await db
     .from("managers")
-    .select("league_id")
+    .select("league_id, is_commissioner")
     .eq("auth_user_id", user.id)
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
+
+  // As with the draft reset: reset_league enforces this where it counts, and
+  // this is the route answering for itself instead of relaying somebody
+  // else's error.
+  if (!me.is_commissioner) {
+    return Response.json({ error: "Only the commissioner can reset the league" }, { status: 403 });
+  }
 
   // A missing body means the plain reset; releasing franchises is opt-in and
   // must be asked for explicitly.
