@@ -12,7 +12,7 @@ interface Feed {
  * Owns the live scores and hands them to the lineup editor, so the two are
  * never fetched twice or shown out of step with each other.
  */
-export default function MyTeamBoard({ embedded = false }: { embedded?: boolean } = {}) {
+export default function MyTeamBoard() {
   const [feed, setFeed] = useState<Feed | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,7 +56,7 @@ export default function MyTeamBoard({ embedded = false }: { embedded?: boolean }
       {error ? (
         <div style={{ padding: "8px 26px 0", fontSize: 12, color: "#e0b573" }}>{error}</div>
       ) : null}
-      <LineupEditor scores={scores} embedded={embedded} />
+      <LineupEditor scores={scores} />
     </>
   );
 }

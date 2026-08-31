@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import HomeButtons from "./HomeButtons";
 import LeagueOverview from "./LeagueOverview";
-import MatchupBoard from "./MatchupBoard";
 import MiniGamesStrip from "./MiniGamesStrip";
-import MyTeamBoard from "./MyTeamBoard";
 import ScoreTicker from "./ScoreTicker";
 import Section from "./Section";
 import WeekScoreboard from "./WeekScoreboard";
@@ -13,11 +12,11 @@ import type { Home } from "@/lib/home-types";
 /**
  * The home page for somebody who is signed in.
  *
- * Everything a manager does in a week is here in the order they do it: the
- * games on the way past, the lineup they came to set, the scoreboard that
- * lineup is playing into, and where they stand. The pages these came from are
- * gone, so each section is the real thing rather than a summary that links
- * somewhere else.
+ * The way in to everything, rather than everything at once: four places a
+ * manager goes, this week's scoreboard so the front page is never stale, the
+ * games on the side, and where the league stands. The work itself happens on
+ * the pages the buttons lead to, which keeps this one readable on a phone
+ * during a Sunday.
  */
 export default function HomeBoard() {
   const [home, setHome] = useState<Home | null>(null);
@@ -54,19 +53,13 @@ export default function HomeBoard() {
           about the actual football rather than the league. */}
       <ScoreTicker />
 
-      <Section eyebrow="ON THE SIDE" title="Mini-games">
-        <MiniGamesStrip />
-      </Section>
-
-      <Section eyebrow="YOUR FRANCHISE" title="My lineup">
-        <div style={{ margin: "0 -26px" }}>
-          <MyTeamBoard embedded />
-        </div>
+      <Section eyebrow="THE LEAGUE" title="Where to">
+        <HomeButtons />
       </Section>
 
       <Section
-        eyebrow="THE LEAGUE"
-        title="This week's matchups"
+        eyebrow="RIGHT NOW"
+        title="This week"
         aside={
           home?.week != null
             ? `Week ${home.week}${home.live ? " · live" : " · projected"}`
@@ -80,12 +73,10 @@ export default function HomeBoard() {
         ) : (
           <WeekScoreboard games={home.games} byes={home.byes} live={home.live} />
         )}
+      </Section>
 
-        {/* The head-to-head that used to be its own page, in full, because
-            there is nowhere else left to see it. */}
-        <div style={{ margin: "10px -26px 0" }}>
-          <MatchupBoard embedded />
-        </div>
+      <Section eyebrow="ON THE SIDE" title="Mini-games">
+        <MiniGamesStrip />
       </Section>
 
       <Section

@@ -146,7 +146,7 @@ function PlayerCell({
   );
 }
 
-export default function MatchupBoard({ embedded = false }: { embedded?: boolean } = {}) {
+export default function MatchupBoard() {
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [opponent, setOpponent] = useState("");
@@ -196,18 +196,18 @@ export default function MatchupBoard({ embedded = false }: { embedded?: boolean 
           gridTemplateColumns: "1fr auto 1fr",
           alignItems: "center",
           gap: 18,
-          padding: embedded ? "6px 26px 12px" : "24px 26px 16px",
+          padding: "24px 26px 16px",
         }}
       >
         <div>
           <div style={{ fontSize: 9, letterSpacing: ".28em", color: "#75798c" }}>YOU</div>
-          <div style={{ fontFamily: "var(--font-heading)", fontSize: embedded ? 15 : 22, marginTop: 4 }}>
+          <div style={{ fontFamily: "var(--font-heading)", fontSize: 22, marginTop: 4 }}>
             {board.home.franchise}
           </div>
           <div
             style={{
               fontFamily: "var(--font-heading)",
-              fontSize: embedded ? 24 : 40,
+              fontSize: 40,
               color: homeLeads ? "#d2cefd" : "#e9e9ed",
               marginTop: 2,
             }}
@@ -236,7 +236,7 @@ export default function MatchupBoard({ embedded = false }: { embedded?: boolean 
             onChange={(e) => setOpponent(e.target.value)}
             style={{
               fontFamily: "var(--font-heading)",
-              fontSize: embedded ? 15 : 22,
+              fontSize: 22,
               marginTop: 4,
               padding: "2px 6px",
               background: "transparent",
@@ -263,7 +263,7 @@ export default function MatchupBoard({ embedded = false }: { embedded?: boolean 
           <div
             style={{
               fontFamily: "var(--font-heading)",
-              fontSize: embedded ? 24 : 40,
+              fontSize: 40,
               color: awayLeads ? "#d2cefd" : "#e9e9ed",
               marginTop: 2,
             }}
@@ -277,7 +277,7 @@ export default function MatchupBoard({ embedded = false }: { embedded?: boolean 
         <div style={{ padding: "0 26px 8px", fontSize: 12, color: "#e0b573" }}>{error}</div>
       ) : null}
 
-      <div style={{ padding: embedded ? "0 26px 0" : "0 26px 40px" }}>
+      <div style={{ padding: "0 26px 40px" }}>
         <div
           style={{
             border: "1px solid rgba(145,132,217,.22)",

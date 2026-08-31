@@ -4,10 +4,11 @@ import ProfileMenu from "./ProfileMenu";
 
 const PRIMARY = [
   { href: "/", label: "Home" },
+  { href: "/lineup", label: "Lineup" },
+  { href: "/matchups", label: "Matchups" },
+  { href: "/standings", label: "Standings" },
+  { href: "/rankings", label: "Rankings" },
   { href: "/draft", label: "Draft" },
-  { href: "/league", label: "League" },
-  { href: "/news", label: "News" },
-  { href: "/minigames", label: "Mini-games" },
 ];
 
 // The commissioner's own two: the office, and the room for walking through
@@ -18,11 +19,13 @@ const OFFICE = [
   { href: "/commissioner", label: "Commissioner" },
 ];
 
-// The two places a manager goes to change their roster. Everything else that
-// used to sit here is on the home page or behind Mini-games.
+// Where a manager goes to change their roster, plus the reading matter.
 const SECONDARY = [
   { href: "/free-agents", label: "Free Agents" },
   { href: "/trade-builder", label: "Trade Builder" },
+  { href: "/league", label: "League" },
+  { href: "/news", label: "News" },
+  { href: "/minigames", label: "Mini-games" },
 ];
 
 const bar: React.CSSProperties = {
@@ -36,7 +39,11 @@ const bar: React.CSSProperties = {
   borderBottom: "1px solid rgba(145,132,217,.22)",
   background: "rgba(22,24,38,.9)",
   backdropFilter: "blur(10px)",
-  overflowX: "auto",
+  // Wraps rather than scrolls. A sideways scrollbar in a nav bar hides tabs
+  // from anyone who does not think to drag it, and there are enough tabs now
+  // that something was always being hidden on a laptop.
+  flexWrap: "wrap",
+  rowGap: 6,
 };
 
 const primaryLink = (active: boolean): React.CSSProperties => ({
@@ -92,7 +99,7 @@ export default function Nav({ current, note }: { current: string; note?: string 
         </span>
       </div>
 
-      <div style={{ display: "flex", gap: 2, marginLeft: 6, flex: "0 0 auto" }}>
+      <div style={{ display: "flex", gap: 2, marginLeft: 6, flexWrap: "wrap", rowGap: 4 }}>
         {PRIMARY.map((item) => (
           <Link key={item.href} href={item.href} style={primaryLink(item.href === current)}>
             {item.label}
@@ -119,7 +126,8 @@ export default function Nav({ current, note }: { current: string; note?: string 
           marginLeft: 12,
           paddingLeft: 12,
           borderLeft: "1px solid rgba(145,132,217,.22)",
-          flex: "0 0 auto",
+          flexWrap: "wrap",
+          rowGap: 4,
         }}
       >
         {SECONDARY.map((item) => (
