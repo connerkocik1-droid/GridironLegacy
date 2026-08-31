@@ -1,3 +1,4 @@
+import { lineupProblems } from "@/lib/lineup";
 import { player, proj } from "@/lib/roster";
 import { setLineup, type Score } from "@/lib/matchup";
 import { rank, type Team } from "@/lib/power";
@@ -216,8 +217,26 @@ export async function GET() {
     };
   });
 
+  // What is wrong with this manager's own lineup, counted rather than listed:
+  // the home page's job is to say "go and look", and the lineup page is where
+  // the problems are named. Only before the week is settled — telling somebody
+  // they started a bye player in a week already graded is a reproach, not help.
+  const mySlots = held
+    .filter((s) => s.manager_id === me.id)
+    .map((s) => ({ playerName: s.player_name, slot: s.lineup_slot }));
+
+  const settled = schedule.some((f) => f.week === week && f.final);
+  const myProblems =
+    week == null || settled
+      ? 0
+      : lineupProblems(mySlots, settings, week, (name) => {
+          const pl = player(name);
+          return pl ? { p: pl.p, bye: pl.bye, q: pl.q } : null;
+        }).filter((x) => x.kind !== "injured").length;
+
   return Response.json({
     meId: me.id,
+    lineupProblems: myProblems,
     league: league ? { name: league.name, season: league.season } : null,
     week,
     games,

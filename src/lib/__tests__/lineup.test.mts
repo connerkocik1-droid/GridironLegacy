@@ -1,4 +1,4 @@
-import { defaultLineup, slotAccepts, startingSlots, validateLineup } from "../lineup";
+import { defaultLineup, lineupProblems, slotAccepts, startingSlots, validateLineup } from "../lineup";
 
 let failed = 0;
 const ok = (label: string, got: boolean, want = true) => {
@@ -112,6 +112,67 @@ ok("a short roster still produces a legal lineup",
   validateLineup(thinLineup, thin, LEAGUE).ok);
 eq("and leaves the empty slots unfilled rather than inventing players",
   thinLineup.length, 2);
+
+
+console.log("\n--- what is wrong with a legal lineup ---");
+
+// A stand-in pool, so these checks are about the rule rather than about who
+// happens to be on a bye in the real data.
+const POOL: Record<string, { p: string; bye: number; q: boolean }> = {
+  "Bye Guy": { p: "RB", bye: 7, q: false },
+  "Sore Guy": { p: "WR", bye: 9, q: true },
+  "Fine Guy": { p: "QB", bye: 9, q: false },
+  "Depth Guy": { p: "RB", bye: 9, q: false },
+};
+const look = (n: string) => POOL[n] ?? null;
+
+const full = [
+  { playerName: "Fine Guy", slot: "QB" },
+  { playerName: "Bye Guy", slot: "RB" },
+  { playerName: "Sore Guy", slot: "WR" },
+];
+const SMALL = { starters: { QB: 1, RB: 1, WR: 1 }, bench: 4 };
+
+const found = lineupProblems(full, SMALL, 7, look);
+eq("a starter on his bye is reported", found.filter((x) => x.kind === "bye").map((x) => x.player),
+  ["Bye Guy"]);
+eq("a questionable starter is reported too",
+  found.filter((x) => x.kind === "injured").map((x) => x.player), ["Sore Guy"]);
+ok("and the bye is listed first, because it is certain",
+  found[0].kind === "bye");
+
+eq("in a week that is not his bye he is not flagged for it",
+  lineupProblems(full, SMALL, 3, look).filter((x) => x.kind === "bye").length, 0);
+
+const short = [{ playerName: "Fine Guy", slot: "QB" }];
+const gaps = lineupProblems(short, SMALL, 3, look);
+eq("every unfilled starting seat is named", gaps.map((x) => x.slot).sort(), ["RB", "WR"]);
+ok("and an empty slot outranks everything else", gaps[0].kind === "empty");
+
+// Two of three flex seats filled is one empty flex, not none and not three.
+const FLEXY = { starters: { FLEX: 3 }, bench: 4 };
+const twoFlex = [
+  { playerName: "Bye Guy", slot: "FLEX" },
+  { playerName: "Sore Guy", slot: "FLEX" },
+];
+eq("a partly filled multi-seat slot reports only the seats left",
+  lineupProblems(twoFlex, FLEXY, 3, look).filter((x) => x.kind === "empty").length, 1);
+
+// The same roster in the same week, with the bye player sat down instead.
+const benched = [
+  { playerName: "Fine Guy", slot: "QB" },
+  { playerName: "Depth Guy", slot: "RB" },
+  { playerName: "Sore Guy", slot: "WR" },
+  { playerName: "Bye Guy", slot: "BENCH" },
+];
+eq("a benched player on his bye is nobody's problem",
+  lineupProblems(benched, SMALL, 7, look).filter((x) => x.kind === "bye").length, 0);
+eq("and sitting him leaves no hole behind",
+  lineupProblems(benched, SMALL, 7, look).filter((x) => x.kind === "empty").length, 0);
+
+eq("and a player nobody knows about is not invented into a problem",
+  lineupProblems([{ playerName: "Nobody At All", slot: "QB" }], SMALL, 7, look)
+    .filter((x) => x.kind !== "empty").length, 0);
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 if (failed) process.exitCode = 1;

@@ -55,7 +55,7 @@ export default function HomeBoard() {
       <ScoreTicker />
 
       <Section eyebrow="THE LEAGUE" title="Where to" collapseId="home.where">
-        <HomeButtons />
+        <HomeButtons lineupProblems={home?.lineupProblems ?? 0} />
       </Section>
 
       <Section

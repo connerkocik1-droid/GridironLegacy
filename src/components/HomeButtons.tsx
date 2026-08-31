@@ -30,7 +30,7 @@ const PLACES = [
   },
 ];
 
-export default function HomeButtons() {
+export default function HomeButtons({ lineupProblems = 0 }: { lineupProblems?: number }) {
   return (
     <div
       style={{
@@ -66,6 +66,15 @@ export default function HomeButtons() {
           <div style={{ fontSize: 11.5, color: "#9397ab", lineHeight: 1.55, marginTop: 6 }}>
             {p.line}
           </div>
+          {/* Counted, not named. The number is enough to make somebody click,
+              and the lineup page is where the problems are actually said. */}
+          {p.href === "/lineup" && lineupProblems > 0 ? (
+            <div style={{ fontSize: 11.5, color: "#e0b573", marginTop: 8 }}>
+              {lineupProblems === 1
+                ? "1 problem with this week's lineup."
+                : `${lineupProblems} problems with this week's lineup.`}
+            </div>
+          ) : null}
         </Link>
       ))}
     </div>
