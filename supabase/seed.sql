@@ -94,7 +94,7 @@ begin
       v_name := v_names[v_i][2];
     else
       v_slot := 'T' || lpad(v_i::text, 2, '0');
-      v_name := 'Franchise ' || v_i;
+      v_name := 'Open Team';
     end if;
 
     -- name is 'Open' until somebody claims the franchise and gives their own.

@@ -187,9 +187,11 @@ select expect('the board is rebuilt to the new size',
 update managers set pin_hash = 'x' where league_id = :'L' and slot = 'T05';
 \o
 
+-- Named by slot, because every open seat is called the same thing and the
+-- point of the message is to say which ones are in the way.
 select expect('a claimed franchise cannot be removed',
   refuses(format('select set_team_count(%L, 4)', :'L')),
-  'These franchises are claimed or hold players: Franchise 5');
+  'These franchises are claimed or hold players: T05 · Open Team');
 
 select expect('the claimed franchise survived',
   (select count(*)::int from managers where league_id = :'L'), 5);
@@ -1475,3 +1477,43 @@ select expect('and letting go of nobody twice is refused',
   refuses(format('select release_franchise(%L)',
     (select id from managers where league_id = :'R2' and slot = 'BBB'))),
   'Nobody holds that franchise');
+
+\echo ''
+\echo '--- what counts as a name somebody chose ---'
+
+-- ---------------------------------------------------------------------------
+-- What counts as a name somebody chose
+-- ---------------------------------------------------------------------------
+-- Two of these names this app made up, and one a manager did. The difference
+-- decides whether a franchise keeps its name when its manager leaves.
+
+select expect('the open name is a default',
+  (select is_default_franchise_name(open_team_name())), true);
+
+select expect('so is a name derived from a first name',
+  (select is_default_franchise_name('Dana''s Team')), true);
+
+select expect('so is a seeded slot number',
+  (select is_default_franchise_name('Franchise 7')), true);
+
+select expect('and so is no name at all',
+  (select is_default_franchise_name(null)), true);
+
+select expect('but a name somebody chose is not',
+  (select is_default_franchise_name('Steel Cartel')), false);
+
+select expect('nor is one that merely mentions a team',
+  (select is_default_franchise_name('Team Steel')), false);
+
+-- Bravo above kept its name through a release. A franchise still carrying the
+-- name this app gave it does not: it goes back to being an open seat by name
+-- as well as in fact, so the sign-up cards do not offer "Quitter's Team".
+\o /dev/null
+update managers set franchise = 'Quitter''s Team', name = 'Quitter',
+       pin_hash = 'hashed', auth_user_id = :'RB'
+  where league_id = :'R2' and slot = 'BBB';
+select release_franchise((select id from managers where league_id = :'R2' and slot = 'BBB'));
+\o
+
+select expect('a franchise named after its manager reopens under the open name',
+  (select franchise from managers where league_id = :'R2' and slot = 'BBB'), 'Open Team');
