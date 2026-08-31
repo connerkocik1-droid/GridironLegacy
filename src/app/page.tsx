@@ -1,7 +1,8 @@
 import HomeBoard from "@/components/HomeBoard";
 import Nav from "@/components/Nav";
 import SignIn from "@/components/SignIn";
-import { isConfigured, serverClient, serviceClient } from "@/lib/supabase";
+import { currentManager } from "@/lib/session";
+import { isConfigured, serviceClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -12,20 +13,6 @@ interface Franchise {
   division: string | null;
   claimed: boolean;
   isCommissioner: boolean;
-}
-
-/** Whether anyone is signed in, without throwing when Supabase is not set up. */
-async function signedIn(): Promise<boolean> {
-  if (!isConfigured()) return false;
-  try {
-    const db = await serverClient();
-    const {
-      data: { user },
-    } = await db.auth.getUser();
-    return Boolean(user);
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -70,7 +57,13 @@ export default async function HomePage() {
   // fixtures and where everyone stands, all on one page. Signed out it is the
   // way in. Same address, because the front door of a league site should be
   // the league.
-  if (await signedIn()) {
+  //
+  // "Signed in" means holding a franchise in this league, not merely having a
+  // Supabase session — see currentManager. A session whose franchise has been
+  // released, or which belongs to a league this deployment does not serve, used
+  // to be shown the league anyway: a home page full of somebody else's team,
+  // with no way back to the sign-in page, because this is the sign-in page.
+  if (await currentManager()) {
     return (
       <div
         style={{
