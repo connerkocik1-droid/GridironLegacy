@@ -21,7 +21,7 @@ type Section = "name" | "photo" | "pin" | null;
 
 const label: React.CSSProperties = {
   display: "block",
-  fontSize: 9,
+  fontSize: 10,
   letterSpacing: ".2em",
   color: "#75798c",
   marginBottom: 6,
@@ -309,7 +309,7 @@ export default function ProfileMenu() {
               >
                 {manager.franchise}
               </div>
-              <div style={{ fontSize: 9, letterSpacing: ".18em", color: "#75798c", marginTop: 3 }}>
+              <div style={{ fontSize: 10, letterSpacing: ".18em", color: "#75798c", marginTop: 3 }}>
                 {manager.slot}
                 {manager.is_commissioner ? " · COMMISSIONER" : ""}
               </div>

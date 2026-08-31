@@ -29,7 +29,7 @@ export default function LineupPage() {
           borderTop: "1px solid rgba(145,132,217,.18)",
         }}
       >
-        <div style={{ fontSize: 8.5, letterSpacing: ".32em", color: "#75798c" }}>THIS WEEK</div>
+        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>THIS WEEK</div>
         <h2
           style={{
             fontFamily: "var(--font-heading)",

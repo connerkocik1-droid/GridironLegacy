@@ -79,7 +79,7 @@ const grid: React.CSSProperties = {
 };
 
 const cardEyebrow = (bright: boolean): React.CSSProperties => ({
-  fontSize: 9,
+  fontSize: 10,
   letterSpacing: ".18em",
   color: bright ? "#b5abfc" : "#75798c",
 });
@@ -226,7 +226,7 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
 
   const heading = (
     <>
-      <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>
         DYNASTY · {slots.length} TEAM · SUPERFLEX
       </div>
       <h1
@@ -534,7 +534,7 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
             margin: "10px 0 4px",
           }}
         >
-          <div style={{ fontSize: 9, letterSpacing: ".18em", color: "#b5abfc" }}>{chosen.slot}</div>
+          <div style={{ fontSize: 10, letterSpacing: ".18em", color: "#b5abfc" }}>{chosen.slot}</div>
           <div
             style={{
               fontFamily: "var(--font-heading)",

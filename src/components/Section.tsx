@@ -27,7 +27,7 @@ export default function Section({
         }}
       >
         <div>
-          <div style={{ fontSize: 8.5, letterSpacing: ".32em", color: "#75798c" }}>{eyebrow}</div>
+          <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>{eyebrow}</div>
           <h2
             style={{
               fontFamily: "var(--font-heading)",

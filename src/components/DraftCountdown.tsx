@@ -128,7 +128,7 @@ export default function DraftCountdown({
         <IntroVideo ref={intro} src={introVideo} open={playing} onDone={finishIntro} />
       ) : null}
 
-      <div style={{ fontSize: 9, letterSpacing: ".4em", color: "#75798c" }}>
+      <div style={{ fontSize: 10, letterSpacing: ".4em", color: "#75798c" }}>
         {state === "paused" ? "DRAFT PAUSED" : past ? "DRAFT DAY" : "THE DRAFT"}
       </div>
 
@@ -176,7 +176,7 @@ export default function DraftCountdown({
               >
                 {String(p.n).padStart(2, "0")}
               </div>
-              <div style={{ fontSize: 9, letterSpacing: ".26em", color: "#75798c", marginTop: 6 }}>
+              <div style={{ fontSize: 10, letterSpacing: ".26em", color: "#75798c", marginTop: 6 }}>
                 {p.label}
               </div>
             </div>

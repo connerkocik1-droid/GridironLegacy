@@ -35,7 +35,7 @@ function Row({ side, leading, align }: { side: HomeSide; leading: boolean; align
         >
           {side.franchise}
         </div>
-        <div style={{ fontSize: 9, letterSpacing: ".14em", color: "#75798c", marginTop: 2 }}>
+        <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#75798c", marginTop: 2 }}>
           {side.slot}
         </div>
       </div>
@@ -108,7 +108,7 @@ export default function WeekScoreboard({
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                fontSize: 8.5,
+                fontSize: 10,
                 letterSpacing: ".18em",
                 color: g.mine ? "#b5abfc" : "#75798c",
                 marginBottom: 9,

@@ -83,12 +83,12 @@ export default function DraftTicker({ available }: { available: Available[] }) {
             animation: "mt-pulse 1.6s ease infinite",
           }}
         />
-        <span style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#9397ab", whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: 10, letterSpacing: ".18em", color: "#9397ab", whiteSpace: "nowrap" }}>
           BEST AVAILABLE
         </span>
         <span
           style={{
-            fontSize: 8.5,
+            fontSize: 10,
             letterSpacing: ".12em",
             color: "#75798c",
             whiteSpace: "nowrap",
@@ -130,7 +130,7 @@ export default function DraftTicker({ available }: { available: Available[] }) {
                 >
                   <span
                     style={{
-                      fontSize: 8.5,
+                      fontSize: 10,
                       color: "#5d6070",
                       fontVariantNumeric: "tabular-nums",
                     }}
@@ -138,10 +138,10 @@ export default function DraftTicker({ available }: { available: Available[] }) {
                     {i + 1}
                   </span>
                   <span style={{ color: i === 0 ? "#e9e9ed" : "#c9cbd8" }}>{p.name}</span>
-                  <span style={{ fontSize: 9, letterSpacing: ".08em", color: TINT[p.position] ?? "#9397ab" }}>
+                  <span style={{ fontSize: 10, letterSpacing: ".08em", color: TINT[p.position] ?? "#9397ab" }}>
                     {p.posRank || (p.position === "D/ST" ? "DST" : p.position)}
                   </span>
-                  <span style={{ fontSize: 9, letterSpacing: ".08em", color: "#5d6070" }}>
+                  <span style={{ fontSize: 10, letterSpacing: ".08em", color: "#5d6070" }}>
                     {p.team}
                     {p.bye ? ` · BYE ${p.bye}` : ""}
                   </span>

@@ -213,7 +213,7 @@ export default function IntroVideo({
               <div>
                 <div
                   style={{
-                    fontSize: 9,
+                    fontSize: 10,
                     letterSpacing: ".3em",
                     color: "#e0b573",
                   }}
@@ -256,7 +256,7 @@ export default function IntroVideo({
               <span
                 style={{
                   alignSelf: "center",
-                  fontSize: 9,
+                  fontSize: 10,
                   letterSpacing: ".26em",
                   color: "#75798c",
                   marginRight: 6,

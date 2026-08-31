@@ -73,7 +73,7 @@ function Score({ side, won, lost }: { side: Side; won: boolean; lost: boolean })
             up; the person is who you are actually playing. */}
         <div
           style={{
-            fontSize: 9.5,
+            fontSize: 10,
             letterSpacing: ".14em",
             color: side.claimed ? "#75798c" : "#5a5d6e",
             marginTop: 2,
@@ -118,7 +118,7 @@ function GameCard({ game, highlight }: { game: Game; highlight: boolean }) {
           display: "flex",
           alignItems: "center",
           gap: 8,
-          fontSize: 8.5,
+          fontSize: 10,
           letterSpacing: ".18em",
           color: "#75798c",
           marginBottom: 9,
@@ -205,7 +205,7 @@ export default function Matchups() {
 
   return (
     <div style={{ padding: "24px 26px 40px" }}>
-      <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>THE SEASON</div>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>THE SEASON</div>
       <h1
         style={{
           fontFamily: "var(--font-heading)",

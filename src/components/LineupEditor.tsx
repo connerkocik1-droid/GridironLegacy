@@ -154,7 +154,7 @@ export default function LineupEditor({ scores }: { scores: Map<string, Score> })
         }}
       >
         <div>
-          <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>
+          <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>
             DYNASTY · SUPERFLEX
           </div>
           <div
@@ -173,7 +173,7 @@ export default function LineupEditor({ scores }: { scores: Map<string, Score> })
           <div style={{ fontFamily: "var(--font-heading)", fontSize: 26, color: "#d2cefd" }}>
             {total.toFixed(1)}
           </div>
-          <div style={{ fontSize: 9, letterSpacing: ".2em", color: "#75798c" }}>
+          <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c" }}>
             {saving ? "SAVING…" : "STARTING LINEUP"}
           </div>
         </div>
@@ -391,7 +391,7 @@ function PlayerRow({
               {locked ? (
                 <span
                   style={{
-                    fontSize: 8,
+                    fontSize: 10,
                     letterSpacing: ".12em",
                     padding: "2px 5px",
                     borderRadius: 2,
@@ -407,7 +407,7 @@ function PlayerRow({
                 <span
                   key={f.label}
                   style={{
-                    fontSize: 8,
+                    fontSize: 10,
                     letterSpacing: ".12em",
                     padding: "2px 5px",
                     borderRadius: 2,
@@ -444,7 +444,7 @@ function PlayerRow({
             >
               {(live ? score.points : proj(name)).toFixed(1)}
             </div>
-            <div style={{ fontSize: 8, letterSpacing: ".16em", color: "#75798c" }}>
+            <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c" }}>
               {live ? "LIVE" : "PROJ"}
             </div>
           </div>

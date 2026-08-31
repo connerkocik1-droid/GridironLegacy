@@ -403,7 +403,7 @@ export default function DraftRoom() {
         }}
       >
         <div>
-          <div style={{ fontSize: 9, letterSpacing: ".28em", color: "#75798c" }}>ON THE CLOCK</div>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>ON THE CLOCK</div>
           <div style={{ fontFamily: "var(--font-heading)", fontSize: 32, marginTop: 4 }}>
             {board.league.state === "complete"
               ? "Draft complete"
@@ -502,7 +502,7 @@ export default function DraftRoom() {
             >
               {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
             </div>
-            <div style={{ fontSize: 9, letterSpacing: ".2em", color: "#75798c" }}>
+            <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c" }}>
               {board.myTurn ? "YOUR PICK" : "REMAINING"}
             </div>
           </div>

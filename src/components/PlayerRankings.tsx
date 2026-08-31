@@ -49,7 +49,7 @@ const tab = (active: boolean): React.CSSProperties => ({
 });
 
 const th: React.CSSProperties = {
-  fontSize: 8.5,
+  fontSize: 10,
   letterSpacing: ".16em",
   color: "#75798c",
   fontWeight: 400,
@@ -120,7 +120,7 @@ export default function PlayerRankings() {
 
   return (
     <div style={{ padding: "24px 26px 40px" }}>
-      <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>THE POOL</div>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>THE POOL</div>
       <h1
         style={{
           fontFamily: "var(--font-heading)",
@@ -287,7 +287,7 @@ function PlayerRow({
             >
               {row.name}
             </div>
-            <div style={{ fontSize: 9.5, color: "#75798c", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 10, color: "#75798c", whiteSpace: "nowrap" }}>
               <span style={{ color: TINT[row.position] ?? "#75798c" }}>{row.position}</span>
               {" · "}
               {row.team}

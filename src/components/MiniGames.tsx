@@ -43,7 +43,7 @@ export default function MiniGames() {
   return (
     <div>
       <div style={{ padding: "24px 26px 0" }}>
-        <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>ON THE SIDE</div>
+        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>ON THE SIDE</div>
         <h1
           style={{
             fontFamily: "var(--font-heading)",

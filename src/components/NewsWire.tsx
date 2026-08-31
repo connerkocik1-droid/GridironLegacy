@@ -115,7 +115,7 @@ export default function NewsWire({
                     <span
                       key={name}
                       style={{
-                        fontSize: 9,
+                        fontSize: 10,
                         letterSpacing: ".1em",
                         padding: "2px 6px",
                         borderRadius: 2,

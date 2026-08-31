@@ -367,7 +367,7 @@ export default function Commissioner() {
 
   return (
     <div style={{ padding: "24px 26px 40px", maxWidth: 780 }}>
-      <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>LEAGUE OFFICE</div>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>LEAGUE OFFICE</div>
       <h1
         style={{
           fontFamily: "var(--font-heading)",
@@ -553,7 +553,7 @@ export default function Commissioner() {
             <span style={{ fontFamily: "var(--font-heading)", fontSize: 14, minWidth: 0, flex: 1 }}>
               {m.franchise}
               {m.isCommissioner ? (
-                <span style={{ fontSize: 9, letterSpacing: ".14em", color: "#b5abfc", marginLeft: 8 }}>
+                <span style={{ fontSize: 10, letterSpacing: ".14em", color: "#b5abfc", marginLeft: 8 }}>
                   COMMISSIONER
                 </span>
               ) : null}
@@ -566,7 +566,7 @@ export default function Commissioner() {
                   disabled={busy || m.division === d}
                   style={{
                     padding: "3px 8px",
-                    fontSize: 9,
+                    fontSize: 10,
                     letterSpacing: ".12em",
                     border: `1px solid ${m.division === d ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.22)"}`,
                     background: m.division === d ? "rgba(145,132,217,.26)" : "transparent",
@@ -583,7 +583,7 @@ export default function Commissioner() {
 
             <span
               style={{
-                fontSize: 9,
+                fontSize: 10,
                 letterSpacing: ".14em",
                 padding: "2px 7px",
                 borderRadius: 2,

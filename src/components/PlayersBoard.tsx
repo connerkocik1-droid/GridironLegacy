@@ -169,7 +169,7 @@ export default function PlayersBoard() {
 
   return (
     <div style={{ padding: "24px 26px 40px" }}>
-      <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>
         {feed.mode === "open" ? "OPEN MARKET" : "WAIVERS"}
       </div>
       <h1
@@ -278,7 +278,7 @@ export default function PlayersBoard() {
             >
               <span
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   letterSpacing: ".14em",
                   width: 60,
                   flex: "0 0 auto",
@@ -402,7 +402,7 @@ export default function PlayersBoard() {
                     <span
                       key={f.label}
                       style={{
-                        fontSize: 8,
+                        fontSize: 10,
                         letterSpacing: ".12em",
                         padding: "2px 5px",
                         borderRadius: 2,
@@ -482,7 +482,7 @@ export default function PlayersBoard() {
             >
               <span
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   letterSpacing: ".12em",
                   width: 38,
                   flex: "0 0 auto",

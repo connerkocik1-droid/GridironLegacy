@@ -24,7 +24,7 @@ export default async function NewsPage() {
       <Nav current="/news" />
 
       <div style={{ padding: "24px 26px 40px" }}>
-        <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>THE WIRE</div>
+        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>THE WIRE</div>
         <h1
           style={{
             fontFamily: "var(--font-heading)",

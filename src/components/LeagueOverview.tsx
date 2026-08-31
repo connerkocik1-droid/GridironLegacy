@@ -28,7 +28,7 @@ const panelHead: React.CSSProperties = {
   gap: 8,
   padding: "12px 15px 10px",
   borderBottom: "1px solid rgba(145,132,217,.14)",
-  fontSize: 9,
+  fontSize: 10,
   letterSpacing: ".2em",
   color: "#b5abfc",
 };
@@ -191,7 +191,7 @@ export default function LeagueOverview({ home }: { home: Home }) {
                 }}
               >
                 {t.franchise}
-                {t.mine ? <span style={{ color: "#b5abfc", fontSize: 9 }}> · YOU</span> : null}
+                {t.mine ? <span style={{ color: "#b5abfc", fontSize: 10 }}> · YOU</span> : null}
               </div>
               <div style={{ fontSize: 10, color: "#75798c" }}>
                 {played ? `${t.wins}-${t.losses}${t.ties ? `-${t.ties}` : ""} · ` : ""}
@@ -218,7 +218,7 @@ export default function LeagueOverview({ home }: { home: Home }) {
                   }}
                 />
               </div>
-              <div style={{ fontSize: 9.5, color: "#75798c", textAlign: "right", marginTop: 3 }}>
+              <div style={{ fontSize: 10, color: "#75798c", textAlign: "right", marginTop: 3 }}>
                 {t.rating.toFixed(1)}
               </div>
             </div>

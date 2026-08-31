@@ -376,7 +376,7 @@ export default function IntroVideoSlot({
       >
         <div
           style={{
-            fontSize: 9,
+            fontSize: 10,
             letterSpacing: ".2em",
             color: "#75798c",
             marginBottom: 8,

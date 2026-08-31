@@ -163,7 +163,7 @@ export default async function HomePage() {
                       display: "flex",
                       alignItems: "center",
                       gap: 6,
-                      fontSize: 8,
+                      fontSize: 10,
                       letterSpacing: ".18em",
                       color: "#75798c",
                     }}
@@ -184,7 +184,7 @@ export default async function HomePage() {
                   </div>
                   <div
                     style={{
-                      fontSize: 9,
+                      fontSize: 10,
                       letterSpacing: ".14em",
                       marginTop: 5,
                       color: f.claimed ? "#7fd1a8" : "#75798c",

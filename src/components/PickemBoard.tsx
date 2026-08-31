@@ -57,7 +57,7 @@ const card: React.CSSProperties = {
 };
 
 const kicker: React.CSSProperties = {
-  fontSize: 9,
+  fontSize: 10,
   letterSpacing: ".28em",
   color: "#75798c",
 };
@@ -197,7 +197,7 @@ export default function PickemBoard() {
           <div style={{ fontFamily: "var(--font-heading)", fontSize: 26, color: "#d2cefd" }}>
             {made} / {board.games.length}
           </div>
-          <div style={{ fontSize: 9, letterSpacing: ".2em", color: "#75798c" }}>PICKS MADE</div>
+          <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c" }}>PICKS MADE</div>
         </div>
       </div>
 
@@ -354,7 +354,7 @@ export default function PickemBoard() {
                           <span
                             style={{
                               marginLeft: locked ? 8 : "auto",
-                              fontSize: 9,
+                              fontSize: 10,
                               letterSpacing: ".14em",
                               color: won ? "#7fd1a8" : "#e0b573",
                             }}

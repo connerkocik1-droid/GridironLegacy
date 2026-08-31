@@ -104,7 +104,7 @@ export default function DraftBoard({
           {Object.entries(POSITION_TINT).map(([pos, tint]) => (
             <span
               key={pos}
-              style={{ fontSize: 8.5, letterSpacing: ".1em", color: tint.fg }}
+              style={{ fontSize: 10, letterSpacing: ".1em", color: tint.fg }}
             >
               {pos === "D/ST" ? "DST" : pos}
             </span>
@@ -133,7 +133,7 @@ export default function DraftBoard({
                   padding: "8px 6px",
                   background: "#1b1d2c",
                   borderBottom: "1px solid rgba(145,132,217,.22)",
-                  fontSize: 8,
+                  fontSize: 10,
                   letterSpacing: ".16em",
                   color: "#75798c",
                   fontWeight: 400,
@@ -150,7 +150,7 @@ export default function DraftBoard({
                     borderBottom: "1px solid rgba(145,132,217,.22)",
                     borderLeft: "1px solid rgba(145,132,217,.1)",
                     background: m.id === meId ? "rgba(66,58,106,.4)" : "transparent",
-                    fontSize: 9,
+                    fontSize: 10,
                     letterSpacing: ".12em",
                     color: m.id === meId ? "#d2cefd" : "#9397ab",
                     fontWeight: 400,
@@ -213,7 +213,7 @@ export default function DraftBoard({
                               alignItems: "baseline",
                               gap: 5,
                               color: "#75798c",
-                              fontSize: 8,
+                              fontSize: 10,
                               letterSpacing: ".08em",
                               fontVariantNumeric: "tabular-nums",
                             }}

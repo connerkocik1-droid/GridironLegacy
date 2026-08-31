@@ -75,7 +75,7 @@ const secondaryLink = (active: boolean): React.CSSProperties => ({
 
 export default function Nav({ current, note }: { current: string; note?: string }) {
   return (
-    <div style={bar}>
+    <div className="gl-nav" style={bar}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" }}>
         <div
           style={{
@@ -100,7 +100,12 @@ export default function Nav({ current, note }: { current: string; note?: string 
 
       <div style={{ display: "flex", gap: 2, marginLeft: 6, flexWrap: "wrap", rowGap: 4 }}>
         {PRIMARY.map((item) => (
-          <Link key={item.href} href={item.href} style={primaryLink(item.href === current)}>
+          <Link
+            key={item.href}
+            href={item.href}
+            className="gl-navlink"
+            style={primaryLink(item.href === current)}
+          >
             {item.label}
           </Link>
         ))}
@@ -109,6 +114,7 @@ export default function Nav({ current, note }: { current: string; note?: string 
             <Link
               key={item.href}
               href={item.href}
+              className="gl-navlink"
               style={primaryLink(item.href === current)}
               aria-current={item.href === current ? "page" : undefined}
             >
@@ -130,7 +136,12 @@ export default function Nav({ current, note }: { current: string; note?: string 
         }}
       >
         {SECONDARY.map((item) => (
-          <Link key={item.href} href={item.href} style={secondaryLink(item.href === current)}>
+          <Link
+            key={item.href}
+            href={item.href}
+            className="gl-navlink"
+            style={secondaryLink(item.href === current)}
+          >
             {item.label}
           </Link>
         ))}

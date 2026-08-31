@@ -39,7 +39,7 @@ interface Board {
 }
 
 const th: React.CSSProperties = {
-  fontSize: 8.5,
+  fontSize: 10,
   letterSpacing: ".16em",
   color: "#75798c",
   fontWeight: 400,
@@ -125,7 +125,7 @@ export default function Standings() {
 
   return (
     <div style={{ padding: "24px 26px 40px" }}>
-      <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>THE TABLE</div>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>THE TABLE</div>
       <h1
         style={{
           fontFamily: "var(--font-heading)",
@@ -164,7 +164,7 @@ export default function Standings() {
             <div
               style={{
                 padding: "12px 15px 4px",
-                fontSize: 9,
+                fontSize: 10,
                 letterSpacing: ".2em",
                 color: "#b5abfc",
               }}
@@ -222,10 +222,10 @@ export default function Standings() {
                             >
                               {f.franchise}
                               {mine ? (
-                                <span style={{ color: "#b5abfc", fontSize: 9 }}> · YOU</span>
+                                <span style={{ color: "#b5abfc", fontSize: 10 }}> · YOU</span>
                               ) : null}
                             </div>
-                            <div style={{ fontSize: 9.5, color: "#75798c", whiteSpace: "nowrap" }}>
+                            <div style={{ fontSize: 10, color: "#75798c", whiteSpace: "nowrap" }}>
                               {f.slot} · {f.claimed ? f.name : "open"}
                             </div>
                           </div>

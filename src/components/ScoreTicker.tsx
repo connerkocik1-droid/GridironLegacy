@@ -101,7 +101,7 @@ function GameCell({ game }: { game: Game }) {
 
       <span
         style={{
-          fontSize: 8,
+          fontSize: 10,
           letterSpacing: ".12em",
           color: state === "in" ? "#7fd1a8" : "#75798c",
           marginLeft: 2,
@@ -182,13 +182,13 @@ export default function ScoreTicker() {
           }}
         />
         <span
-          style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#9397ab", whiteSpace: "nowrap" }}
+          style={{ fontSize: 10, letterSpacing: ".18em", color: "#9397ab", whiteSpace: "nowrap" }}
         >
           {season}
           {week}
         </span>
         <span
-          style={{ fontSize: 8.5, letterSpacing: ".12em", color: "#75798c", whiteSpace: "nowrap" }}
+          style={{ fontSize: 10, letterSpacing: ".12em", color: "#75798c", whiteSpace: "nowrap" }}
         >
           {live
             ? `${live} LIVE`
