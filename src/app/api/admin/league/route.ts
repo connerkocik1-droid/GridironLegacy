@@ -1,4 +1,5 @@
 import { isConfigured, serverClient } from "@/lib/supabase";
+import { checkVideoSrc } from "@/lib/video-src";
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +81,7 @@ export async function PATCH(req: Request) {
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
 
-  let body: { teams?: unknown; rounds?: unknown; draftAt?: unknown };
+  let body: { teams?: unknown; rounds?: unknown; draftAt?: unknown; introVideo?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -109,6 +110,35 @@ export async function PATCH(req: Request) {
       .eq("id", me.league_id);
 
     if (error) return Response.json({ error: "Could not save the draft date" }, { status: 400 });
+  }
+
+  // The film that plays when the countdown runs out. Only its address is kept
+  // here — the file itself is somewhere the browser can fetch it, which is
+  // what stops the league's settings blob growing to the size of a video.
+  if (body.introVideo !== undefined) {
+    if (!me.is_commissioner) {
+      return Response.json({ error: "Only the commissioner can change this" }, { status: 403 });
+    }
+
+    let introVideo: string | null = null;
+    if (typeof body.introVideo === "string" && body.introVideo.trim()) {
+      const checked = checkVideoSrc(body.introVideo);
+      if ("error" in checked) return Response.json({ error: checked.error }, { status: 400 });
+      introVideo = checked.src;
+    }
+
+    const { data: league } = await db
+      .from("leagues")
+      .select("settings")
+      .eq("id", me.league_id)
+      .single();
+
+    const settings = { ...(league?.settings ?? {}) };
+    if (introVideo) settings.introVideo = introVideo;
+    else delete settings.introVideo;
+
+    const { error } = await db.from("leagues").update({ settings }).eq("id", me.league_id);
+    if (error) return Response.json({ error: "Could not save the intro video" }, { status: 400 });
   }
 
   // Rounds change the board's depth, so it is rebuilt afterwards too.

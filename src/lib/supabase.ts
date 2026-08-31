@@ -1,4 +1,4 @@
-import { createBrowserClient, createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
@@ -17,13 +17,9 @@ export function isConfigured(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
-/** Browser client. Carries the anon key, so every read goes through RLS. */
-export function browserClient() {
-  return createBrowserClient(
-    required("NEXT_PUBLIC_SUPABASE_URL"),
-    required("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
-  );
-}
+// The browser client lives in lib/supabase-browser.ts. It cannot live here:
+// this module reads next/headers at import time, and a client component that
+// imported it would drag that in and fail to build.
 
 /** Server client bound to the request's cookies, still subject to RLS. */
 export async function serverClient() {

@@ -11,6 +11,14 @@ import ConfirmDialog from "./ConfirmDialog";
  * commissioner who meant to switch to the board view and missed has not just
  * wiped four rounds of picks.
  *
+ * It is shown whether or not anything has been drafted. Hiding it until the
+ * first pick landed seemed tidy and was not: a commissioner setting the room
+ * up the week before could not find the control at all, and a button you
+ * cannot see before you need it is a button you do not trust when you do.
+ * With an empty board it still does something worth doing — redraws it at the
+ * league's current size and closes the room — and the dialog says so rather
+ * than promising to undo picks that were never made.
+ *
  * The trigger is rendered only for the commissioner, and the rule is enforced
  * again in SQL: this hides the control, it does not grant the right.
  */
@@ -49,8 +57,9 @@ export default function ResetDraft({
 
       <ConfirmDialog
         open={open}
-        title="Reset the draft?"
-        confirmLabel="Reset the draft"
+        title={picksMade ? "Reset the draft?" : "Redraw the board?"}
+        eyebrow={picksMade ? undefined : "NOTHING HAS BEEN DRAFTED YET"}
+        confirmLabel={picksMade ? "Reset the draft" : "Redraw the board"}
         busy={busy}
         onCancel={() => setOpen(false)}
         onConfirm={() => {
@@ -58,17 +67,34 @@ export default function ResetDraft({
           onConfirm();
         }}
       >
-        <p style={{ fontSize: 13, lineHeight: 1.75, color: "#9397ab", margin: "0 0 10px" }}>
-          {picksMade === 1 ? "One pick is" : `All ${picksMade} picks are`} undone and every roster
-          in the league is emptied. The board is redrawn at the league&rsquo;s current size and the
-          room closes, ready to open again.
-        </p>
+        {picksMade ? (
+          <>
+            <p style={{ fontSize: 13, lineHeight: 1.75, color: "#9397ab", margin: "0 0 10px" }}>
+              {picksMade === 1 ? "One pick is" : `All ${picksMade} picks are`} undone and every
+              roster in the league is emptied. The board is redrawn at the league&rsquo;s current
+              size and the room closes, ready to open again.
+            </p>
 
-        <p style={{ fontSize: 12, lineHeight: 1.7, color: "#75798c", margin: 0 }}>
-          Standing trade offers are declined and pending waiver claims cancelled, since the players
-          they name go back into the pool. Draft queues are left alone, and the rosters are saved
-          to the league&rsquo;s backups on the way past.
-        </p>
+            <p style={{ fontSize: 12, lineHeight: 1.7, color: "#75798c", margin: 0 }}>
+              Standing trade offers are declined and pending waiver claims cancelled, since the
+              players they name go back into the pool. Draft queues are left alone, and the
+              rosters are saved to the league&rsquo;s backups on the way past.
+            </p>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: 13, lineHeight: 1.75, color: "#9397ab", margin: "0 0 10px" }}>
+              No picks to undo. The board is redrawn at the league&rsquo;s current size and in its
+              current order, and the room is closed, ready to open — which is what you want if the
+              board was built before the last franchise arrived.
+            </p>
+
+            <p style={{ fontSize: 12, lineHeight: 1.7, color: "#75798c", margin: 0 }}>
+              Any rosters, standing trade offers and pending waiver claims are cleared too. In a
+              league that has not drafted there is usually nothing there to clear.
+            </p>
+          </>
+        )}
       </ConfirmDialog>
     </>
   );

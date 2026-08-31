@@ -21,7 +21,17 @@ export const ROUNDS: number;
 export function useSettings(settings: Settings): void;
 export function slotsOf(settings?: Settings): string[];
 export function roundsOf(settings?: Settings): number;
-export function targetsOf(settings?: Settings): Record<string, number>;
+/**
+ * How many of each position a roster wants, and the most it will carry.
+ *
+ * Declared as a flat record before this, which it has never been — the
+ * implementation returns the two maps separately and every caller reads
+ * `.want` or `.caps` off it.
+ */
+export function targetsOf(settings?: Settings): {
+  want: Record<string, number>;
+  caps: Record<string, number>;
+};
 export function proj(m: unknown, p: Player): number;
 export function buildLeague(m: unknown): RosterEntry[][];
 export function startersOf(

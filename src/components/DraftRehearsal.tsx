@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { POOL, headshot } from "@/data/league-data";
 import DraftCountdown from "./DraftCountdown";
 import DraftReveal, { type RevealPick } from "./DraftReveal";
+import IntroVideo from "./IntroVideo";
 
 /**
  * A rehearsal room for the draft-day theatrics.
@@ -52,6 +53,13 @@ const button = (enabled = true): React.CSSProperties => ({
 
 export default function DraftRehearsal() {
   const [reveal, setReveal] = useState<RevealPick | null>(null);
+  // The league's own intro, so the rehearsal is of the real file rather than
+  // of the idea of one. Fetched rather than passed in, and a failure here is
+  // silent: the rest of the room has never needed the database and should not
+  // start now.
+  const [intro, setIntro] = useState<string | null>(null);
+  const [introState, setIntroState] = useState<"loading" | "ready" | "none">("loading");
+  const [playingIntro, setPlayingIntro] = useState(false);
   const [search, setSearch] = useState("");
   const [chosen, setChosen] = useState<string>("");
   const [mine, setMine] = useState(false);
@@ -89,6 +97,32 @@ export default function DraftRehearsal() {
     );
     return () => clearTimeout(t);
   }, [countdownMins]);
+
+  /**
+   * The league's own intro film, if there is one.
+   *
+   * The only thing in this room that asks the server anything, and it asks
+   * nothing of it: a failure leaves the card saying there is no film, and
+   * every other check here still works with no database at all.
+   */
+  useEffect(() => {
+    const stop = new AbortController();
+
+    fetch("/api/admin/league", { cache: "no-store", signal: stop.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const src = data?.league?.settings?.introVideo;
+        if (typeof src === "string" && src) {
+          setIntro(src);
+          setIntroState("ready");
+        } else {
+          setIntroState("none");
+        }
+      })
+      .catch(() => setIntroState("none"));
+
+    return () => stop.abort();
+  }, []);
 
   /** Does the portrait actually load? This is the ESPN CDN question. */
   useEffect(() => {
@@ -200,6 +234,37 @@ export default function DraftRehearsal() {
         chime is blocked and whether the portraits load, rather than on the
         night with eleven people watching.
       </p>
+
+      {playingIntro && intro ? (
+        <IntroVideo src={intro} onDone={() => setPlayingIntro(false)} caption="REHEARSAL" />
+      ) : null}
+
+      <div style={card}>
+        <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>The intro film</h6>
+        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 12px" }}>
+          What the room sees the moment the countdown runs out. This is the
+          league&rsquo;s own file, played through the same screen — so if it
+          plays here, with sound, it plays on the night. If the browser refuses
+          the sound you will see it say so, which is the answer worth having in
+          advance.
+        </p>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            onClick={() => setPlayingIntro(true)}
+            disabled={introState !== "ready"}
+            style={button(introState === "ready")}
+          >
+            Play the intro
+          </button>
+          <span style={{ fontSize: 12, color: introState === "ready" ? "#7fd1a8" : "#9397ab" }}>
+            {introState === "loading"
+              ? "Looking for the league's film…"
+              : introState === "ready"
+                ? "Ready. It plays full screen and can be skipped."
+                : "No film set. The commissioner uploads one in the league office."}
+          </span>
+        </div>
+      </div>
 
       <div style={card}>
         <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>The chime</h6>

@@ -12,7 +12,7 @@
 -- has the early schema and no record of it; this file recognises that and
 -- writes the record down rather than failing on the tables already there.
 --
--- Built from 15 migrations:
+-- Built from 17 migrations:
 --   0001_schema.sql
 --   0002_trades.sql
 --   0003_draft.sql
@@ -28,6 +28,8 @@
 --   0013_reset_draft.sql
 --   0014_reset_league.sql
 --   0015_team_logos.sql
+--   0016_league_media.sql
+--   0017_ready.sql
 
 begin;
 
@@ -3261,6 +3263,92 @@ begin
 
     insert into schema_migrations (name) values ('0015_team_logos.sql');
     raise notice 'applied %', '0015_team_logos.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0016_league_media.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0016_league_media.sql') then
+    raise notice 'skipping %, already applied', '0016_league_media.sql';
+  else
+    -- Somewhere to put the intro film.
+    --
+    -- Crests are kilobytes and live in a table. A video is megabytes and cannot:
+    -- it would sit in a row that other queries read, and it would not survive the
+    -- request-body limit on the way in either. So it goes to Supabase Storage, and
+    -- what the league keeps is the address.
+    --
+    -- The bucket is public. What is in it is a title sequence the whole league is
+    -- about to watch together, and a public bucket means the browser fetches it
+    -- straight from the CDN with no token to mint and nothing to expire halfway
+    -- through draft night. Writing to it is another matter — that happens only
+    -- through a short-lived upload URL the server mints for the commissioner.
+    --
+    -- Guarded, because the storage schema is a Supabase thing. A plain Postgres —
+    -- the one the tests run against — has no storage.buckets, and this migration
+    -- must not fail there.
+
+    do $media$
+    begin
+      if to_regclass('storage.buckets') is null then
+        raise notice 'no storage schema here — skipping the league-media bucket';
+        return;
+      end if;
+
+      -- Only id, name and public are touched. The other columns on this table have
+      -- come and gone across Supabase versions, and naming one that is not there
+      -- would fail the whole migration for the sake of a default.
+      insert into storage.buckets (id, name, public)
+      values ('league-media', 'league-media', true)
+      on conflict (id) do update set public = true;
+
+      raise notice 'league-media bucket ready';
+    end
+    $media$;
+
+    insert into schema_migrations (name) values ('0016_league_media.sql');
+    raise notice 'applied %', '0016_league_media.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0017_ready.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0017_ready.sql') then
+    raise notice 'skipping %, already applied', '0017_ready.sql';
+  else
+    -- Letting a manager say they are ready.
+    --
+    -- The column has been on managers since the first migration and nothing has
+    -- ever written to it: 0010 revoked update on the whole table and handed back
+    -- only name and franchise, which was right at the time because nothing else
+    -- was a manager's to set. This is.
+    --
+    -- Rows are already settled by managers_self_update — a session may only write
+    -- its own row — so the grant is the whole of what is needed. A manager marks
+    -- themselves ready and nobody else.
+    --
+    -- What makes the button worth having is not the flag. Browsers will not play a
+    -- video with sound until the person watching has interacted with the page, and
+    -- on draft night most of the room will have done nothing but leave a countdown
+    -- open. A button they must press to be counted in is a button that is pressed
+    -- before the film starts, which is the only way the room hears it.
+
+    grant update (ready) on managers to authenticated;
+
+    insert into schema_migrations (name) values ('0017_ready.sql');
+    raise notice 'applied %', '0017_ready.sql';
   end if;
 end
 $__migration__$;

@@ -22,10 +22,19 @@ export async function POST() {
 
   const { data: me } = await db
     .from("managers")
-    .select("league_id")
+    .select("league_id, is_commissioner")
     .eq("auth_user_id", user.id)
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
+
+  // reset_draft checks this itself, and that check is the one that actually
+  // protects the data. This one is here so the route is right on its own terms
+  // rather than by way of an error code coming back from somewhere else — a
+  // manager who reaches this URL gets a plain answer, and nothing is attempted
+  // on their behalf first.
+  if (!me.is_commissioner) {
+    return Response.json({ error: "Only the commissioner can reset the draft" }, { status: 403 });
+  }
 
   const { data, error } = await db.rpc("reset_draft", { p_league_id: me.league_id });
 
