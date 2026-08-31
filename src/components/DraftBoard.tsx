@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import { player } from "@/lib/roster";
+import TeamCrest from "./TeamCrest";
+import { useLogos } from "@/lib/use-logos";
 
 /**
  * The board: franchises across, rounds down, every pick in its cell.
@@ -48,6 +50,7 @@ export default function DraftBoard({
   meId: string;
   currentPick: number;
 }) {
+  const logos = useLogos();
   const { columns, rounds, cell } = useMemo(() => {
     // Round one settles the column order; every later round reuses it, so a
     // franchise stays in one column however the snake turns.
@@ -158,7 +161,16 @@ export default function DraftBoard({
                     textAlign: "left",
                   }}
                 >
-                  {m.slot}
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <TeamCrest
+                      franchise={m.franchise}
+                      logo={logos[m.id] ?? null}
+                      size={18}
+                      shape="box"
+                      fallback="empty"
+                    />
+                    {m.slot}
+                  </span>
                 </th>
               ))}
             </tr>

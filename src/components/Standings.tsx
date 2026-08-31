@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import TeamCrest from "./TeamCrest";
+import { useLogos } from "@/lib/use-logos";
 
 /**
  * The table, by division.
@@ -65,6 +67,7 @@ function winPct(r: Record_): number {
 export default function Standings() {
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const logos = useLogos();
 
   const load = useCallback(async () => {
     try {
@@ -210,6 +213,13 @@ export default function Standings() {
                           >
                             {i + 1}
                           </span>
+                          <TeamCrest
+                            franchise={f.franchise}
+                            logo={logos[f.id] ?? null}
+                            size={24}
+                            shape="box"
+                            fallback="empty"
+                          />
                           <div style={{ minWidth: 0 }}>
                             <div
                               style={{

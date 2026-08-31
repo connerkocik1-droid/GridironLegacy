@@ -5,6 +5,8 @@ import { headshot, logo, statLine } from "@/data/league-data";
 import { BENCH, slotAccepts, startingSlots, validateLineup, type Assignment } from "@/lib/lineup";
 import { flagColor, flagsFor, player, proj } from "@/lib/roster";
 import type { LeagueShape } from "@/lib/roster";
+import TeamCrest from "./TeamCrest";
+import { useLogos } from "@/lib/use-logos";
 
 const BLANK =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -23,6 +25,7 @@ interface Score {
 }
 
 export default function LineupEditor({ scores }: { scores: Map<string, Score> }) {
+  const logos = useLogos();
   const [feed, setFeed] = useState<Feed | null>(null);
   const [draft, setDraft] = useState<Assignment[] | null>(null);
   const [armed, setArmed] = useState<number | null>(null);
@@ -159,6 +162,9 @@ export default function LineupEditor({ scores }: { scores: Map<string, Score> })
           </div>
           <div
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
               fontFamily: "var(--font-heading)",
               fontSize: 44,
               lineHeight: 1.04,
@@ -166,6 +172,13 @@ export default function LineupEditor({ scores }: { scores: Map<string, Score> })
               margin: "8px 0 0",
             }}
           >
+            <TeamCrest
+              franchise={feed.me.franchise}
+              logo={logos[feed.me.id] ?? null}
+              size={40}
+              shape="box"
+              fallback="empty"
+            />
             {feed.me.franchise}
           </div>
         </div>

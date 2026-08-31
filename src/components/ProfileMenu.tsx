@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { patchMe, useMe } from "@/lib/use-me";
 import { squareImage } from "@/lib/square-image";
 import TeamCrest from "./TeamCrest";
+import { refreshLogos } from "@/lib/use-logos";
 
 /**
  * The manager's own corner of the app: their crest, their team's name, their
@@ -197,7 +198,8 @@ export default function ProfileMenu() {
           body: JSON.stringify({ image: preview }),
         }),
       () => {
-        patchMe({ logo: preview });
+        void refreshLogos();
+      patchMe({ logo: preview });
         setPreview(null);
         setDone("Team photo saved.");
       },
@@ -208,7 +210,8 @@ export default function ProfileMenu() {
     send(
       () => fetch("/api/profile/logo", { method: "DELETE" }),
       () => {
-        patchMe({ logo: null });
+        void refreshLogos();
+      patchMe({ logo: null });
         setPreview(null);
         setDone("Team photo removed.");
       },

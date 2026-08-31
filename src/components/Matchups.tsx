@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import TeamCrest from "./TeamCrest";
+import { useLogos } from "@/lib/use-logos";
 
 /**
  * Your season, and the league's.
@@ -53,9 +55,20 @@ const tab = (active: boolean): React.CSSProperties => ({
   cursor: "pointer",
 });
 
-function Score({ side, won, lost }: { side: Side; won: boolean; lost: boolean }) {
+function Score({
+  side,
+  won,
+  lost,
+  logo,
+}: {
+  side: Side;
+  won: boolean;
+  lost: boolean;
+  logo: string | null;
+}) {
   return (
-    <div style={{ display: "flex", alignItems: "baseline", gap: 10, minWidth: 0 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+      <TeamCrest franchise={side.franchise} logo={logo} size={26} shape="box" fallback="empty" />
       <div style={{ minWidth: 0, flex: 1 }}>
         <div
           style={{
@@ -96,7 +109,15 @@ function Score({ side, won, lost }: { side: Side; won: boolean; lost: boolean })
   );
 }
 
-function GameCard({ game, highlight }: { game: Game; highlight: boolean }) {
+function GameCard({
+  game,
+  highlight,
+  logos,
+}: {
+  game: Game;
+  highlight: boolean;
+  logos: Record<string, string>;
+}) {
   const { home, away } = game;
   const settled = game.final;
   const homeWon = settled && (home.points ?? 0) > (away.points ?? 0);
@@ -132,8 +153,8 @@ function GameCard({ game, highlight }: { game: Game; highlight: boolean }) {
       </div>
 
       <div style={{ display: "grid", gap: 8 }}>
-        <Score side={away} won={awayWon} lost={homeWon} />
-        <Score side={home} won={homeWon} lost={awayWon} />
+        <Score side={away} won={awayWon} lost={homeWon} logo={logos[away.id] ?? null} />
+        <Score side={home} won={homeWon} lost={awayWon} logo={logos[home.id] ?? null} />
       </div>
     </div>
   );
@@ -143,6 +164,7 @@ export default function Matchups() {
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [wholeLeague, setWholeLeague] = useState(false);
+  const logos = useLogos();
   const [week, setWeek] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -294,6 +316,7 @@ export default function Matchups() {
               key={`${g.week}-${g.home.id}-${g.away.id}`}
               game={g}
               highlight={wholeLeague ? g.mine : g.live}
+              logos={logos}
             />
           ))}
         </div>

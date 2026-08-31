@@ -7,6 +7,8 @@ import DraftCountdown from "./DraftCountdown";
 import DraftReveal, { type RevealPick } from "./DraftReveal";
 import DraftTicker from "./DraftTicker";
 import ResetDraft from "./ResetDraft";
+import TeamCrest from "./TeamCrest";
+import { useLogos } from "@/lib/use-logos";
 
 const BLANK =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -64,6 +66,7 @@ const control = (): React.CSSProperties => ({
 });
 
 export default function DraftRoom() {
+  const logos = useLogos();
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("ALL");
@@ -404,7 +407,25 @@ export default function DraftRoom() {
       >
         <div>
           <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>ON THE CLOCK</div>
-          <div style={{ fontFamily: "var(--font-heading)", fontSize: 32, marginTop: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 11,
+              fontFamily: "var(--font-heading)",
+              fontSize: 32,
+              marginTop: 4,
+            }}
+          >
+            {board.onTheClock?.manager_id && board.league.state !== "complete" ? (
+              <TeamCrest
+                franchise={managerName.get(board.onTheClock.manager_id) ?? ""}
+                logo={logos[board.onTheClock.manager_id] ?? null}
+                size={32}
+                shape="box"
+                fallback="empty"
+              />
+            ) : null}
             {board.league.state === "complete"
               ? "Draft complete"
               : board.onTheClock
@@ -418,7 +439,20 @@ export default function DraftRoom() {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+        {/* The view toggle and, for the commissioner, the controls that change
+            the draft itself. Wraps on a narrow screen: on a phone this row is
+            wider than the screen, and a Reset button hanging off the edge is
+            not a Reset button. */}
+        <div
+          style={{
+            display: "flex",
+            gap: 4,
+            marginLeft: "auto",
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+            rowGap: 6,
+          }}
+        >
           {(["players", "board"] as const).map((v) => (
             <button
               key={v}
