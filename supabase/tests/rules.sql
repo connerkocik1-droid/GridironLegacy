@@ -1730,3 +1730,86 @@ select expect('every pick in the league is accounted for',
   (select string_agg(season || ':' || n, ' ' order by season) from (
      select season, count(*) n from draft_pick_assets where league_id = :'P' group by season
    ) d), '2026:6 2027:9');
+
+\echo ''
+\echo '--- the intro film after the draft ---'
+
+\set V  '99999999-0000-0000-0000-000000000017'
+\set VA 'aaaa0000-0000-0000-0000-000000000040'
+\set VB 'aaaa0000-0000-0000-0000-000000000041'
+
+\o /dev/null
+insert into leagues (id, name, season, commissioner_slot, draft_state, settings)
+values (:'V', 'Film', 2026, 'AAA', 'running',
+        jsonb_build_object('rounds', 1,
+          'introVideo', 'https://example.test/storage/' || :'V' || '/intro-1.mp4',
+          'introVideoPath', :'V' || '/intro-1.mp4'));
+
+insert into auth.users (id) values (:'VA'), (:'VB');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'V', 'AAA', 'Ada', 'Alpha', true,  :'VA'),
+  (:'V', 'BBB', 'Bo',  'Bravo', false, :'VB');
+
+select signin(:'VA');
+\o
+
+select expect('a draft still running keeps its film',
+  (select claim_intro_video_cleanup(:'V')), null);
+
+select expect('and the league still points at it',
+  (select settings ->> 'introVideoPath' from leagues where id = :'V'),
+  :'V' || '/intro-1.mp4');
+
+\o /dev/null
+update leagues set draft_state = 'paused' where id = :'V';
+\o
+
+select expect('a paused draft keeps it too — somebody may come back',
+  (select claim_intro_video_cleanup(:'V')), null);
+
+\o /dev/null
+update leagues set draft_state = 'complete' where id = :'V';
+\o
+
+select expect('once the draft is over the film is handed over to be deleted',
+  (select claim_intro_video_cleanup(:'V')), :'V' || '/intro-1.mp4');
+
+select expect('and the league no longer points at it',
+  (select (settings ? 'introVideo') or (settings ? 'introVideoPath')
+     from leagues where id = :'V'), false);
+
+select expect('while everything else in the settings survives',
+  (select (settings ->> 'rounds')::int from leagues where id = :'V'), 1);
+
+-- Twelve browsers poll the draft board at once. Exactly one of them may claim
+-- the film; the rest must find nothing to do rather than deleting twice.
+select expect('a second claim finds nothing left',
+  (select claim_intro_video_cleanup(:'V')), null);
+
+select expect('it is on the record',
+  (select detail ->> 'reason' from admin_log
+    where league_id = :'V' and action = 'intro_video_cleared'), 'draft complete');
+
+-- A film the commissioner linked to rather than uploaded costs this project
+-- no storage and is not ours to delete.
+\o /dev/null
+update leagues
+   set settings = settings || jsonb_build_object('introVideo', 'https://somebody-else.test/film.mp4')
+ where id = :'V';
+\o
+
+select expect('a linked film is left alone',
+  (select claim_intro_video_cleanup(:'V')), null);
+
+select expect('and stays linked',
+  (select settings ->> 'introVideo' from leagues where id = :'V'),
+  'https://somebody-else.test/film.mp4');
+
+\o /dev/null
+select signin(:'U1');
+\o
+
+select expect('somebody from another league cannot reach in and clear it',
+  refuses(format('select claim_intro_video_cleanup(%L)', :'V')),
+  'Not your league');

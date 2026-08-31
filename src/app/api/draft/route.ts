@@ -1,5 +1,6 @@
 import { POOL } from "@/data/league-data";
-import { isConfigured, serverClient } from "@/lib/supabase";
+import { MEDIA_BUCKET } from "@/lib/league-media";
+import { isConfigured, serverClient, serviceClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,73 @@ const NOT_CONFIGURED = Response.json(
   { error: "The league database is not configured yet." },
   { status: 503 },
 );
+
+/**
+ * Deletes the intro film once the draft is over.
+ *
+ * The database decides whether there is anything to do and hands back the
+ * path, so twelve browsers polling at once produce one delete. Nothing here is
+ * allowed to break the draft board: a storage service having a bad afternoon
+ * costs the league some bytes, not its board.
+ */
+async function clearIntroVideo(
+  db: Awaited<ReturnType<typeof serverClient>>,
+  leagueId: string,
+): Promise<void> {
+  try {
+    const { data: path, error } = await db.rpc("claim_intro_video_cleanup", {
+      p_league_id: leagueId,
+    });
+    if (error || typeof path !== "string" || !path) return;
+
+    // Only files under this league's own prefix, which is the same rule the
+    // commissioner's own delete follows.
+    if (!path.startsWith(`${leagueId}/`) || path.includes("..")) return;
+
+    const admin = serviceClient();
+    const { error: removed } = await admin.storage.from(MEDIA_BUCKET).remove([path]);
+
+    // The claim cleared the reference before the delete was attempted, which
+    // is what makes it a claim. If the delete then fails, the file would be
+    // orphaned — costing exactly the storage this is meant to save, with
+    // nothing left pointing at it to try again. So put it back and let the
+    // next poll have another go.
+    if (removed) {
+      console.error("[draft] intro video delete failed, restoring the reference", removed);
+      await restoreIntroVideo(admin, leagueId, path);
+    }
+  } catch (err) {
+    console.error("[draft] could not clear the intro video", err);
+  }
+}
+
+/** Undoes a claim whose delete did not go through. */
+async function restoreIntroVideo(
+  admin: ReturnType<typeof serviceClient>,
+  leagueId: string,
+  path: string,
+): Promise<void> {
+  try {
+    const { data: league } = await admin
+      .from("leagues")
+      .select("settings")
+      .eq("id", leagueId)
+      .single();
+
+    // Only if nothing else has claimed the slot since — a commissioner who
+    // uploaded a new film in the meantime must not have it overwritten by the
+    // corpse of the old one.
+    const settings = { ...(league?.settings ?? {}) };
+    if (settings.introVideoPath) return;
+
+    settings.introVideoPath = path;
+    settings.introVideo = admin.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl;
+
+    await admin.from("leagues").update({ settings }).eq("id", leagueId);
+  } catch (err) {
+    console.error("[draft] could not restore the intro video reference", err);
+  }
+}
 
 /** The board, the clock, and who is on it. */
 export async function GET() {
@@ -31,6 +99,14 @@ export async function GET() {
     .eq("id", me.league_id)
     .single();
   if (!league) return Response.json({ error: "League not found" }, { status: 404 });
+
+  // The film is the largest thing this league stores and nobody watches it
+  // twice. The draft board is where somebody is standing when the draft ends,
+  // so this is where it gets cleaned up. The guard means the call is made on
+  // one poll in the life of a league rather than on all of them.
+  if (league.draft_state === "complete" && league.settings?.introVideoPath) {
+    void clearIntroVideo(db, me.league_id);
+  }
 
   const { data: picks } = await db
     .from("draft_picks")

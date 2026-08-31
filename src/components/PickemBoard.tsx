@@ -16,6 +16,23 @@ interface Game {
   completed: boolean;
 }
 
+/**
+ * A game as ESPN has it right now.
+ *
+ * The stored row is the record — it is what picks are graded against and what
+ * locks them at kickoff — but it is only refreshed when the scoring job runs.
+ * This is the same board the home ticker reads, cached once for everyone, and
+ * it is what turns a kickoff time into a quarter and a score while the game is
+ * actually being played.
+ */
+interface LiveGame {
+  id: string;
+  state: "pre" | "in" | "post";
+  statusDetail: string;
+  home: { abbrev: string; score: number } | null;
+  away: { abbrev: string; score: number } | null;
+}
+
 interface Standing {
   managerId: string;
   slot: string;
@@ -53,8 +70,20 @@ function kickoff(iso: string): string {
   });
 }
 
+/**
+ * ESPN writes the clock a dozen ways — "3rd Quarter", "8:42 - 3rd", "Halftime",
+ * "End of 2nd", "OT". Whatever it says is what the game is doing, so it is
+ * shown as given rather than parsed into a shape of this app's invention. Only
+ * the case is changed, to sit with the rest of the row.
+ */
+function clockOf(detail: string): string {
+  const said = detail.trim();
+  return said ? said.toUpperCase() : "LIVE";
+}
+
 export default function PickemBoard() {
   const [board, setBoard] = useState<Board | null>(null);
+  const [live, setLive] = useState<Record<string, LiveGame>>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
 
@@ -71,8 +100,24 @@ export default function PickemBoard() {
         return;
       }
       if (!res.ok) throw new Error(String(res.status));
-      setBoard(await res.json());
+      const body: Board = await res.json();
+      setBoard(body);
       setError(null);
+
+      // Matched by ESPN's own event id, which is what nfl_games is keyed on,
+      // so there is no guessing from team names or kickoff times.
+      if (body.week != null) {
+        try {
+          const board = await fetch(`/api/scoreboard?week=${body.week}`, { cache: "no-store" });
+          if (board.ok) {
+            const games: LiveGame[] = (await board.json()).games ?? [];
+            setLive(Object.fromEntries(games.map((g) => [g.id, g])));
+          }
+        } catch {
+          // The stored rows still render. Live state is a bonus on top of
+          // them, never the thing the page depends on.
+        }
+      }
     } catch {
       setError("Could not load this week's games.");
     }
@@ -84,8 +129,10 @@ export default function PickemBoard() {
     // cascade the rule guards against.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-    // Live scores move during games; the board refreshes rather than going stale.
-    const timer = setInterval(() => void load(), 60_000);
+    // A clock that updates once a minute is a clock that is wrong. Thirty
+    // seconds matches the cache in front of ESPN, so this never asks for
+    // anything fresher than exists.
+    const timer = setInterval(() => void load(), 30_000);
     return () => clearInterval(timer);
   }, [load]);
 
@@ -181,7 +228,18 @@ export default function PickemBoard() {
 
           {board.games.map((game) => {
             const picked = board.picks[game.id];
-            const locked = game.state !== "pre";
+
+            // What ESPN says now beats what was stored at the last scoring
+            // run, for everything except grading — a pick is settled against
+            // the record, not against a page that happened to be open.
+            const now = live[game.id];
+            const state = now?.state ?? game.state;
+            const homeScore = now?.home?.score ?? game.home_score;
+            const awayScore = now?.away?.score ?? game.away_score;
+            const scoreOf = (team: string) =>
+              team === game.home_team ? homeScore : awayScore;
+
+            const locked = state !== "pre";
             const graded = game.completed && game.winner;
 
             return (
@@ -196,11 +254,52 @@ export default function PickemBoard() {
                   opacity: saving === game.id ? 0.6 : 1,
                 }}
               >
-                <div style={{ width: 92, flex: "0 0 auto", fontSize: 10, letterSpacing: ".12em", color: "#75798c" }}>
-                  {game.state === "in" ? (
-                    <span style={{ color: "#b5abfc", animation: "mt-pulse 1.6s ease infinite" }}>LIVE</span>
-                  ) : game.completed ? (
-                    "FINAL"
+                {/* Before kickoff this says when. Once the ball is in the air
+                    it says what quarter it is and what the score is, and when
+                    it is over it says so with the final score. */}
+                <div
+                  style={{
+                    width: 112,
+                    flex: "0 0 auto",
+                    fontSize: 10,
+                    letterSpacing: ".12em",
+                    color: "#75798c",
+                  }}
+                >
+                  {state === "in" ? (
+                    <>
+                      <div
+                        style={{ color: "#7fd1a8", animation: "mt-pulse 1.6s ease infinite" }}
+                      >
+                        {clockOf(now?.statusDetail ?? "")}
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: "var(--font-heading)",
+                          fontSize: 13,
+                          color: "#d2cefd",
+                          marginTop: 3,
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        {awayScore}–{homeScore}
+                      </div>
+                    </>
+                  ) : state === "post" ? (
+                    <>
+                      <div>FINAL</div>
+                      <div
+                        style={{
+                          fontFamily: "var(--font-heading)",
+                          fontSize: 13,
+                          color: "#b2b6ca",
+                          marginTop: 3,
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        {awayScore}–{homeScore}
+                      </div>
+                    </>
                   ) : (
                     kickoff(game.starts_at)
                   )}
@@ -248,7 +347,7 @@ export default function PickemBoard() {
                         <span style={{ fontFamily: "var(--font-heading)", fontSize: 13 }}>{team}</span>
                         {locked ? (
                           <span style={{ marginLeft: "auto", fontSize: 13, color: "#b2b6ca" }}>
-                            {team === game.home_team ? game.home_score : game.away_score}
+                            {scoreOf(team)}
                           </span>
                         ) : null}
                         {isPick && graded ? (
