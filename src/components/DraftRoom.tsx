@@ -49,6 +49,20 @@ interface Board {
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"];
 
+/** The commissioner's small controls in the room header. */
+const control = (): React.CSSProperties => ({
+  padding: "6px 13px",
+  fontSize: 10,
+  letterSpacing: ".12em",
+  textTransform: "uppercase",
+  border: "1px solid rgba(145,132,217,.34)",
+  background: "transparent",
+  color: "#9397ab",
+  borderRadius: "var(--radius-sm)",
+  font: "inherit",
+  cursor: "pointer",
+});
+
 export default function DraftRoom() {
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -270,14 +284,49 @@ export default function DraftRoom() {
     }
   }
 
+  async function nudgeClock(seconds: number) {
+    if (picking) return;
+    setPicking("__clock__");
+    try {
+      const res = await fetch("/api/admin/draft", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ nudgeSeconds: seconds }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not move the clock.");
+      else setError(null);
+      await load();
+    } finally {
+      setPicking(null);
+    }
+  }
+
+  /**
+   * Take a pick.
+   *
+   * The commissioner may take one for whoever is on the clock — somebody whose
+   * phone died, or who is stuck in traffic — which make_pick has always
+   * allowed and nothing has ever offered. It is sent explicitly rather than
+   * inferred, so a commissioner drafting for themselves and drafting for
+   * somebody else are different requests.
+   */
   async function pick(name: string) {
-    if (!board?.myTurn || picking) return;
+    if (picking || !board) return;
+
+    const forSomebodyElse =
+      !board.myTurn && board.me.is_commissioner && board.onTheClock?.manager_id;
+    if (!board.myTurn && !forSomebodyElse) return;
+
     setPicking(name);
     try {
       const res = await fetch("/api/draft", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ player: name }),
+        body: JSON.stringify({
+          player: name,
+          ...(forSomebodyElse ? { forManager: board.onTheClock?.manager_id } : {}),
+        }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) setError(body.error ?? "That pick did not go through.");
@@ -296,6 +345,14 @@ export default function DraftRoom() {
   }
 
   const recent = board.picks.filter((p) => p.player_name).slice(-12).reverse();
+
+  // The commissioner can take the pick in hand for whoever is on the clock.
+  // One value rather than the condition written twice, so what the button
+  // looks like and what it does cannot drift apart.
+  const canPick =
+    board.league.state === "running" &&
+    (board.myTurn || (board.me.is_commissioner && Boolean(board.onTheClock?.manager_id)));
+  const pickingForSomeoneElse = canPick && !board.myTurn;
   const picksMade = board.picks.filter((p) => p.player_name).length;
   const urgent = remaining <= 15 && board.league.state === "running";
 
@@ -386,7 +443,7 @@ export default function DraftRoom() {
           {board.me.is_commissioner ? (
             <>
               {/* Kept apart from the view toggle: one of these changes what
-                  you are looking at, the other throws the draft away. */}
+                  you are looking at, the others change the draft. */}
               <span
                 aria-hidden
                 style={{
@@ -396,6 +453,34 @@ export default function DraftRoom() {
                   background: "rgba(145,132,217,.22)",
                 }}
               />
+
+              {/* The live controls. Pausing was reachable only from the paused
+                  screen, which nobody can get to without pausing first — the
+                  room could be started and never stopped. */}
+              {board.league.state === "running" ? (
+                <>
+                  <button
+                    onClick={() => void nudgeClock(30)}
+                    disabled={picking != null}
+                    title="Give the franchise on the clock another thirty seconds"
+                    style={control()}
+                  >
+                    +30s
+                  </button>
+                  <button
+                    onClick={() => void setDraftState("paused")}
+                    disabled={picking != null}
+                    title="Hold the draft where it is; nobody's clock runs"
+                    style={control()}
+                  >
+                    Pause
+                  </button>
+                </>
+              ) : null}
+
+              {/* No Resume here: a paused draft shows the waiting room, which
+                  carries its own. The type checker is what pointed that out. */}
+
               <ResetDraft
                 picksMade={picksMade}
                 busy={picking != null}
@@ -568,22 +653,33 @@ export default function DraftRoom() {
                 </div>
                 <button
                   onClick={() => pick(p.name)}
-                  disabled={!board.myTurn || picking != null}
+                  disabled={!canPick || picking != null}
+                  title={
+                    pickingForSomeoneElse
+                      ? `Draft for ${managerName.get(board.onTheClock?.manager_id ?? "") ?? "the franchise on the clock"}`
+                      : undefined
+                  }
                   style={{
                     padding: "6px 12px",
                     fontSize: 10,
                     letterSpacing: ".12em",
                     textTransform: "uppercase",
-                    border: `1px solid ${board.myTurn ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.2)"}`,
+                    border: `1px solid ${
+                      pickingForSomeoneElse
+                        ? "rgba(224,131,131,.45)"
+                        : canPick
+                          ? "rgba(181,171,252,.6)"
+                          : "rgba(145,132,217,.2)"
+                    }`,
                     background: "transparent",
-                    color: board.myTurn ? "#d2cefd" : "#5a5d6e",
+                    color: pickingForSomeoneElse ? "#c98f8f" : canPick ? "#d2cefd" : "#5a5d6e",
                     borderRadius: "var(--radius-sm)",
                     font: "inherit",
-                    cursor: board.myTurn ? "pointer" : "default",
+                    cursor: canPick ? "pointer" : "default",
                     flex: "0 0 auto",
                   }}
                 >
-                  Draft
+                  {pickingForSomeoneElse ? "Pick for them" : "Draft"}
                 </button>
               </div>
             ))}

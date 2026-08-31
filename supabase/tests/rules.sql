@@ -1281,3 +1281,116 @@ select expect('but the commissioner keeps their own way in',
 
 select expect('so the office is still reachable afterwards',
   (select refuses(format('select reset_league(%L)', :'Y'))), null::text);
+
+\echo ''
+\echo '--- draft settings ---'
+
+\o /dev/null
+\set Z  '99999999-0000-0000-0000-000000000014'
+\set Z1 'a9990000-0000-0000-0000-000000000031'
+\set Z2 'a9990000-0000-0000-0000-000000000032'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'Z', 'Settings', 2026, 'AAA', '{"rounds": 2, "pickSeconds": 90}'::jsonb);
+
+insert into auth.users (id) values (:'Z1'), (:'Z2');
+
+insert into managers (league_id, slot, name, franchise, auth_user_id) values
+  (:'Z', 'AAA', 'One',   'Alpha',   :'Z1'),
+  (:'Z', 'BBB', 'Two',   'Bravo',   :'Z2'),
+  (:'Z', 'CCC', 'Three', 'Charlie', null);
+
+select signin(:'Z1');
+select rebuild_draft_board(:'Z');
+\o
+
+select expect('the board starts in slot order',
+  (select string_agg(m.slot, ',' order by p.overall) from draft_picks p
+     join managers m on m.id = p.manager_id
+    where p.league_id = :'Z' and p.round = 1), 'AAA,BBB,CCC');
+
+select expect('a manager cannot set the order',
+  (select refuses(format('select set_draft_order(%L, ''{CCC,AAA,BBB}''::text[])', :'Z'))
+     from (select signin(:'Z2')) _),
+  'Only the commissioner can set the draft order');
+
+\o /dev/null
+select signin(:'Z1');
+select set_draft_order(:'Z', '{CCC,AAA,BBB}'::text[]);
+\o
+
+select expect('the commissioner sets it',
+  (select array_to_string(lottery_order, ',') from leagues where id = :'Z'), 'CCC,AAA,BBB');
+
+select expect('and the board is redrawn to match',
+  (select string_agg(m.slot, ',' order by p.overall) from draft_picks p
+     join managers m on m.id = p.manager_id
+    where p.league_id = :'Z' and p.round = 1), 'CCC,AAA,BBB');
+
+select expect('which still snakes',
+  (select string_agg(m.slot, ',' order by p.overall) from draft_picks p
+     join managers m on m.id = p.manager_id
+    where p.league_id = :'Z' and p.round = 2), 'BBB,AAA,CCC');
+
+select expect('an order that drops a franchise is refused',
+  refuses(format('select set_draft_order(%L, ''{AAA,BBB}''::text[])', :'Z')),
+  'The order must list all 3 franchises, not 2');
+
+select expect('and one that names a franchise twice',
+  refuses(format('select set_draft_order(%L, ''{AAA,AAA,BBB}''::text[])', :'Z'))
+    like '%does not name this league%', true);
+
+select expect('nor one naming a franchise from somewhere else',
+  refuses(format('select set_draft_order(%L, ''{AAA,BBB,ZZZ}''::text[])', :'Z'))
+    like '%does not name this league%', true);
+
+\o /dev/null
+update leagues set draft_state = 'running', pick_started_at = now() where id = :'Z';
+select make_pick(:'Z', 'Somebody Good',
+  (select id from managers where league_id = :'Z' and slot = 'CCC'));
+\o
+
+select expect('the order is fixed once a pick is made',
+  refuses(format('select set_draft_order(%L, ''{AAA,BBB,CCC}''::text[])', :'Z')),
+  'The draft has already started — the order is fixed now');
+
+\echo ''
+\echo '--- the clock ---'
+
+\o /dev/null
+update leagues set pick_started_at = now() where id = :'Z';
+\o
+
+select expect('a manager cannot move the clock',
+  (select refuses(format('select nudge_clock(%L, 30)', :'Z'))
+     from (select signin(:'Z2')) _),
+  'Only the commissioner can change the clock');
+
+\o /dev/null
+select signin(:'Z1');
+\o
+
+-- Asserted as a range rather than a number: now() moves between statements,
+-- so the exact remaining depends on how fast the test ran. The claim is that
+-- thirty seconds were added, not that the clock reads any particular value.
+select expect('the commissioner adds thirty seconds',
+  (select (nudge_clock(:'Z', 30) ->> 'remaining')::int > 90
+      and (nudge_clock(:'Z', -30) ->> 'remaining')::int <= 90), true);
+
+select expect('and can take them away again',
+  (select (nudge_clock(:'Z', -30) ->> 'remaining')::int <= 60), true);
+
+select expect('taking away more than is there leaves a few seconds, not none',
+  (select (nudge_clock(:'Z', -600) ->> 'remaining')::int between 1 and 6), true);
+
+select expect('the clock does not move by more than ten minutes',
+  refuses(format('select nudge_clock(%L, 900)', :'Z')),
+  'Ten minutes either way is the most the clock moves');
+
+\o /dev/null
+select set_draft_state(:'Z', 'paused');
+\o
+
+select expect('and there is nothing to move when the draft is paused',
+  refuses(format('select nudge_clock(%L, 30)', :'Z')),
+  'Nobody is on the clock');

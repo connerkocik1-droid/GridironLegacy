@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
+import DraftSettings from "./DraftSettings";
 import IntroVideoSlot from "./IntroVideoSlot";
 
 interface Manager {
@@ -20,7 +21,13 @@ interface Admin {
     id: string;
     name: string;
     season: number;
-    settings: { rounds?: number; pickSeconds?: number; introVideo?: string };
+    settings: {
+      rounds?: number;
+      pickSeconds?: number;
+      cinematicRounds?: number;
+      introVideo?: string;
+    };
+    lottery_order?: string[] | null;
     draft_state: string;
     current_pick: number;
     draft_at: string | null;
@@ -153,6 +160,46 @@ export default function Commissioner() {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) setError(body.error ?? "Could not save the draft date.");
       else setNotice(draftAt ? "Draft date saved. The countdown is live." : "Draft date cleared.");
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveDraftSettings(changes: { pickSeconds?: number; cinematicRounds?: number }) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/admin/league", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(changes),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not save the draft settings.");
+      else setNotice("Draft settings saved.");
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveOrder(slots: string[]) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/admin/draft/order", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ order: slots }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not set the draft order.");
+      else setNotice(`Order set: ${slots.join(" · ")}. The board has been redrawn.`);
       await load();
     } finally {
       setBusy(false);
@@ -400,6 +447,19 @@ export default function Commissioner() {
           you whether the browser is blocking the chime — which is the failure
           worth finding early.
         </p>
+      </div>
+
+      <div style={card}>
+        <DraftSettings
+          pickSeconds={admin.league?.settings?.pickSeconds ?? 90}
+          cinematicRounds={admin.league?.settings?.cinematicRounds ?? 3}
+          order={admin.league?.lottery_order ?? null}
+          managers={admin.managers}
+          canChange={admin.canResize}
+          busy={busy}
+          onSave={(changes) => void saveDraftSettings(changes)}
+          onOrder={(slots) => void saveOrder(slots)}
+        />
       </div>
 
       <div style={card}>
