@@ -104,7 +104,7 @@ function Dialog({
           textAlign: "left",
         }}
       >
-        <div style={{ fontSize: 9, letterSpacing: ".3em", color: "#c98f8f" }}>{eyebrow}</div>
+        <div style={{ fontSize: 10, letterSpacing: ".3em", color: "#c98f8f" }}>{eyebrow}</div>
 
         <h2
           id={`${fieldId}-title`}

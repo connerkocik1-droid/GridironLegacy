@@ -2,9 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { headshot, logo, statLine } from "@/data/league-data";
-import { BENCH, slotAccepts, startingSlots, validateLineup, type Assignment } from "@/lib/lineup";
+import {
+  BENCH,
+  lineupProblems,
+  slotAccepts,
+  startingSlots,
+  validateLineup,
+  type Assignment,
+} from "@/lib/lineup";
 import { flagColor, flagsFor, player, proj } from "@/lib/roster";
 import type { LeagueShape } from "@/lib/roster";
+import TeamCrest from "./TeamCrest";
+import { useLogos } from "@/lib/use-logos";
 
 const BLANK =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -23,6 +32,7 @@ interface Score {
 }
 
 export default function LineupEditor({ scores }: { scores: Map<string, Score> }) {
+  const logos = useLogos();
   const [feed, setFeed] = useState<Feed | null>(null);
   const [draft, setDraft] = useState<Assignment[] | null>(null);
   const [armed, setArmed] = useState<number | null>(null);
@@ -54,6 +64,18 @@ export default function LineupEditor({ scores }: { scores: Map<string, Score> })
   }, [load]);
 
   const locked = useMemo(() => new Set(feed?.lockedPlayers ?? []), [feed]);
+
+  // Everything legal about this lineup that is nonetheless probably not what
+  // the manager meant. Recomputed from the draft rather than the saved feed,
+  // so sitting a player on his bye clears the warning as you do it rather
+  // than after a round trip.
+  const problems = useMemo(() => {
+    if (!feed || !draft) return [];
+    return lineupProblems(draft, feed.settings, feed.week, (name) => {
+      const p = player(name);
+      return p ? { p: p.p, bye: p.bye, q: p.q } : null;
+    });
+  }, [feed, draft]);
 
   // The starting slots, in league order, with whoever currently fills each.
   const rows = useMemo(() => {
@@ -154,11 +176,14 @@ export default function LineupEditor({ scores }: { scores: Map<string, Score> })
         }}
       >
         <div>
-          <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>
+          <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>
             DYNASTY · SUPERFLEX
           </div>
           <div
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
               fontFamily: "var(--font-heading)",
               fontSize: 44,
               lineHeight: 1.04,
@@ -166,6 +191,13 @@ export default function LineupEditor({ scores }: { scores: Map<string, Score> })
               margin: "8px 0 0",
             }}
           >
+            <TeamCrest
+              franchise={feed.me.franchise}
+              logo={logos[feed.me.id] ?? null}
+              size={40}
+              shape="box"
+              fallback="empty"
+            />
             {feed.me.franchise}
           </div>
         </div>
@@ -173,7 +205,7 @@ export default function LineupEditor({ scores }: { scores: Map<string, Score> })
           <div style={{ fontFamily: "var(--font-heading)", fontSize: 26, color: "#d2cefd" }}>
             {total.toFixed(1)}
           </div>
-          <div style={{ fontSize: 9, letterSpacing: ".2em", color: "#75798c" }}>
+          <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c" }}>
             {saving ? "SAVING…" : "STARTING LINEUP"}
           </div>
         </div>
@@ -199,6 +231,35 @@ export default function LineupEditor({ scores }: { scores: Map<string, Score> })
           }}
         >
           <SectionHeader title="Starting lineup" note={`WEEK ${feed.week}`} />
+
+          {/* Above the rows, because a manager who has spotted the problem
+              scrolls no further, and one who has not was never going to find
+              it by reading twenty names. */}
+          {problems.length ? (
+            <div
+              style={{
+                padding: "10px 16px",
+                borderTop: "1px solid rgba(145,132,217,.12)",
+                background: "rgba(224,181,115,.06)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 3,
+              }}
+            >
+              {problems.map((p, i) => (
+                <div
+                  key={`${p.kind}-${p.slot}-${p.player ?? i}`}
+                  style={{
+                    fontSize: 11.5,
+                    color: p.kind === "injured" ? "#9397ab" : "#e0b573",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {p.message}
+                </div>
+              ))}
+            </div>
+          ) : null}
 
           {rows.map((row, i) => (
             <PlayerRow
@@ -391,7 +452,7 @@ function PlayerRow({
               {locked ? (
                 <span
                   style={{
-                    fontSize: 8,
+                    fontSize: 10,
                     letterSpacing: ".12em",
                     padding: "2px 5px",
                     borderRadius: 2,
@@ -407,7 +468,7 @@ function PlayerRow({
                 <span
                   key={f.label}
                   style={{
-                    fontSize: 8,
+                    fontSize: 10,
                     letterSpacing: ".12em",
                     padding: "2px 5px",
                     borderRadius: 2,
@@ -444,7 +505,7 @@ function PlayerRow({
             >
               {(live ? score.points : proj(name)).toFixed(1)}
             </div>
-            <div style={{ fontSize: 8, letterSpacing: ".16em", color: "#75798c" }}>
+            <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c" }}>
               {live ? "LIVE" : "PROJ"}
             </div>
           </div>

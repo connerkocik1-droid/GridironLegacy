@@ -82,7 +82,9 @@ begin
       'ir', 2,
       'regularWeeks', 13,
       'playoffWeeks', 4,
-      'waiverMode', 'waivers'
+      'waiverMode', 'waivers',
+      -- How long a dropped player sits on the wire before the run releases him.
+      'waiverDays', 1
     ),
     'pending', 1
   )
@@ -94,7 +96,7 @@ begin
       v_name := v_names[v_i][2];
     else
       v_slot := 'T' || lpad(v_i::text, 2, '0');
-      v_name := 'Franchise ' || v_i;
+      v_name := 'Open Team';
     end if;
 
     -- name is 'Open' until somebody claims the franchise and gives their own.

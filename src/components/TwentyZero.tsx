@@ -197,7 +197,7 @@ export default function TwentyZero() {
 
   return (
     <div style={{ padding: "20px 26px 44px" }}>
-      <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>20-0 MODE</div>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>20-0 MODE</div>
       <h1
         style={{
           fontFamily: "var(--font-heading)",
@@ -240,7 +240,7 @@ export default function TwentyZero() {
 
           {groups.map((g) => (
             <div key={g.label} style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#75798c", marginBottom: 6 }}>
+              <div style={{ fontSize: 10, letterSpacing: ".18em", color: "#75798c", marginBottom: 6 }}>
                 {g.label}
               </div>
               {g.list.map((pos, k) => {
@@ -281,7 +281,7 @@ export default function TwentyZero() {
                     <span
                       style={{
                         fontFamily: "var(--font-heading)",
-                        fontSize: 9,
+                        fontSize: 10,
                         color: "#e0b573",
                         width: 22,
                         flex: "0 0 auto",
@@ -321,7 +321,7 @@ export default function TwentyZero() {
         <div style={{ ...card, overflow: "hidden", minHeight: 420 }}>
           {phase === "ready" || phase === "spinning" ? (
             <div style={{ padding: "26px 22px 30px", textAlign: "center" }}>
-              <div style={{ fontSize: 9, letterSpacing: ".28em", color: "#75798c" }}>
+              <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>
                 {spinning
                   ? "SPINNING"
                   : `ROUND ${round + 1} · ${isDefence(round) ? "DEFENCE" : "OFFENCE"}`}
@@ -365,7 +365,7 @@ export default function TwentyZero() {
               >
                 {shownTeam ?? "···"}
               </div>
-              <div style={{ fontSize: 8.5, letterSpacing: ".26em", color: "#75798c", marginTop: 4 }}>
+              <div style={{ fontSize: 10, letterSpacing: ".26em", color: "#75798c", marginTop: 4 }}>
                 FRANCHISE
               </div>
 
@@ -383,7 +383,7 @@ export default function TwentyZero() {
               >
                 {shownEra == null ? "····" : (ERA_LABELS[shownEra] ?? "—")}
               </div>
-              <div style={{ fontSize: 8.5, letterSpacing: ".26em", color: "#75798c", marginTop: 4 }}>
+              <div style={{ fontSize: 10, letterSpacing: ".26em", color: "#75798c", marginTop: 4 }}>
                 ERA
               </div>
 
@@ -430,7 +430,7 @@ export default function TwentyZero() {
                   <div style={{ fontFamily: "var(--font-heading)", fontSize: 16, color: "#e9e9ed" }}>
                     {NFL[spun.team] ?? spun.team}
                   </div>
-                  <div style={{ fontSize: 9, letterSpacing: ".16em", color: "#75798c", marginTop: 2 }}>
+                  <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c", marginTop: 2 }}>
                     {ERA_LABELS[spun.era]} ·{" "}
                     {spun.candidates.filter((c) => c.own).length} FROM THIS FRANCHISE ·{" "}
                     {spun.candidates.filter((c) => !c.own).length} ERA WILDCARDS
@@ -475,7 +475,7 @@ export default function TwentyZero() {
                         {c.season.yr} {c.season.t}
                       </span>
                       {!c.own ? (
-                        <span style={{ fontSize: 8.5, letterSpacing: ".16em", color: "#e0b573" }}>
+                        <span style={{ fontSize: 10, letterSpacing: ".16em", color: "#e0b573" }}>
                           WILDCARD
                         </span>
                       ) : null}
@@ -508,7 +508,7 @@ export default function TwentyZero() {
 
           {phase === "locked" ? (
             <div style={{ padding: "40px 26px", textAlign: "center" }}>
-              <div style={{ fontSize: 9, letterSpacing: ".28em", color: "#e0b573" }}>
+              <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#e0b573" }}>
                 NOTHING LEFT TO PLACE
               </div>
               <p
@@ -532,7 +532,7 @@ export default function TwentyZero() {
 
           {phase === "done" ? (
             <div style={{ padding: "44px 26px", textAlign: "center" }}>
-              <div style={{ fontSize: 9, letterSpacing: ".3em", color: "#75798c" }}>
+              <div style={{ fontSize: 10, letterSpacing: ".3em", color: "#75798c" }}>
                 {complete ? "RUN COMPLETE" : "RUN ENDED"}
               </div>
               <div
@@ -574,7 +574,7 @@ export default function TwentyZero() {
         {/* ------------------------------------------------- the leaderboard --- */}
         {complete ? (
           <div style={{ ...card, padding: "16px 14px" }}>
-            <div style={{ fontSize: 9, letterSpacing: ".22em", color: "#75798c", marginBottom: 10 }}>
+            <div style={{ fontSize: 10, letterSpacing: ".22em", color: "#75798c", marginBottom: 10 }}>
               LEADERBOARD
             </div>
             {leaderboard.map((l, i) => (
@@ -611,7 +611,7 @@ export default function TwentyZero() {
 function Stat({ label, value, big }: { label: string; value: string; big?: boolean }) {
   return (
     <div>
-      <div style={{ fontSize: 8, letterSpacing: ".2em", color: "#75798c" }}>{label}</div>
+      <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c" }}>{label}</div>
       <div
         style={{
           fontFamily: "var(--font-heading)",

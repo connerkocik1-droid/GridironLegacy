@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
 import DraftSettings from "./DraftSettings";
+import NextSeason from "./NextSeason";
+import RosterFix from "./RosterFix";
+import SeasonRules from "./SeasonRules";
 import IntroVideoSlot from "./IntroVideoSlot";
 
 interface Manager {
@@ -26,6 +29,9 @@ interface Admin {
       pickSeconds?: number;
       cinematicRounds?: number;
       introVideo?: string;
+      regularWeeks?: number;
+      tradeDeadlineWeek?: number;
+      waiverDays?: number;
     };
     lottery_order?: string[] | null;
     draft_state: string;
@@ -81,6 +87,21 @@ export default function Commissioner() {
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [releasing, setReleasing] = useState<Manager | null>(null);
   const [releaseFranchises, setReleaseFranchises] = useState(false);
+  // Kept apart from the rest of the office: whether a season is finished is a
+  // different question from how the league is configured, and asking for it
+  // separately means the rest of this page still loads if it fails.
+  const [season, setSeason] = useState<{ season: number; champion: string | null } | null>(null);
+
+  const loadSeason = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/season", { cache: "no-store" });
+      if (!res.ok) return;
+      const body = await res.json();
+      if (body.season != null) setSeason({ season: body.season, champion: body.champion ?? null });
+    } catch {
+      // The card simply does not appear. Nothing else on the page needs it.
+    }
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -118,7 +139,8 @@ export default function Commissioner() {
     // Sets state only once the request resolves, not synchronously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-  }, [load]);
+    void loadSeason();
+  }, [load, loadSeason]);
 
   async function save() {
     if (busy || !admin) return;
@@ -167,7 +189,28 @@ export default function Commissioner() {
     }
   }
 
-  async function saveDraftSettings(changes: { pickSeconds?: number; cinematicRounds?: number }) {
+  async function rollSeason() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/admin/season", { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not start the next season.");
+      else
+        setNotice(
+          `The ${body.season} season is open. ${body.playersKept} players kept, ` +
+            `${body.weeksRemoved} weeks cleared, ${body.rosterRowsSaved} roster rows photographed first.`,
+        );
+      await load();
+      await loadSeason();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveSettings(changes: Record<string, number>, what: string) {
     if (busy) return;
     setBusy(true);
     setError(null);
@@ -179,8 +222,8 @@ export default function Commissioner() {
         body: JSON.stringify(changes),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) setError(body.error ?? "Could not save the draft settings.");
-      else setNotice("Draft settings saved.");
+      if (!res.ok) setError(body.error ?? `Could not save the ${what}.`);
+      else setNotice(`${what[0].toUpperCase()}${what.slice(1)} saved.`);
       await load();
     } finally {
       setBusy(false);
@@ -367,7 +410,7 @@ export default function Commissioner() {
 
   return (
     <div style={{ padding: "24px 26px 40px", maxWidth: 780 }}>
-      <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>LEAGUE OFFICE</div>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>LEAGUE OFFICE</div>
       <h1
         style={{
           fontFamily: "var(--font-heading)",
@@ -485,8 +528,36 @@ export default function Commissioner() {
           managers={admin.managers}
           canChange={admin.canResize}
           busy={busy}
-          onSave={(changes) => void saveDraftSettings(changes)}
+          onSave={(changes) => void saveSettings(changes, "draft settings")}
           onOrder={(slots) => void saveOrder(slots)}
+        />
+      </div>
+
+      <div style={card}>
+        <RosterFix />
+      </div>
+
+      {season ? (
+        <div style={card}>
+          <NextSeason
+            season={season.season}
+            champion={season.champion}
+            busy={busy}
+            onRoll={() => void rollSeason()}
+          />
+        </div>
+      ) : null}
+
+      <div style={card}>
+        <SeasonRules
+          tradeDeadlineWeek={
+            admin.league?.settings?.tradeDeadlineWeek ??
+            Math.max(1, (admin.league?.settings?.regularWeeks ?? 13) - 2)
+          }
+          waiverDays={admin.league?.settings?.waiverDays ?? 1}
+          regularWeeks={admin.league?.settings?.regularWeeks ?? 13}
+          busy={busy}
+          onSave={(changes) => void saveSettings(changes as Record<string, number>, "season rules")}
         />
       </div>
 
@@ -543,6 +614,12 @@ export default function Commissioner() {
               display: "flex",
               alignItems: "center",
               gap: 10,
+              // Four controls and two labels do not fit a phone on one line,
+              // and every one of them is fixed-width, so without this the row
+              // simply runs off the side. Only visible for a franchise that
+              // has been claimed, which is why it survived the mobile pass.
+              flexWrap: "wrap",
+              rowGap: 6,
               padding: "9px 0",
               borderTop: "1px solid rgba(145,132,217,.12)",
             }}
@@ -553,7 +630,7 @@ export default function Commissioner() {
             <span style={{ fontFamily: "var(--font-heading)", fontSize: 14, minWidth: 0, flex: 1 }}>
               {m.franchise}
               {m.isCommissioner ? (
-                <span style={{ fontSize: 9, letterSpacing: ".14em", color: "#b5abfc", marginLeft: 8 }}>
+                <span style={{ fontSize: 10, letterSpacing: ".14em", color: "#b5abfc", marginLeft: 8 }}>
                   COMMISSIONER
                 </span>
               ) : null}
@@ -566,7 +643,7 @@ export default function Commissioner() {
                   disabled={busy || m.division === d}
                   style={{
                     padding: "3px 8px",
-                    fontSize: 9,
+                    fontSize: 10,
                     letterSpacing: ".12em",
                     border: `1px solid ${m.division === d ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.22)"}`,
                     background: m.division === d ? "rgba(145,132,217,.26)" : "transparent",
@@ -583,7 +660,7 @@ export default function Commissioner() {
 
             <span
               style={{
-                fontSize: 9,
+                fontSize: 10,
                 letterSpacing: ".14em",
                 padding: "2px 7px",
                 borderRadius: 2,

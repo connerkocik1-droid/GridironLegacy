@@ -12,7 +12,7 @@
 -- has the early schema and no record of it; this file recognises that and
 -- writes the record down rather than failing on the tables already there.
 --
--- Built from 19 migrations:
+-- Built from 29 migrations:
 --   0001_schema.sql
 --   0002_trades.sql
 --   0003_draft.sql
@@ -32,6 +32,16 @@
 --   0017_ready.sql
 --   0018_draft_settings.sql
 --   0019_release_franchise.sql
+--   0020_open_team_naming.sql
+--   0021_draft_pick_assets.sql
+--   0022_clear_intro_after_draft.sql
+--   0023_rescind_trades.sql
+--   0024_waiver_wire.sql
+--   0025_trade_record_and_deadline.sql
+--   0026_playoffs.sql
+--   0027_commissioner_roster.sql
+--   0028_notices.sql
+--   0029_next_season.sql
 
 begin;
 
@@ -3621,6 +3631,3255 @@ begin
 
     insert into schema_migrations (name) values ('0019_release_franchise.sql');
     raise notice 'applied %', '0019_release_franchise.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0020_open_team_naming.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0020_open_team_naming.sql') then
+    raise notice 'skipping %, already applied', '0020_open_team_naming.sql';
+  else
+    -- An unclaimed franchise is "Open Team", and a claimed one is somebody's.
+    --
+    -- Open seats were called "Franchise 4", which reads like a database row rather
+    -- than a thing anyone wants. They are "Open Team" now, and claiming one names
+    -- it after the person who took it — "Dana's Team" — until they choose
+    -- something better from their own profile.
+
+    -- What an unclaimed seat is called, in one place, because three of them agree
+    -- on it: the seed, set_team_count, and release_franchise below.
+    create or replace function open_team_name() returns text
+    language sql immutable as $$ select 'Open Team' $$;
+
+    /**
+     * Whether a franchise name is one this app made up rather than one a person
+     * chose.
+     *
+     * Used when somebody leaves: a seat called "Dana's Team" should not still be
+     * called that once Dana has gone, but a franchise a manager deliberately named
+     * "Steel Cartel" is part of the league and outlives whoever was running it.
+     */
+    create or replace function is_default_franchise_name(p_name text)
+    returns boolean
+    language sql
+    immutable
+    as $$
+      select p_name is null
+          or p_name = open_team_name()
+          or p_name like '%''s Team'
+          -- What open seats were called before this migration.
+          or p_name ~ '^Franchise \d+$'
+    $$;
+
+    -- Every seat nobody holds, renamed. Claimed franchises are left alone, whatever
+    -- they are called.
+    update managers
+       set franchise = open_team_name()
+     where pin_hash is null
+       and auth_user_id is null
+       and franchise ~ '^Franchise \d+$';
+
+    -- ------------------------------------------------------- growing a league ---
+    -- set_team_count adds open seats, and they were the source of "Franchise 4".
+
+    create or replace function set_team_count(p_league_id uuid, p_count int)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me       managers;
+      v_current  int;
+      v_blocked  text[];
+      v_removing uuid[];
+      v_slot     text;
+      v_i        int;
+      v_made     int;
+      v_sched    jsonb;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can change the league size'
+          using errcode = '42501';
+      end if;
+
+      if p_count < 2 or p_count > 16 then
+        raise exception 'A league runs from 2 to 16 franchises' using errcode = '22003';
+      end if;
+
+      select count(*) into v_made
+        from draft_picks
+       where league_id = p_league_id and player_name is not null;
+
+      if v_made > 0 then
+        raise exception 'The draft has already started — the league size is fixed now'
+          using errcode = '55000';
+      end if;
+
+      if exists (select 1 from matchups where league_id = p_league_id and final) then
+        raise exception 'Weeks have already been played — the league size is fixed now'
+          using errcode = '55000';
+      end if;
+
+      select count(*) into v_current from managers where league_id = p_league_id;
+
+      if p_count < v_current then
+        select array_agg(id order by slot desc)
+          into v_removing
+          from (
+            select id, slot from managers
+             where league_id = p_league_id
+               and not is_commissioner
+             order by slot desc
+             limit (v_current - p_count)
+          ) doomed;
+
+        if coalesce(array_length(v_removing, 1), 0) < v_current - p_count then
+          raise exception
+            'Cannot shrink to % — only the commissioner''s franchise would be left to remove',
+            p_count using errcode = '55000';
+        end if;
+
+        -- Named by slot as well as franchise. Open seats are all called the same
+        -- thing now, and "these franchises are claimed: Open Team, Open Team" tells
+        -- the commissioner nothing about which ones.
+        select array_agg(distinct m.slot || ' · ' || m.franchise)
+          into v_blocked
+          from managers m
+         where m.id = any (v_removing)
+           and (
+             m.pin_hash is not null
+             or exists (select 1 from roster_slots r where r.manager_id = m.id)
+           );
+
+        if v_blocked is not null then
+          raise exception 'These franchises are claimed or hold players: %',
+            array_to_string(v_blocked, ', ')
+            using errcode = '55000';
+        end if;
+
+        delete from managers where id = any (v_removing);
+
+      elsif p_count > v_current then
+        for v_i in (v_current + 1)..p_count loop
+          v_slot := 'T' || lpad(v_i::text, 2, '0');
+          while exists (select 1 from managers where league_id = p_league_id and slot = v_slot) loop
+            v_slot := v_slot || 'X';
+          end loop;
+
+          insert into managers (league_id, slot, name, franchise, pin_hash, is_commissioner)
+          values (p_league_id, v_slot, 'Open', open_team_name(), null, false);
+        end loop;
+      end if;
+
+      perform assign_missing_divisions(p_league_id);
+      perform rebalance_divisions(p_league_id);
+      perform rebuild_draft_board(p_league_id);
+
+      v_sched := generate_schedule(p_league_id);
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'team_count_changed',
+              jsonb_build_object('from', v_current, 'to', p_count,
+                                 'weeks', v_sched -> 'weeks'));
+
+      return jsonb_build_object(
+        'ok', true,
+        'teams', p_count,
+        'was', v_current,
+        'weeks', v_sched -> 'weeks',
+        'matchups', v_sched -> 'matchups'
+      );
+    end;
+    $$;
+
+    revoke all on function set_team_count(uuid, int) from public;
+    grant execute on function set_team_count(uuid, int) to authenticated;
+
+    -- ---------------------------------------------------- letting somebody go ---
+    -- A seat called "Dana's Team" must not still be called that once Dana has gone.
+    -- One a manager deliberately named is part of the league and stays.
+
+    create or replace function release_franchise(p_manager_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me   managers;
+      v_them managers;
+      v_name text;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner then
+        raise exception 'Only the commissioner can release a franchise'
+          using errcode = '42501';
+      end if;
+
+      select * into v_them
+        from managers
+       where id = p_manager_id and league_id = v_me.league_id;
+
+      if v_them.id is null then
+        raise exception 'No such franchise in your league' using errcode = 'P0002';
+      end if;
+
+      if v_them.is_commissioner then
+        raise exception 'The commissioner cannot release their own franchise'
+          using errcode = '55000';
+      end if;
+
+      if v_them.pin_hash is null and v_them.auth_user_id is null then
+        raise exception 'Nobody holds that franchise' using errcode = '55000';
+      end if;
+
+      v_name := case
+        when is_default_franchise_name(v_them.franchise) then open_team_name()
+        else v_them.franchise
+      end;
+
+      update managers
+         set pin_hash = null,
+             auth_user_id = null,
+             name = 'Open',
+             franchise = v_name,
+             ready = false
+       where id = p_manager_id;
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (v_me.league_id, v_me.id, 'franchise_released',
+              jsonb_build_object('manager_id', p_manager_id,
+                                 'slot', v_them.slot,
+                                 'franchise', v_them.franchise,
+                                 'was', v_them.name));
+
+      return jsonb_build_object(
+        'ok', true,
+        'slot', v_them.slot,
+        'franchise', v_name,
+        'was', v_them.name,
+        'authUserId', v_them.auth_user_id
+      );
+    end;
+    $$;
+
+    revoke all on function release_franchise(uuid) from public;
+    grant execute on function release_franchise(uuid) to authenticated;
+
+    insert into schema_migrations (name) values ('0020_open_team_naming.sql');
+    raise notice 'applied %', '0020_open_team_naming.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0021_draft_pick_assets.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0021_draft_pick_assets.sql') then
+    raise notice 'skipping %, already applied', '0021_draft_pick_assets.sql';
+  else
+    -- Future draft picks, as things you can own.
+    --
+    -- A dynasty league is only a dynasty if next year is worth something today.
+    -- Until now a draft pick existed only as a row on this season's board, which
+    -- meant a rebuilding team had nothing to sell and a contender had nothing to
+    -- buy with. This gives every franchise a pick per round per season, owned
+    -- separately from the board, so they can change hands.
+    --
+    -- Two ideas are kept apart on purpose:
+    --
+    --   origin_manager  whose record decides where in the round the pick falls.
+    --                   Never changes. Trading your first-rounder away does not
+    --                   make it a better pick.
+    --   manager_id      who holds it. A trade moves this and nothing else.
+    --
+    -- Order is the inverse of the record: worst picks first. It is recomputed
+    -- nightly rather than fixed, because a record is not final until the season
+    -- is, and a pick's value should move with the team it came from.
+
+    -- ---------------------------------------------------------------------------
+    -- Which season the league started in
+    -- ---------------------------------------------------------------------------
+    -- The inaugural draft is the one everybody is here for, and its picks are not
+    -- currency: trading them away before a ball is thrown is how a league loses a
+    -- manager in week one. Every later season is fair game.
+
+    alter table leagues add column if not exists inaugural_season int;
+    update leagues set inaugural_season = season where inaugural_season is null;
+    alter table leagues alter column inaugural_season set default 2026;
+    alter table leagues alter column inaugural_season set not null;
+
+    -- ---------------------------------------------------------------------------
+    -- The picks
+    -- ---------------------------------------------------------------------------
+
+    create table if not exists draft_pick_assets (
+      id             uuid primary key default gen_random_uuid(),
+      league_id      uuid not null references leagues(id) on delete cascade,
+      season         int not null,
+      round          int not null,
+      -- Whose record places this pick within its round.
+      origin_manager uuid not null references managers(id) on delete cascade,
+      -- Who owns it now.
+      manager_id     uuid not null references managers(id) on delete cascade,
+      -- Position in the round, 1 first. Null until the order has been computed.
+      slot           int,
+      created_at     timestamptz not null default now(),
+
+      -- One pick per franchise per round per season. This is what stops a nightly
+      -- job that runs twice from handing out two first-rounders.
+      unique (league_id, season, round, origin_manager),
+      constraint draft_pick_assets_round_positive check (round >= 1),
+      constraint draft_pick_assets_slot_positive check (slot is null or slot >= 1)
+    );
+
+    -- Both manager columns are foreign keys and both are queried directly: the
+    -- holder for "what do I own", the origin for cascades and for the order.
+    create index if not exists draft_pick_assets_holder_idx
+      on draft_pick_assets (manager_id, season, round);
+    create index if not exists draft_pick_assets_origin_idx
+      on draft_pick_assets (origin_manager);
+    create index if not exists draft_pick_assets_league_season_idx
+      on draft_pick_assets (league_id, season, round, slot);
+
+    alter table draft_pick_assets enable row level security;
+
+    -- Everyone in the league sees every pick. Who holds what is exactly the
+    -- information a trade market runs on.
+    drop policy if exists pick_assets_read on draft_pick_assets;
+    create policy pick_assets_read on draft_pick_assets
+      for select using (league_id = (select league_id from current_manager()));
+
+    -- No direct writes at all. Picks are created by the nightly award and moved by
+    -- execute_trade, both of which check what a manager may not be trusted to.
+    grant select on draft_pick_assets to authenticated;
+
+    -- ---------------------------------------------------------------------------
+    -- Whether a season's picks may be traded
+    -- ---------------------------------------------------------------------------
+
+    create or replace function picks_are_tradeable(p_league_id uuid, p_season int)
+    returns boolean
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      select p_season > l.inaugural_season from leagues l where l.id = p_league_id;
+    $$;
+
+    -- ---------------------------------------------------------------------------
+    -- The order: the inverse of the record
+    -- ---------------------------------------------------------------------------
+
+    create or replace function set_draft_pick_order(p_league_id uuid, p_season int)
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_touched int;
+    begin
+      -- Worst record picks first. Win percentage rather than wins, so a franchise
+      -- on a bye week is not punished for having played fewer games; points scored
+      -- breaks a tie, because two 4-9 teams are not equally bad.
+      --
+      -- Before a week has been graded every record is identical, and the order
+      -- falls back to the franchise slot. That is arbitrary but stable — it stops
+      -- the nightly run from reshuffling the board for no reason — and it is
+      -- replaced by something real the moment a game is settled.
+      with ranked as (
+        select s.manager_id,
+               row_number() over (
+                 order by case when s.wins + s.losses + s.ties = 0
+                               then 0
+                               else (s.wins + s.ties * 0.5)::numeric
+                                      / (s.wins + s.losses + s.ties)
+                          end asc,
+                          s.points_for asc,
+                          s.slot asc
+               )::int as position
+          from standings(p_league_id) s
+      )
+      update draft_pick_assets a
+         set slot = r.position
+        from ranked r
+       where a.league_id = p_league_id
+         and a.season = p_season
+         and a.origin_manager = r.manager_id
+         and a.slot is distinct from r.position;
+
+      get diagnostics v_touched = row_count;
+      return v_touched;
+    end;
+    $$;
+
+    revoke all on function set_draft_pick_order(uuid, int) from public;
+
+    -- ---------------------------------------------------------------------------
+    -- Handing them out
+    -- ---------------------------------------------------------------------------
+
+    create or replace function award_draft_picks(p_league_id uuid, p_season int default null)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_league  leagues;
+      v_season  int;
+      v_rounds  int;
+      v_created int;
+      v_ordered int;
+    begin
+      select * into v_league from leagues where id = p_league_id;
+      if v_league.id is null then
+        raise exception 'No such league' using errcode = 'P0002';
+      end if;
+
+      -- Next season unless told otherwise. "Next" is the one after the season the
+      -- league is currently playing.
+      v_season := coalesce(p_season, v_league.season + 1);
+
+      -- The startup draft is long because it fills empty rosters. Every draft
+      -- after it is a rookie draft, and does not need twenty-four rounds of it.
+      v_rounds := case
+        when v_season <= v_league.inaugural_season
+          then coalesce((v_league.settings ->> 'rounds')::int, 24)
+        else coalesce((v_league.settings ->> 'rookieRounds')::int, 5)
+      end;
+
+      if v_rounds < 1 then
+        raise exception 'A draft needs at least one round' using errcode = '22023';
+      end if;
+
+      -- Every franchise gets its own pick in every round, and starts out holding
+      -- it. Rows that already exist are left exactly as they are: a pick that has
+      -- been traded must not be handed back by the job that tops the season up.
+      insert into draft_pick_assets (league_id, season, round, origin_manager, manager_id)
+      select p_league_id, v_season, r.round, m.id, m.id
+        from managers m
+       cross join generate_series(1, v_rounds) as r(round)
+       where m.league_id = p_league_id
+      on conflict (league_id, season, round, origin_manager) do nothing;
+
+      get diagnostics v_created = row_count;
+
+      v_ordered := set_draft_pick_order(p_league_id, v_season);
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, null, 'draft_picks_awarded',
+              jsonb_build_object('season', v_season, 'rounds', v_rounds,
+                                 'created', v_created, 'reordered', v_ordered));
+
+      return jsonb_build_object(
+        'season', v_season,
+        'rounds', v_rounds,
+        'created', v_created,
+        'reordered', v_ordered,
+        'tradeable', picks_are_tradeable(p_league_id, v_season)
+      );
+    end;
+    $$;
+
+    revoke all on function award_draft_picks(uuid, int) from public;
+
+    -- The inaugural season's picks exist from the start, so a manager can see what
+    -- they hold before the first draft even though none of it is for sale.
+    do $seed$
+    declare
+      v_league uuid;
+    begin
+      for v_league in select id from leagues loop
+        perform award_draft_picks(v_league, (select inaugural_season from leagues where id = v_league));
+        perform award_draft_picks(v_league);
+      end loop;
+    end
+    $seed$;
+
+    -- ---------------------------------------------------------------------------
+    -- Trading them
+    -- ---------------------------------------------------------------------------
+    -- execute_trade rewritten to move picks as well as players. The offer gains
+    -- two optional arrays of pick ids beside the two of player names; an offer
+    -- without them behaves exactly as it did.
+    --
+    -- Picks are checked the same way players are: still held by the side that
+    -- promised them, or the whole trade is void. Never a partial move.
+
+    create or replace function execute_trade(p_trade_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_trade       trades;
+      v_me          managers;
+      v_give        text[];
+      v_get         text[];
+      v_give_picks  uuid[];
+      v_get_picks   uuid[];
+      v_untradeable text;
+      v_moved       int;
+      v_expected    int;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null then
+        raise exception 'Not signed in' using errcode = '28000';
+      end if;
+
+      -- Lock the row for the duration, so two managers hitting accept at the same
+      -- moment cannot both execute the same trade.
+      select * into v_trade from trades where id = p_trade_id for update;
+      if v_trade.id is null then
+        raise exception 'No such trade' using errcode = 'P0002';
+      end if;
+
+      if v_me.id <> v_trade.from_manager and v_me.id <> v_trade.to_manager then
+        raise exception 'Not your trade' using errcode = '42501';
+      end if;
+
+      if v_trade.status = 'executed' then
+        raise exception 'This trade has already been executed' using errcode = '55000';
+      end if;
+
+      if not (v_trade.from_accepted and v_trade.to_accepted) then
+        raise exception 'Both managers must accept first' using errcode = '55000';
+      end if;
+
+      v_give := coalesce(array(select jsonb_array_elements_text(v_trade.offer -> 'give')), '{}');
+      v_get  := coalesce(array(select jsonb_array_elements_text(v_trade.offer -> 'get')),  '{}');
+
+      v_give_picks := coalesce(
+        array(select (jsonb_array_elements_text(v_trade.offer -> 'givePicks'))::uuid), '{}');
+      v_get_picks := coalesce(
+        array(select (jsonb_array_elements_text(v_trade.offer -> 'getPicks'))::uuid), '{}');
+
+      if array_length(v_give, 1) is null and array_length(v_get, 1) is null
+         and array_length(v_give_picks, 1) is null and array_length(v_get_picks, 1) is null then
+        raise exception 'An empty trade cannot be executed' using errcode = '55000';
+      end if;
+
+      -- The rosters may have changed since the offer was made. Every player named
+      -- must still be owned by the side that promised him, or the whole trade is
+      -- void — never a partial move.
+      v_expected := coalesce(array_length(v_give, 1), 0);
+      select count(*) into v_moved
+      from roster_slots
+      where league_id = v_trade.league_id
+        and manager_id = v_trade.from_manager
+        and player_name = any (v_give);
+
+      if v_moved <> v_expected then
+        raise exception 'A player in this offer is no longer on the proposing roster'
+          using errcode = '55000';
+      end if;
+
+      v_expected := coalesce(array_length(v_get, 1), 0);
+      select count(*) into v_moved
+      from roster_slots
+      where league_id = v_trade.league_id
+        and manager_id = v_trade.to_manager
+        and player_name = any (v_get);
+
+      if v_moved <> v_expected then
+        raise exception 'A player in this offer is no longer on the receiving roster'
+          using errcode = '55000';
+      end if;
+
+      -- The same test for picks, on both sides.
+      v_expected := coalesce(array_length(v_give_picks, 1), 0);
+      select count(*) into v_moved
+      from draft_pick_assets
+      where league_id = v_trade.league_id
+        and manager_id = v_trade.from_manager
+        and id = any (v_give_picks);
+
+      if v_moved <> v_expected then
+        raise exception 'A pick in this offer is no longer held by the proposing franchise'
+          using errcode = '55000';
+      end if;
+
+      v_expected := coalesce(array_length(v_get_picks, 1), 0);
+      select count(*) into v_moved
+      from draft_pick_assets
+      where league_id = v_trade.league_id
+        and manager_id = v_trade.to_manager
+        and id = any (v_get_picks);
+
+      if v_moved <> v_expected then
+        raise exception 'A pick in this offer is no longer held by the receiving franchise'
+          using errcode = '55000';
+      end if;
+
+      -- The inaugural draft is not currency. Checked here as well as when the
+      -- offer is made, because a season can only become untradeable, never the
+      -- other way round, and the offer may be days old.
+      select string_agg(distinct a.season::text, ', ' order by a.season::text)
+        into v_untradeable
+        from draft_pick_assets a
+       where a.id = any (v_give_picks || v_get_picks)
+         and not picks_are_tradeable(a.league_id, a.season);
+
+      if v_untradeable is not null then
+        raise exception 'Picks for the % draft cannot be traded', v_untradeable
+          using errcode = '55000';
+      end if;
+
+      -- The move itself. Players land on the bench: a lineup slot on one roster
+      -- means nothing on another, and the new owner sets it.
+      update roster_slots
+         set manager_id = v_trade.to_manager,
+             acquired = 'trade',
+             lineup_slot = 'BENCH'
+       where league_id = v_trade.league_id
+         and manager_id = v_trade.from_manager
+         and player_name = any (v_give);
+
+      update roster_slots
+         set manager_id = v_trade.from_manager,
+             acquired = 'trade',
+             lineup_slot = 'BENCH'
+       where league_id = v_trade.league_id
+         and manager_id = v_trade.to_manager
+         and player_name = any (v_get);
+
+      -- Only the holder changes. origin_manager stays put, so the pick keeps
+      -- falling where the record that produced it says it should.
+      update draft_pick_assets
+         set manager_id = v_trade.to_manager
+       where league_id = v_trade.league_id
+         and id = any (v_give_picks);
+
+      update draft_pick_assets
+         set manager_id = v_trade.from_manager
+       where league_id = v_trade.league_id
+         and id = any (v_get_picks);
+
+      update trades
+         set status = 'executed',
+             executed_at = now()
+       where id = p_trade_id;
+
+      -- A traded player is no longer on offer.
+      delete from trade_block
+       where league_id = v_trade.league_id
+         and player_name = any (v_give || v_get);
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (v_trade.league_id, v_me.id, 'trade_executed',
+              jsonb_build_object('trade_id', p_trade_id, 'offer', v_trade.offer));
+
+      return jsonb_build_object(
+        'ok', true,
+        'trade_id', p_trade_id,
+        'give', to_jsonb(v_give),
+        'get', to_jsonb(v_get),
+        'givePicks', to_jsonb(v_give_picks),
+        'getPicks', to_jsonb(v_get_picks)
+      );
+    end;
+    $$;
+
+    insert into schema_migrations (name) values ('0021_draft_pick_assets.sql');
+    raise notice 'applied %', '0021_draft_pick_assets.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0022_clear_intro_after_draft.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0022_clear_intro_after_draft.sql') then
+    raise notice 'skipping %, already applied', '0022_clear_intro_after_draft.sql';
+  else
+    -- The intro film has done its job once the draft is over.
+    --
+    -- It is the largest thing this league will ever store — a minute of video is
+    -- comfortably more than every roster, score and trade put together — and after
+    -- draft night nobody will watch it again. Leaving it there costs the
+    -- commissioner storage for a film that has already played.
+    --
+    -- Deleting the file itself is a Storage call, which SQL cannot make. So this
+    -- does the half that has to be atomic: it decides, once, that the film is
+    -- finished with, clears the league's reference to it, and hands the path back
+    -- to the caller to delete. Twelve browsers polling the draft board at the same
+    -- instant will produce exactly one claim, because the row is locked and the
+    -- second caller finds the reference already gone.
+
+    create or replace function claim_intro_video_cleanup(p_league_id uuid)
+    returns text
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me       managers;
+      v_league   leagues;
+      v_settings jsonb;
+      v_path     text;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or v_me.league_id <> p_league_id then
+        raise exception 'Not your league' using errcode = '42501';
+      end if;
+
+      select * into v_league from leagues where id = p_league_id for update;
+      if v_league.id is null then
+        return null;
+      end if;
+
+      -- Only once the draft has actually finished. A paused or abandoned draft is
+      -- one somebody may still come back to, and the film has to be there when
+      -- they do.
+      if v_league.draft_state is distinct from 'complete' then
+        return null;
+      end if;
+
+      v_settings := coalesce(v_league.settings, '{}'::jsonb);
+      v_path := v_settings ->> 'introVideoPath';
+
+      -- Nothing to do, which is the normal answer on all but one poll. A film the
+      -- commissioner linked to rather than uploaded has no path here: it costs
+      -- this project no storage and is not ours to delete.
+      if v_path is null then
+        return null;
+      end if;
+
+      update leagues
+         set settings = v_settings - 'introVideo' - 'introVideoPath'
+       where id = p_league_id;
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'intro_video_cleared',
+              jsonb_build_object('path', v_path, 'reason', 'draft complete'));
+
+      return v_path;
+    end;
+    $$;
+
+    -- Any manager in the league may trigger it. There is nothing here they could
+    -- want that they should not have: it acts only on a draft that is over, and
+    -- the outcome is the one the league asked for.
+    revoke all on function claim_intro_video_cleanup(uuid) from public;
+    grant execute on function claim_intro_video_cleanup(uuid) to authenticated;
+
+    insert into schema_migrations (name) values ('0022_clear_intro_after_draft.sql');
+    raise notice 'applied %', '0022_clear_intro_after_draft.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0023_rescind_trades.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0023_rescind_trades.sql') then
+    raise notice 'skipping %, already applied', '0023_rescind_trades.sql';
+  else
+    -- Taking an offer back.
+    --
+    -- Until now the only way out of an offer you had sent was to decline it, which
+    -- put "Declined." in the thread and told the other manager they had turned
+    -- down something they may never have read. Withdrawing is a different act and
+    -- now says so.
+    --
+    -- The rule is symmetric rather than "the proposer may cancel": you may take
+    -- back terms of yours that are on the table and have not been accepted. That
+    -- covers a proposer withdrawing their offer and, just as fairly, a manager
+    -- withdrawing a counter they made.
+
+    alter table trades drop constraint if exists trades_status_check;
+    alter table trades add constraint trades_status_check
+      check (status in ('open','countered','agreed','executed','declined','rescinded'));
+
+    /**
+     * Nobody accepts on somebody else's behalf — and nobody withdraws on it either.
+     *
+     * Replaces the guard from 0010 with one more rule. The route enforces the same
+     * thing, but the route is not the only way to reach this row: both managers in
+     * a trade may update it, so a recipient could otherwise mark an offer they
+     * received as "rescinded" and have the thread say the sender took it back.
+     */
+    create or replace function guard_trade_acceptance()
+    returns trigger
+    language plpgsql
+    set search_path = public
+    as $$
+    declare
+      v_me uuid;
+    begin
+      -- Anything not arriving as a browser session — the service key, or a
+      -- definer function such as execute_trade — is past this.
+      if current_user not in ('authenticated', 'anon') then return new; end if;
+
+      select id into v_me from managers where auth_user_id = auth.uid();
+      if v_me is null then return new; end if;
+
+      if v_me = new.from_manager and new.to_accepted is distinct from old.to_accepted then
+        raise exception 'You cannot accept on the other manager''s behalf'
+          using errcode = '42501';
+      end if;
+
+      if v_me = new.to_manager and new.from_accepted is distinct from old.from_accepted then
+        raise exception 'You cannot accept on the other manager''s behalf'
+          using errcode = '42501';
+      end if;
+
+      -- Only execute_trade() marks a trade executed, and it checks both
+      -- acceptances first. Letting a party set it directly would either fake a
+      -- completed deal or block a real one from ever running.
+      if new.status = 'executed' and old.status is distinct from 'executed' then
+        raise exception 'A trade is executed by accepting it, not by setting its status'
+          using errcode = '42501';
+      end if;
+
+      -- You may only take back your own terms, and only while they are still
+      -- waiting. Once the other side has accepted there is nothing to withdraw —
+      -- the deal either ran or is blocked on something real.
+      if new.status = 'rescinded' and old.status is distinct from 'rescinded' then
+        if not (
+          (v_me = old.from_manager and old.from_accepted and not old.to_accepted)
+          or (v_me = old.to_manager and old.to_accepted and not old.from_accepted)
+        ) then
+          raise exception 'Only the manager waiting on a reply may withdraw the offer'
+            using errcode = '42501';
+        end if;
+      end if;
+
+      return new;
+    end;
+    $$;
+
+    drop trigger if exists trades_guard_acceptance on trades;
+    create trigger trades_guard_acceptance
+      before update on trades
+      for each row execute function guard_trade_acceptance();
+
+    -- execute_trade already refuses anything both managers have not accepted, and
+    -- withdrawing clears the acceptance, so a rescinded trade cannot execute. It
+    -- is not re-emitted here just to reword the message it gives.
+
+    insert into schema_migrations (name) values ('0023_rescind_trades.sql');
+    raise notice 'applied %', '0023_rescind_trades.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0024_waiver_wire.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0024_waiver_wire.sql') then
+    raise notice 'skipping %, already applied', '0024_waiver_wire.sql';
+  else
+    -- Dropped players go to waivers. Everybody else is a free agent.
+    --
+    -- Until now a drop deleted the roster slot and the player was available that
+    -- instant, to whoever happened to have the page open. That is the one thing
+    -- waivers exist to prevent: a player who becomes available should be available
+    -- to the whole league at once, in priority order.
+    --
+    -- The shape is the one every league already knows:
+    --
+    --   * Drop a player and he goes on the waiver wire for `waiverDays` days.
+    --     While he is there nobody can simply add him — he can only be claimed.
+    --   * The waiver run settles every claim against a player whose time is up,
+    --     best priority first, and then releases him. Winning a claim still sends
+    --     you to the back of the order.
+    --   * Anybody NOT on the wire is a free agent: added on the spot, first come
+    --     first served, no run to wait for.
+    --
+    -- `waiverMode` chooses between that and the two extremes:
+    --
+    --   'waivers'  (default) the above.
+    --   'open'     no wire at all; every drop is an immediate free agent.
+    --   'all'      nothing is ever an instant add; every pickup is a claim.
+    --
+    -- The wire row carries its own clearing time rather than relying on the run to
+    -- be punctual, so how often the run happens is a question of how quickly
+    -- claims are settled, never of whether a player is stuck.
+
+    create table if not exists waiver_wire (
+      league_id   uuid not null references leagues(id) on delete cascade,
+      player_name text not null,
+      -- Who let him go. Kept for the record; a franchise that is later removed
+      -- leaves the player on the wire rather than taking him with it.
+      dropped_by  uuid references managers(id) on delete set null,
+      dropped_at  timestamptz not null default now(),
+      -- The moment he stops being claimable and starts being takeable. The next
+      -- run at or after this settles the claims and lets him go.
+      clears_at   timestamptz not null,
+      primary key (league_id, player_name)
+    );
+
+    -- The run reads by league and clearing time; the primary key covers league_id
+    -- alone but not the ordering within it.
+    create index if not exists waiver_wire_clears_idx on waiver_wire (league_id, clears_at);
+    create index if not exists waiver_wire_dropped_by_idx on waiver_wire (dropped_by);
+
+    alter table waiver_wire enable row level security;
+
+    -- Everyone in the league sees the wire. Knowing who is unavailable, and until
+    -- when, is the whole of what makes a claim worth making.
+    drop policy if exists waiver_wire_read on waiver_wire;
+    create policy waiver_wire_read on waiver_wire
+      for select using (league_id = (select league_id from current_manager()));
+
+    -- No direct writes. The wire is written by dropping a player and cleared by
+    -- the run, both of which check things a manager cannot be trusted to.
+    grant select on waiver_wire to authenticated;
+
+    -- ------------------------------------------------------------- the rules ---
+
+    /** Which of the three waiver models this league is playing. */
+    create or replace function waiver_mode(p_league_id uuid)
+    returns text
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      select case coalesce(settings ->> 'waiverMode', 'waivers')
+               when 'open' then 'open'
+               when 'all'  then 'all'
+               else 'waivers'
+             end
+        from leagues where id = p_league_id;
+    $$;
+
+    /**
+     * How long a dropped player sits on the wire.
+     *
+     * Floored at a day. A league that wants no waiting at all wants waiverMode
+     * 'open', which says so plainly, rather than a period of zero that reads like
+     * a waiver system and behaves like none.
+     */
+    create or replace function waiver_days(p_league_id uuid)
+    returns int
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      select greatest(1, coalesce((settings ->> 'waiverDays')::int, 1))
+        from leagues where id = p_league_id;
+    $$;
+
+    -- Both read a league's settings past its row policy, so neither is anybody's
+    -- to call about a league they are not in.
+    revoke all on function waiver_mode(uuid) from public;
+    revoke all on function waiver_days(uuid) from public;
+
+    /** Whether a player must be claimed rather than simply added. */
+    create or replace function on_waivers(p_league_id uuid, p_player text)
+    returns boolean
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      select exists (
+        select 1 from waiver_wire
+         where league_id = p_league_id and player_name = p_player
+      );
+    $$;
+
+    -- The wire is already readable to the league, so this says nothing new to a
+    -- manager — it just says it in one call rather than a query.
+    revoke all on function on_waivers(uuid, text) from public;
+    grant execute on function on_waivers(uuid, text) to authenticated;
+
+    /**
+     * Puts a dropped player on the wire.
+     *
+     * Called from both places a player can be let go — an outright drop, and the
+     * drop half of an add or a winning claim — so there is one rule rather than
+     * two that can drift apart. In an open league it does nothing, which is what
+     * an open league means.
+     *
+     * Re-dropping someone already on the wire restarts his time there rather than
+     * failing: he has just been owned again, so the league deserves the same look
+     * at him it would have had the first time.
+     */
+    create or replace function send_to_waivers(
+      p_league_id uuid,
+      p_manager_id uuid,
+      p_player text
+    )
+    returns timestamptz
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_clears timestamptz;
+    begin
+      if waiver_mode(p_league_id) = 'open' then return null; end if;
+
+      v_clears := now() + make_interval(days => waiver_days(p_league_id));
+
+      insert into waiver_wire (league_id, player_name, dropped_by, dropped_at, clears_at)
+      values (p_league_id, p_player, p_manager_id, now(), v_clears)
+      on conflict (league_id, player_name) do update
+         set dropped_by = excluded.dropped_by,
+             dropped_at = excluded.dropped_at,
+             clears_at  = excluded.clears_at;
+
+      return v_clears;
+    end;
+    $$;
+
+    revoke all on function send_to_waivers(uuid, uuid, text) from public;
+
+    -- ----------------------------------------------------- roster moves, again ---
+
+    /**
+     * Puts a player on a roster, dropping one if it is full.
+     *
+     * Re-emitted from 0007 for the two halves the wire touches: whoever is dropped
+     * to make room goes on the wire like any other drop, and whoever arrives comes
+     * off it. Everything else is as it was.
+     *
+     * This is still the mechanism with no opinion about who is asking — the run
+     * calls it for the winning manager, add_player calls it for the caller — so
+     * the wire is not consulted here about whether the ADD was allowed. That is
+     * add_player's question, because the run is precisely the thing permitted to
+     * take a player off the wire.
+     */
+    create or replace function place_player(
+      p_league_id uuid,
+      p_manager_id uuid,
+      p_add text,
+      p_drop text default null,
+      p_kind text default 'add'
+    )
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_league   leagues;
+      v_capacity int;
+      v_clears   timestamptz;
+    begin
+      select * into v_league from leagues where id = p_league_id for update;
+      if v_league.id is null then
+        raise exception 'No such league' using errcode = 'P0002';
+      end if;
+
+      if not exists (
+        select 1 from managers where id = p_manager_id and league_id = p_league_id
+      ) then
+        raise exception 'That manager is not in this league' using errcode = '42501';
+      end if;
+
+      if exists (
+        select 1 from roster_slots where league_id = p_league_id and player_name = p_add
+      ) then
+        raise exception 'That player is already rostered' using errcode = '23505';
+      end if;
+
+      -- The drop happens first, so a full roster can take the incoming player.
+      if p_drop is not null then
+        delete from roster_slots
+         where league_id = p_league_id and manager_id = p_manager_id and player_name = p_drop;
+
+        if not found then
+          raise exception 'You do not hold %', p_drop using errcode = 'P0002';
+        end if;
+
+        v_clears := send_to_waivers(p_league_id, p_manager_id, p_drop);
+
+        insert into transactions (league_id, manager_id, kind, player_name, detail)
+        values (p_league_id, p_manager_id, 'drop', p_drop,
+                jsonb_build_object('for', p_add, 'waivers', v_clears is not null,
+                                   'clearsAt', v_clears));
+      end if;
+
+      v_capacity := roster_capacity(v_league.settings);
+      if roster_count(p_manager_id) >= v_capacity then
+        raise exception 'Your roster is full at % — drop someone first', v_capacity
+          using errcode = '55000';
+      end if;
+
+      insert into roster_slots (league_id, manager_id, player_name, acquired, lineup_slot)
+      values (p_league_id, p_manager_id, p_add, p_kind, 'BENCH');
+
+      -- He is owned; the wire has no further business with him. Ordinarily the
+      -- run's sweep would have taken this row, but a claim settled early — or an
+      -- open-market add of somebody the league moved off the wire — must not leave
+      -- a rostered player still listed as claimable.
+      delete from waiver_wire where league_id = p_league_id and player_name = p_add;
+
+      insert into transactions (league_id, manager_id, kind, player_name, detail)
+      values (p_league_id, p_manager_id, p_kind, p_add, jsonb_build_object('dropped', p_drop));
+
+      return jsonb_build_object('ok', true, 'added', p_add, 'dropped', p_drop,
+                                'clearsAt', v_clears);
+    end;
+    $$;
+
+    revoke all on function place_player(uuid, uuid, text, text, text) from public;
+
+    /**
+     * Adds a player to the signed-in manager's own roster, off the open market.
+     *
+     * This is the door the wire closes. A player on it is refused here and pointed
+     * at a claim, which is the only route that competes properly; a league playing
+     * 'all' has no open market at all and every pickup is refused the same way.
+     */
+    create or replace function add_player(
+      p_league_id uuid,
+      p_add text,
+      p_drop text default null
+    )
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me     managers;
+      v_clears timestamptz;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null then
+        raise exception 'Not signed in' using errcode = '28000';
+      end if;
+      if v_me.league_id <> p_league_id then
+        raise exception 'Not your league' using errcode = '42501';
+      end if;
+
+      if waiver_mode(p_league_id) = 'all' then
+        raise exception 'Every pickup in this league goes through waivers — place a claim'
+          using errcode = '55000';
+      end if;
+
+      select clears_at into v_clears
+        from waiver_wire where league_id = p_league_id and player_name = p_add;
+
+      if v_clears is not null then
+        raise exception '% is on waivers — place a claim instead', p_add
+          using errcode = '55000';
+      end if;
+
+      return place_player(p_league_id, v_me.id, p_add, p_drop, 'add');
+    end;
+    $$;
+
+    revoke all on function add_player(uuid, text, text) from public;
+    grant execute on function add_player(uuid, text, text) to authenticated;
+
+    /** Drops a player outright. He goes to the wire, not back on the shelf. */
+    create or replace function drop_player(p_league_id uuid, p_player text)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me     managers;
+      v_clears timestamptz;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or v_me.league_id <> p_league_id then
+        raise exception 'Not your league' using errcode = '42501';
+      end if;
+
+      delete from roster_slots
+       where league_id = p_league_id and manager_id = v_me.id and player_name = p_player;
+
+      if not found then
+        raise exception 'You do not hold %', p_player using errcode = 'P0002';
+      end if;
+
+      v_clears := send_to_waivers(p_league_id, v_me.id, p_player);
+
+      insert into transactions (league_id, manager_id, kind, player_name, detail)
+      values (p_league_id, v_me.id, 'drop', p_player,
+              jsonb_build_object('waivers', v_clears is not null, 'clearsAt', v_clears));
+
+      return jsonb_build_object('ok', true, 'dropped', p_player, 'clearsAt', v_clears);
+    end;
+    $$;
+
+    revoke all on function drop_player(uuid, text) from public;
+    grant execute on function drop_player(uuid, text) to authenticated;
+
+    -- ---------------------------------------------------------------- the run ---
+
+    /**
+     * Settles the claims that are ripe, then releases the players they were for.
+     *
+     * Two changes from 0007. A claim is only judged if its player is claimable
+     * NOW — off the wire entirely, or on it with his time up. A claim on somebody
+     * still inside his waiver period is left pending for a later run rather than
+     * being lost, which is the difference between a waiver period and a race.
+     *
+     * And when the judging is done, everyone whose time is up leaves the wire and
+     * becomes a free agent. Players dropped DURING this run are not swept: their
+     * clearing time is a whole waiver period away, so the manager who drops
+     * somebody to make room for a claim does not hand the league his player in the
+     * same breath.
+     *
+     * Rolling priority is unchanged: the best-priority manager with a live claim
+     * wins it and drops to the bottom, and the next claim is judged against the
+     * new order. That is why this is a loop rather than one ordered pass.
+     */
+    create or replace function process_waivers(p_league_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_claim    waiver_claims;
+      v_won      int := 0;
+      v_lost     int := 0;
+      v_cleared  int := 0;
+      v_held     int := 0;
+      v_max      int;
+      v_guard    int := 0;
+    begin
+      loop
+        -- The next claim to judge: best waiver priority first, then the manager's
+        -- own ordering, then the order it was placed. A player still serving his
+        -- waiver period is not judged at all.
+        select c.* into v_claim
+          from waiver_claims c
+          join managers m on m.id = c.manager_id
+          left join waiver_wire w
+            on w.league_id = c.league_id and w.player_name = c.add_player
+         where c.league_id = p_league_id
+           and c.status = 'pending'
+           and (w.player_name is null or w.clears_at <= now())
+         order by m.waiver_priority, c.claim_order, c.created_at
+         limit 1;
+
+        exit when v_claim.id is null;
+
+        -- Bounded so a bug here can never spin forever against a live database.
+        v_guard := v_guard + 1;
+        exit when v_guard > 10000;
+
+        begin
+          perform place_player(
+            p_league_id, v_claim.manager_id,
+            v_claim.add_player, v_claim.drop_player, 'waiver'
+          );
+
+          update waiver_claims
+             set status = 'won', settled_at = now()
+           where id = v_claim.id;
+
+          -- Winning sends this manager to the back of the queue, and everyone
+          -- below them moves up one.
+          select max(waiver_priority) into v_max
+            from managers where league_id = p_league_id;
+
+          update managers
+             set waiver_priority = waiver_priority - 1
+           where league_id = p_league_id
+             and waiver_priority > (
+               select waiver_priority from managers where id = v_claim.manager_id
+             );
+
+          update managers set waiver_priority = v_max where id = v_claim.manager_id;
+
+          v_won := v_won + 1;
+
+        exception when others then
+          update waiver_claims
+             set status = 'lost', reason = sqlerrm, settled_at = now()
+           where id = v_claim.id;
+          v_lost := v_lost + 1;
+        end;
+
+      end loop;
+
+      -- Everyone whose period is up and who nobody won is a free agent now.
+      delete from waiver_wire
+       where league_id = p_league_id and clears_at <= now();
+      get diagnostics v_cleared = row_count;
+
+      select count(*) into v_held from waiver_wire where league_id = p_league_id;
+
+      return jsonb_build_object('ok', true, 'won', v_won, 'lost', v_lost,
+                                'cleared', v_cleared, 'stillOnWaivers', v_held);
+    end;
+    $$;
+
+    revoke all on function process_waivers(uuid) from public;
+
+    -- ---------------------------------------------------------------- resets ---
+    -- Both resets hand every player in the league back at once. A wire left
+    -- standing across that would keep players unclaimable for a league that no
+    -- longer has the rosters they were dropped from.
+
+    create or replace function reset_draft(p_league_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me       managers;
+      v_picks    int;
+      v_rostered int;
+      v_claims   int;
+      v_trades   int;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can reset the draft' using errcode = '42501';
+      end if;
+
+      if exists (select 1 from matchups where league_id = p_league_id and final) then
+        raise exception 'Weeks have already been played — the draft cannot be reset now'
+          using errcode = '55000';
+      end if;
+
+      select count(*) into v_picks
+        from draft_picks where league_id = p_league_id and player_name is not null;
+
+      select count(*) into v_rostered
+        from roster_slots where league_id = p_league_id;
+
+      perform snapshot_rosters(p_league_id, 'draft_reset');
+
+      delete from roster_slots where league_id = p_league_id;
+
+      update trades
+         set status = 'declined'
+       where league_id = p_league_id
+         and status in ('open', 'countered', 'agreed');
+      get diagnostics v_trades = row_count;
+
+      update waiver_claims
+         set status = 'cancelled',
+             reason = 'The draft was reset',
+             settled_at = now()
+       where league_id = p_league_id and status = 'pending';
+      get diagnostics v_claims = row_count;
+
+      delete from waiver_wire where league_id = p_league_id;
+      delete from trade_block where league_id = p_league_id;
+
+      delete from draft_picks where league_id = p_league_id;
+      perform rebuild_draft_board(p_league_id);
+
+      update leagues
+         set draft_state = 'pending',
+             current_pick = 1,
+             pick_started_at = null
+       where id = p_league_id;
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'draft_reset',
+              jsonb_build_object('picks_undone', v_picks,
+                                 'players_returned', v_rostered,
+                                 'trades_declined', v_trades,
+                                 'claims_cancelled', v_claims));
+
+      return jsonb_build_object(
+        'ok', true,
+        'picksUndone', v_picks,
+        'playersReturned', v_rostered,
+        'tradesDeclined', v_trades,
+        'claimsCancelled', v_claims
+      );
+    end;
+    $$;
+
+    revoke all on function reset_draft(uuid) from public;
+    grant execute on function reset_draft(uuid) to authenticated;
+
+    create or replace function reset_league(
+      p_league_id uuid,
+      p_release_franchises boolean default false
+    )
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me        managers;
+      v_players   int;
+      v_weeks     int;
+      v_played    int;
+      v_released  int := 0;
+      v_saved     int;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can reset the league' using errcode = '42501';
+      end if;
+
+      select count(*) into v_players from roster_slots where league_id = p_league_id;
+      select count(distinct week) into v_weeks from matchups where league_id = p_league_id;
+      select count(*) into v_played from matchups where league_id = p_league_id and final;
+
+      v_saved := snapshot_rosters(p_league_id, 'league_reset');
+
+      delete from roster_slots   where league_id = p_league_id;
+      delete from matchups       where league_id = p_league_id;
+      delete from player_scores  where league_id = p_league_id;
+      delete from transactions   where league_id = p_league_id;
+      delete from waiver_claims  where league_id = p_league_id;
+      delete from waiver_wire    where league_id = p_league_id;
+      delete from trades         where league_id = p_league_id;
+      delete from trade_block    where league_id = p_league_id;
+      delete from draft_queue    where league_id = p_league_id;
+      delete from pickem_picks   where league_id = p_league_id;
+
+      update managers m
+         set waiver_priority = seq.rn,
+             ready = false
+        from (
+          select id, row_number() over (order by slot) as rn
+            from managers where league_id = p_league_id
+        ) seq
+       where seq.id = m.id;
+
+      if p_release_franchises then
+        update managers
+           set pin_hash = null,
+               auth_user_id = null,
+               name = 'Open'
+         where league_id = p_league_id
+           and not is_commissioner;
+        get diagnostics v_released = row_count;
+      end if;
+
+      delete from draft_picks where league_id = p_league_id;
+      perform rebuild_draft_board(p_league_id);
+
+      update leagues
+         set draft_state = 'pending',
+             current_pick = 1,
+             pick_started_at = null,
+             lottery_order = null
+       where id = p_league_id;
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'league_reset',
+              jsonb_build_object('players_returned', v_players,
+                                 'weeks_removed', v_weeks,
+                                 'weeks_played', v_played,
+                                 'franchises_released', v_released,
+                                 'roster_rows_saved', v_saved));
+
+      return jsonb_build_object(
+        'ok', true,
+        'playersReturned', v_players,
+        'weeksRemoved', v_weeks,
+        'weeksPlayed', v_played,
+        'franchisesReleased', v_released,
+        'rosterRowsSaved', v_saved
+      );
+    end;
+    $$;
+
+    revoke all on function reset_league(uuid, boolean) from public;
+    grant execute on function reset_league(uuid, boolean) to authenticated;
+
+    insert into schema_migrations (name) values ('0024_waiver_wire.sql');
+    raise notice 'applied %', '0024_waiver_wire.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0025_trade_record_and_deadline.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0025_trade_record_and_deadline.sql') then
+    raise notice 'skipping %, already applied', '0025_trade_record_and_deadline.sql';
+  else
+    -- Trades leave a mark, and they stop at the deadline.
+    --
+    -- Two gaps that turned out to be the same function.
+    --
+    -- The transactions table has said since 0007 that it holds "every roster
+    -- change, so 'where did he go?' has an answer", and its `kind` has always
+    -- allowed 'trade'. Nothing ever wrote one. Adds, drops and waiver claims are
+    -- recorded; the largest roster change of all was not, so the one table that
+    -- exists to answer that question could not answer it about a trade.
+    --
+    -- And a trade could be accepted in week seventeen. Every real league has a
+    -- deadline, for the obvious reason: a franchise with nothing to play for can
+    -- otherwise hand its season to a friend in the middle of somebody else's
+    -- playoff race. There was no guard at all.
+    --
+    -- The draft is deliberately NOT written here. Every pick is already on the
+    -- board, permanently and in order, and 288 rows of draft night would bury the
+    -- season's actual comings and goings in the feed that reads this table.
+
+    /**
+     * The week the league is playing.
+     *
+     * The first week still to be settled, or the last one on the schedule when
+     * they are all done. The same rule the home page uses, stated once here so
+     * that a deadline and a scoreboard cannot disagree about what week it is.
+     */
+    create or replace function current_week(p_league_id uuid)
+    returns int
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      select coalesce(
+        (select min(week) from matchups where league_id = p_league_id and not final),
+        (select max(week) from matchups where league_id = p_league_id),
+        1
+      );
+    $$;
+
+    revoke all on function current_week(uuid) from public;
+    grant execute on function current_week(uuid) to authenticated;
+
+    /**
+     * The last week a trade may go through.
+     *
+     * Defaults to two weeks before the regular season ends, which is roughly where
+     * the NFL puts its own and leaves the run-in to be played by the teams that
+     * earned it. A league that wants no deadline sets tradeDeadlineWeek to 0.
+     */
+    create or replace function trade_deadline_week(p_league_id uuid)
+    returns int
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      select coalesce(
+        (settings ->> 'tradeDeadlineWeek')::int,
+        greatest(1, coalesce((settings ->> 'regularWeeks')::int, 13) - 2)
+      )
+      from leagues where id = p_league_id;
+    $$;
+
+    revoke all on function trade_deadline_week(uuid) from public;
+    grant execute on function trade_deadline_week(uuid) to authenticated;
+
+    /**
+     * Refuses an offer that could never be executed.
+     *
+     * The deadline is enforced in execute_trade, which is what actually matters.
+     * This is so that nobody spends an evening negotiating a deal the database
+     * was always going to refuse — a trap is worse than a rule.
+     *
+     * Keyed on the ROLE like guard_trade_acceptance, and for the same reason: a
+     * definer function runs as its owner, so anything arriving other than as a
+     * browser session is past this deliberately.
+     */
+    create or replace function guard_trade_deadline()
+    returns trigger
+    language plpgsql
+    set search_path = public
+    as $$
+    declare
+      v_deadline int;
+    begin
+      if current_user not in ('authenticated', 'anon') then return new; end if;
+
+      v_deadline := trade_deadline_week(new.league_id);
+      if v_deadline > 0 and current_week(new.league_id) > v_deadline then
+        raise exception 'The trade deadline passed in week %', v_deadline
+          using errcode = '55000';
+      end if;
+
+      return new;
+    end;
+    $$;
+
+    drop trigger if exists trades_deadline on trades;
+    create trigger trades_deadline
+      before insert on trades
+      for each row execute function guard_trade_deadline();
+
+    /**
+     * Trade execution, re-emitted from 0021 for the deadline and the record.
+     *
+     * Everything about who may execute, what must still be held, and what moves
+     * is unchanged. What is new is the refusal past the deadline, and a row in
+     * transactions for every player and every pick that changed hands.
+     *
+     * The transaction rows are written against the manager who RECEIVED each
+     * asset, because that is the question the log is asked: not "what did this
+     * trade contain" — the trade itself says that — but "how did he end up on
+     * that roster". The franchise on the other side is stored by name as well as
+     * by id, so the answer survives a franchise being renamed or released.
+     */
+    create or replace function execute_trade(p_trade_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_trade       trades;
+      v_me          managers;
+      v_give        text[];
+      v_get         text[];
+      v_give_picks  uuid[];
+      v_get_picks   uuid[];
+      v_untradeable text;
+      v_moved       int;
+      v_expected    int;
+      v_deadline    int;
+      v_from_name   text;
+      v_to_name     text;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null then
+        raise exception 'Not signed in' using errcode = '28000';
+      end if;
+
+      -- Lock the row for the duration, so two managers hitting accept at the same
+      -- moment cannot both execute the same trade.
+      select * into v_trade from trades where id = p_trade_id for update;
+      if v_trade.id is null then
+        raise exception 'No such trade' using errcode = 'P0002';
+      end if;
+
+      if v_me.id <> v_trade.from_manager and v_me.id <> v_trade.to_manager then
+        raise exception 'Not your trade' using errcode = '42501';
+      end if;
+
+      if v_trade.status = 'executed' then
+        raise exception 'This trade has already been executed' using errcode = '55000';
+      end if;
+
+      if not (v_trade.from_accepted and v_trade.to_accepted) then
+        raise exception 'Both managers must accept first' using errcode = '55000';
+      end if;
+
+      -- Checked at execution rather than only at the offer, because an offer can
+      -- sit unanswered for a fortnight and the deadline is about when the players
+      -- actually move.
+      v_deadline := trade_deadline_week(v_trade.league_id);
+      if v_deadline > 0 and current_week(v_trade.league_id) > v_deadline then
+        raise exception 'The trade deadline passed in week %', v_deadline
+          using errcode = '55000';
+      end if;
+
+      v_give := coalesce(array(select jsonb_array_elements_text(v_trade.offer -> 'give')), '{}');
+      v_get  := coalesce(array(select jsonb_array_elements_text(v_trade.offer -> 'get')),  '{}');
+
+      v_give_picks := coalesce(
+        array(select (jsonb_array_elements_text(v_trade.offer -> 'givePicks'))::uuid), '{}');
+      v_get_picks := coalesce(
+        array(select (jsonb_array_elements_text(v_trade.offer -> 'getPicks'))::uuid), '{}');
+
+      if array_length(v_give, 1) is null and array_length(v_get, 1) is null
+         and array_length(v_give_picks, 1) is null and array_length(v_get_picks, 1) is null then
+        raise exception 'An empty trade cannot be executed' using errcode = '55000';
+      end if;
+
+      -- The rosters may have changed since the offer was made. Every player named
+      -- must still be owned by the side that promised him, or the whole trade is
+      -- void — never a partial move.
+      v_expected := coalesce(array_length(v_give, 1), 0);
+      select count(*) into v_moved
+      from roster_slots
+      where league_id = v_trade.league_id
+        and manager_id = v_trade.from_manager
+        and player_name = any (v_give);
+
+      if v_moved <> v_expected then
+        raise exception 'A player in this offer is no longer on the proposing roster'
+          using errcode = '55000';
+      end if;
+
+      v_expected := coalesce(array_length(v_get, 1), 0);
+      select count(*) into v_moved
+      from roster_slots
+      where league_id = v_trade.league_id
+        and manager_id = v_trade.to_manager
+        and player_name = any (v_get);
+
+      if v_moved <> v_expected then
+        raise exception 'A player in this offer is no longer on the receiving roster'
+          using errcode = '55000';
+      end if;
+
+      -- The same test for picks, on both sides.
+      v_expected := coalesce(array_length(v_give_picks, 1), 0);
+      select count(*) into v_moved
+      from draft_pick_assets
+      where league_id = v_trade.league_id
+        and manager_id = v_trade.from_manager
+        and id = any (v_give_picks);
+
+      if v_moved <> v_expected then
+        raise exception 'A pick in this offer is no longer held by the proposing franchise'
+          using errcode = '55000';
+      end if;
+
+      v_expected := coalesce(array_length(v_get_picks, 1), 0);
+      select count(*) into v_moved
+      from draft_pick_assets
+      where league_id = v_trade.league_id
+        and manager_id = v_trade.to_manager
+        and id = any (v_get_picks);
+
+      if v_moved <> v_expected then
+        raise exception 'A pick in this offer is no longer held by the receiving franchise'
+          using errcode = '55000';
+      end if;
+
+      -- The inaugural draft is not currency. Checked here as well as when the
+      -- offer is made, because a season can only become untradeable, never the
+      -- other way round, and the offer may be days old.
+      select string_agg(distinct a.season::text, ', ' order by a.season::text)
+        into v_untradeable
+        from draft_pick_assets a
+       where a.id = any (v_give_picks || v_get_picks)
+         and not picks_are_tradeable(a.league_id, a.season);
+
+      if v_untradeable is not null then
+        raise exception 'Picks for the % draft cannot be traded', v_untradeable
+          using errcode = '55000';
+      end if;
+
+      select franchise into v_from_name from managers where id = v_trade.from_manager;
+      select franchise into v_to_name   from managers where id = v_trade.to_manager;
+
+      -- The move itself. Players land on the bench: a lineup slot on one roster
+      -- means nothing on another, and the new owner sets it.
+      update roster_slots
+         set manager_id = v_trade.to_manager,
+             acquired = 'trade',
+             lineup_slot = 'BENCH'
+       where league_id = v_trade.league_id
+         and manager_id = v_trade.from_manager
+         and player_name = any (v_give);
+
+      update roster_slots
+         set manager_id = v_trade.from_manager,
+             acquired = 'trade',
+             lineup_slot = 'BENCH'
+       where league_id = v_trade.league_id
+         and manager_id = v_trade.to_manager
+         and player_name = any (v_get);
+
+      -- Only the holder changes. origin_manager stays put, so the pick keeps
+      -- falling where the record that produced it says it should.
+      update draft_pick_assets
+         set manager_id = v_trade.to_manager
+       where league_id = v_trade.league_id
+         and id = any (v_give_picks);
+
+      update draft_pick_assets
+         set manager_id = v_trade.from_manager
+       where league_id = v_trade.league_id
+         and id = any (v_get_picks);
+
+      -- One row per asset, filed under whoever received it.
+      insert into transactions (league_id, manager_id, kind, player_name, detail)
+      select v_trade.league_id, v_trade.to_manager, 'trade', p,
+             jsonb_build_object('tradeId', p_trade_id, 'fromManager', v_trade.from_manager,
+                                'fromFranchise', v_from_name)
+        from unnest(v_give) p;
+
+      insert into transactions (league_id, manager_id, kind, player_name, detail)
+      select v_trade.league_id, v_trade.from_manager, 'trade', p,
+             jsonb_build_object('tradeId', p_trade_id, 'fromManager', v_trade.to_manager,
+                                'fromFranchise', v_to_name)
+        from unnest(v_get) p;
+
+      -- Picks are named rather than identified, because a pick's id means nothing
+      -- to a reader and the season and round mean everything. `pick` marks them so
+      -- nothing downstream mistakes the name for a footballer.
+      insert into transactions (league_id, manager_id, kind, player_name, detail)
+      select v_trade.league_id, v_trade.to_manager, 'trade',
+             a.season || ' round ' || a.round || ' pick',
+             jsonb_build_object('tradeId', p_trade_id, 'pick', true,
+                                'fromManager', v_trade.from_manager,
+                                'fromFranchise', v_from_name)
+        from draft_pick_assets a where a.id = any (v_give_picks);
+
+      insert into transactions (league_id, manager_id, kind, player_name, detail)
+      select v_trade.league_id, v_trade.from_manager, 'trade',
+             a.season || ' round ' || a.round || ' pick',
+             jsonb_build_object('tradeId', p_trade_id, 'pick', true,
+                                'fromManager', v_trade.to_manager,
+                                'fromFranchise', v_to_name)
+        from draft_pick_assets a where a.id = any (v_get_picks);
+
+      update trades
+         set status = 'executed',
+             executed_at = now()
+       where id = p_trade_id;
+
+      -- A traded player is no longer on offer.
+      delete from trade_block
+       where league_id = v_trade.league_id
+         and player_name = any (v_give || v_get);
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (v_trade.league_id, v_me.id, 'trade_executed',
+              jsonb_build_object('trade_id', p_trade_id, 'offer', v_trade.offer));
+
+      return jsonb_build_object(
+        'ok', true,
+        'trade_id', p_trade_id,
+        'give', to_jsonb(v_give),
+        'get', to_jsonb(v_get),
+        'givePicks', to_jsonb(v_give_picks),
+        'getPicks', to_jsonb(v_get_picks)
+      );
+    end;
+    $$;
+
+    revoke all on function execute_trade(uuid) from public;
+    grant execute on function execute_trade(uuid) to authenticated;
+
+    insert into schema_migrations (name) values ('0025_trade_record_and_deadline.sql');
+    raise notice 'applied %', '0025_trade_record_and_deadline.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0026_playoffs.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0026_playoffs.sql') then
+    raise notice 'skipping %, already applied', '0026_playoffs.sql';
+  else
+    -- The season gets an ending.
+    --
+    -- generate_schedule built a regular season and stopped. The matchups table has
+    -- carried a `playoff` flag since 0008 and nothing has ever set it, so a league
+    -- that reached the last week of the round robin simply ran out of fixtures.
+    -- Twelve people play sixteen weeks and then the site has nothing to say.
+    --
+    -- What is here:
+    --
+    --   * Seeds, taken once and written down. Division winners first, then the
+    --     best of the rest. Stored rather than recomputed, because a week that is
+    --     regraded in December must not re-seed a bracket already being played.
+    --   * A bracket built one round at a time, from the teams still alive. Byes
+    --     fall to the top seeds when the field is not a power of two, and each
+    --     round reseeds — the best team left plays the worst team left.
+    --   * A champion, recorded against the season so a dynasty has a record book.
+    --   * Next year's draft order, which now knows about all of it: the teams that
+    --     missed the playoffs pick first by record, then the teams that made them
+    --     in the order they went out, and the champion picks last.
+    --
+    -- Rounds are driven from the field rather than from a setting. playoffWeeks
+    -- was in the seed and decided nothing; a six-team field needs three weeks and
+    -- a four-team field needs two, and the schedule has always been the thing that
+    -- writes its own length back to the settings.
+
+    -- Which round a playoff fixture belongs to. Null for the regular season, so
+    -- the column says what it means rather than defaulting to a round nobody is in.
+    alter table matchups add column if not exists playoff_round int;
+
+    create index if not exists matchups_playoff_idx
+      on matchups (league_id, playoff_round) where playoff;
+
+    /**
+     * The bracket, once it is drawn.
+     *
+     * Seeds are a fact about the season that produced them, so they are keyed by
+     * season and survive into the next one. Nothing recomputes them: a regrade in
+     * week fifteen changes the standings, and must not change a bracket that is
+     * already being played.
+     */
+    create table if not exists playoff_seeds (
+      league_id  uuid not null references leagues(id) on delete cascade,
+      season     int  not null,
+      seed       int  not null,
+      manager_id uuid not null references managers(id) on delete cascade,
+      primary key (league_id, season, seed),
+      unique (league_id, season, manager_id)
+    );
+
+    alter table playoff_seeds enable row level security;
+
+    drop policy if exists playoff_seeds_read on playoff_seeds;
+    create policy playoff_seeds_read on playoff_seeds
+      for select using (league_id = (select league_id from current_manager()));
+
+    grant select on playoff_seeds to authenticated;
+
+    /** Who won each season. The record book a dynasty is played for. */
+    create table if not exists league_champions (
+      league_id  uuid not null references leagues(id) on delete cascade,
+      season     int  not null,
+      manager_id uuid references managers(id) on delete set null,
+      -- The name at the time, so a title survives a franchise being renamed or
+      -- handed to somebody else years later.
+      franchise  text not null,
+      decided_at timestamptz not null default now(),
+      primary key (league_id, season)
+    );
+
+    alter table league_champions enable row level security;
+
+    drop policy if exists champions_read on league_champions;
+    create policy champions_read on league_champions
+      for select using (league_id = (select league_id from current_manager()));
+
+    grant select on league_champions to authenticated;
+
+    -- ------------------------------------------------------------- the field ---
+
+    /** How many franchises make the playoffs. */
+    create or replace function playoff_field(p_league_id uuid)
+    returns int
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      select greatest(2, least(
+        coalesce((l.settings ->> 'playoffTeams')::int, 6),
+        (select count(*)::int from managers where league_id = p_league_id)
+      ))
+      from leagues l where l.id = p_league_id;
+    $$;
+
+    revoke all on function playoff_field(uuid) from public;
+    grant execute on function playoff_field(uuid) to authenticated;
+
+    /**
+     * How many rounds a field of that size takes.
+     *
+     * Not a setting. Six teams is three weekends and four teams is two, and a
+     * number in the settings that disagreed with the bracket would be a number
+     * that was simply wrong.
+     */
+    create or replace function playoff_rounds(p_teams int)
+    returns int
+    language sql
+    immutable
+    as $$
+      select greatest(1, ceil(log(2, greatest(p_teams, 2)::numeric))::int);
+    $$;
+
+    /** The last week of the regular season, from the fixtures rather than a setting. */
+    create or replace function regular_season_weeks(p_league_id uuid)
+    returns int
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      select coalesce(
+        (select max(week) from matchups where league_id = p_league_id and not playoff),
+        0
+      );
+    $$;
+
+    revoke all on function regular_season_weeks(uuid) from public;
+    grant execute on function regular_season_weeks(uuid) to authenticated;
+
+    -- ------------------------------------------------------------- the seeds ---
+
+    /**
+     * Who is in, and in what order, computed from the table as it stands.
+     *
+     * Division winners take the top seeds — winning the division is the thing a
+     * division is for — and the rest of the field is the best records left over,
+     * whichever divisions they come from.
+     *
+     * Ranked on win percentage rather than wins, so a franchise that has had a bye
+     * week is not punished for having played fewer games; points scored breaks the
+     * tie, and the franchise slot breaks that, so the answer is never random.
+     *
+     * This is a calculation, not a decision. start_playoffs is what writes it down.
+     */
+    create or replace function seeding(p_league_id uuid)
+    returns table (seed int, manager_id uuid, division text, is_division_winner boolean)
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      with rated as (
+        select s.manager_id, s.slot, s.division,
+               case when s.wins + s.losses + s.ties = 0 then 0
+                    else (s.wins + s.ties * 0.5)::numeric / (s.wins + s.losses + s.ties)
+               end as pct,
+               s.points_for
+          from standings(p_league_id) s
+      ),
+      ranked as (
+        select r.*,
+               row_number() over (
+                 partition by r.division order by r.pct desc, r.points_for desc, r.slot asc
+               ) = 1 as winner
+          from rated r
+      )
+      select row_number() over (
+               -- Division winners first, then everybody else; within each group,
+               -- the better season.
+               order by ranked.winner desc, ranked.pct desc, ranked.points_for desc, ranked.slot asc
+             )::int,
+             ranked.manager_id,
+             ranked.division,
+             ranked.winner
+        from ranked;
+    $$;
+
+    revoke all on function seeding(uuid) from public;
+    grant execute on function seeding(uuid) to authenticated;
+
+    -- ----------------------------------------------------------- the bracket ---
+
+    /**
+     * Everybody still alive, best seed first.
+     *
+     * A team is out when it has lost a playoff game that has been graded. Anything
+     * else is still in — which is what makes a bye need no special case at all: a
+     * franchise that did not play in round one has not lost, so it is simply still
+     * here in round two.
+     *
+     * A drawn playoff game is not a draw. The better seed goes through, which is
+     * the ordinary rule everywhere and the only one that does not need a replay.
+     */
+    create or replace function playoff_survivors(p_league_id uuid, p_season int)
+    returns table (seed int, manager_id uuid)
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      with played as (
+        select m.home_manager, m.away_manager, m.winner,
+               h.seed as home_seed, a.seed as away_seed
+          from matchups m
+          join playoff_seeds h
+            on h.league_id = m.league_id and h.season = p_season and h.manager_id = m.home_manager
+          join playoff_seeds a
+            on a.league_id = m.league_id and a.season = p_season and a.manager_id = m.away_manager
+         where m.league_id = p_league_id and m.playoff and m.final
+      ),
+      losers as (
+        select case
+                 when winner is not null then
+                   case when winner = home_manager then away_manager else home_manager end
+                 when home_seed < away_seed then away_manager
+                 else home_manager
+               end as manager_id
+          from played
+      )
+      select s.seed, s.manager_id
+        from playoff_seeds s
+       where s.league_id = p_league_id
+         and s.season = p_season
+         and s.manager_id not in (select manager_id from losers)
+       order by s.seed;
+    $$;
+
+    revoke all on function playoff_survivors(uuid, int) from public;
+    grant execute on function playoff_survivors(uuid, int) to authenticated;
+
+    /**
+     * Draws one round from the teams still standing.
+     *
+     * Highest plays lowest, which is the reseed: winning as the third seed should
+     * be worth an easier opponent than winning as the sixth, and a bracket that
+     * does not reseed throws that away.
+     *
+     * When the field is not a power of two the top seeds sit the first round out.
+     * The number of byes is exactly what it takes to make the next round a power
+     * of two, so the bracket only ever needs them once.
+     */
+    create or replace function draw_playoff_round(p_league_id uuid, p_season int, p_round int)
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_alive  uuid[];
+      v_seeds  int[];
+      v_n      int;
+      v_byes   int := 0;
+      v_week   int;
+      v_lo     int;
+      v_hi     int;
+      v_made   int := 0;
+    begin
+      select array_agg(manager_id order by seed), array_agg(seed order by seed)
+        into v_alive, v_seeds
+        from playoff_survivors(p_league_id, p_season);
+
+      v_n := coalesce(array_length(v_alive, 1), 0);
+      if v_n < 2 then return 0; end if;
+
+      -- Only the first round can carry byes: after it the field is a power of two
+      -- by construction.
+      if p_round = 1 then
+        v_byes := power(2, playoff_rounds(v_n))::int - v_n;
+      end if;
+
+      v_week := regular_season_weeks(p_league_id) + p_round;
+
+      -- The seeds that sit out are the top v_byes of them; the rest pair off from
+      -- the outside in.
+      v_lo := v_byes + 1;
+      v_hi := v_n;
+
+      while v_lo < v_hi loop
+        insert into matchups (league_id, week, home_manager, away_manager,
+                              playoff, playoff_round, divisional)
+        values (p_league_id, v_week, v_alive[v_lo], v_alive[v_hi], true, p_round, false)
+        on conflict do nothing;
+        v_made := v_made + 1;
+        v_lo := v_lo + 1;
+        v_hi := v_hi - 1;
+      end loop;
+
+      return v_made;
+    end;
+    $$;
+
+    revoke all on function draw_playoff_round(uuid, int, int) from public;
+
+    /**
+     * Seeds the bracket and draws the first round.
+     *
+     * Refuses until the regular season is actually over — every week of it graded
+     * — because a bracket drawn from an unfinished table is a bracket drawn from
+     * the wrong table. Does nothing at all if the seeds are already down, so it is
+     * safe to call every night.
+     */
+    create or replace function start_playoffs(p_league_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_league leagues;
+      v_weeks  int;
+      v_field  int;
+      v_drawn  int;
+    begin
+      select * into v_league from leagues where id = p_league_id for update;
+      if v_league.id is null then
+        raise exception 'No such league' using errcode = 'P0002';
+      end if;
+
+      if exists (select 1 from playoff_seeds
+                  where league_id = p_league_id and season = v_league.season) then
+        return jsonb_build_object('ok', true, 'already', true);
+      end if;
+
+      v_weeks := regular_season_weeks(p_league_id);
+      if v_weeks = 0 then
+        raise exception 'There is no schedule to finish' using errcode = '55000';
+      end if;
+
+      if exists (select 1 from matchups
+                  where league_id = p_league_id and not playoff and not final) then
+        raise exception 'The regular season is not over yet' using errcode = '55000';
+      end if;
+
+      v_field := playoff_field(p_league_id);
+
+      insert into playoff_seeds (league_id, season, seed, manager_id)
+      select p_league_id, v_league.season, s.seed, s.manager_id
+        from seeding(p_league_id) s
+       where s.seed <= v_field;
+
+      v_drawn := draw_playoff_round(p_league_id, v_league.season, 1);
+
+      -- The bracket decides how long the postseason is, the same way the round
+      -- robin decides how long the regular season is.
+      update leagues
+         set settings = jsonb_set(coalesce(settings, '{}'::jsonb), '{playoffWeeks}',
+                                  to_jsonb(playoff_rounds(v_field)))
+       where id = p_league_id;
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, null, 'playoffs_started',
+              jsonb_build_object('season', v_league.season, 'field', v_field,
+                                 'rounds', playoff_rounds(v_field), 'games', v_drawn));
+
+      return jsonb_build_object('ok', true, 'field', v_field,
+                                'rounds', playoff_rounds(v_field), 'games', v_drawn);
+    end;
+    $$;
+
+    revoke all on function start_playoffs(uuid) from public;
+
+    /**
+     * Moves the postseason on by whatever it is owed.
+     *
+     * Called nightly after the scores are graded, and safe to call at any other
+     * time: it starts the playoffs if the regular season has just ended, draws the
+     * next round if the last one is complete, and records the champion when one
+     * team is left. If none of that is true it does nothing and says so.
+     */
+    create or replace function advance_playoffs(p_league_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_league   leagues;
+      v_round    int;
+      v_pending  int;
+      v_alive    int;
+      v_champion uuid;
+      v_name     text;
+      v_drawn    int;
+    begin
+      select * into v_league from leagues where id = p_league_id for update;
+      if v_league.id is null then
+        raise exception 'No such league' using errcode = 'P0002';
+      end if;
+
+      -- Nothing to do until the last regular-season week is graded.
+      if not exists (select 1 from playoff_seeds
+                      where league_id = p_league_id and season = v_league.season) then
+        if regular_season_weeks(p_league_id) = 0
+           or exists (select 1 from matchups
+                       where league_id = p_league_id and not playoff and not final) then
+          return jsonb_build_object('ok', true, 'state', 'regular season');
+        end if;
+        return start_playoffs(p_league_id) || jsonb_build_object('state', 'started');
+      end if;
+
+      if exists (select 1 from league_champions
+                  where league_id = p_league_id and season = v_league.season) then
+        return jsonb_build_object('ok', true, 'state', 'decided');
+      end if;
+
+      select coalesce(max(playoff_round), 0) into v_round
+        from matchups where league_id = p_league_id and playoff;
+
+      select count(*) into v_pending
+        from matchups
+       where league_id = p_league_id and playoff and playoff_round = v_round and not final;
+
+      if v_pending > 0 then
+        return jsonb_build_object('ok', true, 'state', 'playing', 'round', v_round);
+      end if;
+
+      select count(*) into v_alive from playoff_survivors(p_league_id, v_league.season);
+
+      if v_alive <= 1 then
+        select ps.manager_id into v_champion
+          from playoff_survivors(p_league_id, v_league.season) ps limit 1;
+
+        select franchise into v_name from managers where id = v_champion;
+
+        insert into league_champions (league_id, season, manager_id, franchise)
+        values (p_league_id, v_league.season, v_champion, coalesce(v_name, 'Unknown'))
+        on conflict (league_id, season) do nothing;
+
+        insert into admin_log (league_id, actor, action, detail)
+        values (p_league_id, null, 'champion',
+                jsonb_build_object('season', v_league.season, 'franchise', v_name));
+
+        return jsonb_build_object('ok', true, 'state', 'champion', 'franchise', v_name);
+      end if;
+
+      v_drawn := draw_playoff_round(p_league_id, v_league.season, v_round + 1);
+      return jsonb_build_object('ok', true, 'state', 'drawn',
+                                'round', v_round + 1, 'games', v_drawn);
+    end;
+    $$;
+
+    revoke all on function advance_playoffs(uuid) from public;
+
+    -- ---------------------------------------------------------- picking again ---
+
+    /**
+     * Next season's draft order, re-emitted from 0021 now that a season can end.
+     *
+     * The rule everybody knows: the teams that missed the playoffs pick first,
+     * worst record first; then the teams that made them, in the order they went
+     * out; and the champion picks last. Before a bracket exists this is exactly
+     * what 0021 did, because every franchise is then equally "not in the
+     * playoffs" and the record is all there is to sort on.
+     */
+    create or replace function set_draft_pick_order(p_league_id uuid, p_season int)
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_season  int;
+      v_touched int;
+    begin
+      -- The season the standings describe, which is the one being played now, not
+      -- the draft the picks are for.
+      select season into v_season from leagues where id = p_league_id;
+
+      with knocked as (
+        -- The last round each franchise was still alive for. A team that never
+        -- made the bracket has none, and sorts ahead of everybody who did.
+        select s.manager_id,
+               coalesce(max(m.playoff_round), 0) as reached
+          from playoff_seeds s
+          left join matchups m
+            on m.league_id = s.league_id and m.playoff
+           and (m.home_manager = s.manager_id or m.away_manager = s.manager_id)
+         where s.league_id = p_league_id and s.season = v_season
+         group by s.manager_id
+      ),
+      ranked as (
+        select s.manager_id,
+               row_number() over (
+                 order by
+                   -- Everyone who missed the playoffs first.
+                   (k.manager_id is not null) asc,
+                   -- Then how far the rest got.
+                   coalesce(k.reached, 0) asc,
+                   -- The champion is the one who won the last round, and sorts
+                   -- behind the team they beat in it.
+                   (c.manager_id is not null) asc,
+                   -- Within a group, the worse season picks earlier. Win
+                   -- percentage rather than wins, so a bye week is not a penalty;
+                   -- points scored breaks the tie, because two 4-9 teams are not
+                   -- equally bad; the slot breaks that, so a board with nothing
+                   -- graded is stable rather than reshuffled nightly.
+                   case when s.wins + s.losses + s.ties = 0 then 0
+                        else (s.wins + s.ties * 0.5)::numeric
+                               / (s.wins + s.losses + s.ties)
+                   end asc,
+                   s.points_for asc,
+                   s.slot asc
+               )::int as position
+          from standings(p_league_id) s
+          left join knocked k on k.manager_id = s.manager_id
+          left join league_champions c
+            on c.league_id = p_league_id and c.season = v_season
+           and c.manager_id = s.manager_id
+      )
+      update draft_pick_assets a
+         set slot = r.position
+        from ranked r
+       where a.league_id = p_league_id
+         and a.season = p_season
+         and a.origin_manager = r.manager_id
+         and a.slot is distinct from r.position;
+
+      get diagnostics v_touched = row_count;
+      return v_touched;
+    end;
+    $$;
+
+    revoke all on function set_draft_pick_order(uuid, int) from public;
+
+    -- ------------------------------------------------------------ the resets ---
+    -- A league reset unmakes the season, and a season that never happened has no
+    -- bracket and no champion.
+
+    create or replace function reset_league(
+      p_league_id uuid,
+      p_release_franchises boolean default false
+    )
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me        managers;
+      v_players   int;
+      v_weeks     int;
+      v_played    int;
+      v_released  int := 0;
+      v_saved     int;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can reset the league' using errcode = '42501';
+      end if;
+
+      select count(*) into v_players from roster_slots where league_id = p_league_id;
+      select count(distinct week) into v_weeks from matchups where league_id = p_league_id;
+      select count(*) into v_played from matchups where league_id = p_league_id and final;
+
+      v_saved := snapshot_rosters(p_league_id, 'league_reset');
+
+      delete from roster_slots     where league_id = p_league_id;
+      delete from matchups         where league_id = p_league_id;
+      delete from player_scores    where league_id = p_league_id;
+      delete from transactions     where league_id = p_league_id;
+      delete from waiver_claims    where league_id = p_league_id;
+      delete from waiver_wire      where league_id = p_league_id;
+      delete from trades           where league_id = p_league_id;
+      delete from trade_block      where league_id = p_league_id;
+      delete from draft_queue      where league_id = p_league_id;
+      delete from pickem_picks     where league_id = p_league_id;
+      delete from playoff_seeds    where league_id = p_league_id;
+      delete from league_champions where league_id = p_league_id;
+
+      update managers m
+         set waiver_priority = seq.rn,
+             ready = false
+        from (
+          select id, row_number() over (order by slot) as rn
+            from managers where league_id = p_league_id
+        ) seq
+       where seq.id = m.id;
+
+      if p_release_franchises then
+        update managers
+           set pin_hash = null,
+               auth_user_id = null,
+               name = 'Open'
+         where league_id = p_league_id
+           and not is_commissioner;
+        get diagnostics v_released = row_count;
+      end if;
+
+      delete from draft_picks where league_id = p_league_id;
+      perform rebuild_draft_board(p_league_id);
+
+      update leagues
+         set draft_state = 'pending',
+             current_pick = 1,
+             pick_started_at = null,
+             lottery_order = null
+       where id = p_league_id;
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'league_reset',
+              jsonb_build_object('players_returned', v_players,
+                                 'weeks_removed', v_weeks,
+                                 'weeks_played', v_played,
+                                 'franchises_released', v_released,
+                                 'roster_rows_saved', v_saved));
+
+      return jsonb_build_object(
+        'ok', true,
+        'playersReturned', v_players,
+        'weeksRemoved', v_weeks,
+        'weeksPlayed', v_played,
+        'franchisesReleased', v_released,
+        'rosterRowsSaved', v_saved
+      );
+    end;
+    $$;
+
+    revoke all on function reset_league(uuid, boolean) from public;
+    grant execute on function reset_league(uuid, boolean) to authenticated;
+
+    insert into schema_migrations (name) values ('0026_playoffs.sql');
+    raise notice 'applied %', '0026_playoffs.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0027_commissioner_roster.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0027_commissioner_roster.sql') then
+    raise notice 'skipping %, already applied', '0027_commissioner_roster.sql';
+  else
+    -- Fixing a roster without a database console.
+    --
+    -- Everything that moves a player checks that the person asking is entitled to
+    -- move him: add_player only touches your own roster, execute_trade needs both
+    -- managers, the waiver run needs a claim. That is right, and it leaves the
+    -- commissioner with no way to undo an honest mistake — a player awarded to the
+    -- wrong franchise by an autodraft, a drop somebody made by fat finger on a
+    -- phone, a trade executed against the wrong name.
+    --
+    -- Until now the answer was "open the SQL editor", which is the answer that
+    -- ends with somebody deleting the wrong row at midnight.
+    --
+    -- Two deliberate limits. It cannot invent a player onto a full roster, because
+    -- a roster over its own capacity breaks the lineup rules everywhere else; and
+    -- it writes to both transactions and admin_log every time, so a commissioner
+    -- correction is the most visible move in the league rather than the least. A
+    -- league where the commissioner can quietly move players is not a league.
+
+    /**
+     * Moves a player to another franchise, or releases him, on the commissioner's
+     * authority.
+     *
+     * p_to null releases him: to waivers like any other drop, so the correction
+     * does not hand him to whoever is watching. Naming a franchise moves him there
+     * whether he is currently held by somebody else or by nobody at all.
+     */
+    create or replace function commissioner_move_player(
+      p_league_id uuid,
+      p_player text,
+      p_to uuid default null,
+      p_reason text default null
+    )
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me       managers;
+      v_league   leagues;
+      v_from     uuid;
+      v_from_name text;
+      v_to_name  text;
+      v_capacity int;
+      v_clears   timestamptz;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can move a player' using errcode = '42501';
+      end if;
+
+      select * into v_league from leagues where id = p_league_id for update;
+      if v_league.id is null then
+        raise exception 'No such league' using errcode = 'P0002';
+      end if;
+
+      if p_to is not null and not exists (
+        select 1 from managers where id = p_to and league_id = p_league_id
+      ) then
+        raise exception 'That franchise is not in this league' using errcode = '42501';
+      end if;
+
+      select manager_id into v_from
+        from roster_slots where league_id = p_league_id and player_name = p_player;
+
+      if v_from is null and p_to is null then
+        raise exception '% is not on anybody''s roster', p_player using errcode = 'P0002';
+      end if;
+
+      if v_from is not null and v_from = p_to then
+        raise exception '% is already there', p_player using errcode = '55000';
+      end if;
+
+      select franchise into v_from_name from managers where id = v_from;
+      select franchise into v_to_name   from managers where id = p_to;
+
+      -- Releasing him.
+      if p_to is null then
+        delete from roster_slots
+         where league_id = p_league_id and player_name = p_player;
+
+        v_clears := send_to_waivers(p_league_id, v_from, p_player);
+
+        insert into transactions (league_id, manager_id, kind, player_name, detail)
+        values (p_league_id, v_from, 'drop', p_player,
+                jsonb_build_object('waivers', v_clears is not null, 'clearsAt', v_clears,
+                                   'commissioner', true, 'reason', p_reason));
+
+        insert into admin_log (league_id, actor, action, detail)
+        values (p_league_id, v_me.id, 'commissioner_release',
+                jsonb_build_object('player', p_player, 'from', v_from_name, 'reason', p_reason));
+
+        return jsonb_build_object('ok', true, 'released', p_player, 'from', v_from_name,
+                                  'clearsAt', v_clears);
+      end if;
+
+      -- Moving him. The receiving roster must have room by its own rules: a
+      -- correction that leaves a franchise over capacity is a second mistake.
+      v_capacity := roster_capacity(v_league.settings);
+      if v_from is distinct from p_to and roster_count(p_to) >= v_capacity then
+        raise exception '% is full at % — drop someone there first', v_to_name, v_capacity
+          using errcode = '55000';
+      end if;
+
+      if v_from is null then
+        insert into roster_slots (league_id, manager_id, player_name, acquired, lineup_slot)
+        values (p_league_id, p_to, p_player, 'add', 'BENCH');
+      else
+        -- Onto the bench, the same as a trade: a lineup slot on one roster means
+        -- nothing on another, and the new owner sets it.
+        update roster_slots
+           set manager_id = p_to, acquired = 'trade', lineup_slot = 'BENCH'
+         where league_id = p_league_id and player_name = p_player;
+      end if;
+
+      -- He is owned; the wire has no further business with him.
+      delete from waiver_wire where league_id = p_league_id and player_name = p_player;
+
+      insert into transactions (league_id, manager_id, kind, player_name, detail)
+      values (p_league_id, p_to, 'trade', p_player,
+              jsonb_build_object('fromManager', v_from, 'fromFranchise',
+                                 coalesce(v_from_name, 'free agency'),
+                                 'commissioner', true, 'reason', p_reason));
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'commissioner_move',
+              jsonb_build_object('player', p_player, 'from', v_from_name,
+                                 'to', v_to_name, 'reason', p_reason));
+
+      return jsonb_build_object('ok', true, 'moved', p_player,
+                                'from', coalesce(v_from_name, 'free agency'), 'to', v_to_name);
+    end;
+    $$;
+
+    revoke all on function commissioner_move_player(uuid, text, uuid, text) from public;
+    grant execute on function commissioner_move_player(uuid, text, uuid, text) to authenticated;
+
+    insert into schema_migrations (name) values ('0027_commissioner_roster.sql');
+    raise notice 'applied %', '0027_commissioner_roster.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0028_notices.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0028_notices.sql') then
+    raise notice 'skipping %, already applied', '0028_notices.sql';
+  else
+    -- Telling a manager something happened to them.
+    --
+    -- The league has never told anybody anything. It is your pick and nothing
+    -- says so; somebody offers you a trade and you find out by opening the trade
+    -- desk; your waiver claim wins or loses and the only trace is a roster that
+    -- changed overnight. For twelve people who are not all checking a website
+    -- every day, that is the difference between a league and a database.
+    --
+    -- What this is NOT: email. That needs a provider and a key this deployment
+    -- does not have, and sending mail is a thing you should turn on deliberately
+    -- rather than discover. This is the half that needs nothing: a per-manager
+    -- list of things that happened, an unread count, and a place to read them.
+    --
+    -- Notices are written by the same functions that do the thing being announced,
+    -- inside the same transaction. A notice that can arrive without its cause —
+    -- or a cause that can happen without its notice — is worse than neither.
+
+    create table if not exists notices (
+      id         uuid primary key default gen_random_uuid(),
+      league_id  uuid not null references leagues(id) on delete cascade,
+      -- Who it is for. Not who caused it: a trade offer is news to the person
+      -- receiving it and not to the person who sent it.
+      manager_id uuid not null references managers(id) on delete cascade,
+      kind       text not null,
+      body       text not null,
+      -- Where reading it should take you, as a path this app knows.
+      href       text,
+      read_at    timestamptz,
+      created_at timestamptz not null default now()
+    );
+
+    create index if not exists notices_inbox_idx
+      on notices (manager_id, created_at desc);
+    -- The unread count is read on every page load, so it gets its own partial
+    -- index rather than scanning an inbox that only grows.
+    create index if not exists notices_unread_idx
+      on notices (manager_id) where read_at is null;
+
+    alter table notices enable row level security;
+
+    -- Yours and nobody else's, in both directions: a manager may read their own
+    -- and mark their own read, and may not see anybody else's at all.
+    drop policy if exists notices_own on notices;
+    create policy notices_own on notices
+      for select using (manager_id = (select id from current_manager()));
+
+    drop policy if exists notices_mark on notices;
+    create policy notices_mark on notices
+      for update using (manager_id = (select id from current_manager()))
+      with check (manager_id = (select id from current_manager()));
+
+    grant select on notices to authenticated;
+    -- Only the read mark. A manager who could write the body could write anything
+    -- into anybody's idea of what happened.
+    grant update (read_at) on notices to authenticated;
+
+    /** Writes one notice. Called from inside whatever it is announcing. */
+    create or replace function notify_manager(
+      p_league_id uuid,
+      p_manager_id uuid,
+      p_kind text,
+      p_body text,
+      p_href text default null
+    )
+    returns void
+    language sql
+    security definer
+    set search_path = public
+    as $$
+      insert into notices (league_id, manager_id, kind, body, href)
+      select p_league_id, p_manager_id, p_kind, p_body, p_href
+       where p_manager_id is not null;
+    $$;
+
+    revoke all on function notify_manager(uuid, uuid, text, text, text) from public;
+
+    /** Marks every unread notice read. */
+    create or replace function read_notices(p_league_id uuid)
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me   managers;
+      v_read int;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or v_me.league_id <> p_league_id then
+        raise exception 'Not your league' using errcode = '42501';
+      end if;
+
+      update notices set read_at = now()
+       where manager_id = v_me.id and read_at is null;
+
+      get diagnostics v_read = row_count;
+      return v_read;
+    end;
+    $$;
+
+    revoke all on function read_notices(uuid) from public;
+    grant execute on function read_notices(uuid) to authenticated;
+
+    -- ------------------------------------------------------- what gets announced ---
+
+    /**
+     * The waiver run, re-emitted from 0024 so that it tells people.
+     *
+     * A claim that wins and a claim that loses are both news, and losing is the
+     * one nobody would otherwise find out about: the player simply appears on
+     * somebody else's roster. The reason the database recorded is the reason the
+     * manager is given, because inventing a friendlier one would make the log and
+     * the message disagree.
+     */
+    create or replace function process_waivers(p_league_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_claim    waiver_claims;
+      v_won      int := 0;
+      v_lost     int := 0;
+      v_cleared  int := 0;
+      v_held     int := 0;
+      v_max      int;
+      v_guard    int := 0;
+    begin
+      loop
+        select c.* into v_claim
+          from waiver_claims c
+          join managers m on m.id = c.manager_id
+          left join waiver_wire w
+            on w.league_id = c.league_id and w.player_name = c.add_player
+         where c.league_id = p_league_id
+           and c.status = 'pending'
+           and (w.player_name is null or w.clears_at <= now())
+         order by m.waiver_priority, c.claim_order, c.created_at
+         limit 1;
+
+        exit when v_claim.id is null;
+
+        v_guard := v_guard + 1;
+        exit when v_guard > 10000;
+
+        begin
+          perform place_player(
+            p_league_id, v_claim.manager_id,
+            v_claim.add_player, v_claim.drop_player, 'waiver'
+          );
+
+          update waiver_claims
+             set status = 'won', settled_at = now()
+           where id = v_claim.id;
+
+          select max(waiver_priority) into v_max
+            from managers where league_id = p_league_id;
+
+          update managers
+             set waiver_priority = waiver_priority - 1
+           where league_id = p_league_id
+             and waiver_priority > (
+               select waiver_priority from managers where id = v_claim.manager_id
+             );
+
+          update managers set waiver_priority = v_max where id = v_claim.manager_id;
+
+          perform notify_manager(p_league_id, v_claim.manager_id, 'waiver',
+            'You won ' || v_claim.add_player || ' on waivers.', '/free-agents');
+
+          v_won := v_won + 1;
+
+        exception when others then
+          update waiver_claims
+             set status = 'lost', reason = sqlerrm, settled_at = now()
+           where id = v_claim.id;
+
+          perform notify_manager(p_league_id, v_claim.manager_id, 'waiver',
+            'Your claim for ' || v_claim.add_player || ' did not go through: ' || sqlerrm,
+            '/free-agents');
+
+          v_lost := v_lost + 1;
+        end;
+      end loop;
+
+      delete from waiver_wire
+       where league_id = p_league_id and clears_at <= now();
+      get diagnostics v_cleared = row_count;
+
+      select count(*) into v_held from waiver_wire where league_id = p_league_id;
+
+      return jsonb_build_object('ok', true, 'won', v_won, 'lost', v_lost,
+                                'cleared', v_cleared, 'stillOnWaivers', v_held);
+    end;
+    $$;
+
+    revoke all on function process_waivers(uuid) from public;
+
+    /**
+     * A trade offer arriving, and a trade going through.
+     *
+     * Written as triggers rather than into execute_trade, because an offer is
+     * created by a plain insert from the browser and countered by a plain update,
+     * and there is no function to put it in. The trigger fires for the service
+     * key too, which is correct: an offer is news to its recipient however it got
+     * there.
+     */
+    create or replace function notice_on_trade()
+    returns trigger
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_from text;
+      v_to   text;
+    begin
+      select franchise into v_from from managers where id = new.from_manager;
+      select franchise into v_to   from managers where id = new.to_manager;
+
+      if tg_op = 'INSERT' then
+        perform notify_manager(new.league_id, new.to_manager, 'trade',
+          v_from || ' has offered you a trade.', '/trade-builder');
+        return new;
+      end if;
+
+      -- A counter is the other side sending it back with different terms, so the
+      -- news goes to whoever did not just change it.
+      if new.status = 'countered' and old.status is distinct from 'countered' then
+        perform notify_manager(new.league_id,
+          case when new.to_accepted then new.from_manager else new.to_manager end,
+          'trade', 'Your trade has been countered.', '/trade-builder');
+
+      elsif new.status = 'executed' and old.status is distinct from 'executed' then
+        perform notify_manager(new.league_id, new.from_manager, 'trade',
+          'Your trade with ' || v_to || ' has gone through.', '/lineup');
+        perform notify_manager(new.league_id, new.to_manager, 'trade',
+          'Your trade with ' || v_from || ' has gone through.', '/lineup');
+
+      elsif new.status = 'declined' and old.status is distinct from 'declined' then
+        perform notify_manager(new.league_id, new.from_manager, 'trade',
+          v_to || ' declined your offer.', '/trade-builder');
+
+      elsif new.status = 'rescinded' and old.status is distinct from 'rescinded' then
+        perform notify_manager(new.league_id,
+          case when new.from_accepted then new.to_manager else new.from_manager end,
+          'trade', 'A trade offer was withdrawn.', '/trade-builder');
+      end if;
+
+      return new;
+    end;
+    $$;
+
+    drop trigger if exists trades_notice_insert on trades;
+    create trigger trades_notice_insert
+      after insert on trades
+      for each row execute function notice_on_trade();
+
+    drop trigger if exists trades_notice_update on trades;
+    create trigger trades_notice_update
+      after update on trades
+      for each row execute function notice_on_trade();
+
+    /**
+     * Your turn to pick.
+     *
+     * Fires when the clock starts on a new pick, which is exactly the moment the
+     * league moves on: current_pick changing is the draft's own definition of
+     * somebody being on the clock, so there is no second thing to keep in step.
+     */
+    create or replace function notice_on_the_clock()
+    returns trigger
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_up uuid;
+    begin
+      if new.draft_state <> 'running' then return new; end if;
+      if new.current_pick is not distinct from old.current_pick then return new; end if;
+
+      select manager_id into v_up
+        from draft_picks
+       where league_id = new.id and overall = new.current_pick;
+
+      perform notify_manager(new.id, v_up, 'draft', 'You are on the clock.', '/draft');
+      return new;
+    end;
+    $$;
+
+    drop trigger if exists leagues_notice_clock on leagues;
+    create trigger leagues_notice_clock
+      after update on leagues
+      for each row execute function notice_on_the_clock();
+
+    -- ------------------------------------------------------------- the reset ---
+    --
+    -- reset_league has now been re-emitted three times in three migrations for no
+    -- reason but to add a table to its delete list, copying ninety lines each time
+    -- to change one. The list is its own thing, so it becomes its own function:
+    -- the next table to be added is one line here, and reset_league stops being
+    -- something that has to be rewritten to stay correct.
+
+    /**
+     * Deletes everything that belongs to a season rather than to the league.
+     *
+     * Kept: the league, its franchises, their names and divisions and PINs, the
+     * settings, the admin log. Gone: everything those franchises did.
+     */
+    create or replace function purge_league_season(p_league_id uuid)
+    returns void
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    begin
+      delete from roster_slots     where league_id = p_league_id;
+      delete from matchups         where league_id = p_league_id;
+      delete from player_scores    where league_id = p_league_id;
+      delete from transactions     where league_id = p_league_id;
+      delete from waiver_claims    where league_id = p_league_id;
+      delete from waiver_wire      where league_id = p_league_id;
+      delete from trades           where league_id = p_league_id;
+      delete from trade_block      where league_id = p_league_id;
+      delete from draft_queue      where league_id = p_league_id;
+      delete from pickem_picks     where league_id = p_league_id;
+      delete from playoff_seeds    where league_id = p_league_id;
+      delete from league_champions where league_id = p_league_id;
+      -- A notice is a thing that happened. None of it happened now.
+      delete from notices          where league_id = p_league_id;
+    end;
+    $$;
+
+    revoke all on function purge_league_season(uuid) from public;
+
+    create or replace function reset_league(
+      p_league_id uuid,
+      p_release_franchises boolean default false
+    )
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me        managers;
+      v_players   int;
+      v_weeks     int;
+      v_played    int;
+      v_released  int := 0;
+      v_saved     int;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can reset the league' using errcode = '42501';
+      end if;
+
+      select count(*) into v_players from roster_slots where league_id = p_league_id;
+      select count(distinct week) into v_weeks from matchups where league_id = p_league_id;
+      select count(*) into v_played from matchups where league_id = p_league_id and final;
+
+      v_saved := snapshot_rosters(p_league_id, 'league_reset');
+
+      perform purge_league_season(p_league_id);
+
+      update managers m
+         set waiver_priority = seq.rn,
+             ready = false
+        from (
+          select id, row_number() over (order by slot) as rn
+            from managers where league_id = p_league_id
+        ) seq
+       where seq.id = m.id;
+
+      if p_release_franchises then
+        update managers
+           set pin_hash = null,
+               auth_user_id = null,
+               name = 'Open'
+         where league_id = p_league_id
+           and not is_commissioner;
+        get diagnostics v_released = row_count;
+      end if;
+
+      delete from draft_picks where league_id = p_league_id;
+      perform rebuild_draft_board(p_league_id);
+
+      update leagues
+         set draft_state = 'pending',
+             current_pick = 1,
+             pick_started_at = null,
+             lottery_order = null
+       where id = p_league_id;
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'league_reset',
+              jsonb_build_object('players_returned', v_players,
+                                 'weeks_removed', v_weeks,
+                                 'weeks_played', v_played,
+                                 'franchises_released', v_released,
+                                 'roster_rows_saved', v_saved));
+
+      return jsonb_build_object(
+        'ok', true,
+        'playersReturned', v_players,
+        'weeksRemoved', v_weeks,
+        'weeksPlayed', v_played,
+        'franchisesReleased', v_released,
+        'rosterRowsSaved', v_saved
+      );
+    end;
+    $$;
+
+    revoke all on function reset_league(uuid, boolean) from public;
+    grant execute on function reset_league(uuid, boolean) to authenticated;
+
+    insert into schema_migrations (name) values ('0028_notices.sql');
+    raise notice 'applied %', '0028_notices.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0029_next_season.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0029_next_season.sql') then
+    raise notice 'skipping %, already applied', '0029_next_season.sql';
+  else
+    -- Rolling the league into next year.
+    --
+    -- This is a dynasty league and nothing carried it forward. Every piece of the
+    -- next season existed — picks awarded for 2027, a champion recorded for 2026,
+    -- rosters that are supposed to be kept — and there was no way to get from one
+    -- to the other. The season would simply have ended and stayed ended.
+    --
+    -- What a dynasty rollover is, exactly: the rosters stay, and everything that
+    -- was true only of last year goes. That is the whole difference between this
+    -- and reset_league, which throws the rosters away too.
+    --
+    --   Kept:  every roster, exactly as it stands. The franchises, their names,
+    --          divisions, PINs and settings. The record book. The picks already
+    --          awarded and traded for the coming draft.
+    --   Gone:  the schedule and every result, the scores, the bracket and its
+    --          seeds, live waiver claims and the wire, open trade offers, the
+    --          trade block, draft queues and pick-'em picks.
+    --   Reset: the season number, the draft board, waiver order, and the ready
+    --          flags.
+    --
+    -- The transaction log is NOT cleared. "Where did he go?" is a question about a
+    -- player who is still on somebody's roster, and in a dynasty the answer may be
+    -- three years old. That is the only thing here that outlives its season on
+    -- purpose.
+    --
+    -- Refused until the season is actually over, because a rollover in week nine
+    -- is not a rollover, it is a reset that lies about what it did.
+
+    /**
+     * Starts the next season, keeping the rosters.
+     *
+     * The picks for the new season are awarded here rather than left to the
+     * nightly job, so that the league wakes up in the new year with a draft to
+     * hold rather than an empty board and a wait.
+     *
+     * p_season exists for a commissioner who needs to skip a year or correct one;
+     * left alone it is simply the year after this one.
+     */
+    create or replace function roll_season(p_league_id uuid, p_season int default null)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me      managers;
+      v_league  leagues;
+      v_next    int;
+      v_kept    int;
+      v_weeks   int;
+      v_saved   int;
+      v_picks   jsonb;
+      v_champ   text;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can start the next season' using errcode = '42501';
+      end if;
+
+      select * into v_league from leagues where id = p_league_id for update;
+      if v_league.id is null then
+        raise exception 'No such league' using errcode = 'P0002';
+      end if;
+
+      v_next := coalesce(p_season, v_league.season + 1);
+      if v_next <= v_league.season then
+        raise exception 'The next season must come after % ', v_league.season
+          using errcode = '22023';
+      end if;
+
+      -- A season is over when there is a champion. That is a stronger test than
+      -- "every week is graded": it also rules out a league whose regular season
+      -- finished last night and whose bracket has not been played.
+      if not exists (
+        select 1 from league_champions
+         where league_id = p_league_id and season = v_league.season
+      ) then
+        raise exception 'The % season has no champion yet — it is not over', v_league.season
+          using errcode = '55000';
+      end if;
+
+      select franchise into v_champ
+        from league_champions where league_id = p_league_id and season = v_league.season;
+
+      select count(*) into v_kept from roster_slots where league_id = p_league_id;
+      select count(distinct week) into v_weeks from matchups where league_id = p_league_id;
+
+      -- Photographed on the way past, like every other destructive thing in here.
+      -- The rosters survive this, but a rollover run by mistake is still the sort
+      -- of thing somebody wants back.
+      v_saved := snapshot_rosters(p_league_id, 'season_roll');
+
+      -- Everything that was true only of last season. Rosters and the record book
+      -- are deliberately not in this list.
+      delete from matchups      where league_id = p_league_id;
+      delete from player_scores where league_id = p_league_id;
+      delete from waiver_claims where league_id = p_league_id;
+      delete from waiver_wire   where league_id = p_league_id;
+      delete from trade_block   where league_id = p_league_id;
+      delete from draft_queue   where league_id = p_league_id;
+      delete from pickem_picks  where league_id = p_league_id;
+      delete from playoff_seeds where league_id = p_league_id and season = v_league.season;
+      delete from notices       where league_id = p_league_id;
+
+      -- An offer names players against a season that no longer exists, and a pick
+      -- for a draft that has now happened. Declined rather than deleted, so a
+      -- manager's work leaves a trace rather than vanishing.
+      update trades
+         set status = 'declined'
+       where league_id = p_league_id
+         and status in ('open', 'countered', 'agreed');
+
+      -- Everybody keeps their players; nobody keeps their lineup. Last year's
+      -- starters mean nothing against a schedule that does not exist yet, and a
+      -- player on IR in December is not necessarily hurt in September.
+      update roster_slots
+         set lineup_slot = 'BENCH',
+             overall_pick = null
+       where league_id = p_league_id;
+
+      -- Waiver order back to the league's own order. Last season's rolling order
+      -- is a consequence of last season.
+      update managers m
+         set waiver_priority = seq.rn,
+             ready = false
+        from (
+          select id, row_number() over (order by slot) as rn
+            from managers where league_id = p_league_id
+        ) seq
+       where seq.id = m.id;
+
+      update leagues
+         set season = v_next,
+             draft_state = 'pending',
+             current_pick = 1,
+             pick_started_at = null,
+             draft_at = null,
+             -- A lottery is drawn for one draft, and the next order comes from the
+             -- record instead.
+             lottery_order = null
+       where id = p_league_id;
+
+      -- The board for the new draft, and the picks to fill it. award_draft_picks
+      -- leaves alone any pick already created and traded, which is the whole point
+      -- of having awarded them a year early.
+      delete from draft_picks where league_id = p_league_id;
+      v_picks := award_draft_picks(p_league_id, v_next);
+      perform rebuild_draft_board(p_league_id);
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'season_rolled',
+              jsonb_build_object('from', v_league.season, 'to', v_next,
+                                 'champion', v_champ, 'players_kept', v_kept,
+                                 'weeks_removed', v_weeks, 'roster_rows_saved', v_saved));
+
+      return jsonb_build_object(
+        'ok', true,
+        'from', v_league.season,
+        'season', v_next,
+        'champion', v_champ,
+        'playersKept', v_kept,
+        'weeksRemoved', v_weeks,
+        'rosterRowsSaved', v_saved,
+        'picks', v_picks
+      );
+    end;
+    $$;
+
+    revoke all on function roll_season(uuid, int) from public;
+    grant execute on function roll_season(uuid, int) to authenticated;
+
+    insert into schema_migrations (name) values ('0029_next_season.sql');
+    raise notice 'applied %', '0029_next_season.sql';
   end if;
 end
 $__migration__$;

@@ -7,7 +7,10 @@
  * the field names below.
  */
 
-const SITE = "https://site.api.espn.com/apis/site/v2/sports/football/nfl";
+// Overridable so the parser can be exercised against a recorded response.
+// Unset everywhere except a test harness, which is where it belongs.
+const SITE =
+  process.env.ESPN_API_BASE ?? "https://site.api.espn.com/apis/site/v2/sports/football/nfl";
 
 export type SeasonType = 1 | 2 | 3; // preseason | regular | postseason
 
@@ -24,6 +27,8 @@ export interface Game {
   id: string;
   date: string;
   week: number;
+  /** 1 preseason, 2 regular, 3 postseason — as ESPN labelled the event. */
+  seasonType: SeasonType;
   /** pre | in | post — ESPN's own state, not derived from the clock. */
   state: "pre" | "in" | "post";
   completed: boolean;
@@ -78,15 +83,21 @@ function competitorOf(raw: unknown): Competitor | null {
 /**
  * Every game for a week, with live state and score. Omit `week` for the
  * scoreboard ESPN considers current.
+ *
+ * `seasonType` null asks ESPN for whatever is on right now rather than naming
+ * a part of the season — in August that is the preseason, in January the
+ * playoffs. Fantasy scoring must never do that (a preseason box score would
+ * award points for a snap nobody's starters took), so it stays pinned to the
+ * regular season by default and only the read-only scoreboard passes null.
  */
 export async function fetchScoreboard(
   week?: number,
-  seasonType: SeasonType = 2,
+  seasonType: SeasonType | null = 2,
   year?: number,
 ): Promise<Game[]> {
   const params = new URLSearchParams();
   if (week != null) params.set("week", String(week));
-  params.set("seasontype", String(seasonType));
+  if (seasonType != null) params.set("seasontype", String(seasonType));
   if (year != null) params.set("dates", String(year));
 
   const body = asRecord(await getJson(`${SITE}/scoreboard?${params}`));
@@ -100,11 +111,21 @@ export async function fetchScoreboard(
 
     const state = type.state === "in" || type.state === "post" ? type.state : "pre";
 
+    // The event says which part of the season it belongs to. Trusting that
+    // rather than the request matters when nothing was requested: asking ESPN
+    // for "now" has to come back saying what "now" turned out to be.
+    const labelled = Number(asRecord(event.season).type);
+    const eventSeasonType: SeasonType =
+      labelled === 1 || labelled === 2 || labelled === 3
+        ? (labelled as SeasonType)
+        : (seasonType ?? 2);
+
     return [
       {
         id: String(event.id ?? ""),
         date: typeof event.date === "string" ? event.date : "",
         week: Number(asRecord(event.week).number ?? week ?? 0),
+        seasonType: eventSeasonType,
         state,
         completed: type.completed === true,
         statusDetail: typeof type.shortDetail === "string" ? type.shortDetail : "",

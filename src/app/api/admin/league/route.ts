@@ -90,6 +90,8 @@ export async function PATCH(req: Request) {
     introVideo?: unknown;
     pickSeconds?: unknown;
     cinematicRounds?: unknown;
+    tradeDeadlineWeek?: unknown;
+    waiverDays?: unknown;
   };
   try {
     body = await req.json();
@@ -124,9 +126,17 @@ export async function PATCH(req: Request) {
   // The pick clock, and how many rounds get the full-screen reveal. Both have
   // been read by the draft room since it was built and set by nothing: they
   // were whatever the seed left behind.
+  //
+  // The two season rules join them for the same reason: the trade deadline and
+  // the length of a waiver period are read by the database on every trade and
+  // every drop, and until now the only way to change either was a SQL console.
   for (const [key, min, max] of [
     ["pickSeconds", 15, 600],
     ["cinematicRounds", 0, 40],
+    // 0 turns the deadline off, which is a league saying so rather than a
+    // league that forgot to set one.
+    ["tradeDeadlineWeek", 0, 25],
+    ["waiverDays", 1, 14],
   ] as const) {
     if (body[key] == null) continue;
 

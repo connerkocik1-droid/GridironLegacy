@@ -1,11 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import NewsWire from "./NewsWire";
 import type { Story } from "@/lib/news";
 
 /**
- * Marks and filters the wire against the signed-in manager's roster.
+ * The wire, either whole or filtered to the signed-in manager's players.
+ *
+ * Player news used to be a page of its own. It is the same wire against a
+ * different filter, so it is a view of this one instead, and which view is
+ * showing lives in the URL — /news?view=players is still a link somebody can
+ * send.
  *
  * The stories arrive already fetched from the server; only the roster is
  * per-manager, so only that is fetched here. `children` is the unfiltered wire,
@@ -18,9 +24,12 @@ export default function PlayerNewsFilter({
   stories: Story[];
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const params = useSearchParams();
+  const mineOnly = params.get("view") === "players";
+
   const [roster, setRoster] = useState<Set<string> | null>(null);
   const [signedOut, setSignedOut] = useState(false);
-  const [mineOnly, setMineOnly] = useState(true);
 
   const load = useCallback(async () => {
     try {
@@ -73,12 +82,15 @@ export default function PlayerNewsFilter({
         </p>
         <div style={{ display: "flex", gap: 4 }}>
           {[
-            { label: "My players", on: true },
             { label: "Everything", on: false },
+            { label: "My players", on: true },
           ].map((opt) => (
             <button
               key={opt.label}
-              onClick={() => setMineOnly(opt.on)}
+              onClick={() =>
+                router.replace(opt.on ? "/news?view=players" : "/news", { scroll: false })
+              }
+              aria-current={mineOnly === opt.on ? "page" : undefined}
               style={{
                 padding: "5px 10px",
                 fontSize: 10,

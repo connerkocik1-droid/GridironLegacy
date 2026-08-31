@@ -136,6 +136,16 @@ export async function GET(req: Request) {
   });
   if (gradeError) console.error("[cron/scores] grading failed", gradeError);
 
+  // Grading is what ends the regular season, so the postseason is moved on in
+  // the same breath. advance_playoffs decides for itself whether anything is
+  // owed — it seeds the bracket when the last regular week goes final, draws
+  // the next round when the previous one is complete, and crowns a champion
+  // when one team is left. On any other night it does nothing.
+  const { data: postseason, error: playoffError } = await db.rpc("advance_playoffs", {
+    p_league_id: leagueId,
+  });
+  if (playoffError) console.error("[cron/scores] playoffs failed", playoffError);
+
   return Response.json({
     week,
     games: games.length,
@@ -143,6 +153,7 @@ export async function GET(req: Request) {
     failed,
     players: rows.length,
     graded: !gradeError,
+    postseason: postseason ?? null,
   });
 }
 

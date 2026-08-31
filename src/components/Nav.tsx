@@ -1,11 +1,14 @@
 import Link from "next/link";
 import CommissionerOnly from "./CommissionerOnly";
+import Notices from "./Notices";
 import ProfileMenu from "./ProfileMenu";
 
+// Lineup, Matchups, Standings and Rankings are not here on purpose: the home
+// page is the way to all four, and listing them twice made a nav bar with
+// thirteen tabs in it.
 const PRIMARY = [
+  { href: "/", label: "Home" },
   { href: "/draft", label: "Draft" },
-  { href: "/league", label: "League" },
-  { href: "/news", label: "News" },
 ];
 
 // The commissioner's own two: the office, and the room for walking through
@@ -16,15 +19,13 @@ const OFFICE = [
   { href: "/commissioner", label: "Commissioner" },
 ];
 
+// Where a manager goes to change their roster, plus the reading matter.
 const SECONDARY = [
-  { href: "/draft/mock", label: "Mock Draft" },
-  { href: "/20-0", label: "20-0" },
-  { href: "/my-team", label: "My Lineup" },
-  { href: "/matchup", label: "Matchup" },
-  { href: "/player-news", label: "Player News" },
-  { href: "/players", label: "Players" },
-  { href: "/trades", label: "Trades" },
-  { href: "/pickem", label: "Pick-'Em" },
+  { href: "/free-agents", label: "Free Agents" },
+  { href: "/trade-builder", label: "Trade Builder" },
+  { href: "/league", label: "League" },
+  { href: "/news", label: "News" },
+  { href: "/minigames", label: "Mini-games" },
 ];
 
 const bar: React.CSSProperties = {
@@ -38,7 +39,11 @@ const bar: React.CSSProperties = {
   borderBottom: "1px solid rgba(145,132,217,.22)",
   background: "rgba(22,24,38,.9)",
   backdropFilter: "blur(10px)",
-  overflowX: "auto",
+  // Wraps rather than scrolls. A sideways scrollbar in a nav bar hides tabs
+  // from anyone who does not think to drag it, and there are enough tabs now
+  // that something was always being hidden on a laptop.
+  flexWrap: "wrap",
+  rowGap: 6,
 };
 
 const primaryLink = (active: boolean): React.CSSProperties => ({
@@ -71,7 +76,7 @@ const secondaryLink = (active: boolean): React.CSSProperties => ({
 
 export default function Nav({ current, note }: { current: string; note?: string }) {
   return (
-    <div style={bar}>
+    <div className="gl-nav" style={bar}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" }}>
         <div
           style={{
@@ -94,9 +99,14 @@ export default function Nav({ current, note }: { current: string; note?: string 
         </span>
       </div>
 
-      <div style={{ display: "flex", gap: 2, marginLeft: 6, flex: "0 0 auto" }}>
+      <div style={{ display: "flex", gap: 2, marginLeft: 6, flexWrap: "wrap", rowGap: 4 }}>
         {PRIMARY.map((item) => (
-          <Link key={item.href} href={item.href} style={primaryLink(item.href === current)}>
+          <Link
+            key={item.href}
+            href={item.href}
+            className="gl-navlink"
+            style={primaryLink(item.href === current)}
+          >
             {item.label}
           </Link>
         ))}
@@ -105,6 +115,7 @@ export default function Nav({ current, note }: { current: string; note?: string 
             <Link
               key={item.href}
               href={item.href}
+              className="gl-navlink"
               style={primaryLink(item.href === current)}
               aria-current={item.href === current ? "page" : undefined}
             >
@@ -121,11 +132,17 @@ export default function Nav({ current, note }: { current: string; note?: string 
           marginLeft: 12,
           paddingLeft: 12,
           borderLeft: "1px solid rgba(145,132,217,.22)",
-          flex: "0 0 auto",
+          flexWrap: "wrap",
+          rowGap: 4,
         }}
       >
         {SECONDARY.map((item) => (
-          <Link key={item.href} href={item.href} style={secondaryLink(item.href === current)}>
+          <Link
+            key={item.href}
+            href={item.href}
+            className="gl-navlink"
+            style={secondaryLink(item.href === current)}
+          >
             {item.label}
           </Link>
         ))}
@@ -146,6 +163,9 @@ export default function Nav({ current, note }: { current: string; note?: string 
         }}
       >
         {note ? <span>{note}</span> : null}
+        {/* Beside the profile rather than in the tab list: it is not a place
+            you go, it is the league getting your attention. */}
+        <Notices />
         <ProfileMenu />
       </div>
     </div>

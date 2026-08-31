@@ -139,7 +139,7 @@ function PlayerCell({
           {entry.points.toFixed(1)}
         </div>
         {!entry.live ? (
-          <div style={{ fontSize: 7, letterSpacing: ".14em", color: "#5a5d6e" }}>PROJ</div>
+          <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#5a5d6e" }}>PROJ</div>
         ) : null}
       </div>
     </div>
@@ -191,6 +191,7 @@ export default function MatchupBoard() {
       {/* The two totals face each other across the header, the same axis the
           rows below are built on. */}
       <div
+        className="gl-matchup-head"
         style={{
           display: "grid",
           gridTemplateColumns: "1fr auto 1fr",
@@ -200,7 +201,7 @@ export default function MatchupBoard() {
         }}
       >
         <div>
-          <div style={{ fontSize: 9, letterSpacing: ".28em", color: "#75798c" }}>YOU</div>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>YOU</div>
           <div style={{ fontFamily: "var(--font-heading)", fontSize: 22, marginTop: 4 }}>
             {board.home.franchise}
           </div>
@@ -217,19 +218,19 @@ export default function MatchupBoard() {
         </div>
 
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 9, letterSpacing: ".28em", color: "#75798c" }}>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>
             WEEK {board.week}
           </div>
           <div style={{ fontFamily: "var(--font-heading)", fontSize: 13, color: "#b5abfc", margin: "6px 0" }}>
             VS
           </div>
-          <div style={{ fontSize: 9, letterSpacing: ".14em", color: "#75798c" }}>
+          <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#75798c" }}>
             {board.live ? "LIVE" : "PROJECTED"}
           </div>
         </div>
 
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 9, letterSpacing: ".28em", color: "#75798c" }}>OPPONENT</div>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>OPPONENT</div>
           <select
             value={opponent}
             aria-label="Opponent"
@@ -293,6 +294,7 @@ export default function MatchupBoard() {
             return (
               <div
                 key={`${row.slot}-${i}`}
+                className="gl-matchup-row"
                 style={{
                   display: "grid",
                   // One row per slot: my player, the slot label, their player.

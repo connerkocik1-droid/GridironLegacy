@@ -10,25 +10,47 @@ interface Manager {
   franchise: string;
 }
 
+interface Pick {
+  id: string;
+  season: number;
+  round: number;
+  /** Where it falls in its round; null until the order has been computed. */
+  slot: number | null;
+  manager_id: string;
+  /** Whose record places it. Unchanged by a trade. */
+  origin_manager: string;
+  tradeable: boolean;
+}
+
 interface Trade {
   id: string;
   from_manager: string;
   to_manager: string;
-  offer: { give: string[]; get: string[] };
-  status: "open" | "countered" | "agreed" | "executed" | "declined";
+  offer: { give: string[]; get: string[]; givePicks?: string[]; getPicks?: string[] };
+  status: "open" | "countered" | "agreed" | "executed" | "declined" | "rescinded";
   from_accepted: boolean;
   to_accepted: boolean;
   thread: { who: string; at: string; text: string }[];
   created_at: string;
   incoming: boolean;
   awaitingMe: boolean;
+  /** Your terms are on the table and they have not taken them yet. */
+  canRescind: boolean;
 }
 
 interface Desk {
   me: Manager & { league_id: string };
   managers: Manager[];
   block: { player_name: string; manager_id: string }[];
+  picks: Pick[];
+  inauguralSeason: number | null;
   trades: Trade[];
+}
+
+const ORDINAL = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
+
+function ordinal(n: number): string {
+  return ORDINAL[n] ?? `${n}th`;
 }
 
 const card: React.CSSProperties = {
@@ -43,7 +65,57 @@ const STATUS_COLOR: Record<Trade["status"], string> = {
   agreed: "#7fd1a8",
   executed: "#7fd1a8",
   declined: "#75798c",
+  rescinded: "#75798c",
 };
+
+/**
+ * The draft picks one side holds, offerable or not.
+ *
+ * Picks for the inaugural draft are listed but cannot be chosen. Hiding them
+ * would leave a manager wondering where their first-rounder went; showing them
+ * greyed out with the reason answers the question before it is asked.
+ */
+function PickList({
+  picks,
+  chosen,
+  onToggle,
+  label,
+}: {
+  picks: Pick[];
+  chosen: string[];
+  onToggle: (id: string) => void;
+  label: (p: Pick) => string;
+}) {
+  if (!picks.length) return null;
+
+  return (
+    <div style={{ marginTop: 12, borderTop: "1px solid rgba(145,132,217,.16)", paddingTop: 10 }}>
+      <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c", marginBottom: 7 }}>
+        DRAFT PICKS
+      </div>
+      <div style={{ maxHeight: 200, overflowY: "auto" }}>
+        {picks.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => p.tradeable && onToggle(p.id)}
+            disabled={!p.tradeable}
+            title={p.tradeable ? undefined : "The inaugural draft cannot be traded"}
+            style={{
+              ...rowButton(chosen.includes(p.id)),
+              cursor: p.tradeable ? "pointer" : "default",
+              opacity: p.tradeable ? 1 : 0.4,
+            }}
+          >
+            {label(p)}
+            {!p.tradeable ? (
+              <span style={{ marginLeft: "auto", color: "#75798c", fontSize: 10 }}>LOCKED</span>
+            ) : null}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function PlayerChip({ name, onRemove }: { name: string; onRemove?: () => void }) {
   const p = player(name);
@@ -106,6 +178,8 @@ export default function TradeDesk() {
   const [partner, setPartner] = useState("");
   const [give, setGive] = useState<string[]>([]);
   const [want, setWant] = useState<string[]>([]);
+  const [givePicks, setGivePicks] = useState<string[]>([]);
+  const [getPicks, setGetPicks] = useState<string[]>([]);
   const [myRoster, setMyRoster] = useState<string[]>([]);
   const [theirRoster, setTheirRoster] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -175,6 +249,37 @@ export default function TradeDesk() {
     return map;
   }, [desk]);
 
+  // "2027 1st", plus who it came from once it is not the holder's own — a
+  // pick's worth is the record behind it, so the name on it matters.
+  const franchiseOf = (id: string) =>
+    desk?.managers.find((m) => m.id === id)?.franchise ?? "";
+
+  function pickLabel(p: Pick): string {
+    const own = p.origin_manager === p.manager_id;
+    const where = p.slot ? ` · pick ${p.slot}` : "";
+    return `${p.season} ${ordinal(p.round)}${own ? "" : ` (${franchiseOf(p.origin_manager)})`}${where}`;
+  }
+
+  const picksHeldBy = (id: string) =>
+    (desk?.picks ?? []).filter((p) => p.manager_id === id);
+
+  /**
+   * Pick ids from an old offer, as names.
+   *
+   * A pick that no longer exists — the franchise it came from was removed —
+   * is named as such rather than dropped, so the history of a trade does not
+   * quietly shrink.
+   */
+  function namePicks(ids: string[] | undefined): string[] {
+    return (ids ?? []).map((id) => {
+      const pick = desk?.picks.find((p) => p.id === id);
+      return pick ? pickLabel(pick) : "a pick that no longer exists";
+    });
+  }
+
+  const empty =
+    !give.length && !want.length && !givePicks.length && !getPicks.length;
+
   const giveValue = give.reduce((s, n) => s + proj(n), 0);
   const wantValue = want.reduce((s, n) => s + proj(n), 0);
 
@@ -183,13 +288,13 @@ export default function TradeDesk() {
   }
 
   async function send() {
-    if (!partner || (!give.length && !want.length)) return;
+    if (!partner || empty) return;
     setBusy(true);
     try {
       const res = await fetch("/api/trades", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ to: partner, give, get: want }),
+        body: JSON.stringify({ to: partner, give, get: want, givePicks, getPicks }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -197,6 +302,8 @@ export default function TradeDesk() {
       } else {
         setGive([]);
         setWant([]);
+        setGivePicks([]);
+        setGetPicks([]);
         setError(null);
         await load();
       }
@@ -205,7 +312,7 @@ export default function TradeDesk() {
     }
   }
 
-  async function respond(trade: Trade, action: "accept" | "decline") {
+  async function respond(trade: Trade, action: "accept" | "decline" | "rescind") {
     setBusy(true);
     try {
       const res = await fetch(`/api/trades/${trade.id}`, {
@@ -234,7 +341,7 @@ export default function TradeDesk() {
   return (
     <>
       <div style={{ padding: "24px 26px 12px" }}>
-        <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>TRADE DESK</div>
+        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>TRADE DESK</div>
         <div
           style={{
             fontFamily: "var(--font-heading)",
@@ -272,6 +379,9 @@ export default function TradeDesk() {
             onChange={(e) => {
               setPartner(e.target.value);
               setWant([]);
+              // Their picks belong to whoever was selected; keeping them
+              // across a change of partner would offer a pick they never had.
+              setGetPicks([]);
             }}
             style={{
               width: "100%",
@@ -318,6 +428,13 @@ export default function TradeDesk() {
                   </button>
                 ))}
               </div>
+
+              <PickList
+                picks={picksHeldBy(desk.me.id)}
+                chosen={givePicks}
+                onToggle={(id) => toggle(givePicks, setGivePicks, id)}
+                label={pickLabel}
+              />
             </div>
 
             <div>
@@ -346,12 +463,21 @@ export default function TradeDesk() {
                   </button>
                 ))}
               </div>
+
+              {partner ? (
+                <PickList
+                  picks={picksHeldBy(partner)}
+                  chosen={getPicks}
+                  onToggle={(id) => toggle(getPicks, setGetPicks, id)}
+                  label={pickLabel}
+                />
+              ) : null}
             </div>
           </div>
 
           <button
             onClick={send}
-            disabled={busy || !partner || (!give.length && !want.length)}
+            disabled={busy || !partner || empty}
             className="btn btn-primary"
             style={{
               marginTop: 16,
@@ -362,7 +488,7 @@ export default function TradeDesk() {
               borderRadius: "var(--radius-sm)",
               font: "inherit",
               cursor: busy ? "default" : "pointer",
-              opacity: !partner || (!give.length && !want.length) ? 0.45 : 1,
+              opacity: !partner || empty ? 0.45 : 1,
             }}
           >
             Send offer
@@ -380,8 +506,13 @@ export default function TradeDesk() {
 
           {desk.trades.map((t) => {
             const other = t.incoming ? t.from_manager : t.to_manager;
-            const mine = t.incoming ? t.offer.get : t.offer.give;
-            const theirs = t.incoming ? t.offer.give : t.offer.get;
+            // Picks are named the same way in the history as in the builder,
+            // so a deal for two firsts does not read as an empty trade.
+            const minePicks = t.incoming ? t.offer.getPicks : t.offer.givePicks;
+            const theirPicks = t.incoming ? t.offer.givePicks : t.offer.getPicks;
+
+            const mine = [...(t.incoming ? t.offer.get : t.offer.give), ...namePicks(minePicks)];
+            const theirs = [...(t.incoming ? t.offer.give : t.offer.get), ...namePicks(theirPicks)];
 
             return (
               <div
@@ -394,7 +525,7 @@ export default function TradeDesk() {
                   </span>
                   <span
                     style={{
-                      fontSize: 8,
+                      fontSize: 10,
                       letterSpacing: ".14em",
                       padding: "2px 6px",
                       borderRadius: 2,
@@ -413,7 +544,10 @@ export default function TradeDesk() {
                   You get: {theirs.length ? theirs.join(", ") : "nothing"}
                 </div>
 
-                {t.awaitingMe && t.status !== "executed" && t.status !== "declined" ? (
+                {t.awaitingMe &&
+                t.status !== "executed" &&
+                t.status !== "declined" &&
+                t.status !== "rescinded" ? (
                   <div style={{ display: "flex", gap: 6 }}>
                     <button onClick={() => respond(t, "accept")} disabled={busy} style={smallButton("#7fd1a8")}>
                       Accept
@@ -421,6 +555,20 @@ export default function TradeDesk() {
                     <button onClick={() => respond(t, "decline")} disabled={busy} style={smallButton("#e0b573")}>
                       Decline
                     </button>
+                  </div>
+                ) : t.canRescind ? (
+                  /* Waiting on them, so it is still yours to take back. */
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button
+                      onClick={() => respond(t, "rescind")}
+                      disabled={busy}
+                      style={smallButton("#e0b573")}
+                    >
+                      Withdraw
+                    </button>
+                    <span style={{ fontSize: 10, color: "#75798c" }}>
+                      Waiting on the other manager.
+                    </span>
                   </div>
                 ) : t.status === "agreed" ? (
                   <div style={{ fontSize: 10, color: "#75798c" }}>Waiting on the other manager.</div>

@@ -187,7 +187,7 @@ export default function MockDraft() {
   if (!running && !picks.length) {
     return (
       <div style={{ padding: "24px 26px 40px", maxWidth: 760 }}>
-        <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>PRACTICE</div>
+        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>PRACTICE</div>
         <h1
           style={{
             fontFamily: "var(--font-heading)",
@@ -264,7 +264,7 @@ export default function MockDraft() {
     <div style={{ padding: "18px 26px 40px" }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 16, flexWrap: "wrap", marginBottom: 14 }}>
         <div>
-          <div style={{ fontSize: 9, letterSpacing: ".28em", color: "#75798c" }}>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>
             {finished ? "MOCK COMPLETE" : "ON THE CLOCK"}
           </div>
           <div style={{ fontFamily: "var(--font-heading)", fontSize: 30, marginTop: 4 }}>
@@ -333,7 +333,7 @@ export default function MockDraft() {
                 {myTurn ? "Your pick" : "Best available"}
               </h6>
               {myTurn ? (
-                <button onClick={autoPick} style={{ ...button(), padding: "5px 10px", fontSize: 9.5 }}>
+                <button onClick={autoPick} style={{ ...button(), padding: "5px 10px", fontSize: 10 }}>
                   Let it pick
                 </button>
               ) : null}
@@ -378,7 +378,7 @@ export default function MockDraft() {
                 >
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 12.5, color: "#e9e9ed" }}>{p.n}</div>
-                    <div style={{ fontSize: 9.5, color: "#75798c", letterSpacing: ".06em" }}>
+                    <div style={{ fontSize: 10, color: "#75798c", letterSpacing: ".06em" }}>
                       <span style={{ color: TINT[p.p] }}>{p.posRank || p.p}</span> · {p.t} · ADP{" "}
                       {p.adp}
                       {p.bye ? ` · BYE ${p.bye}` : ""}
@@ -415,7 +415,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       aria-label={label}
       style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginBottom: 11 }}
     >
-      <span style={{ fontSize: 9, letterSpacing: ".2em", color: "#75798c", width: 90 }}>{label}</span>
+      <span style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c", width: 90 }}>{label}</span>
       {children}
     </div>
   );
@@ -453,7 +453,7 @@ function Summary({ roster, league }: { roster: Player[]; league: { starters: Rec
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 12 }}>
         {(["QB", "RB", "WR", "TE", "K", "D/ST"] as Position[]).map((p) => (
           <span key={p} style={{ fontSize: 11, color: "#9397ab" }}>
-            <span style={{ color: TINT[p], letterSpacing: ".08em", fontSize: 9.5 }}>
+            <span style={{ color: TINT[p], letterSpacing: ".08em", fontSize: 10 }}>
               {p === "D/ST" ? "DST" : p}
             </span>{" "}
             {counts[p] ?? 0}

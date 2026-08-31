@@ -141,3 +141,83 @@ export function defaultLineup(
 
   return out;
 }
+
+export type ProblemKind = "empty" | "bye" | "injured";
+
+export interface Problem {
+  kind: ProblemKind;
+  slot: string;
+  /** Absent for an empty slot: there is nobody to name. */
+  player?: string;
+  message: string;
+}
+
+/**
+ * What is wrong with a lineup that is nonetheless legal.
+ *
+ * validateLineup answers "may this be saved". This answers the different and
+ * more useful question: is this the lineup you meant. Starting nobody at
+ * tight end, or a player on his bye, is perfectly legal and scores zero, and
+ * the site has never said a word about either.
+ *
+ * Ordered worst first — an empty slot costs everything, a bye costs
+ * everything but is at least visible on the card, and a questionable player
+ * may well play.
+ */
+export function lineupProblems(
+  assignments: Assignment[],
+  league: LeagueShape | null,
+  week: number,
+  lookup: (name: string) => { p: string; bye: number; q: boolean } | null,
+): Problem[] {
+  const problems: Problem[] = [];
+
+  // Seats are counted rather than matched by name: two of three flex spots
+  // filled is one empty flex, and saying "FLEX is empty" once would be wrong.
+  const seats = new Map<string, number>();
+  for (const slot of startingSlots(league)) seats.set(slot, (seats.get(slot) ?? 0) + 1);
+
+  const filled = new Map<string, number>();
+  for (const a of assignments) {
+    if (a.slot === BENCH || a.slot === IR) continue;
+    filled.set(a.slot, (filled.get(a.slot) ?? 0) + 1);
+  }
+
+  for (const [slot, seat] of seats) {
+    const empty = seat - (filled.get(slot) ?? 0);
+    for (let i = 0; i < empty; i++) {
+      problems.push({
+        kind: "empty",
+        slot,
+        message: `Nobody is starting at ${slot === "D/ST" ? "DST" : slot}.`,
+      });
+    }
+  }
+
+  for (const a of assignments) {
+    if (a.slot === BENCH || a.slot === IR) continue;
+    const p = lookup(a.playerName);
+    if (!p) continue;
+
+    // A bye is known from the schedule, so this is certain rather than a
+    // guess: he will score nothing.
+    if (p.bye && p.bye === week) {
+      problems.push({
+        kind: "bye",
+        slot: a.slot,
+        player: a.playerName,
+        message: `${a.playerName} is on his bye this week.`,
+      });
+    } else if (p.q) {
+      problems.push({
+        kind: "injured",
+        slot: a.slot,
+        player: a.playerName,
+        message: `${a.playerName} is questionable.`,
+      });
+    }
+  }
+
+  const rank: Record<ProblemKind, number> = { empty: 0, bye: 1, injured: 2 };
+  return problems.sort((a, b) => rank[a.kind] - rank[b.kind]);
+}

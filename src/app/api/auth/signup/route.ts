@@ -50,6 +50,14 @@ export async function POST(req: Request) {
   const slot = typeof body.slot === "string" ? body.slot.toUpperCase() : "";
   if (!slot) return Response.json({ error: "Pick a franchise" }, { status: 400 });
 
+  // A first name is required, not optional as it was. It is what the franchise
+  // is named after, and it is how eleven other people know whose team they are
+  // looking at on the board.
+  const firstName = typeof body.name === "string" ? body.name.trim().slice(0, 40) : "";
+  if (!firstName) {
+    return Response.json({ error: "Your first name is required" }, { status: 400 });
+  }
+
   if (!isValidPin(body.pin)) {
     return Response.json({ error: "Your PIN must be exactly four digits" }, { status: 400 });
   }
@@ -119,18 +127,24 @@ export async function POST(req: Request) {
     }
   }
 
+  // The franchise takes the new manager's name unless it already has one
+  // somebody chose. "Open Team" and "Dana's Team" are names this app made up;
+  // "Steel Cartel" is not, and a franchise called that keeps it through a
+  // change of manager.
+  const { data: named } = await admin.rpc("is_default_franchise_name", {
+    p_name: manager.franchise,
+  });
+
   const franchise =
     typeof body.franchise === "string" && body.franchise.trim()
       ? body.franchise.trim().slice(0, 60)
-      : manager.franchise;
-  const name =
-    typeof body.name === "string" && body.name.trim()
-      ? body.name.trim().slice(0, 60)
-      : manager.name;
+      : named === false
+        ? manager.franchise
+        : `${firstName}'s Team`;
 
   const { error: updateError } = await admin
     .from("managers")
-    .update({ pin_hash: pinHash, auth_user_id: authUserId, franchise, name })
+    .update({ pin_hash: pinHash, auth_user_id: authUserId, franchise, name: firstName })
     .eq("id", manager.id);
 
   if (updateError) {
@@ -142,7 +156,7 @@ export async function POST(req: Request) {
   const db = await serverClient();
   const { error: signInError } = await db.auth.signInWithPassword({ email, password });
   if (signInError) {
-    return Response.json({ ok: true, signedIn: false });
+    return Response.json({ ok: true, signedIn: false, franchise });
   }
 
   return Response.json({ ok: true, signedIn: true, slot, franchise });

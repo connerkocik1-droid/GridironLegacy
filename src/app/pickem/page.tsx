@@ -1,19 +1,6 @@
-import Nav from "@/components/Nav";
-import PickemBoard from "@/components/PickemBoard";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Pick-'Em · Gridiron Legacy" };
-
-export default function PickemPage() {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(120% 80% at 50% -10%,rgba(66,58,106,.4),transparent 60%),#161826",
-      }}
-    >
-      <Nav current="/pickem" />
-      <PickemBoard />
-    </div>
-  );
+// Moved. This route stays so older links still work.
+export default function MovedPage() {
+  redirect("/minigames?game=pickem");
 }

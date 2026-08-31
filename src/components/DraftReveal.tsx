@@ -258,7 +258,7 @@ export default function DraftReveal({
 
         <div
           style={{
-            fontSize: 9,
+            fontSize: 10,
             letterSpacing: ".34em",
             color: "#75798c",
             marginTop: 26,

@@ -28,6 +28,14 @@ function names(value: unknown): string[] {
   return [...new Set(value.filter((v): v is string => typeof v === "string" && v.length > 0))];
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Pick ids from a request body, deduplicated and shaped like ids. */
+function ids(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((v): v is string => typeof v === "string" && UUID.test(v)))];
+}
+
 /** Every trade this manager is party to, newest first. */
 export async function GET() {
   if (!isConfigured()) return NOT_CONFIGURED;
@@ -54,16 +62,50 @@ export async function GET() {
     .select("player_name, manager_id")
     .eq("league_id", me.league_id);
 
+  // Picks are property too, and the desk cannot offer what it cannot see.
+  const [{ data: picks }, { data: league }] = await Promise.all([
+    db
+      .from("draft_pick_assets")
+      .select("id, season, round, slot, manager_id, origin_manager")
+      .eq("league_id", me.league_id)
+      .order("season")
+      .order("round")
+      .order("slot"),
+    db.from("leagues").select("season, inaugural_season").eq("id", me.league_id).single(),
+  ]);
+
+  const inaugural = league?.inaugural_season ?? league?.season ?? null;
+
   return Response.json({
     me,
     managers: managers ?? [],
     block: block ?? [],
-    trades: (trades ?? []).map((t) => ({
-      ...t,
-      // Say whose turn it is without the client re-deriving the rule.
-      incoming: t.to_manager === me.id,
-      awaitingMe: t.to_manager === me.id ? !t.to_accepted : !t.from_accepted,
+    inauguralSeason: inaugural,
+    picks: (picks ?? []).map((p) => ({
+      ...p,
+      // The same rule the database enforces, so the desk can grey out what it
+      // already knows will be refused rather than letting somebody build an
+      // offer that cannot execute.
+      tradeable: inaugural == null ? false : p.season > inaugural,
     })),
+    trades: (trades ?? []).map((t) => {
+      const incoming = t.to_manager === me.id;
+      const mineStands = incoming ? t.to_accepted : t.from_accepted;
+      const theirsStands = incoming ? t.from_accepted : t.to_accepted;
+
+      return {
+        ...t,
+        // Say whose turn it is without the client re-deriving the rule.
+        incoming,
+        awaitingMe: incoming ? !t.to_accepted : !t.from_accepted,
+        // Your terms are on the table and they have not taken them, so you can
+        // still take them back. The same rule the database enforces.
+        canRescind:
+          mineStands &&
+          !theirsStands &&
+          !["executed", "declined", "rescinded"].includes(t.status),
+      };
+    }),
   });
 }
 
@@ -75,7 +117,14 @@ export async function POST(req: Request) {
   const me = await currentManager(db);
   if (!me) return Response.json({ error: "Not signed in" }, { status: 401 });
 
-  let body: { to?: unknown; give?: unknown; get?: unknown; message?: unknown };
+  let body: {
+    to?: unknown;
+    give?: unknown;
+    get?: unknown;
+    givePicks?: unknown;
+    getPicks?: unknown;
+    message?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -85,11 +134,16 @@ export async function POST(req: Request) {
   const to = typeof body.to === "string" ? body.to : "";
   const give = names(body.give);
   const want = names(body.get);
+  const givePicks = ids(body.givePicks);
+  const getPicks = ids(body.getPicks);
 
   if (!to) return Response.json({ error: "Pick a trade partner" }, { status: 400 });
   if (to === me.id) return Response.json({ error: "You cannot trade with yourself" }, { status: 400 });
-  if (!give.length && !want.length) {
-    return Response.json({ error: "An offer needs at least one player" }, { status: 400 });
+  if (!give.length && !want.length && !givePicks.length && !getPicks.length) {
+    return Response.json(
+      { error: "An offer needs at least one player or pick" },
+      { status: 400 },
+    );
   }
 
   const { data: partner } = await db
@@ -123,6 +177,40 @@ export async function POST(req: Request) {
     );
   }
 
+  // Picks get the same treatment as players: held by the side promising them,
+  // and for a season that is actually for sale. execute_trade checks again on
+  // the way through, because an offer can sit for days.
+  if (givePicks.length || getPicks.length) {
+    const [{ data: held }, { data: league }] = await Promise.all([
+      db
+        .from("draft_pick_assets")
+        .select("id, season, manager_id")
+        .eq("league_id", me.league_id)
+        .in("id", [...givePicks, ...getPicks]),
+      db.from("leagues").select("season, inaugural_season").eq("id", me.league_id).single(),
+    ]);
+
+    const rows = held ?? [];
+    const holderOf = new Map(rows.map((p) => [p.id, p.manager_id]));
+
+    if (givePicks.some((id) => holderOf.get(id) !== me.id)) {
+      return Response.json({ error: "You do not hold one of those picks" }, { status: 400 });
+    }
+    if (getPicks.some((id) => holderOf.get(id) !== to)) {
+      return Response.json({ error: "They do not hold one of those picks" }, { status: 400 });
+    }
+
+    const inaugural = league?.inaugural_season ?? league?.season;
+    const locked = rows.filter((p) => inaugural == null || p.season <= inaugural);
+    if (locked.length) {
+      const seasons = [...new Set(locked.map((p) => p.season))].sort().join(", ");
+      return Response.json(
+        { error: `Picks for the ${seasons} draft cannot be traded` },
+        { status: 400 },
+      );
+    }
+  }
+
   const message = typeof body.message === "string" ? body.message.slice(0, 500) : "";
   const thread = [
     {
@@ -138,7 +226,7 @@ export async function POST(req: Request) {
       league_id: me.league_id,
       from_manager: me.id,
       to_manager: to,
-      offer: { give, get: want },
+      offer: { give, get: want, givePicks, getPicks },
       status: "open",
       // Proposing is accepting your own terms; the partner still has to agree.
       from_accepted: true,

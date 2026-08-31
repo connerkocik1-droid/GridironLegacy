@@ -1,19 +1,6 @@
-import Nav from "@/components/Nav";
-import MyTeamBoard from "@/components/MyTeamBoard";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "My Team · Gridiron Legacy" };
-
-export default function MyTeamPage() {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(120% 80% at 50% -10%,rgba(66,58,106,.4),transparent 60%),#161826",
-      }}
-    >
-      <Nav current="/my-team" />
-      <MyTeamBoard />
-    </div>
-  );
+// Moved. This route stays so older links still work.
+export default function MovedPage() {
+  redirect("/lineup");
 }

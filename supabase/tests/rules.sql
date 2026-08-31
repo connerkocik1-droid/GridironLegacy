@@ -187,9 +187,11 @@ select expect('the board is rebuilt to the new size',
 update managers set pin_hash = 'x' where league_id = :'L' and slot = 'T05';
 \o
 
+-- Named by slot, because every open seat is called the same thing and the
+-- point of the message is to say which ones are in the way.
 select expect('a claimed franchise cannot be removed',
   refuses(format('select set_team_count(%L, 4)', :'L')),
-  'These franchises are claimed or hold players: Franchise 5');
+  'These franchises are claimed or hold players: T05 · Open Team');
 
 select expect('the claimed franchise survived',
   (select count(*)::int from managers where league_id = :'L'), 5);
@@ -368,6 +370,859 @@ select expect('so an add is allowed again',
 
 select expect('every move is logged',
   (select count(*)::int > 0 from transactions where league_id = :'W' and kind = 'waiver'), true);
+
+\echo ''
+\echo '--- the waiver wire ---'
+
+\o /dev/null
+\set X '99999999-0000-0000-0000-000000000018'
+\set X1 'eeee9000-0000-0000-0000-000000000001'
+\set X2 'eeee9000-0000-0000-0000-000000000002'
+\set X3 'eeee9000-0000-0000-0000-000000000003'
+
+-- Capacity 3 again: 2 starters and a bench spot.
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'X', 'Wire', 2026, 'AAA',
+        '{"starters": {"QB": 1, "RB": 1}, "bench": 1, "rounds": 1}'::jsonb);
+
+insert into auth.users (id) values (:'X1'), (:'X2'), (:'X3');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id, waiver_priority) values
+  (:'X', 'AAA', 'A', 'Alpha',   true,  :'X1', 1),
+  (:'X', 'BBB', 'B', 'Bravo',   false, :'X2', 2),
+  (:'X', 'CCC', 'C', 'Charlie', false, :'X3', 3);
+
+select signin(:'X2');
+\o
+
+select expect('a player nobody dropped is a free agent, added on the spot',
+  (select (add_player(:'X', 'Wire Guy') ->> 'ok')::boolean), true);
+
+select expect('dropping him reports when he clears',
+  (select (drop_player(:'X', 'Wire Guy') ->> 'clearsAt') is not null), true);
+
+select expect('and he is on the wire, not back on the shelf',
+  on_waivers(:'X', 'Wire Guy'), true);
+
+select expect('with a clearing time in the future',
+  (select clears_at > now() from waiver_wire where league_id = :'X' and player_name = 'Wire Guy'),
+  true);
+
+select expect('he has left the roster all the same',
+  (select count(*)::int from roster_slots where league_id = :'X' and player_name = 'Wire Guy'), 0);
+
+\o /dev/null
+select signin(:'X3');
+\o
+
+select expect('nobody can simply take a player off the wire',
+  refuses(format('select add_player(%L, %L)', :'X', 'Wire Guy')) like '%on waivers%', true);
+
+select expect('so he is still nobody''s',
+  (select count(*)::int from roster_slots where league_id = :'X' and player_name = 'Wire Guy'), 0);
+
+-- Alpha and Charlie both want him. Alpha has the better priority.
+\o /dev/null
+insert into waiver_claims (league_id, manager_id, add_player) values
+  (:'X', (select id from managers where league_id = :'X' and slot = 'AAA'), 'Wire Guy'),
+  (:'X', (select id from managers where league_id = :'X' and slot = 'CCC'), 'Wire Guy');
+select process_waivers(:'X');
+\o
+
+select expect('a run before his time is up settles nothing',
+  (select count(*)::int from waiver_claims
+    where league_id = :'X' and add_player = 'Wire Guy' and status = 'pending'), 2);
+
+select expect('and does not release him either',
+  on_waivers(:'X', 'Wire Guy'), true);
+
+-- His waiver period elapses.
+\o /dev/null
+update waiver_wire set clears_at = now() - interval '1 minute'
+ where league_id = :'X' and player_name = 'Wire Guy';
+select process_waivers(:'X');
+\o
+
+select expect('the next run gives him to the best priority',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'X' and r.player_name = 'Wire Guy'), 'AAA');
+
+select expect('the other claim is told why it lost',
+  (select count(*)::int from waiver_claims
+    where league_id = :'X' and add_player = 'Wire Guy'
+      and status = 'lost' and reason like '%already rostered%'), 1);
+
+select expect('a player who has been won is off the wire',
+  on_waivers(:'X', 'Wire Guy'), false);
+
+select expect('and winning still sends you to the back',
+  (select string_agg(slot, ',' order by waiver_priority) from managers where league_id = :'X'),
+  'BBB,CCC,AAA');
+
+-- Nobody wants him the second time.
+\o /dev/null
+select signin(:'X1');
+select drop_player(:'X', 'Wire Guy');
+select process_waivers(:'X');
+\o
+
+select expect('an unclaimed player is not released early',
+  on_waivers(:'X', 'Wire Guy'), true);
+
+\o /dev/null
+update waiver_wire set clears_at = now() - interval '1 minute'
+ where league_id = :'X' and player_name = 'Wire Guy';
+select process_waivers(:'X');
+\o
+
+select expect('but the run past his time lets him go',
+  on_waivers(:'X', 'Wire Guy'), false);
+
+\o /dev/null
+select signin(:'X3');
+\o
+
+select expect('and then anybody may have him',
+  (select (add_player(:'X', 'Wire Guy') ->> 'ok')::boolean), true);
+
+-- Charlie fills up, then claims somebody while dropping to make room. The
+-- player he drops must not be handed to the league in the same run.
+\o /dev/null
+select add_player(:'X', 'Spare One');
+select add_player(:'X', 'Spare Two');
+insert into waiver_claims (league_id, manager_id, add_player, drop_player) values
+  (:'X', (select id from managers where league_id = :'X' and slot = 'CCC'), 'Fresh Face', 'Spare One');
+select process_waivers(:'X');
+\o
+
+select expect('a claim on a free agent is settled by the same run',
+  (select count(*)::int from roster_slots
+    where league_id = :'X' and player_name = 'Fresh Face'), 1);
+
+select expect('the player dropped to make room goes on the wire',
+  on_waivers(:'X', 'Spare One'), true);
+
+select expect('and the run that put him there does not also release him',
+  (select clears_at > now() from waiver_wire where league_id = :'X' and player_name = 'Spare One'),
+  true);
+
+-- Re-dropping restarts the clock rather than failing.
+\o /dev/null
+select signin(:'X2');
+select add_player(:'X', 'Boomerang');
+select drop_player(:'X', 'Boomerang');
+update waiver_wire set clears_at = now() - interval '1 minute'
+ where league_id = :'X' and player_name = 'Boomerang';
+select process_waivers(:'X');
+select add_player(:'X', 'Boomerang');
+select drop_player(:'X', 'Boomerang');
+\o
+
+select expect('a player dropped twice starts his period over',
+  (select clears_at > now() from waiver_wire where league_id = :'X' and player_name = 'Boomerang'),
+  true);
+
+-- An open league has no wire at all.
+\o /dev/null
+update leagues set settings = settings || '{"waiverMode": "open"}'::jsonb where id = :'X';
+select add_player(:'X', 'Open Season');
+select drop_player(:'X', 'Open Season');
+\o
+
+select expect('an open league drops straight back to free agency',
+  on_waivers(:'X', 'Open Season'), false);
+
+select expect('so the next manager may take him at once',
+  (select (add_player(:'X', 'Open Season') ->> 'ok')::boolean), true);
+
+-- A league that runs everything through waivers has no open market.
+\o /dev/null
+update leagues set settings = settings || '{"waiverMode": "all"}'::jsonb where id = :'X';
+\o
+
+select expect('a claims-only league refuses an open-market add',
+  refuses(format('select add_player(%L, %L)', :'X', 'Anybody At All'))
+    like '%goes through waivers%', true);
+
+\o /dev/null
+update leagues set settings = settings || '{"waiverMode": "waivers"}'::jsonb where id = :'X';
+select signin(:'X1');
+select reset_draft(:'X');
+\o
+
+select expect('resetting the draft clears the wire with the rosters',
+  (select count(*)::int from waiver_wire where league_id = :'X'), 0);
+
+select expect('the waiver period is floored at a day',
+  waiver_days(:'X'), 1);
+
+\o /dev/null
+update leagues set settings = settings || '{"waiverDays": 3}'::jsonb where id = :'X';
+\o
+
+select expect('but a league may make it longer', waiver_days(:'X'), 3);
+
+\echo ''
+\echo '--- the trade deadline, and the record a trade leaves ---'
+
+\o /dev/null
+\set D  '99999999-0000-0000-0000-000000000019'
+\set D1 'ddd90000-0000-0000-0000-000000000001'
+\set D2 'ddd90000-0000-0000-0000-000000000002'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'D', 'Deadline', 2026, 'AAA',
+        '{"starters": {"QB": 1}, "bench": 4, "regularWeeks": 13, "rounds": 1}'::jsonb);
+
+insert into auth.users (id) values (:'D1'), (:'D2');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'D', 'AAA', 'A', 'Alpha', true,  :'D1'),
+  (:'D', 'BBB', 'B', 'Bravo', false, :'D2');
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'D', id, 'Alpha Star', 'BENCH' from managers where league_id = :'D' and slot = 'AAA';
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'D', id, 'Bravo Star', 'BENCH' from managers where league_id = :'D' and slot = 'BBB';
+
+-- A season played up to week four.
+insert into matchups (league_id, week, home_manager, away_manager, final)
+select :'D', w,
+       (select id from managers where league_id = :'D' and slot = 'AAA'),
+       (select id from managers where league_id = :'D' and slot = 'BBB'),
+       w < 4
+  from generate_series(1, 13) w;
+\o
+
+select expect('the week is the first one still to be played', current_week(:'D'), 4);
+
+select expect('the deadline defaults to two weeks short of the end',
+  trade_deadline_week(:'D'), 11);
+
+-- A straight swap, both sides agreed, comfortably inside the deadline.
+\o /dev/null
+insert into trades (id, league_id, from_manager, to_manager, offer,
+                    status, from_accepted, to_accepted)
+select 'ddd90000-0000-0000-0000-0000000000a1', :'D',
+       (select id from managers where league_id = :'D' and slot = 'AAA'),
+       (select id from managers where league_id = :'D' and slot = 'BBB'),
+       '{"give": ["Alpha Star"], "get": ["Bravo Star"]}'::jsonb, 'agreed', true, true;
+select signin(:'D1');
+select execute_trade('ddd90000-0000-0000-0000-0000000000a1');
+\o
+
+select expect('a trade inside the deadline goes through',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'D' and r.player_name = 'Alpha Star'), 'BBB');
+
+select expect('and both players are written into the record',
+  (select count(*)::int from transactions
+    where league_id = :'D' and kind = 'trade'), 2);
+
+select expect('filed under whoever received each one',
+  (select m.slot from transactions t join managers m on m.id = t.manager_id
+    where t.league_id = :'D' and t.player_name = 'Alpha Star'), 'BBB');
+
+select expect('naming the franchise he came from, in words',
+  (select detail ->> 'fromFranchise' from transactions
+    where league_id = :'D' and player_name = 'Alpha Star'), 'Alpha');
+
+-- The season runs on past the deadline.
+\o /dev/null
+update matchups set final = true where league_id = :'D' and week <= 12;
+\o
+
+select expect('the week moves on with the season', current_week(:'D'), 13);
+
+select expect('an offer past the deadline is refused when it is made',
+  refuses(format($f$insert into trades (league_id, from_manager, to_manager, offer, status)
+                    select %L,
+                      (select id from managers where league_id = %L and slot = 'AAA'),
+                      (select id from managers where league_id = %L and slot = 'BBB'),
+                      '{"give": [], "get": ["Alpha Star"]}'::jsonb, 'open'$f$,
+                 :'D', :'D', :'D')),
+  null);
+
+\o /dev/null
+-- Written with the service key, which is past the trigger on purpose: this is
+-- an offer made in week three that nobody answered until week thirteen.
+insert into trades (id, league_id, from_manager, to_manager, offer,
+                    status, from_accepted, to_accepted)
+select 'ddd90000-0000-0000-0000-0000000000a2', :'D',
+       (select id from managers where league_id = :'D' and slot = 'BBB'),
+       (select id from managers where league_id = :'D' and slot = 'AAA'),
+       '{"give": ["Alpha Star"], "get": []}'::jsonb, 'agreed', true, true;
+\o
+
+select expect('a stale offer accepted past the deadline is refused too',
+  refuses($x$select execute_trade('ddd90000-0000-0000-0000-0000000000a2')$x$)
+    like '%deadline passed in week 11%', true);
+
+select expect('and the player did not move',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'D' and r.player_name = 'Alpha Star'), 'BBB');
+
+-- A league that wants no deadline says so.
+\o /dev/null
+update leagues set settings = settings || '{"tradeDeadlineWeek": 0}'::jsonb where id = :'D';
+\o
+
+select expect('a league may turn the deadline off', trade_deadline_week(:'D'), 0);
+
+select expect('and then a trade in the last week goes through',
+  (select (execute_trade('ddd90000-0000-0000-0000-0000000000a2') ->> 'ok')::boolean), true);
+
+select expect('the record shows the player coming back',
+  (select count(*)::int from transactions
+    where league_id = :'D' and kind = 'trade' and player_name = 'Alpha Star'), 2);
+
+\echo ''
+\echo '--- the playoffs ---'
+
+\o /dev/null
+\set Y  '99999999-0000-0000-0000-000000000020'
+\set Y1 'aa209000-0000-0000-0000-000000000001'
+
+-- Eight franchises, two divisions, a six-team field: two miss out, two get a
+-- first-round bye, and the bracket reseeds twice.
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'Y', 'Postseason', 2026, 'AAA',
+        '{"starters": {"QB": 1}, "bench": 4, "rounds": 1, "playoffTeams": 6,
+          "tradeDeadlineWeek": 0}'::jsonb);
+
+insert into auth.users (id) values (:'Y1');
+
+insert into managers (league_id, slot, name, franchise, division, is_commissioner, auth_user_id)
+values
+  (:'Y', 'AAA', 'A', 'Alpha',   'East', true,  :'Y1'),
+  (:'Y', 'BBB', 'B', 'Bravo',   'East', false, null),
+  (:'Y', 'CCC', 'C', 'Charlie', 'East', false, null),
+  (:'Y', 'DDD', 'D', 'Delta',   'East', false, null),
+  (:'Y', 'EEE', 'E', 'Echo',    'West', false, null),
+  (:'Y', 'FFF', 'F', 'Foxtrot', 'West', false, null),
+  (:'Y', 'GGG', 'G', 'Golf',    'West', false, null),
+  (:'Y', 'HHH', 'H', 'Hotel',   'West', false, null);
+
+-- A regular season written straight down: four graded weeks whose only job is
+-- to produce a table with no ties in it anywhere.
+--   Alpha 4-0/500  Echo 4-0/460  Bravo 3-1/440  Foxtrot 3-1/420
+--   Charlie 2-2/400  Golf 2-2/380  Delta 1-3/300  Hotel 0-4/200
+-- One row per franchise per week, which is all standings() reads. A loss has
+-- to name somebody else as the winner or it is not counted as a loss, and the
+-- franchise named picks up nothing from a row it is not a side in — so p_beat
+-- is a bookkeeping device, not a fixture.
+create or replace function seed_record(p_slot text, p_wins int, p_pf numeric, p_beat text)
+returns void language plpgsql as $fn$
+declare v_id uuid; v_other uuid; v_w int;
+begin
+  select id into v_id from managers
+   where league_id = '99999999-0000-0000-0000-000000000020' and slot = p_slot;
+  select id into v_other from managers
+   where league_id = '99999999-0000-0000-0000-000000000020' and slot = p_beat;
+  for v_w in 1..4 loop
+    insert into matchups (league_id, week, home_manager, home_points, away_points,
+                          winner, is_tie, final)
+    values ('99999999-0000-0000-0000-000000000020', v_w, v_id, p_pf / 4, 0,
+            case when v_w <= p_wins then v_id else v_other end,
+            false, true);
+  end loop;
+end;
+$fn$;
+
+select seed_record('AAA', 4, 500, 'HHH');
+select seed_record('EEE', 4, 460, 'HHH');
+select seed_record('BBB', 3, 440, 'HHH');
+select seed_record('FFF', 3, 420, 'HHH');
+select seed_record('CCC', 2, 400, 'HHH');
+select seed_record('GGG', 2, 380, 'HHH');
+select seed_record('DDD', 1, 300, 'HHH');
+select seed_record('HHH', 0, 200, 'AAA');
+\o
+
+select expect('a six-team field takes three weekends', playoff_rounds(6), 3);
+select expect('a four-team field takes two', playoff_rounds(4), 2);
+select expect('and eight still takes three', playoff_rounds(8), 3);
+
+select expect('the regular season is as long as its fixtures',
+  regular_season_weeks(:'Y'), 4);
+
+select expect('the division winners take the top seeds, best record first',
+  (select string_agg(m.slot, ' ' order by s.seed)
+     from seeding(:'Y') s join managers m on m.id = s.manager_id
+    where s.seed <= 2), 'AAA EEE');
+
+select expect('then the best of the rest, whatever division they came from',
+  (select string_agg(m.slot, ' ' order by s.seed)
+     from seeding(:'Y') s join managers m on m.id = s.manager_id), 
+  'AAA EEE BBB FFF CCC GGG DDD HHH');
+
+-- Nothing has started yet.
+select expect('the bracket refuses to be drawn twice by accident',
+  (select (start_playoffs(:'Y') ->> 'games')::int), 2);
+
+select expect('a second call changes nothing',
+  (select (start_playoffs(:'Y') ->> 'already')::boolean), true);
+
+select expect('only the field is seeded',
+  (select count(*)::int from playoff_seeds where league_id = :'Y'), 6);
+
+select expect('and the postseason length follows the field',
+  (select (settings ->> 'playoffWeeks')::int from leagues where id = :'Y'), 3);
+
+select expect('the top two seeds sit the first round out',
+  (select count(*)::int from matchups m
+     join managers h on h.id = m.home_manager
+    where m.league_id = :'Y' and m.playoff_round = 1
+      and h.slot in ('AAA', 'EEE')), 0);
+
+select expect('the rest pair off from the outside in',
+  (select string_agg(h.slot || 'v' || a.slot, ' ' order by h.slot)
+     from matchups m
+     join managers h on h.id = m.home_manager
+     join managers a on a.id = m.away_manager
+    where m.league_id = :'Y' and m.playoff_round = 1), 'BBBvGGG FFFvCCC');
+
+select expect('in the week after the regular season',
+  (select distinct week from matchups where league_id = :'Y' and playoff_round = 1), 5);
+
+-- Round one: Bravo wins, and Charlie knocks out the better-seeded Foxtrot.
+\o /dev/null
+update matchups set final = true, home_points = 100, away_points = 90,
+       winner = home_manager
+ where league_id = :'Y' and playoff_round = 1
+   and home_manager = (select id from managers where league_id = :'Y' and slot = 'BBB');
+update matchups set final = true, home_points = 80, away_points = 95,
+       winner = away_manager
+ where league_id = :'Y' and playoff_round = 1
+   and home_manager = (select id from managers where league_id = :'Y' and slot = 'FFF');
+select advance_playoffs(:'Y');
+\o
+
+select expect('a bye is not a defeat — both top seeds are still in',
+  (select string_agg(m.slot, ' ' order by s.seed)
+     from playoff_survivors(:'Y', 2026) s join managers m on m.id = s.manager_id),
+  'AAA EEE BBB CCC');
+
+select expect('the second round reseeds: best left against worst left',
+  (select string_agg(h.slot || 'v' || a.slot, ' ' order by h.slot)
+     from matchups m
+     join managers h on h.id = m.home_manager
+     join managers a on a.id = m.away_manager
+    where m.league_id = :'Y' and m.playoff_round = 2), 'AAAvCCC EEEvBBB');
+
+-- Round two: Charlie keeps going, Echo sees off Bravo.
+\o /dev/null
+update matchups set final = true, home_points = 70, away_points = 99,
+       winner = away_manager
+ where league_id = :'Y' and playoff_round = 2
+   and home_manager = (select id from managers where league_id = :'Y' and slot = 'AAA');
+update matchups set final = true, home_points = 105, away_points = 88,
+       winner = home_manager
+ where league_id = :'Y' and playoff_round = 2
+   and home_manager = (select id from managers where league_id = :'Y' and slot = 'EEE');
+select advance_playoffs(:'Y');
+\o
+
+select expect('the final is the two left standing',
+  (select h.slot || 'v' || a.slot
+     from matchups m
+     join managers h on h.id = m.home_manager
+     join managers a on a.id = m.away_manager
+    where m.league_id = :'Y' and m.playoff_round = 3), 'EEEvCCC');
+
+select expect('and it is the last week the bracket needs',
+  (select distinct week from matchups where league_id = :'Y' and playoff_round = 3), 7);
+
+select expect('a round still being played is left alone',
+  (select advance_playoffs(:'Y') ->> 'state'), 'playing');
+
+select expect('and nobody is crowned in the meantime',
+  (select count(*)::int from league_champions where league_id = :'Y'), 0);
+
+-- The final, decided on a draw: the better seed goes through.
+\o /dev/null
+update matchups set final = true, home_points = 100, away_points = 100,
+       winner = null, is_tie = true
+ where league_id = :'Y' and playoff_round = 3;
+select advance_playoffs(:'Y');
+\o
+
+select expect('a drawn final is won by the better seed',
+  (select m.slot from league_champions c join managers m on m.id = c.manager_id
+    where c.league_id = :'Y'), 'EEE');
+
+select expect('and the title is filed against the season',
+  (select season from league_champions where league_id = :'Y'), 2026);
+
+select expect('the franchise name is kept with it',
+  (select franchise from league_champions where league_id = :'Y'), 'Echo');
+
+select expect('a decided season stays decided',
+  (select advance_playoffs(:'Y') ->> 'state'), 'decided');
+
+-- Next year's board.
+\o /dev/null
+select award_draft_picks(:'Y', 2027);
+\o
+
+select expect('the teams that missed pick first, worst record first',
+  (select string_agg(m.slot, ' ' order by a.slot)
+     from draft_pick_assets a join managers m on m.id = a.origin_manager
+    where a.league_id = :'Y' and a.season = 2027 and a.round = 1 and a.slot <= 2),
+  'HHH DDD');
+
+select expect('then the playoff teams in the order they went out, champion last',
+  (select string_agg(m.slot, ' ' order by a.slot)
+     from draft_pick_assets a join managers m on m.id = a.origin_manager
+    where a.league_id = :'Y' and a.season = 2027 and a.round = 1),
+  'HHH DDD GGG FFF BBB AAA CCC EEE');
+
+\o /dev/null
+drop function seed_record(text, int, numeric, text);
+\o
+
+\echo ''
+\echo '--- rolling into next season ---'
+
+-- Reuses the postseason league, which has a played season and a champion.
+\o /dev/null
+select signin(:'Y1');
+
+-- Give it the things a rollover has to keep and the things it has to clear.
+insert into roster_slots (league_id, manager_id, player_name, acquired, lineup_slot, overall_pick)
+select :'Y', id, 'Kept ' || slot, 'draft', 'QB', 3 from managers where league_id = :'Y';
+insert into roster_slots (league_id, manager_id, player_name, acquired, lineup_slot)
+select :'Y', id, 'Hurt ' || slot, 'add', 'IR' from managers where league_id = :'Y';
+insert into trade_block (league_id, manager_id, player_name)
+select :'Y', id, 'Kept AAA' from managers where league_id = :'Y' and slot = 'AAA';
+-- A move made last season, on a player who is still on the roster. In a
+-- dynasty the answer to "where did he come from" may be years old.
+insert into transactions (league_id, manager_id, kind, player_name)
+select :'Y', id, 'add', 'Kept AAA' from managers where league_id = :'Y' and slot = 'AAA';
+insert into waiver_claims (league_id, manager_id, add_player)
+select :'Y', id, 'Somebody' from managers where league_id = :'Y' and slot = 'BBB';
+insert into trades (id, league_id, from_manager, to_manager, offer, status)
+select 'aa209000-0000-0000-0000-0000000000f1', :'Y',
+       (select id from managers where league_id = :'Y' and slot = 'AAA'),
+       (select id from managers where league_id = :'Y' and slot = 'BBB'),
+       '{"give": ["Kept AAA"], "get": []}'::jsonb, 'open';
+\o
+
+select expect('a manager cannot start the next season',
+  (select signin(:'Y1')) is null and
+  (select count(*)::int from managers where league_id = :'Y' and slot = 'BBB') = 1, true);
+
+\o /dev/null
+-- Bravo is not the commissioner; sign in as them via their own auth row.
+insert into auth.users (id) values ('aa209000-0000-0000-0000-0000000000b2');
+update managers set auth_user_id = 'aa209000-0000-0000-0000-0000000000b2'
+ where league_id = :'Y' and slot = 'BBB';
+select signin('aa209000-0000-0000-0000-0000000000b2');
+\o
+
+select expect('only the commissioner may roll the season',
+  refuses(format('select roll_season(%L)', :'Y')) like '%Only the commissioner%', true);
+
+\o /dev/null
+select signin(:'Y1');
+\o
+
+select expect('and it cannot go backwards',
+  refuses(format('select roll_season(%L, 2025)', :'Y')) like '%must come after 2026%', true);
+
+-- Now do it.
+select expect('the rollover names the champion it is closing the book on',
+  (select roll_season(:'Y') ->> 'champion'), 'Echo');
+
+select expect('the league is in the new season',
+  (select season from leagues where id = :'Y'), 2027);
+
+select expect('every roster is kept, to the player',
+  (select count(*)::int from roster_slots where league_id = :'Y'), 16);
+
+select expect('but nobody starts where they finished',
+  (select count(*)::int from roster_slots
+    where league_id = :'Y' and lineup_slot <> 'BENCH'), 0);
+
+select expect('and last year''s draft position is not carried into this one',
+  (select count(*)::int from roster_slots
+    where league_id = :'Y' and overall_pick is not null), 0);
+
+select expect('the schedule is gone',
+  (select count(*)::int from matchups where league_id = :'Y'), 0);
+
+select expect('so is the bracket that decided it',
+  (select count(*)::int from playoff_seeds where league_id = :'Y' and season = 2026), 0);
+
+select expect('but the title is not — that is what a dynasty is for',
+  (select franchise from league_champions where league_id = :'Y' and season = 2026), 'Echo');
+
+select expect('live claims and the wire are cleared',
+  (select count(*)::int from waiver_claims where league_id = :'Y')
+  + (select count(*)::int from waiver_wire where league_id = :'Y'), 0);
+
+select expect('the trade block is cleared',
+  (select count(*)::int from trade_block where league_id = :'Y'), 0);
+
+select expect('an open offer is declined rather than deleted',
+  (select status from trades where id = 'aa209000-0000-0000-0000-0000000000f1'), 'declined');
+
+select expect('waiver order goes back to the league''s own order',
+  (select string_agg(slot, ' ' order by waiver_priority) from managers where league_id = :'Y'),
+  'AAA BBB CCC DDD EEE FFF GGG HHH');
+
+select expect('and nobody is still ready from last year',
+  (select bool_or(ready) from managers where league_id = :'Y'), false);
+
+select expect('the transaction log survives — a dynasty roster has a history',
+  (select count(*)::int from transactions
+    where league_id = :'Y' and player_name = 'Kept AAA'), 1);
+
+-- The draft that was already being traded for.
+select expect('the picks awarded a year ago are the picks for this draft',
+  (select count(*)::int from draft_pick_assets where league_id = :'Y' and season = 2027), 40);
+
+select expect('and the board is rebuilt for them',
+  (select count(*)::int > 0 from draft_picks where league_id = :'Y'), true);
+
+select expect('with the room closed until the commissioner opens it',
+  (select draft_state from leagues where id = :'Y'), 'pending');
+
+select expect('the new season''s picks are tradeable, the inaugural ones never were',
+  (select picks_are_tradeable(:'Y', 2027) and not picks_are_tradeable(:'Y', 2026)), true);
+
+select expect('a season with no champion yet cannot be rolled',
+  refuses(format('select roll_season(%L)', :'Y')) like '%no champion yet%', true);
+
+\echo ''
+\echo '--- the commissioner fixing a roster ---'
+
+\o /dev/null
+\set M  '99999999-0000-0000-0000-000000000021'
+\set M1 'aa219000-0000-0000-0000-000000000001'
+\set M2 'aa219000-0000-0000-0000-000000000002'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'M', 'Fixes', 2026, 'AAA',
+        '{"starters": {"QB": 1}, "bench": 1, "rounds": 1}'::jsonb);
+
+insert into auth.users (id) values (:'M1'), (:'M2');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'M', 'AAA', 'A', 'Alpha', true,  :'M1'),
+  (:'M', 'BBB', 'B', 'Bravo', false, :'M2');
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'M', id, 'Wrong Roster', 'QB' from managers where league_id = :'M' and slot = 'BBB';
+\o
+
+select expect('a plain manager cannot move anybody',
+  (select signin(:'M2')) is null and
+  refuses(format('select commissioner_move_player(%L, %L, (select id from managers where league_id = %L and slot = ''BBB''))',
+                 :'M', 'Wrong Roster', :'M')) like '%Only the commissioner%', true);
+
+select expect('so the player has not moved',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'M' and r.player_name = 'Wrong Roster'), 'BBB');
+
+\o /dev/null
+select signin(:'M1');
+\o
+
+select expect('the commissioner moves him to the right franchise',
+  (select commissioner_move_player(:'M', 'Wrong Roster',
+     (select id from managers where league_id = :'M' and slot = 'AAA'),
+     'autodrafted to the wrong team') ->> 'to'), 'Alpha');
+
+select expect('and he is there',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'M' and r.player_name = 'Wrong Roster'), 'AAA');
+
+select expect('landing on the bench rather than in a slot that meant something else',
+  (select lineup_slot from roster_slots
+    where league_id = :'M' and player_name = 'Wrong Roster'), 'BENCH');
+
+select expect('the league can see it happened',
+  (select detail ->> 'fromFranchise' from transactions
+    where league_id = :'M' and player_name = 'Wrong Roster' and kind = 'trade'), 'Bravo');
+
+select expect('and it is marked as the commissioner''s doing, with the reason',
+  (select (detail ->> 'commissioner') || ' ' || (detail ->> 'reason') from transactions
+    where league_id = :'M' and player_name = 'Wrong Roster' and kind = 'trade'),
+  'true autodrafted to the wrong team');
+
+select expect('the office keeps its own record',
+  (select count(*)::int from admin_log
+    where league_id = :'M' and action = 'commissioner_move'), 1);
+
+select expect('moving him where he already is is refused',
+  refuses(format('select commissioner_move_player(%L, %L, (select id from managers where league_id = %L and slot = ''AAA''))',
+                 :'M', 'Wrong Roster', :'M')) like '%already there%', true);
+
+-- Capacity is 1 starter + 1 bench = 2. Alpha holds one; fill the other.
+\o /dev/null
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'M', id, 'Alpha Filler', 'BENCH' from managers where league_id = :'M' and slot = 'AAA';
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'M', id, 'Bravo Spare', 'BENCH' from managers where league_id = :'M' and slot = 'BBB';
+\o
+
+select expect('a correction cannot push a roster past its capacity',
+  refuses(format('select commissioner_move_player(%L, %L, (select id from managers where league_id = %L and slot = ''AAA''))',
+                 :'M', 'Bravo Spare', :'M')) like '%is full at 2%', true);
+
+select expect('and the player stays where he was',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'M' and r.player_name = 'Bravo Spare'), 'BBB');
+
+-- Releasing.
+select expect('releasing him sends him to waivers, not to whoever is watching',
+  (select (commissioner_move_player(:'M', 'Alpha Filler', null, 'roster correction')
+             ->> 'clearsAt') is not null), true);
+
+select expect('he is off the roster',
+  (select count(*)::int from roster_slots
+    where league_id = :'M' and player_name = 'Alpha Filler'), 0);
+
+select expect('and on the wire', on_waivers(:'M', 'Alpha Filler'), true);
+
+select expect('releasing somebody nobody holds is refused',
+  refuses(format('select commissioner_move_player(%L, %L, null)', :'M', 'Ghost'))
+    like '%not on anybody%', true);
+
+-- A free agent can be placed, which is the other half of an undo.
+select expect('a free agent can be placed on a roster with room',
+  (select commissioner_move_player(:'M', 'Alpha Filler',
+     (select id from managers where league_id = :'M' and slot = 'AAA')) ->> 'from'),
+  'free agency');
+
+select expect('and placing him takes him off the wire',
+  on_waivers(:'M', 'Alpha Filler'), false);
+
+\echo ''
+\echo '--- telling people things happened ---'
+
+\o /dev/null
+\set N  '99999999-0000-0000-0000-000000000022'
+\set N1 'bb229000-0000-0000-0000-000000000001'
+\set N2 'bb229000-0000-0000-0000-000000000002'
+\set N3 'bb229000-0000-0000-0000-000000000003'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'N', 'Notices', 2026, 'AAA',
+        '{"starters": {"QB": 1}, "bench": 4, "rounds": 1, "tradeDeadlineWeek": 0}'::jsonb);
+
+insert into auth.users (id) values (:'N1'), (:'N2'), (:'N3');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id, waiver_priority)
+values
+  (:'N', 'AAA', 'A', 'Alpha', true,  :'N1', 1),
+  (:'N', 'BBB', 'B', 'Bravo', false, :'N2', 2),
+  (:'N', 'CCC', 'C', 'Charlie', false, :'N3', 3);
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'N', id, 'Alpha Star', 'BENCH' from managers where league_id = :'N' and slot = 'AAA';
+\o
+
+-- A trade offer.
+\o /dev/null
+insert into trades (id, league_id, from_manager, to_manager, offer, status)
+select 'bb290000-0000-0000-0000-0000000000a1', :'N',
+       (select id from managers where league_id = :'N' and slot = 'AAA'),
+       (select id from managers where league_id = :'N' and slot = 'BBB'),
+       '{"give": ["Alpha Star"], "get": []}'::jsonb, 'open';
+\o
+
+select expect('an offer is news to the manager who received it',
+  (select body from notices n join managers m on m.id = n.manager_id
+    where n.league_id = :'N' and m.slot = 'BBB'), 'Alpha has offered you a trade.');
+
+select expect('and not to the one who sent it',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where n.league_id = :'N' and m.slot = 'AAA'), 0);
+
+select expect('it points at the page that answers it',
+  (select href from notices where league_id = :'N'), '/trade-builder');
+
+\o /dev/null
+update trades set status = 'declined'
+ where id = 'bb290000-0000-0000-0000-0000000000a1';
+\o
+
+select expect('a decline goes back to whoever offered',
+  (select body from notices n join managers m on m.id = n.manager_id
+    where n.league_id = :'N' and m.slot = 'AAA'), 'Bravo declined your offer.');
+
+-- Losing a waiver claim is the thing nobody would otherwise find out about.
+\o /dev/null
+insert into waiver_claims (league_id, manager_id, add_player) values
+  (:'N', (select id from managers where league_id = :'N' and slot = 'BBB'), 'Wanted Man'),
+  (:'N', (select id from managers where league_id = :'N' and slot = 'CCC'), 'Wanted Man');
+select process_waivers(:'N');
+\o
+
+select expect('winning a claim is announced',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where n.league_id = :'N' and m.slot = 'BBB' and n.body = 'You won Wanted Man on waivers.'), 1);
+
+select expect('and so is losing one, with the reason the database recorded',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where n.league_id = :'N' and m.slot = 'CCC'
+      and n.body like 'Your claim for Wanted Man did not go through:%already rostered%'), 1);
+
+-- Being on the clock.
+\o /dev/null
+select signin(:'N1');
+select rebuild_draft_board(:'N');
+update leagues set draft_state = 'running', current_pick = 2 where id = :'N';
+\o
+
+select expect('the manager on the clock is told',
+  (select count(*)::int from notices n
+     join managers m on m.id = n.manager_id
+    where n.league_id = :'N' and n.kind = 'draft' and n.body = 'You are on the clock.'
+      and m.id = (select manager_id from draft_picks where league_id = :'N' and overall = 2)), 1);
+
+\o /dev/null
+update leagues set current_pick = 2 where id = :'N';
+\o
+
+select expect('and not told again for the same pick',
+  (select count(*)::int from notices where league_id = :'N' and kind = 'draft'), 1);
+
+\o /dev/null
+update leagues set draft_state = 'paused', current_pick = 3 where id = :'N';
+\o
+
+select expect('a paused draft puts nobody on the clock',
+  (select count(*)::int from notices where league_id = :'N' and kind = 'draft'), 1);
+
+-- Reading them.
+-- Three for Bravo: the offer, the claim he won, and the clock — with no
+-- lottery drawn the board runs in slot order, so Bravo holds the second pick.
+select expect('everything starts unread',
+  (select count(*)::int from notices
+    where league_id = :'N' and read_at is null and manager_id =
+      (select id from managers where league_id = :'N' and slot = 'BBB')), 3);
+
+\o /dev/null
+select signin(:'N2');
+\o
+
+select expect('marking them read reports how many there were', read_notices(:'N'), 3);
+
+select expect('and they stay read',
+  (select count(*)::int from notices
+    where league_id = :'N' and read_at is null and manager_id =
+      (select id from managers where league_id = :'N' and slot = 'BBB')), 0);
+
+select expect('reading yours does not read anybody else''s',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where n.league_id = :'N' and m.slot = 'CCC' and n.read_at is null), 1);
+
+select expect('a manager cannot read notices for a league they are not in',
+  refuses(format('select read_notices(%L)', '99999999-0000-0000-0000-000000000001'))
+    like '%Not your league%', true);
 
 \echo ''
 \echo '--- schedule ---'
@@ -670,6 +1525,18 @@ select expect('a manager cannot update is_commissioner',
 
 select expect('nor waiver_priority',
   has_column_privilege('authenticated', 'managers', 'waiver_priority', 'UPDATE'), false);
+
+-- A manager marks their own notices read and writes nothing else about them.
+-- Anybody who could set the body could tell somebody anything at all, in the
+-- league's own voice.
+select expect('a manager may mark a notice read',
+  has_column_privilege('authenticated', 'notices', 'read_at', 'UPDATE'), true);
+
+select expect('but cannot rewrite what it says',
+  has_column_privilege('authenticated', 'notices', 'body', 'UPDATE'), false);
+
+select expect('nor who it was for',
+  has_column_privilege('authenticated', 'notices', 'manager_id', 'UPDATE'), false);
 
 select expect('nor their own PIN hash',
   has_column_privilege('authenticated', 'managers', 'pin_hash', 'UPDATE'), false);
@@ -1475,3 +2342,344 @@ select expect('and letting go of nobody twice is refused',
   refuses(format('select release_franchise(%L)',
     (select id from managers where league_id = :'R2' and slot = 'BBB'))),
   'Nobody holds that franchise');
+
+\echo ''
+\echo '--- what counts as a name somebody chose ---'
+
+-- ---------------------------------------------------------------------------
+-- What counts as a name somebody chose
+-- ---------------------------------------------------------------------------
+-- Two of these names this app made up, and one a manager did. The difference
+-- decides whether a franchise keeps its name when its manager leaves.
+
+select expect('the open name is a default',
+  (select is_default_franchise_name(open_team_name())), true);
+
+select expect('so is a name derived from a first name',
+  (select is_default_franchise_name('Dana''s Team')), true);
+
+select expect('so is a seeded slot number',
+  (select is_default_franchise_name('Franchise 7')), true);
+
+select expect('and so is no name at all',
+  (select is_default_franchise_name(null)), true);
+
+select expect('but a name somebody chose is not',
+  (select is_default_franchise_name('Steel Cartel')), false);
+
+select expect('nor is one that merely mentions a team',
+  (select is_default_franchise_name('Team Steel')), false);
+
+-- Bravo above kept its name through a release. A franchise still carrying the
+-- name this app gave it does not: it goes back to being an open seat by name
+-- as well as in fact, so the sign-up cards do not offer "Quitter's Team".
+\o /dev/null
+update managers set franchise = 'Quitter''s Team', name = 'Quitter',
+       pin_hash = 'hashed', auth_user_id = :'RB'
+  where league_id = :'R2' and slot = 'BBB';
+select release_franchise((select id from managers where league_id = :'R2' and slot = 'BBB'));
+\o
+
+select expect('a franchise named after its manager reopens under the open name',
+  (select franchise from managers where league_id = :'R2' and slot = 'BBB'), 'Open Team');
+
+\echo ''
+\echo '--- draft picks as property ---'
+
+\set P  '99999999-0000-0000-0000-000000000016'
+\set PA 'aaaa0000-0000-0000-0000-000000000030'
+\set PB 'aaaa0000-0000-0000-0000-000000000031'
+\set PC 'aaaa0000-0000-0000-0000-000000000032'
+
+\o /dev/null
+insert into leagues (id, name, season, inaugural_season, commissioner_slot, settings)
+values (:'P', 'Dynasty', 2026, 2026, 'AAA',
+        '{"rounds": 2, "rookieRounds": 3, "regularWeeks": 3, "starters": {"QB": 1}, "bench": 1}'::jsonb);
+
+insert into auth.users (id) values (:'PA'), (:'PB'), (:'PC');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'P', 'AAA', 'Ada',  'Alpha',   true,  :'PA'),
+  (:'P', 'BBB', 'Bo',   'Bravo',   false, :'PB'),
+  (:'P', 'CCC', 'Cass', 'Charlie', false, :'PC');
+
+select award_draft_picks(:'P', 2026);
+select award_draft_picks(:'P');
+select signin(:'PA');
+\o
+
+select expect('the inaugural draft uses the league''s own round count',
+  (select count(*)::int from draft_pick_assets where league_id = :'P' and season = 2026), 6);
+
+select expect('and next season is a rookie draft, which is shorter',
+  (select count(*)::int from draft_pick_assets where league_id = :'P' and season = 2027), 9);
+
+select expect('every franchise starts out holding its own',
+  (select bool_and(manager_id = origin_manager) from draft_pick_assets
+    where league_id = :'P'), true);
+
+select expect('the inaugural draft is not currency',
+  (select picks_are_tradeable(:'P', 2026)), false);
+
+select expect('but next season is',
+  (select picks_are_tradeable(:'P', 2027)), true);
+
+-- ---------------------------------------------------------------------------
+-- Order is the inverse of the record
+-- ---------------------------------------------------------------------------
+\o /dev/null
+-- Charlie loses twice, Bravo splits, Alpha wins twice.
+insert into matchups (league_id, week, home_manager, away_manager,
+                      home_points, away_points, winner, is_tie, final)
+select :'P', 1,
+       (select id from managers where league_id = :'P' and slot = 'AAA'),
+       (select id from managers where league_id = :'P' and slot = 'CCC'),
+       120, 80,
+       (select id from managers where league_id = :'P' and slot = 'AAA'), false, true;
+
+insert into matchups (league_id, week, home_manager, away_manager,
+                      home_points, away_points, winner, is_tie, final)
+select :'P', 2,
+       (select id from managers where league_id = :'P' and slot = 'AAA'),
+       (select id from managers where league_id = :'P' and slot = 'BBB'),
+       110, 90,
+       (select id from managers where league_id = :'P' and slot = 'AAA'), false, true;
+
+insert into matchups (league_id, week, home_manager, away_manager,
+                      home_points, away_points, winner, is_tie, final)
+select :'P', 3,
+       (select id from managers where league_id = :'P' and slot = 'BBB'),
+       (select id from managers where league_id = :'P' and slot = 'CCC'),
+       100, 70,
+       (select id from managers where league_id = :'P' and slot = 'BBB'), false, true;
+
+select set_draft_pick_order(:'P', 2027);
+\o
+
+-- Charlie 0-2, Bravo 1-1, Alpha 2-0. The worst record picks first.
+select expect('the worst record picks first, the best last',
+  (select string_agg(m.slot, ' ' order by a.slot)
+     from draft_pick_assets a join managers m on m.id = a.origin_manager
+    where a.league_id = :'P' and a.season = 2027 and a.round = 1), 'CCC BBB AAA');
+
+select expect('and every round is in that same order',
+  (select bool_and(same) from (
+     select count(distinct ord) = 1 as same from (
+       select a.round, string_agg(m.slot, ' ' order by a.slot) as ord
+         from draft_pick_assets a join managers m on m.id = a.origin_manager
+        where a.league_id = :'P' and a.season = 2027
+        group by a.round
+     ) rounds
+   ) x), true);
+
+-- Points break a tie between identical records: 100 points scored is a worse
+-- season than 120, and gets the earlier pick.
+\o /dev/null
+update matchups set final = false where league_id = :'P';
+select set_draft_pick_order(:'P', 2027);
+\o
+
+select expect('with nothing graded the order is stable rather than random',
+  (select string_agg(m.slot, ' ' order by a.slot)
+     from draft_pick_assets a join managers m on m.id = a.origin_manager
+    where a.league_id = :'P' and a.season = 2027 and a.round = 1), 'AAA BBB CCC');
+
+\o /dev/null
+update matchups set final = true where league_id = :'P';
+select set_draft_pick_order(:'P', 2027);
+\o
+
+-- ---------------------------------------------------------------------------
+-- Trading them
+-- ---------------------------------------------------------------------------
+\set PICK '(select id from draft_pick_assets a join managers m on m.id = a.origin_manager where a.league_id = :''P'' and a.season = 2027 and a.round = 1 and m.slot = ''CCC'')'
+
+\o /dev/null
+-- This league plays a three-week season, so the default deadline lands in
+-- week one and every trade below would be refused on the calendar rather than
+-- on what these checks are about. Turned off explicitly; the deadline has its
+-- own section further down.
+update leagues set settings = settings || '{"tradeDeadlineWeek": 0}'::jsonb where id = :'P';
+-- Charlie sends their first-rounder to Alpha for nothing, which is Charlie's
+-- business. Both accept, Alpha executes.
+insert into trades (id, league_id, from_manager, to_manager, offer,
+                    status, from_accepted, to_accepted)
+select 'dddd0000-0000-0000-0000-000000000001', :'P',
+       (select id from managers where league_id = :'P' and slot = 'CCC'),
+       (select id from managers where league_id = :'P' and slot = 'AAA'),
+       jsonb_build_object('give', '[]'::jsonb, 'get', '[]'::jsonb,
+         'givePicks', jsonb_build_array(
+           (select a.id from draft_pick_assets a join managers m on m.id = a.origin_manager
+             where a.league_id = :'P' and a.season = 2027 and a.round = 1 and m.slot = 'CCC')),
+         'getPicks', '[]'::jsonb),
+       'agreed', true, true;
+
+select execute_trade('dddd0000-0000-0000-0000-000000000001');
+\o
+
+select expect('a traded pick changes hands',
+  (select m.slot from draft_pick_assets a join managers m on m.id = a.manager_id
+     where a.league_id = :'P' and a.season = 2027 and a.round = 1
+       and a.origin_manager = (select id from managers where league_id = :'P' and slot = 'CCC')),
+  'AAA');
+
+select expect('but it is still Charlie''s pick, so it still falls first',
+  (select a.slot from draft_pick_assets a
+     where a.league_id = :'P' and a.season = 2027 and a.round = 1
+       and a.origin_manager = (select id from managers where league_id = :'P' and slot = 'CCC')),
+  1);
+
+select expect('Alpha now holds two first-rounders',
+  (select count(*)::int from draft_pick_assets a
+     where a.league_id = :'P' and a.season = 2027 and a.round = 1
+       and a.manager_id = (select id from managers where league_id = :'P' and slot = 'AAA')), 2);
+
+-- Trading the same pick twice is refused: Charlie no longer holds it.
+\o /dev/null
+insert into trades (id, league_id, from_manager, to_manager, offer,
+                    status, from_accepted, to_accepted)
+select 'dddd0000-0000-0000-0000-000000000002', :'P',
+       (select id from managers where league_id = :'P' and slot = 'CCC'),
+       (select id from managers where league_id = :'P' and slot = 'BBB'),
+       jsonb_build_object('give', '[]'::jsonb, 'get', '[]'::jsonb,
+         'givePicks', jsonb_build_array(
+           (select a.id from draft_pick_assets a join managers m on m.id = a.origin_manager
+             where a.league_id = :'P' and a.season = 2027 and a.round = 1 and m.slot = 'CCC')),
+         'getPicks', '[]'::jsonb),
+       'agreed', true, true;
+select signin(:'PC');
+\o
+
+select expect('a pick already traded away cannot be traded again',
+  refuses('select execute_trade(''dddd0000-0000-0000-0000-000000000002'')'),
+  'A pick in this offer is no longer held by the proposing franchise');
+
+-- The inaugural draft is not for sale.
+\o /dev/null
+insert into trades (id, league_id, from_manager, to_manager, offer,
+                    status, from_accepted, to_accepted)
+select 'dddd0000-0000-0000-0000-000000000003', :'P',
+       (select id from managers where league_id = :'P' and slot = 'CCC'),
+       (select id from managers where league_id = :'P' and slot = 'BBB'),
+       jsonb_build_object('give', '[]'::jsonb, 'get', '[]'::jsonb,
+         'givePicks', jsonb_build_array(
+           (select a.id from draft_pick_assets a join managers m on m.id = a.origin_manager
+             where a.league_id = :'P' and a.season = 2026 and a.round = 1 and m.slot = 'CCC')),
+         'getPicks', '[]'::jsonb),
+       'agreed', true, true;
+\o
+
+select expect('an inaugural pick cannot be traded even once both sides agree',
+  refuses('select execute_trade(''dddd0000-0000-0000-0000-000000000003'')'),
+  'Picks for the 2026 draft cannot be traded');
+
+select expect('and it stays where it was',
+  (select m.slot from draft_pick_assets a join managers m on m.id = a.manager_id
+     where a.league_id = :'P' and a.season = 2026 and a.round = 1
+       and a.origin_manager = (select id from managers where league_id = :'P' and slot = 'CCC')),
+  'CCC');
+
+-- ---------------------------------------------------------------------------
+-- The nightly run must not undo a trade
+-- ---------------------------------------------------------------------------
+\o /dev/null
+select signin(:'PA');
+select award_draft_picks(:'P');
+\o
+
+select expect('running the award again creates nothing',
+  (select count(*)::int from draft_pick_assets where league_id = :'P' and season = 2027), 9);
+
+select expect('and does not hand a traded pick back',
+  (select m.slot from draft_pick_assets a join managers m on m.id = a.manager_id
+     where a.league_id = :'P' and a.season = 2027 and a.round = 1
+       and a.origin_manager = (select id from managers where league_id = :'P' and slot = 'CCC')),
+  'AAA');
+
+select expect('every pick in the league is accounted for',
+  (select string_agg(season || ':' || n, ' ' order by season) from (
+     select season, count(*) n from draft_pick_assets where league_id = :'P' group by season
+   ) d), '2026:6 2027:9');
+
+\echo ''
+\echo '--- the intro film after the draft ---'
+
+\set V  '99999999-0000-0000-0000-000000000017'
+\set VA 'aaaa0000-0000-0000-0000-000000000040'
+\set VB 'aaaa0000-0000-0000-0000-000000000041'
+
+\o /dev/null
+insert into leagues (id, name, season, commissioner_slot, draft_state, settings)
+values (:'V', 'Film', 2026, 'AAA', 'running',
+        jsonb_build_object('rounds', 1,
+          'introVideo', 'https://example.test/storage/' || :'V' || '/intro-1.mp4',
+          'introVideoPath', :'V' || '/intro-1.mp4'));
+
+insert into auth.users (id) values (:'VA'), (:'VB');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'V', 'AAA', 'Ada', 'Alpha', true,  :'VA'),
+  (:'V', 'BBB', 'Bo',  'Bravo', false, :'VB');
+
+select signin(:'VA');
+\o
+
+select expect('a draft still running keeps its film',
+  (select claim_intro_video_cleanup(:'V')), null);
+
+select expect('and the league still points at it',
+  (select settings ->> 'introVideoPath' from leagues where id = :'V'),
+  :'V' || '/intro-1.mp4');
+
+\o /dev/null
+update leagues set draft_state = 'paused' where id = :'V';
+\o
+
+select expect('a paused draft keeps it too — somebody may come back',
+  (select claim_intro_video_cleanup(:'V')), null);
+
+\o /dev/null
+update leagues set draft_state = 'complete' where id = :'V';
+\o
+
+select expect('once the draft is over the film is handed over to be deleted',
+  (select claim_intro_video_cleanup(:'V')), :'V' || '/intro-1.mp4');
+
+select expect('and the league no longer points at it',
+  (select (settings ? 'introVideo') or (settings ? 'introVideoPath')
+     from leagues where id = :'V'), false);
+
+select expect('while everything else in the settings survives',
+  (select (settings ->> 'rounds')::int from leagues where id = :'V'), 1);
+
+-- Twelve browsers poll the draft board at once. Exactly one of them may claim
+-- the film; the rest must find nothing to do rather than deleting twice.
+select expect('a second claim finds nothing left',
+  (select claim_intro_video_cleanup(:'V')), null);
+
+select expect('it is on the record',
+  (select detail ->> 'reason' from admin_log
+    where league_id = :'V' and action = 'intro_video_cleared'), 'draft complete');
+
+-- A film the commissioner linked to rather than uploaded costs this project
+-- no storage and is not ours to delete.
+\o /dev/null
+update leagues
+   set settings = settings || jsonb_build_object('introVideo', 'https://somebody-else.test/film.mp4')
+ where id = :'V';
+\o
+
+select expect('a linked film is left alone',
+  (select claim_intro_video_cleanup(:'V')), null);
+
+select expect('and stays linked',
+  (select settings ->> 'introVideo' from leagues where id = :'V'),
+  'https://somebody-else.test/film.mp4');
+
+\o /dev/null
+select signin(:'U1');
+\o
+
+select expect('somebody from another league cannot reach in and clear it',
+  refuses(format('select claim_intro_video_cleanup(%L)', :'V')),
+  'Not your league');

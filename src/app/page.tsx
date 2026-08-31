@@ -1,4 +1,5 @@
-import { redirect } from "next/navigation";
+import HomeBoard from "@/components/HomeBoard";
+import Nav from "@/components/Nav";
 import SignIn from "@/components/SignIn";
 import { isConfigured, serverClient, serviceClient } from "@/lib/supabase";
 
@@ -65,9 +66,24 @@ async function loadFranchises(): Promise<{ league: string | null; franchises: Fr
 }
 
 export default async function HomePage() {
-  // Somebody already signed in has no use for a sign-in page; send them to
-  // their own team instead.
-  if (await signedIn()) redirect("/my-team");
+  // Signed in, this is the league itself: the games, the lineup, the week's
+  // fixtures and where everyone stands, all on one page. Signed out it is the
+  // way in. Same address, because the front door of a league site should be
+  // the league.
+  if (await signedIn()) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background:
+            "radial-gradient(120% 80% at 50% -10%,rgba(66,58,106,.4),transparent 60%),#161826",
+        }}
+      >
+        <Nav current="/" />
+        <HomeBoard />
+      </div>
+    );
+  }
 
   const { league, franchises } = await loadFranchises();
   const claimed = franchises.filter((f) => f.claimed).length;
@@ -147,7 +163,7 @@ export default async function HomePage() {
                       display: "flex",
                       alignItems: "center",
                       gap: 6,
-                      fontSize: 8,
+                      fontSize: 10,
                       letterSpacing: ".18em",
                       color: "#75798c",
                     }}
@@ -168,7 +184,7 @@ export default async function HomePage() {
                   </div>
                   <div
                     style={{
-                      fontSize: 9,
+                      fontSize: 10,
                       letterSpacing: ".14em",
                       marginTop: 5,
                       color: f.claimed ? "#7fd1a8" : "#75798c",

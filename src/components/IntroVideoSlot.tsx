@@ -20,6 +20,26 @@ import IntroVideo from "./IntroVideo";
  * play, here, with sound" — and the only honest way to answer that is to
  * watch it.
  */
+/**
+ * Whether an address points at a QuickTime file.
+ *
+ * Not a refusal — a league on Safari is fine, and a commissioner may know
+ * exactly what they are doing — but a warning worth making, because the
+ * failure is silent until draft night and by then it is too late to re-encode
+ * anything.
+ */
+/** What trying the address in a video element turned out to say. */
+type Trial =
+  | { state: "trying" }
+  | { state: "plays"; detail: string }
+  | { state: "failed"; detail: string }
+  | { state: "slow"; detail: string };
+
+function looksLikeQuickTime(address: string): boolean {
+  const path = address.trim().split(/[?#]/)[0];
+  return /\.mov$/i.test(path);
+}
+
 export default function IntroVideoSlot({
   introVideo,
   onSaved,
@@ -33,6 +53,7 @@ export default function IntroVideoSlot({
   const [notice, setNotice] = useState<string | null>(null);
   const [watching, setWatching] = useState(false);
   const [address, setAddress] = useState("");
+  const [trial, setTrial] = useState<Trial | null>(null);
   const file = useRef<HTMLInputElement | null>(null);
 
   async function upload(chosen: File | undefined) {
@@ -121,6 +142,68 @@ export default function IntroVideoSlot({
       setBusy(false);
       setProgress(null);
     }
+  }
+
+  /**
+   * Tries the address in a real video element, in this browser.
+   *
+   * Not a request to the server asking whether a file looks plausible — the
+   * actual element the draft room uses, given the actual address, in the
+   * actual browser. If it plays here it plays on the night, and if it does not
+   * there is time to do something about it.
+   */
+  async function testAddress() {
+    const src = address.trim();
+    if (!src) return;
+
+    setTrial({ state: "trying" });
+
+    const verdict = await new Promise<Trial>((resolve) => {
+      const el = document.createElement("video");
+      el.preload = "metadata";
+      el.muted = true;
+
+      const done = (t: Trial) => {
+        el.removeAttribute("src");
+        el.load();
+        clearTimeout(timer);
+        resolve(t);
+      };
+
+      // A file without faststart makes the browser read a long way in before
+      // it knows anything. Fifteen seconds is generous for a header and short
+      // enough that the button does not feel broken.
+      const timer = setTimeout(
+        () =>
+          done({
+            state: "slow",
+            detail:
+              "Fifteen seconds and no answer. The file may be very large and not encoded to start early, or the host may be slow to hand it over.",
+          }),
+        15_000,
+      );
+
+      el.addEventListener("loadedmetadata", () =>
+        done({
+          state: "plays",
+          detail: `${Math.round(el.duration)}s${
+            el.videoWidth ? `, ${el.videoWidth}×${el.videoHeight}` : ""
+          }`,
+        }),
+      );
+
+      el.addEventListener("error", () =>
+        done({
+          state: "failed",
+          detail:
+            "The browser could not load or decode it. Almost always this is a page with a player on it rather than the video file itself — a share link from Jumpshare, Drive, Dropbox or YouTube does that. It can also be a codec this browser will not play.",
+        }),
+      );
+
+      el.src = src;
+    });
+
+    setTrial(verdict);
   }
 
   async function saveAddress() {
@@ -293,7 +376,7 @@ export default function IntroVideoSlot({
       >
         <div
           style={{
-            fontSize: 9,
+            fontSize: 10,
             letterSpacing: ".2em",
             color: "#75798c",
             marginBottom: 8,
@@ -334,10 +417,30 @@ export default function IntroVideoSlot({
             <code style={{ color: "#9397ab" }}>/assets/intro.mp4</code> for a
             file committed to the repository.
           </p>
+          <p
+            style={{
+              fontSize: 11.5,
+              color: "#75798c",
+              lineHeight: 1.6,
+              margin: "0 0 9px",
+            }}
+          >
+            For a large file, encode it so it can start before it has finished
+            downloading —{" "}
+            <code style={{ color: "#9397ab" }}>
+              ffmpeg -i in.mp4 -movflags +faststart out.mp4
+            </code>
+            . Without that the browser downloads the whole thing before the
+            first frame, which on draft night is a room full of people watching
+            a blank screen.
+          </p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                setTrial(null);
+              }}
               placeholder="https://… or /assets/intro.mp4"
               aria-label="Intro video address"
               style={{
@@ -352,6 +455,16 @@ export default function IntroVideoSlot({
               }}
             />
             <button
+              onClick={() => void testAddress()}
+              disabled={trial?.state === "trying" || !address.trim()}
+              style={{
+                ...action(trial?.state !== "trying" && Boolean(address.trim())),
+                background: "transparent",
+              }}
+            >
+              {trial?.state === "trying" ? "Trying…" : "Test it"}
+            </button>
+            <button
               onClick={() => void saveAddress()}
               disabled={busy || !address.trim()}
               style={action(!busy && Boolean(address.trim()))}
@@ -359,6 +472,66 @@ export default function IntroVideoSlot({
               Save
             </button>
           </div>
+
+
+          {trial && trial.state !== "trying" ? (
+            <p
+              style={{
+                fontSize: 11.5,
+                lineHeight: 1.6,
+                margin: "9px 0 0",
+                color: trial.state === "plays" ? "#7fd1a8" : "#e0b573",
+              }}
+            >
+              <strong style={{ fontWeight: 500 }}>
+                {trial.state === "plays"
+                  ? "It plays. "
+                  : trial.state === "slow"
+                    ? "No answer yet. "
+                    : "It will not play. "}
+              </strong>
+              {trial.detail}
+              {trial.state === "failed" ? (
+                <>
+                  {" "}
+                  Paste the address into a browser tab on its own: if you get a
+                  page with a player on it rather than the video starting or
+                  downloading, it is the wrong kind of link.
+                </>
+              ) : null}
+            </p>
+          ) : null}
+
+          {looksLikeQuickTime(address) ? (
+            <p
+              style={{
+                fontSize: 11.5,
+                color: "#e0b573",
+                lineHeight: 1.6,
+                margin: "9px 0 0",
+              }}
+            >
+              That is a <strong style={{ fontWeight: 500 }}>.mov</strong>.
+              Safari plays those; Chrome and Firefox do not advertise QuickTime
+              as a format they support, and a server that labels it{" "}
+              <code style={{ color: "#9397ab" }}>video/quicktime</code> will
+              have most of your league downloading the file instead of watching
+              it. Footage straight off a phone is usually HEVC as well, which
+              Chrome and Firefox will not play in any container.
+              <br />
+              If the video inside is already H.264, swapping the container
+              costs nothing and takes seconds —{" "}
+              <code style={{ color: "#9397ab" }}>
+                ffmpeg -i in.mov -c copy -movflags +faststart out.mp4
+              </code>
+              . If it is HEVC it has to be re-encoded:{" "}
+              <code style={{ color: "#9397ab" }}>
+                ffmpeg -i in.mov -c:v libx264 -crf 23 -c:a aac -movflags
+                +faststart out.mp4
+              </code>
+              . It will still save if you link it anyway.
+            </p>
+          ) : null}
         </div>
       </div>
     </>

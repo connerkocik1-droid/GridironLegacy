@@ -16,6 +16,17 @@ interface FreeAgent {
   adp: number;
   posRank: string;
   bye: number;
+  /** Set while he is on the waiver wire: the moment claims on him are settled. */
+  clearsAt: string | null;
+}
+
+interface Wired {
+  name: string;
+  position: string;
+  team: string;
+  clearsAt: string;
+  /** Whether this manager is the one who dropped him. */
+  mine: boolean;
 }
 
 interface Claim {
@@ -29,15 +40,35 @@ interface Claim {
 
 interface Feed {
   me: { id: string; franchise: string; waiver_priority: number };
-  mode: "waivers" | "open";
+  mode: "waivers" | "open" | "all";
+  waiverDays: number;
   capacity: number;
   held: number;
   roster: { player_name: string; lineup_slot: string }[];
   claims: Claim[];
+  wire: Wired[];
   total: number;
   page: number;
   hasMore: boolean;
   players: FreeAgent[];
+}
+
+/**
+ * When a player stops being claimable, said the way somebody would say it.
+ *
+ * Near enough to matter is counted in hours, because "clears Wednesday" is no
+ * use to a manager deciding whether to bother claiming tonight.
+ */
+function clears(iso: string) {
+  const at = new Date(iso);
+  const hours = (at.getTime() - Date.now()) / 3_600_000;
+  if (hours <= 0) return "clears at the next run";
+  if (hours < 1) return "clears within the hour";
+  if (hours < 24) return `clears in ${Math.round(hours)}h`;
+  return `clears ${at.toLocaleDateString(undefined, { weekday: "long" })} ${at.toLocaleTimeString(
+    undefined,
+    { hour: "numeric", minute: "2-digit" },
+  )}`;
 }
 
 const card: React.CSSProperties = {
@@ -114,8 +145,8 @@ export default function PlayersBoard() {
       if (!res.ok) setError(body.error ?? "That did not go through.");
       else
         setNotice(
-          body.mode === "open"
-            ? `${name} is on your roster.${drop ? ` ${drop} was dropped.` : ""}`
+          body.mode === "now"
+            ? `${name} is on your roster.${drop ? ` ${drop} went to waivers.` : ""}`
             : `Claim placed for ${name}. It settles on the next waiver run.`,
         );
 
@@ -150,7 +181,12 @@ export default function PlayersBoard() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) setError(body.error ?? "Could not drop him.");
-      else setNotice(`${name} was dropped.`);
+      else
+        setNotice(
+          body.clearsAt
+            ? `${name} is on waivers — he ${clears(body.clearsAt)}.`
+            : `${name} was dropped.`,
+        );
       await load();
     } finally {
       setBusy(false);
@@ -169,7 +205,7 @@ export default function PlayersBoard() {
 
   return (
     <div style={{ padding: "24px 26px 40px" }}>
-      <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>
         {feed.mode === "open" ? "OPEN MARKET" : "WAIVERS"}
       </div>
       <h1
@@ -185,8 +221,10 @@ export default function PlayersBoard() {
       </h1>
       <p style={{ fontSize: 12, color: "#9397ab", margin: "0 0 18px", maxWidth: "72ch", lineHeight: 1.6 }}>
         {feed.mode === "open"
-          ? "Adds land immediately — first come, first served."
-          : `Claims are settled on the next waiver run, best priority first. You are number ${feed.me.waiver_priority}; winning a claim sends you to the back.`}{" "}
+          ? "Adds land immediately — first come, first served, and a dropped player goes straight back into this list."
+          : feed.mode === "all"
+            ? `Every pickup here is a claim, settled on the next waiver run, best priority first. You are number ${feed.me.waiver_priority}; winning a claim sends you to the back.`
+            : `Anybody on this list is yours on the spot. A player somebody dropped goes on waivers for ${feed.waiverDays === 1 ? "a day" : `${feed.waiverDays} days`} first, and can only be claimed — the run settles those in priority order. You are number ${feed.me.waiver_priority}; winning a claim sends you to the back.`}{" "}
         Your roster holds {feed.held} of {feed.capacity}
         {full ? " — you must drop someone to add anyone." : "."}
       </p>
@@ -224,6 +262,77 @@ export default function PlayersBoard() {
               Cancel
             </button>
           </div>
+        </div>
+      ) : null}
+
+      {feed.wire.length ? (
+        <div style={{ ...card, marginBottom: 14 }}>
+          <div
+            style={{
+              padding: "12px 16px",
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <h6 style={{ margin: 0, color: "#e0b573" }}>On waivers</h6>
+            <span style={{ fontSize: 10, letterSpacing: ".14em", color: "#75798c" }}>
+              {feed.wire.length} RECENTLY DROPPED
+            </span>
+            <span style={{ fontSize: 11, color: "#75798c", marginLeft: "auto" }}>
+              Claims only until each one clears.
+            </span>
+          </div>
+          {feed.wire.map((w) => {
+            const claimed = pending.some((c) => c.add_player === w.name);
+            return (
+              <div
+                key={w.name}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "9px 16px",
+                  borderTop: "1px solid rgba(145,132,217,.12)",
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={headshot(w.name) || BLANK}
+                  alt=""
+                  width={26}
+                  height={26}
+                  style={{
+                    borderRadius: "50%",
+                    objectFit: "contain",
+                    border: "1px solid rgba(224,181,115,.3)",
+                    background: "rgba(35,37,50,.7)",
+                    flex: "0 0 auto",
+                  }}
+                />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}>
+                    {w.name}
+                    {w.position ? (
+                      <span style={{ color: "#75798c", fontSize: 11 }}> · {w.position}</span>
+                    ) : null}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#e0b573", marginTop: 2 }}>
+                    {clears(w.clearsAt)}
+                    {w.mine ? <span style={{ color: "#75798c" }}> · you dropped him</span> : null}
+                  </div>
+                </div>
+                <button
+                  onClick={() => (full ? setPendingAdd(w.name) : add(w.name, null))}
+                  disabled={busy || claimed}
+                  style={button(!busy && !claimed)}
+                >
+                  {claimed ? "Claimed" : "Claim"}
+                </button>
+              </div>
+            );
+          })}
         </div>
       ) : null}
 
@@ -278,7 +387,7 @@ export default function PlayersBoard() {
             >
               <span
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   letterSpacing: ".14em",
                   width: 60,
                   flex: "0 0 auto",
@@ -358,6 +467,8 @@ export default function PlayersBoard() {
           const claimed = feed.claims.some(
             (c) => c.add_player === p.name && c.status === "pending",
           );
+          // On the wire he can only be claimed, whatever the league's mode.
+          const waived = p.clearsAt != null;
           const flags = flagsFor(p.name);
 
           return (
@@ -402,7 +513,7 @@ export default function PlayersBoard() {
                     <span
                       key={f.label}
                       style={{
-                        fontSize: 8,
+                        fontSize: 10,
                         letterSpacing: ".12em",
                         padding: "2px 5px",
                         borderRadius: 2,
@@ -416,6 +527,9 @@ export default function PlayersBoard() {
                 </div>
                 <div style={{ fontSize: 10, color: "#75798c", marginTop: 2 }}>
                   {p.posRank} · ADP {p.adp} · bye {p.bye} · proj {proj(p.name).toFixed(1)}
+                  {p.clearsAt ? (
+                    <span style={{ color: "#e0b573" }}> · on waivers, {clears(p.clearsAt)}</span>
+                  ) : null}
                 </div>
               </div>
 
@@ -424,7 +538,11 @@ export default function PlayersBoard() {
                 disabled={busy || claimed}
                 style={button(!busy && !claimed)}
               >
-                {claimed ? "Claimed" : feed.mode === "open" ? "Add" : "Claim"}
+                {claimed
+                  ? "Claimed"
+                  : waived || feed.mode === "all"
+                    ? "Claim"
+                    : "Add"}
               </button>
             </div>
           );
@@ -482,7 +600,7 @@ export default function PlayersBoard() {
             >
               <span
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   letterSpacing: ".12em",
                   width: 38,
                   flex: "0 0 auto",
@@ -495,6 +613,9 @@ export default function PlayersBoard() {
                 {r.player_name}
                 {p ? <span style={{ color: "#75798c", fontSize: 11 }}> · {p.p}</span> : null}
               </span>
+              {/* Just "Drop": where he goes afterwards is the page's subject
+                  above and the notice below, and a three-word button squeezes
+                  the name it sits beside off a phone screen. */}
               <button onClick={() => drop(r.player_name)} disabled={busy} style={button(!busy)}>
                 Drop
               </button>

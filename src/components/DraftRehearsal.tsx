@@ -215,7 +215,7 @@ export default function DraftRehearsal() {
       <audio ref={chime} src="/assets/nfl-draft-chime.mp3" preload="auto" />
       <DraftReveal pick={reveal} onClose={() => setReveal(null)} />
 
-      <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>REHEARSAL</div>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>REHEARSAL</div>
       <h1
         style={{
           fontFamily: "var(--font-heading)",

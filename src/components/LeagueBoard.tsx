@@ -74,7 +74,7 @@ export default function LeagueBoard() {
 
   return (
     <div style={{ padding: "24px 26px 40px" }}>
-      <div style={{ fontSize: 9, letterSpacing: ".32em", color: "#75798c" }}>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>
         {feed.league?.season ?? ""} SEASON
       </div>
       <h1
@@ -150,14 +150,14 @@ export default function LeagueBoard() {
                       {f.franchise}
                     </span>
                     {f.isCommissioner ? (
-                      <span style={{ fontSize: 8, letterSpacing: ".14em", color: "#b5abfc" }}>
+                      <span style={{ fontSize: 10, letterSpacing: ".14em", color: "#b5abfc" }}>
                         COMMISSIONER
                       </span>
                     ) : null}
                     {!f.claimed ? (
                       <span
                         style={{
-                          fontSize: 8,
+                          fontSize: 10,
                           letterSpacing: ".14em",
                           padding: "2px 5px",
                           borderRadius: 2,
@@ -181,7 +181,7 @@ export default function LeagueBoard() {
                       {f.record?.wins ?? 0}–{f.record?.losses ?? 0}
                       {f.record?.ties ? `–${f.record.ties}` : ""}
                     </div>
-                    <div style={{ fontSize: 8, letterSpacing: ".16em", color: "#75798c" }}>
+                    <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c" }}>
                       RECORD
                     </div>
                   </div>
@@ -191,7 +191,7 @@ export default function LeagueBoard() {
                   <div style={{ fontFamily: "var(--font-heading)", fontSize: 18, color: "#d2cefd" }}>
                     {(feed.played ? (f.record?.pointsFor ?? 0) : f.pointsFor).toFixed(1)}
                   </div>
-                  <div style={{ fontSize: 8, letterSpacing: ".16em", color: "#75798c" }}>
+                  <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c" }}>
                     {feed.played ? "PF" : "POINTS FOR"}
                   </div>
                 </div>
@@ -201,7 +201,7 @@ export default function LeagueBoard() {
                     <div style={{ fontFamily: "var(--font-heading)", fontSize: 18, color: "#9397ab" }}>
                       {(f.record?.pointsAgainst ?? 0).toFixed(1)}
                     </div>
-                    <div style={{ fontSize: 8, letterSpacing: ".16em", color: "#75798c" }}>PA</div>
+                    <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c" }}>PA</div>
                   </div>
                 ) : null}
               </div>
@@ -229,7 +229,7 @@ export default function LeagueBoard() {
                       >
                         <span
                           style={{
-                            fontSize: 9,
+                            fontSize: 10,
                             letterSpacing: ".12em",
                             width: 34,
                             flex: "0 0 auto",
@@ -274,7 +274,7 @@ export default function LeagueBoard() {
                         ) : null}
                         <span
                           style={{
-                            fontSize: 9,
+                            fontSize: 10,
                             letterSpacing: ".1em",
                             color: "#5a5d6e",
                             width: 44,
