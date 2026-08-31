@@ -1,4 +1,5 @@
 import { POOL } from "@/data/league-data";
+import { byDynastyAdp, valueOf } from "@/lib/dynasty";
 import { isConfigured, serverClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +53,9 @@ export async function GET(req: Request) {
     if (position !== "ALL" && p.p !== position) return false;
     if (search && !p.n.toLowerCase().includes(search)) return false;
     return true;
-  }).sort((a, b) => a.adp - b.adp);
+  })
+    .map((p) => ({ player: p, value: valueOf(p) }))
+    .sort((a, b) => byDynastyAdp(a.value, b.value));
 
   const settings = league?.settings ?? {};
   const starters: Record<string, number> = settings.starters ?? {};
@@ -75,11 +78,14 @@ export async function GET(req: Request) {
     total: free.length,
     page,
     hasMore: free.length > (page + 1) * PAGE,
-    players: free.slice(page * PAGE, (page + 1) * PAGE).map((p) => ({
+    players: free.slice(page * PAGE, (page + 1) * PAGE).map(({ player: p, value }) => ({
       name: p.n,
       position: p.p,
       team: p.t,
       adp: p.adp,
+      dynastyAdp: value.dynastyAdp,
+      age: value.age,
+      modifier: value.modifier,
       posRank: p.posRank,
       bye: p.bye,
     })),

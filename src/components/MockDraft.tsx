@@ -5,6 +5,7 @@ import { POOL, type Player, type Position } from "@/data/league-data";
 import { chooseFor, rngFrom, snakeOrder } from "@/lib/mock-draft";
 import { startingSlots } from "@/lib/lineup";
 import DraftBoard from "./DraftBoard";
+import { ageOfPlayer, dynastyAdp } from "@/lib/dynasty";
 
 /**
  * A draft against the machine, so the first draft you do is not the real one.
@@ -92,7 +93,12 @@ export default function MockDraft() {
 
   const taken = useMemo(() => new Set(picks.map((p) => p.player.n)), [picks]);
   const available = useMemo(
-    () => POOL.filter((p) => p.adp > 0 && !taken.has(p.n)).sort((a, b) => a.adp - b.adp),
+    () =>
+      POOL.filter((p) => p.adp > 0 && !taken.has(p.n)).sort(
+        (a, b) =>
+          dynastyAdp(a.p, a.adp, ageOfPlayer(a.n)) -
+          dynastyAdp(b.p, b.adp, ageOfPlayer(b.n)),
+      ),
     [taken],
   );
 

@@ -1,6 +1,7 @@
 import { slotsOf, targetsOf } from "@/data/league-sim";
 import type { Player, Position } from "@/data/league-data";
 import type { LeagueShape } from "./roster";
+import { dynastyAdp as dynastyAdpOf, ageOfPlayer } from "./dynasty";
 
 /**
  * The opponents in a mock draft.
@@ -185,8 +186,24 @@ export function effectiveAdp(
   jitter = 0,
 ): number {
   return (
-    candidate.adp - needBonus(candidate.p, ctx) + byePenalty(candidate, ctx) + jitter
+    dynastyValue(candidate) -
+    needBonus(candidate.p, ctx) +
+    byePenalty(candidate, ctx) +
+    jitter
   );
+}
+
+/**
+ * Where the machine thinks a player goes, before need and byes are weighed.
+ *
+ * This is a dynasty league, so the starting point is the age-adjusted board
+ * rather than the consensus one. Everything downstream is still measured in
+ * ADP spots, so the reach and slide constants above mean exactly what they
+ * meant before — they are just applied to a board that already knows a
+ * thirty-two-year-old back is not a twenty-three-year-old back.
+ */
+function dynastyValue(candidate: Player): number {
+  return dynastyAdpOf(candidate.p, candidate.adp, ageOfPlayer(candidate.n));
 }
 
 /** How far opinions spread in a given round: consensus early, chaos late. */
@@ -207,7 +224,7 @@ export function chooseFor(
   rng: () => number,
   window = 40,
 ): Player | null {
-  const ranked = [...available].sort((a, b) => a.adp - b.adp);
+  const ranked = [...available].sort((a, b) => dynastyValue(a) - dynastyValue(b));
   const board = ranked.slice(0, window);
 
   // Plus the best left at every position the lineup still demands, wherever

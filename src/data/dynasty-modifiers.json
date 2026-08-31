@@ -1,0 +1,410 @@
+[
+  {
+    "position": "RB",
+    "age": 20.0,
+    "openEnded": false,
+    "modifier": 1.2
+  },
+  {
+    "position": "RB",
+    "age": 21.0,
+    "openEnded": false,
+    "modifier": 1.2
+  },
+  {
+    "position": "RB",
+    "age": 22.0,
+    "openEnded": false,
+    "modifier": 1.15
+  },
+  {
+    "position": "RB",
+    "age": 23.0,
+    "openEnded": false,
+    "modifier": 1.15
+  },
+  {
+    "position": "RB",
+    "age": 24.0,
+    "openEnded": false,
+    "modifier": 1.1
+  },
+  {
+    "position": "RB",
+    "age": 25.0,
+    "openEnded": false,
+    "modifier": 1.1
+  },
+  {
+    "position": "RB",
+    "age": 26.0,
+    "openEnded": false,
+    "modifier": 1.05
+  },
+  {
+    "position": "RB",
+    "age": 27.0,
+    "openEnded": false,
+    "modifier": 1.05
+  },
+  {
+    "position": "RB",
+    "age": 28.0,
+    "openEnded": false,
+    "modifier": 1.0
+  },
+  {
+    "position": "RB",
+    "age": 29.0,
+    "openEnded": false,
+    "modifier": 0.95
+  },
+  {
+    "position": "RB",
+    "age": 30.0,
+    "openEnded": false,
+    "modifier": 0.9
+  },
+  {
+    "position": "RB",
+    "age": 31.0,
+    "openEnded": false,
+    "modifier": 0.85
+  },
+  {
+    "position": "RB",
+    "age": 32.0,
+    "openEnded": true,
+    "modifier": 0.8
+  },
+  {
+    "position": "QB",
+    "age": 20.0,
+    "openEnded": false,
+    "modifier": 1.15
+  },
+  {
+    "position": "QB",
+    "age": 21.0,
+    "openEnded": false,
+    "modifier": 1.15
+  },
+  {
+    "position": "QB",
+    "age": 22.0,
+    "openEnded": false,
+    "modifier": 1.15
+  },
+  {
+    "position": "QB",
+    "age": 23.0,
+    "openEnded": false,
+    "modifier": 1.1
+  },
+  {
+    "position": "QB",
+    "age": 24.0,
+    "openEnded": false,
+    "modifier": 1.1
+  },
+  {
+    "position": "QB",
+    "age": 25.0,
+    "openEnded": false,
+    "modifier": 1.1
+  },
+  {
+    "position": "QB",
+    "age": 26.0,
+    "openEnded": false,
+    "modifier": 1.05
+  },
+  {
+    "position": "QB",
+    "age": 27.0,
+    "openEnded": false,
+    "modifier": 1.05
+  },
+  {
+    "position": "QB",
+    "age": 28.0,
+    "openEnded": false,
+    "modifier": 1.05
+  },
+  {
+    "position": "QB",
+    "age": 29.0,
+    "openEnded": false,
+    "modifier": 1.0
+  },
+  {
+    "position": "QB",
+    "age": 30.0,
+    "openEnded": false,
+    "modifier": 1.0
+  },
+  {
+    "position": "QB",
+    "age": 31.0,
+    "openEnded": false,
+    "modifier": 1.0
+  },
+  {
+    "position": "QB",
+    "age": 33.0,
+    "openEnded": false,
+    "modifier": 0.95
+  },
+  {
+    "position": "QB",
+    "age": 34.0,
+    "openEnded": false,
+    "modifier": 0.95
+  },
+  {
+    "position": "QB",
+    "age": 35.0,
+    "openEnded": false,
+    "modifier": 0.95
+  },
+  {
+    "position": "QB",
+    "age": 36.0,
+    "openEnded": true,
+    "modifier": 0.9
+  },
+  {
+    "position": "WR",
+    "age": 20.0,
+    "openEnded": false,
+    "modifier": 1.2
+  },
+  {
+    "position": "WR",
+    "age": 21.0,
+    "openEnded": false,
+    "modifier": 1.2
+  },
+  {
+    "position": "WR",
+    "age": 22.0,
+    "openEnded": false,
+    "modifier": 1.15
+  },
+  {
+    "position": "WR",
+    "age": 23.0,
+    "openEnded": false,
+    "modifier": 1.15
+  },
+  {
+    "position": "WR",
+    "age": 24.0,
+    "openEnded": false,
+    "modifier": 1.1
+  },
+  {
+    "position": "WR",
+    "age": 25.0,
+    "openEnded": false,
+    "modifier": 1.1
+  },
+  {
+    "position": "WR",
+    "age": 26.0,
+    "openEnded": false,
+    "modifier": 1.05
+  },
+  {
+    "position": "WR",
+    "age": 27.0,
+    "openEnded": false,
+    "modifier": 1.05
+  },
+  {
+    "position": "WR",
+    "age": 28.0,
+    "openEnded": false,
+    "modifier": 1.0
+  },
+  {
+    "position": "WR",
+    "age": 29.0,
+    "openEnded": false,
+    "modifier": 1.0
+  },
+  {
+    "position": "WR",
+    "age": 30.0,
+    "openEnded": false,
+    "modifier": 0.95
+  },
+  {
+    "position": "WR",
+    "age": 31.0,
+    "openEnded": false,
+    "modifier": 0.9
+  },
+  {
+    "position": "WR",
+    "age": 32.0,
+    "openEnded": true,
+    "modifier": 0.85
+  },
+  {
+    "position": "TE",
+    "age": 20.0,
+    "openEnded": false,
+    "modifier": 1.2
+  },
+  {
+    "position": "TE",
+    "age": 21.0,
+    "openEnded": false,
+    "modifier": 1.2
+  },
+  {
+    "position": "TE",
+    "age": 22.0,
+    "openEnded": false,
+    "modifier": 1.2
+  },
+  {
+    "position": "TE",
+    "age": 23.0,
+    "openEnded": false,
+    "modifier": 1.15
+  },
+  {
+    "position": "TE",
+    "age": 24.0,
+    "openEnded": false,
+    "modifier": 1.15
+  },
+  {
+    "position": "TE",
+    "age": 25.0,
+    "openEnded": false,
+    "modifier": 1.1
+  },
+  {
+    "position": "TE",
+    "age": 26.0,
+    "openEnded": false,
+    "modifier": 1.1
+  },
+  {
+    "position": "TE",
+    "age": 27.0,
+    "openEnded": false,
+    "modifier": 1.05
+  },
+  {
+    "position": "TE",
+    "age": 28.0,
+    "openEnded": false,
+    "modifier": 1.05
+  },
+  {
+    "position": "TE",
+    "age": 29.0,
+    "openEnded": false,
+    "modifier": 1.0
+  },
+  {
+    "position": "TE",
+    "age": 30.0,
+    "openEnded": false,
+    "modifier": 1.0
+  },
+  {
+    "position": "TE",
+    "age": 31.0,
+    "openEnded": false,
+    "modifier": 0.95
+  },
+  {
+    "position": "TE",
+    "age": 32.0,
+    "openEnded": true,
+    "modifier": 0.9
+  },
+  {
+    "position": "K",
+    "age": 20.0,
+    "openEnded": false,
+    "modifier": 1.1
+  },
+  {
+    "position": "K",
+    "age": 21.0,
+    "openEnded": false,
+    "modifier": 1.1
+  },
+  {
+    "position": "K",
+    "age": 22.0,
+    "openEnded": false,
+    "modifier": 1.1
+  },
+  {
+    "position": "K",
+    "age": 23.0,
+    "openEnded": false,
+    "modifier": 1.05
+  },
+  {
+    "position": "K",
+    "age": 24.0,
+    "openEnded": false,
+    "modifier": 1.05
+  },
+  {
+    "position": "K",
+    "age": 25.0,
+    "openEnded": false,
+    "modifier": 1.05
+  },
+  {
+    "position": "K",
+    "age": 26.0,
+    "openEnded": false,
+    "modifier": 1.0
+  },
+  {
+    "position": "K",
+    "age": 27.0,
+    "openEnded": false,
+    "modifier": 1.0
+  },
+  {
+    "position": "K",
+    "age": 28.0,
+    "openEnded": false,
+    "modifier": 1.0
+  },
+  {
+    "position": "K",
+    "age": 29.0,
+    "openEnded": false,
+    "modifier": 0.95
+  },
+  {
+    "position": "K",
+    "age": 30.0,
+    "openEnded": false,
+    "modifier": 0.95
+  },
+  {
+    "position": "K",
+    "age": 31.0,
+    "openEnded": false,
+    "modifier": 0.9
+  },
+  {
+    "position": "K",
+    "age": 32.0,
+    "openEnded": true,
+    "modifier": 0.85
+  }
+]

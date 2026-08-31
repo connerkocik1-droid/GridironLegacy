@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { headshot, logo } from "@/data/league-data";
 import { flagColor, flagsFor, player, proj } from "@/lib/roster";
+import { adpLabel } from "@/lib/dynasty";
 
 const BLANK =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -14,6 +15,9 @@ interface FreeAgent {
   position: string;
   team: string;
   adp: number;
+  dynastyAdp: number;
+  age: number | null;
+  modifier: number;
   posRank: string;
   bye: number;
 }
@@ -415,7 +419,7 @@ export default function PlayersBoard() {
                   ))}
                 </div>
                 <div style={{ fontSize: 10, color: "#75798c", marginTop: 2 }}>
-                  {p.posRank} · ADP {p.adp} · bye {p.bye} · proj {proj(p.name).toFixed(1)}
+                  {p.posRank} · {adpLabel(p)} · bye {p.bye} · proj {proj(p.name).toFixed(1)}
                 </div>
               </div>
 

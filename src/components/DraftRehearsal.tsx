@@ -5,6 +5,7 @@ import { POOL, headshot } from "@/data/league-data";
 import DraftCountdown from "./DraftCountdown";
 import DraftReveal, { type RevealPick } from "./DraftReveal";
 import IntroVideo from "./IntroVideo";
+import { ageOfPlayer, dynastyAdp } from "@/lib/dynasty";
 
 /**
  * A rehearsal room for the draft-day theatrics.
@@ -82,7 +83,7 @@ export default function DraftRehearsal() {
   const matches = useMemo(() => {
     const q = search.trim().toLowerCase();
     return POOL.filter((p) => (q ? p.n.toLowerCase().includes(q) : true))
-      .sort((a, b) => a.adp - b.adp)
+      .sort((a, b) => dynastyAdp(a.p, a.adp, ageOfPlayer(a.n)) - dynastyAdp(b.p, b.adp, ageOfPlayer(b.n)))
       .slice(0, 8);
   }, [search]);
 
