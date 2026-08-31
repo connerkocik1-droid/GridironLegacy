@@ -12,7 +12,7 @@
 -- has the early schema and no record of it; this file recognises that and
 -- writes the record down rather than failing on the tables already there.
 --
--- Built from 17 migrations:
+-- Built from 19 migrations:
 --   0001_schema.sql
 --   0002_trades.sql
 --   0003_draft.sql
@@ -30,6 +30,8 @@
 --   0015_team_logos.sql
 --   0016_league_media.sql
 --   0017_ready.sql
+--   0018_draft_settings.sql
+--   0019_release_franchise.sql
 
 begin;
 
@@ -3349,6 +3351,276 @@ begin
 
     insert into schema_migrations (name) values ('0017_ready.sql');
     raise notice 'applied %', '0017_ready.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0018_draft_settings.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0018_draft_settings.sql') then
+    raise notice 'skipping %, already applied', '0018_draft_settings.sql';
+  else
+    -- The two draft settings that were readable and not settable, and the clock.
+    --
+    -- The room has always counted down from settings.pickSeconds and shown the
+    -- cinematic reveal for settings.cinematicRounds rounds. Nothing ever wrote
+    -- either: they were whatever the seed left behind, and changing them meant a
+    -- SQL console. Those two live in the settings blob, which a session may
+    -- already write, so they need no function here — only a place in the league
+    -- office.
+    --
+    -- These two do need one. The draft order lives in leagues.lottery_order and
+    -- the clock in leagues.pick_started_at, and 0011 took the leagues row away
+    -- from browser sessions except for settings and the draft date. That was the
+    -- right call and it stands; what follows is the narrow, checked way through.
+
+    /**
+     * Sets the order franchises pick in, and redraws the board to match.
+     *
+     * Takes franchise slots rather than ids because that is what lottery_order
+     * holds and what a commissioner reads on the screen. Every franchise must
+     * appear exactly once — a list that quietly drops one would leave a board with
+     * a seat missing and nobody would notice until draft night.
+     */
+    create or replace function set_draft_order(p_league_id uuid, p_slots text[])
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me     managers;
+      v_count  int;
+      v_given  int;
+      v_made   int;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can set the draft order'
+          using errcode = '42501';
+      end if;
+
+      select count(*) into v_made
+        from draft_picks
+       where league_id = p_league_id and player_name is not null;
+
+      if v_made > 0 then
+        raise exception 'The draft has already started — the order is fixed now'
+          using errcode = '55000';
+      end if;
+
+      select count(*) into v_count from managers where league_id = p_league_id;
+      v_given := coalesce(array_length(p_slots, 1), 0);
+
+      if v_given <> v_count then
+        raise exception 'The order must list all % franchises, not %', v_count, v_given
+          using errcode = '22023';
+      end if;
+
+      -- Every slot named must exist here, and none of them twice. Checked by
+      -- counting the matches rather than trusting the list.
+      if (
+        select count(distinct m.slot) from managers m
+         where m.league_id = p_league_id and m.slot = any (p_slots)
+      ) <> v_count then
+        raise exception 'That order does not name this league''s franchises'
+          using errcode = '22023';
+      end if;
+
+      update leagues set lottery_order = p_slots where id = p_league_id;
+
+      -- The board is drawn from the order, so it is redrawn now rather than left
+      -- for somebody to remember.
+      perform rebuild_draft_board(p_league_id);
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'draft_order',
+              jsonb_build_object('order', to_jsonb(p_slots)));
+
+      return jsonb_build_object('ok', true, 'order', to_jsonb(p_slots));
+    end;
+    $$;
+
+    revoke all on function set_draft_order(uuid, text[]) from public;
+    grant execute on function set_draft_order(uuid, text[]) to authenticated;
+
+    /**
+     * Gives the manager on the clock more time, or less.
+     *
+     * Moving pick_started_at forward is the same as adding time, because the
+     * deadline is derived from it. It is the only honest way to do this: the
+     * countdown every browser draws is that instant plus the clock, so anything
+     * else would have twelve people watching a number that no longer decides
+     * anything.
+     *
+     * Only while the draft is running — there is no clock to extend otherwise —
+     * and never so far back that the pick expires the moment it is granted.
+     */
+    create or replace function nudge_clock(p_league_id uuid, p_seconds int)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me      managers;
+      v_league  leagues;
+      v_limit   int;
+      v_started timestamptz;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can change the clock' using errcode = '42501';
+      end if;
+
+      if p_seconds < -600 or p_seconds > 600 then
+        raise exception 'Ten minutes either way is the most the clock moves'
+          using errcode = '22003';
+      end if;
+
+      select * into v_league from leagues where id = p_league_id for update;
+
+      if v_league.draft_state <> 'running' or v_league.pick_started_at is null then
+        raise exception 'Nobody is on the clock' using errcode = '55000';
+      end if;
+
+      v_limit := coalesce((v_league.settings ->> 'pickSeconds')::int, 90);
+      v_started := v_league.pick_started_at + make_interval(secs => p_seconds);
+
+      -- Taking time away must not hand somebody an already-dead clock: the worst
+      -- it can do is leave five seconds, which is a warning rather than a verdict.
+      if v_started + make_interval(secs => v_limit) < now() + interval '5 seconds' then
+        v_started := now() + interval '5 seconds' - make_interval(secs => v_limit);
+      end if;
+
+      update leagues set pick_started_at = v_started where id = p_league_id;
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'clock_nudged', jsonb_build_object('seconds', p_seconds));
+
+      return jsonb_build_object(
+        'ok', true,
+        'pickStartedAt', v_started,
+        'remaining', extract(epoch from (v_started + make_interval(secs => v_limit) - now()))::int
+      );
+    end;
+    $$;
+
+    revoke all on function nudge_clock(uuid, int) from public;
+    grant execute on function nudge_clock(uuid, int) to authenticated;
+
+    insert into schema_migrations (name) values ('0018_draft_settings.sql');
+    raise notice 'applied %', '0018_draft_settings.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0019_release_franchise.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0019_release_franchise.sql') then
+    raise notice 'skipping %, already applied', '0019_release_franchise.sql';
+  else
+    -- When somebody quits.
+    --
+    -- Not the same as removing a franchise. Shrinking the league renumbers the
+    -- board and rewrites the schedule, which is a different league; a manager
+    -- walking away in September should change none of that. The franchise stays
+    -- exactly where it is — same name, same roster, same fixtures — and only the
+    -- person is let go, leaving a seat somebody else can take.
+    --
+    -- clear_pin already existed for the manager who has forgotten theirs. This is
+    -- not that, and the difference is the auth link. Clearing a PIN leaves
+    -- auth_user_id in place, so the browser the departing manager left signed in
+    -- still resolves to that franchise and can still make its picks. Letting
+    -- somebody go has to break that link, or they have not gone.
+
+    /**
+     * Hands a franchise back: the person goes, the team stays.
+     *
+     * Kept: the franchise name, the roster, the division, the fixtures, and every
+     * pick already made. A replacement inherits a team rather than an empty seat,
+     * and can rename it from their own profile if they want to.
+     *
+     * Cleared: the PIN, the sign-in link, the manager's name, and the ready flag.
+     *
+     * Returns the auth user that was attached, because deleting it is the caller's
+     * job — the address it was created under is derived from the franchise slot,
+     * so leaving it behind would block whoever claims the franchise next.
+     */
+    create or replace function release_franchise(p_manager_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me   managers;
+      v_them managers;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner then
+        raise exception 'Only the commissioner can release a franchise'
+          using errcode = '42501';
+      end if;
+
+      select * into v_them
+        from managers
+       where id = p_manager_id and league_id = v_me.league_id;
+
+      if v_them.id is null then
+        raise exception 'No such franchise in your league' using errcode = 'P0002';
+      end if;
+
+      -- The office is found by its holder's sign-in link. Breaking your own is
+      -- how a league ends up with commissioner controls nobody can reach.
+      if v_them.is_commissioner then
+        raise exception 'The commissioner cannot release their own franchise'
+          using errcode = '55000';
+      end if;
+
+      if v_them.pin_hash is null and v_them.auth_user_id is null then
+        raise exception 'Nobody holds that franchise' using errcode = '55000';
+      end if;
+
+      update managers
+         set pin_hash = null,
+             auth_user_id = null,
+             name = 'Open',
+             ready = false
+       where id = p_manager_id;
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (v_me.league_id, v_me.id, 'franchise_released',
+              jsonb_build_object('manager_id', p_manager_id,
+                                 'slot', v_them.slot,
+                                 'franchise', v_them.franchise,
+                                 'was', v_them.name));
+
+      return jsonb_build_object(
+        'ok', true,
+        'slot', v_them.slot,
+        'franchise', v_them.franchise,
+        'was', v_them.name,
+        'authUserId', v_them.auth_user_id
+      );
+    end;
+    $$;
+
+    revoke all on function release_franchise(uuid) from public;
+    grant execute on function release_franchise(uuid) to authenticated;
+
+    insert into schema_migrations (name) values ('0019_release_franchise.sql');
+    raise notice 'applied %', '0019_release_franchise.sql';
   end if;
 end
 $__migration__$;

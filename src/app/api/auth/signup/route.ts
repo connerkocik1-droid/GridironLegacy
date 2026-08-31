@@ -5,6 +5,28 @@ import { isConfigured, serverClient, serviceClient } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 
 /**
+ * The auth account already using an address, if there is one.
+ *
+ * There is no lookup by address in the admin API, so this reads the pages. A
+ * league is twelve people and the first page covers it many times over; the
+ * loop is there so a bigger project does not quietly return nothing.
+ */
+async function findByEmail(
+  admin: ReturnType<typeof serviceClient>,
+  email: string,
+): Promise<string | null> {
+  for (let page = 1; page <= 10; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    if (error || !data.users.length) return null;
+
+    const found = data.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+    if (found) return found.id;
+    if (data.users.length < 200) return null;
+  }
+  return null;
+}
+
+/**
  * Claims a franchise and sets its PIN.
  *
  * Also the path a manager takes after the commissioner clears their PIN: the
@@ -72,11 +94,29 @@ export async function POST(req: Request) {
       email_confirm: true,
       user_metadata: { slot, league_id: leagueId },
     });
-    if (error || !created.user) {
-      console.error("[auth/signup] could not create auth user", error);
-      return Response.json({ error: "Could not claim that franchise" }, { status: 500 });
+
+    if (created?.user) {
+      authUserId = created.user.id;
+    } else {
+      // The address is derived from the franchise slot, so it is the same one
+      // every time this franchise is claimed. A manager who was let go leaves
+      // an account under it, and if deleting that account did not go through
+      // it is standing in the doorway. Adopt it rather than turning the
+      // replacement away from a franchise that is genuinely free.
+      const existing = await findByEmail(admin, email);
+
+      if (!existing) {
+        console.error("[auth/signup] could not create auth user", error);
+        return Response.json({ error: "Could not claim that franchise" }, { status: 500 });
+      }
+
+      const { error: reset } = await admin.auth.admin.updateUserById(existing, { password });
+      if (reset) {
+        console.error("[auth/signup] could not take over the old account", reset);
+        return Response.json({ error: "Could not claim that franchise" }, { status: 500 });
+      }
+      authUserId = existing;
     }
-    authUserId = created.user.id;
   }
 
   const franchise =

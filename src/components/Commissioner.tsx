@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
+import DraftSettings from "./DraftSettings";
 import IntroVideoSlot from "./IntroVideoSlot";
 
 interface Manager {
@@ -20,7 +21,13 @@ interface Admin {
     id: string;
     name: string;
     season: number;
-    settings: { rounds?: number; pickSeconds?: number; introVideo?: string };
+    settings: {
+      rounds?: number;
+      pickSeconds?: number;
+      cinematicRounds?: number;
+      introVideo?: string;
+    };
+    lottery_order?: string[] | null;
     draft_state: string;
     current_pick: number;
     draft_at: string | null;
@@ -72,6 +79,7 @@ export default function Commissioner() {
   const [draftAt, setDraftAt] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmingReset, setConfirmingReset] = useState(false);
+  const [releasing, setReleasing] = useState<Manager | null>(null);
   const [releaseFranchises, setReleaseFranchises] = useState(false);
 
   const load = useCallback(async () => {
@@ -159,6 +167,46 @@ export default function Commissioner() {
     }
   }
 
+  async function saveDraftSettings(changes: { pickSeconds?: number; cinematicRounds?: number }) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/admin/league", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(changes),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not save the draft settings.");
+      else setNotice("Draft settings saved.");
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveOrder(slots: string[]) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/admin/draft/order", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ order: slots }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not set the draft order.");
+      else setNotice(`Order set: ${slots.join(" · ")}. The board has been redrawn.`);
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function buildSchedule() {
     if (busy) return;
     setBusy(true);
@@ -229,6 +277,33 @@ export default function Commissioner() {
             " Build the schedule again when the divisions are settled.",
         );
         setReleaseFranchises(false);
+      }
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function release(manager: Manager) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const res = await fetch("/api/admin/release", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ managerId: manager.id }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(body.error ?? "Could not release that franchise.");
+      } else {
+        setNotice(
+          `${body.was ?? "That manager"} has been let go. ${manager.franchise} keeps its name, ` +
+            `its roster and its fixtures, and is open for somebody to claim at sign-in.`,
+        );
       }
       await load();
     } finally {
@@ -403,6 +478,19 @@ export default function Commissioner() {
       </div>
 
       <div style={card}>
+        <DraftSettings
+          pickSeconds={admin.league?.settings?.pickSeconds ?? 90}
+          cinematicRounds={admin.league?.settings?.cinematicRounds ?? 3}
+          order={admin.league?.lottery_order ?? null}
+          managers={admin.managers}
+          canChange={admin.canResize}
+          busy={busy}
+          onSave={(changes) => void saveDraftSettings(changes)}
+          onOrder={(slots) => void saveOrder(slots)}
+        />
+      </div>
+
+      <div style={card}>
         <IntroVideoSlot
           introVideo={admin.league?.settings?.introVideo ?? null}
           onSaved={() => void load()}
@@ -437,13 +525,20 @@ export default function Commissioner() {
         <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 10px" }}>
           {divisions.join(" and ")} — {perDivision.join(" and ")} franchises.
           Moving a franchise takes effect when you rebuild the schedule, and is
-          refused once a week has been played. Clearing a PIN does not set a new one — the manager chooses theirs at
-          sign-in, so nobody can sign in as their team.
+          refused once a week has been played. Clearing a PIN does not set a new
+          one — the manager chooses theirs at sign-in, so nobody can sign in as
+          their team. Letting somebody go is the other thing: it hands the
+          franchise back without removing it from the league.
         </p>
 
         {admin.managers.map((m) => (
           <div
             key={m.id}
+            role="group"
+            // Twelve rows of the same four controls. Without a label on each,
+            // neither a screen reader nor anything else driving the page can
+            // say which franchise a button belongs to.
+            aria-label={m.franchise}
             style={{
               display: "flex",
               alignItems: "center",
@@ -502,6 +597,21 @@ export default function Commissioner() {
             {m.claimed ? (
               <button onClick={() => clearPin(m)} disabled={busy} style={{ ...action(!busy), padding: "5px 10px", fontSize: 10 }}>
                 Clear PIN
+              </button>
+            ) : null}
+            {m.claimed && !m.isCommissioner ? (
+              <button
+                onClick={() => setReleasing(m)}
+                disabled={busy}
+                style={{
+                  ...action(!busy),
+                  padding: "5px 10px",
+                  fontSize: 10,
+                  border: "1px solid rgba(224,131,131,.4)",
+                  color: "#c98f8f",
+                }}
+              >
+                Let go
               </button>
             ) : null}
           </div>
@@ -580,6 +690,31 @@ export default function Commissioner() {
           Reset the league
         </button>
       </div>
+
+      <ConfirmDialog
+        open={releasing != null}
+        title={`Let ${releasing?.name ?? "this manager"} go?`}
+        eyebrow="THE FRANCHISE STAYS"
+        confirmLabel="Let them go"
+        busy={busy}
+        onCancel={() => setReleasing(null)}
+        onConfirm={() => {
+          const manager = releasing;
+          setReleasing(null);
+          if (manager) void release(manager);
+        }}
+      >
+        <p style={{ fontSize: 13, lineHeight: 1.75, color: "#9397ab", margin: "0 0 10px" }}>
+          {releasing?.franchise} stays in the league exactly as it is — same
+          name, same roster, same fixtures, same place in the draft. Only{" "}
+          {releasing?.name ?? "the manager"} goes.
+        </p>
+        <p style={{ fontSize: 12, lineHeight: 1.7, color: "#75798c", margin: 0 }}>
+          Their PIN and sign-in are cleared, so a browser they left open stops
+          being that team at once. The seat is then open for somebody new to
+          claim at sign-in, and they inherit the roster.
+        </p>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={confirmingReset}

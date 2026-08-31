@@ -27,7 +27,9 @@ export async function GET() {
 
   const { data: league } = await db
     .from("leagues")
-    .select("id, name, season, settings, draft_state, current_pick, commissioner_slot, draft_at")
+    .select(
+      "id, name, season, settings, draft_state, current_pick, commissioner_slot, draft_at, lottery_order",
+    )
     .eq("id", me.league_id)
     .single();
 
@@ -81,7 +83,14 @@ export async function PATCH(req: Request) {
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
 
-  let body: { teams?: unknown; rounds?: unknown; draftAt?: unknown; introVideo?: unknown };
+  let body: {
+    teams?: unknown;
+    rounds?: unknown;
+    draftAt?: unknown;
+    introVideo?: unknown;
+    pickSeconds?: unknown;
+    cinematicRounds?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -110,6 +119,41 @@ export async function PATCH(req: Request) {
       .eq("id", me.league_id);
 
     if (error) return Response.json({ error: "Could not save the draft date" }, { status: 400 });
+  }
+
+  // The pick clock, and how many rounds get the full-screen reveal. Both have
+  // been read by the draft room since it was built and set by nothing: they
+  // were whatever the seed left behind.
+  for (const [key, min, max] of [
+    ["pickSeconds", 15, 600],
+    ["cinematicRounds", 0, 40],
+  ] as const) {
+    if (body[key] == null) continue;
+
+    if (!me.is_commissioner) {
+      return Response.json({ error: "Only the commissioner can change this" }, { status: 403 });
+    }
+
+    const value = Number(body[key]);
+    if (!Number.isInteger(value) || value < min || value > max) {
+      return Response.json(
+        { error: `${key} must be a whole number from ${min} to ${max}` },
+        { status: 400 },
+      );
+    }
+
+    const { data: league } = await db
+      .from("leagues")
+      .select("settings")
+      .eq("id", me.league_id)
+      .single();
+
+    const { error } = await db
+      .from("leagues")
+      .update({ settings: { ...(league?.settings ?? {}), [key]: value } })
+      .eq("id", me.league_id);
+
+    if (error) return Response.json({ error: `Could not save ${key}` }, { status: 400 });
   }
 
   // The film that plays when the countdown runs out. Only its address is kept
