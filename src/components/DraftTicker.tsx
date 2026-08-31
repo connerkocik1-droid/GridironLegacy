@@ -101,7 +101,7 @@ export default function DraftTicker({ available }: { available: Available[] }) {
       </div>
 
       {/* The rail clips the track; the track is what moves. */}
-      <div className="gl-ticker-rail" style={{ flex: 1, overflow: "hidden", minWidth: 0 }}>
+      <div className="gl-ticker-rail" style={{ flex: 1, minWidth: 0 }}>
         <div
           className="gl-ticker-track"
           style={{

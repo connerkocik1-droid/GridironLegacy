@@ -5,6 +5,7 @@ import LeagueOverview from "./LeagueOverview";
 import MatchupBoard from "./MatchupBoard";
 import MiniGamesStrip from "./MiniGamesStrip";
 import MyTeamBoard from "./MyTeamBoard";
+import ScoreTicker from "./ScoreTicker";
 import Section from "./Section";
 import WeekScoreboard from "./WeekScoreboard";
 import type { Home } from "@/lib/home-types";
@@ -49,6 +50,10 @@ export default function HomeBoard() {
 
   return (
     <div style={{ paddingBottom: 44 }}>
+      {/* Above everything, because it is the one thing on this page that is
+          about the actual football rather than the league. */}
+      <ScoreTicker />
+
       <Section eyebrow="ON THE SIDE" title="Mini-games">
         <MiniGamesStrip />
       </Section>

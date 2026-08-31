@@ -67,6 +67,12 @@ a:hover {
   to   { transform: translateX(-50%); }
 }
 
+/* Not inline on the element: the reduced-motion rule below has to be able to
+   turn this into a scrollable rail, and an inline style would outrank it. */
+.gl-ticker-rail {
+  overflow: hidden;
+}
+
 .gl-ticker-track {
   animation-name: gl-ticker;
   animation-timing-function: linear;
