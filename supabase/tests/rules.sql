@@ -882,6 +882,111 @@ drop function seed_record(text, int, numeric, text);
 \o
 
 \echo ''
+\echo '--- the commissioner fixing a roster ---'
+
+\o /dev/null
+\set M  '99999999-0000-0000-0000-000000000021'
+\set M1 'aa219000-0000-0000-0000-000000000001'
+\set M2 'aa219000-0000-0000-0000-000000000002'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'M', 'Fixes', 2026, 'AAA',
+        '{"starters": {"QB": 1}, "bench": 1, "rounds": 1}'::jsonb);
+
+insert into auth.users (id) values (:'M1'), (:'M2');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'M', 'AAA', 'A', 'Alpha', true,  :'M1'),
+  (:'M', 'BBB', 'B', 'Bravo', false, :'M2');
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'M', id, 'Wrong Roster', 'QB' from managers where league_id = :'M' and slot = 'BBB';
+\o
+
+select expect('a plain manager cannot move anybody',
+  (select signin(:'M2')) is null and
+  refuses(format('select commissioner_move_player(%L, %L, (select id from managers where league_id = %L and slot = ''BBB''))',
+                 :'M', 'Wrong Roster', :'M')) like '%Only the commissioner%', true);
+
+select expect('so the player has not moved',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'M' and r.player_name = 'Wrong Roster'), 'BBB');
+
+\o /dev/null
+select signin(:'M1');
+\o
+
+select expect('the commissioner moves him to the right franchise',
+  (select commissioner_move_player(:'M', 'Wrong Roster',
+     (select id from managers where league_id = :'M' and slot = 'AAA'),
+     'autodrafted to the wrong team') ->> 'to'), 'Alpha');
+
+select expect('and he is there',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'M' and r.player_name = 'Wrong Roster'), 'AAA');
+
+select expect('landing on the bench rather than in a slot that meant something else',
+  (select lineup_slot from roster_slots
+    where league_id = :'M' and player_name = 'Wrong Roster'), 'BENCH');
+
+select expect('the league can see it happened',
+  (select detail ->> 'fromFranchise' from transactions
+    where league_id = :'M' and player_name = 'Wrong Roster' and kind = 'trade'), 'Bravo');
+
+select expect('and it is marked as the commissioner''s doing, with the reason',
+  (select (detail ->> 'commissioner') || ' ' || (detail ->> 'reason') from transactions
+    where league_id = :'M' and player_name = 'Wrong Roster' and kind = 'trade'),
+  'true autodrafted to the wrong team');
+
+select expect('the office keeps its own record',
+  (select count(*)::int from admin_log
+    where league_id = :'M' and action = 'commissioner_move'), 1);
+
+select expect('moving him where he already is is refused',
+  refuses(format('select commissioner_move_player(%L, %L, (select id from managers where league_id = %L and slot = ''AAA''))',
+                 :'M', 'Wrong Roster', :'M')) like '%already there%', true);
+
+-- Capacity is 1 starter + 1 bench = 2. Alpha holds one; fill the other.
+\o /dev/null
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'M', id, 'Alpha Filler', 'BENCH' from managers where league_id = :'M' and slot = 'AAA';
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'M', id, 'Bravo Spare', 'BENCH' from managers where league_id = :'M' and slot = 'BBB';
+\o
+
+select expect('a correction cannot push a roster past its capacity',
+  refuses(format('select commissioner_move_player(%L, %L, (select id from managers where league_id = %L and slot = ''AAA''))',
+                 :'M', 'Bravo Spare', :'M')) like '%is full at 2%', true);
+
+select expect('and the player stays where he was',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'M' and r.player_name = 'Bravo Spare'), 'BBB');
+
+-- Releasing.
+select expect('releasing him sends him to waivers, not to whoever is watching',
+  (select (commissioner_move_player(:'M', 'Alpha Filler', null, 'roster correction')
+             ->> 'clearsAt') is not null), true);
+
+select expect('he is off the roster',
+  (select count(*)::int from roster_slots
+    where league_id = :'M' and player_name = 'Alpha Filler'), 0);
+
+select expect('and on the wire', on_waivers(:'M', 'Alpha Filler'), true);
+
+select expect('releasing somebody nobody holds is refused',
+  refuses(format('select commissioner_move_player(%L, %L, null)', :'M', 'Ghost'))
+    like '%not on anybody%', true);
+
+-- A free agent can be placed, which is the other half of an undo.
+select expect('a free agent can be placed on a roster with room',
+  (select commissioner_move_player(:'M', 'Alpha Filler',
+     (select id from managers where league_id = :'M' and slot = 'AAA')) ->> 'from'),
+  'free agency');
+
+select expect('and placing him takes him off the wire',
+  on_waivers(:'M', 'Alpha Filler'), false);
+
+\echo ''
 \echo '--- schedule ---'
 
 \o /dev/null

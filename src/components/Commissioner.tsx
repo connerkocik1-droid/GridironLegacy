@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
 import DraftSettings from "./DraftSettings";
+import RosterFix from "./RosterFix";
 import SeasonRules from "./SeasonRules";
 import IntroVideoSlot from "./IntroVideoSlot";
 
@@ -495,6 +496,10 @@ export default function Commissioner() {
       </div>
 
       <div style={card}>
+        <RosterFix />
+      </div>
+
+      <div style={card}>
         <SeasonRules
           tradeDeadlineWeek={
             admin.league?.settings?.tradeDeadlineWeek ??
@@ -560,6 +565,12 @@ export default function Commissioner() {
               display: "flex",
               alignItems: "center",
               gap: 10,
+              // Four controls and two labels do not fit a phone on one line,
+              // and every one of them is fixed-width, so without this the row
+              // simply runs off the side. Only visible for a franchise that
+              // has been claimed, which is why it survived the mobile pass.
+              flexWrap: "wrap",
+              rowGap: 6,
               padding: "9px 0",
               borderTop: "1px solid rgba(145,132,217,.12)",
             }}
