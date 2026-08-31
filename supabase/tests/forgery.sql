@@ -236,3 +236,78 @@ select expect('and so is something that is not an image at all',
 \o /dev/null
 reset role;
 \o
+
+\o /dev/null
+reset role;
+
+-- A second league's picks, so "you see your own" can be told apart from
+-- "you see everything".
+\set PL 'ffff2222-0000-0000-0000-000000000002'
+insert into leagues (id, name, season, inaugural_season, commissioner_slot, settings)
+values (:'PL', 'Elsewhere', 2026, 2026, 'AAA', '{"rounds": 1, "rookieRounds": 1}'::jsonb);
+insert into managers (league_id, slot, name, franchise) values (:'PL', 'ZZZ', 'Z', 'Zulu');
+select award_draft_picks(:'PL', 2026);
+
+select award_draft_picks(:'L', 2026);
+select award_draft_picks(:'L', 2027);
+
+-- The blanket grant above is the harness being generous so that RLS, not a
+-- missing privilege, is what these checks actually exercise. Production grants
+-- only select on this table; both are tested below.
+select set_config('test.uid', :'U1', false);
+set role authenticated;
+\o
+
+\echo ''
+\echo '--- draft picks are not self-serve ---'
+
+select expect('a manager cannot award themselves picks',
+  refuses(format('select award_draft_picks(%L, 2030)', :'L'))
+    like '%permission denied for function award_draft_picks%', true);
+
+select expect('nor set the order of the board',
+  refuses(format('select set_draft_pick_order(%L, 2027)', :'L'))
+    like '%permission denied for function set_draft_pick_order%', true);
+
+select expect('nor invent a pick, even with insert granted',
+  refuses(format(
+    'insert into draft_pick_assets (league_id, season, round, origin_manager, manager_id) values (%L, 2027, 9, %L, %L)',
+    :'L',
+    (select id from managers where league_id = :'L' and slot = 'AAA'),
+    (select id from managers where league_id = :'L' and slot = 'AAA')))
+    like '%row-level security%', true);
+
+-- Update is never granted at all, so this is refused before RLS is consulted.
+select expect('nor take somebody else''s pick by hand',
+  refuses(format(
+    'update draft_pick_assets set manager_id = %L where league_id = %L',
+    (select id from managers where league_id = :'L' and slot = 'AAA'), :'L'))
+    like '%permission denied for table draft_pick_assets%', true);
+
+select expect('and every pick is still held by the franchise it came from',
+  (select bool_and(a.manager_id = a.origin_manager)
+     from draft_pick_assets a where a.league_id = :'L'), true);
+
+-- Delete is granted by the harness, so what refuses it here is the absence of
+-- a delete policy: the rows are simply not visible to delete.
+\o /dev/null
+delete from draft_pick_assets where league_id = :'L';
+\o
+
+-- Two franchises, 24 rounds in the inaugural draft and 5 in the rookie draft.
+select expect('nor delete one to clear a rival''s board',
+  (select count(*)::int from draft_pick_assets where league_id = :'L'), 58);
+
+select expect('every pick in the league is visible, which is what a market needs',
+  (select count(*)::int from draft_pick_assets where league_id = :'L'), 58);
+
+select expect('but not another league''s',
+  (select count(*)::int from draft_pick_assets where league_id = :'PL'), 0);
+
+select expect('and picks are read-only to the browser in production',
+  has_table_privilege('authenticated', 'draft_pick_assets', 'SELECT')
+    and not has_table_privilege('authenticated', 'draft_pick_assets', 'UPDATE'), true);
+
+\o /dev/null
+reset role;
+\o

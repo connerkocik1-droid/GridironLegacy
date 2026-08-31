@@ -1517,3 +1517,216 @@ select release_franchise((select id from managers where league_id = :'R2' and sl
 
 select expect('a franchise named after its manager reopens under the open name',
   (select franchise from managers where league_id = :'R2' and slot = 'BBB'), 'Open Team');
+
+\echo ''
+\echo '--- draft picks as property ---'
+
+\set P  '99999999-0000-0000-0000-000000000016'
+\set PA 'aaaa0000-0000-0000-0000-000000000030'
+\set PB 'aaaa0000-0000-0000-0000-000000000031'
+\set PC 'aaaa0000-0000-0000-0000-000000000032'
+
+\o /dev/null
+insert into leagues (id, name, season, inaugural_season, commissioner_slot, settings)
+values (:'P', 'Dynasty', 2026, 2026, 'AAA',
+        '{"rounds": 2, "rookieRounds": 3, "regularWeeks": 3, "starters": {"QB": 1}, "bench": 1}'::jsonb);
+
+insert into auth.users (id) values (:'PA'), (:'PB'), (:'PC');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'P', 'AAA', 'Ada',  'Alpha',   true,  :'PA'),
+  (:'P', 'BBB', 'Bo',   'Bravo',   false, :'PB'),
+  (:'P', 'CCC', 'Cass', 'Charlie', false, :'PC');
+
+select award_draft_picks(:'P', 2026);
+select award_draft_picks(:'P');
+select signin(:'PA');
+\o
+
+select expect('the inaugural draft uses the league''s own round count',
+  (select count(*)::int from draft_pick_assets where league_id = :'P' and season = 2026), 6);
+
+select expect('and next season is a rookie draft, which is shorter',
+  (select count(*)::int from draft_pick_assets where league_id = :'P' and season = 2027), 9);
+
+select expect('every franchise starts out holding its own',
+  (select bool_and(manager_id = origin_manager) from draft_pick_assets
+    where league_id = :'P'), true);
+
+select expect('the inaugural draft is not currency',
+  (select picks_are_tradeable(:'P', 2026)), false);
+
+select expect('but next season is',
+  (select picks_are_tradeable(:'P', 2027)), true);
+
+-- ---------------------------------------------------------------------------
+-- Order is the inverse of the record
+-- ---------------------------------------------------------------------------
+\o /dev/null
+-- Charlie loses twice, Bravo splits, Alpha wins twice.
+insert into matchups (league_id, week, home_manager, away_manager,
+                      home_points, away_points, winner, is_tie, final)
+select :'P', 1,
+       (select id from managers where league_id = :'P' and slot = 'AAA'),
+       (select id from managers where league_id = :'P' and slot = 'CCC'),
+       120, 80,
+       (select id from managers where league_id = :'P' and slot = 'AAA'), false, true;
+
+insert into matchups (league_id, week, home_manager, away_manager,
+                      home_points, away_points, winner, is_tie, final)
+select :'P', 2,
+       (select id from managers where league_id = :'P' and slot = 'AAA'),
+       (select id from managers where league_id = :'P' and slot = 'BBB'),
+       110, 90,
+       (select id from managers where league_id = :'P' and slot = 'AAA'), false, true;
+
+insert into matchups (league_id, week, home_manager, away_manager,
+                      home_points, away_points, winner, is_tie, final)
+select :'P', 3,
+       (select id from managers where league_id = :'P' and slot = 'BBB'),
+       (select id from managers where league_id = :'P' and slot = 'CCC'),
+       100, 70,
+       (select id from managers where league_id = :'P' and slot = 'BBB'), false, true;
+
+select set_draft_pick_order(:'P', 2027);
+\o
+
+-- Charlie 0-2, Bravo 1-1, Alpha 2-0. The worst record picks first.
+select expect('the worst record picks first, the best last',
+  (select string_agg(m.slot, ' ' order by a.slot)
+     from draft_pick_assets a join managers m on m.id = a.origin_manager
+    where a.league_id = :'P' and a.season = 2027 and a.round = 1), 'CCC BBB AAA');
+
+select expect('and every round is in that same order',
+  (select bool_and(same) from (
+     select count(distinct ord) = 1 as same from (
+       select a.round, string_agg(m.slot, ' ' order by a.slot) as ord
+         from draft_pick_assets a join managers m on m.id = a.origin_manager
+        where a.league_id = :'P' and a.season = 2027
+        group by a.round
+     ) rounds
+   ) x), true);
+
+-- Points break a tie between identical records: 100 points scored is a worse
+-- season than 120, and gets the earlier pick.
+\o /dev/null
+update matchups set final = false where league_id = :'P';
+select set_draft_pick_order(:'P', 2027);
+\o
+
+select expect('with nothing graded the order is stable rather than random',
+  (select string_agg(m.slot, ' ' order by a.slot)
+     from draft_pick_assets a join managers m on m.id = a.origin_manager
+    where a.league_id = :'P' and a.season = 2027 and a.round = 1), 'AAA BBB CCC');
+
+\o /dev/null
+update matchups set final = true where league_id = :'P';
+select set_draft_pick_order(:'P', 2027);
+\o
+
+-- ---------------------------------------------------------------------------
+-- Trading them
+-- ---------------------------------------------------------------------------
+\set PICK '(select id from draft_pick_assets a join managers m on m.id = a.origin_manager where a.league_id = :''P'' and a.season = 2027 and a.round = 1 and m.slot = ''CCC'')'
+
+\o /dev/null
+-- Charlie sends their first-rounder to Alpha for nothing, which is Charlie's
+-- business. Both accept, Alpha executes.
+insert into trades (id, league_id, from_manager, to_manager, offer,
+                    status, from_accepted, to_accepted)
+select 'dddd0000-0000-0000-0000-000000000001', :'P',
+       (select id from managers where league_id = :'P' and slot = 'CCC'),
+       (select id from managers where league_id = :'P' and slot = 'AAA'),
+       jsonb_build_object('give', '[]'::jsonb, 'get', '[]'::jsonb,
+         'givePicks', jsonb_build_array(
+           (select a.id from draft_pick_assets a join managers m on m.id = a.origin_manager
+             where a.league_id = :'P' and a.season = 2027 and a.round = 1 and m.slot = 'CCC')),
+         'getPicks', '[]'::jsonb),
+       'agreed', true, true;
+
+select execute_trade('dddd0000-0000-0000-0000-000000000001');
+\o
+
+select expect('a traded pick changes hands',
+  (select m.slot from draft_pick_assets a join managers m on m.id = a.manager_id
+     where a.league_id = :'P' and a.season = 2027 and a.round = 1
+       and a.origin_manager = (select id from managers where league_id = :'P' and slot = 'CCC')),
+  'AAA');
+
+select expect('but it is still Charlie''s pick, so it still falls first',
+  (select a.slot from draft_pick_assets a
+     where a.league_id = :'P' and a.season = 2027 and a.round = 1
+       and a.origin_manager = (select id from managers where league_id = :'P' and slot = 'CCC')),
+  1);
+
+select expect('Alpha now holds two first-rounders',
+  (select count(*)::int from draft_pick_assets a
+     where a.league_id = :'P' and a.season = 2027 and a.round = 1
+       and a.manager_id = (select id from managers where league_id = :'P' and slot = 'AAA')), 2);
+
+-- Trading the same pick twice is refused: Charlie no longer holds it.
+\o /dev/null
+insert into trades (id, league_id, from_manager, to_manager, offer,
+                    status, from_accepted, to_accepted)
+select 'dddd0000-0000-0000-0000-000000000002', :'P',
+       (select id from managers where league_id = :'P' and slot = 'CCC'),
+       (select id from managers where league_id = :'P' and slot = 'BBB'),
+       jsonb_build_object('give', '[]'::jsonb, 'get', '[]'::jsonb,
+         'givePicks', jsonb_build_array(
+           (select a.id from draft_pick_assets a join managers m on m.id = a.origin_manager
+             where a.league_id = :'P' and a.season = 2027 and a.round = 1 and m.slot = 'CCC')),
+         'getPicks', '[]'::jsonb),
+       'agreed', true, true;
+select signin(:'PC');
+\o
+
+select expect('a pick already traded away cannot be traded again',
+  refuses('select execute_trade(''dddd0000-0000-0000-0000-000000000002'')'),
+  'A pick in this offer is no longer held by the proposing franchise');
+
+-- The inaugural draft is not for sale.
+\o /dev/null
+insert into trades (id, league_id, from_manager, to_manager, offer,
+                    status, from_accepted, to_accepted)
+select 'dddd0000-0000-0000-0000-000000000003', :'P',
+       (select id from managers where league_id = :'P' and slot = 'CCC'),
+       (select id from managers where league_id = :'P' and slot = 'BBB'),
+       jsonb_build_object('give', '[]'::jsonb, 'get', '[]'::jsonb,
+         'givePicks', jsonb_build_array(
+           (select a.id from draft_pick_assets a join managers m on m.id = a.origin_manager
+             where a.league_id = :'P' and a.season = 2026 and a.round = 1 and m.slot = 'CCC')),
+         'getPicks', '[]'::jsonb),
+       'agreed', true, true;
+\o
+
+select expect('an inaugural pick cannot be traded even once both sides agree',
+  refuses('select execute_trade(''dddd0000-0000-0000-0000-000000000003'')'),
+  'Picks for the 2026 draft cannot be traded');
+
+select expect('and it stays where it was',
+  (select m.slot from draft_pick_assets a join managers m on m.id = a.manager_id
+     where a.league_id = :'P' and a.season = 2026 and a.round = 1
+       and a.origin_manager = (select id from managers where league_id = :'P' and slot = 'CCC')),
+  'CCC');
+
+-- ---------------------------------------------------------------------------
+-- The nightly run must not undo a trade
+-- ---------------------------------------------------------------------------
+\o /dev/null
+select signin(:'PA');
+select award_draft_picks(:'P');
+\o
+
+select expect('running the award again creates nothing',
+  (select count(*)::int from draft_pick_assets where league_id = :'P' and season = 2027), 9);
+
+select expect('and does not hand a traded pick back',
+  (select m.slot from draft_pick_assets a join managers m on m.id = a.manager_id
+     where a.league_id = :'P' and a.season = 2027 and a.round = 1
+       and a.origin_manager = (select id from managers where league_id = :'P' and slot = 'CCC')),
+  'AAA');
+
+select expect('every pick in the league is accounted for',
+  (select string_agg(season || ':' || n, ' ' order by season) from (
+     select season, count(*) n from draft_pick_assets where league_id = :'P' group by season
+   ) d), '2026:6 2027:9');
