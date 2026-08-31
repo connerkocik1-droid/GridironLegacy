@@ -7,7 +7,7 @@ const NOT_CONFIGURED = Response.json(
   { status: 503 },
 );
 
-type Action = "accept" | "decline" | "counter";
+type Action = "accept" | "decline" | "counter" | "rescind";
 
 function names(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -45,8 +45,16 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   const action = body.action as Action;
-  if (action !== "accept" && action !== "decline" && action !== "counter") {
-    return Response.json({ error: "action must be accept, decline or counter" }, { status: 400 });
+  if (
+    action !== "accept" &&
+    action !== "decline" &&
+    action !== "counter" &&
+    action !== "rescind"
+  ) {
+    return Response.json(
+      { error: "action must be accept, decline, counter or rescind" },
+      { status: 400 },
+    );
   }
 
   const { data: trade } = await db
@@ -67,10 +75,54 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (trade.status === "declined") {
     return Response.json({ error: "This trade was declined" }, { status: 409 });
   }
+  if (trade.status === "rescinded") {
+    return Response.json({ error: "This offer was withdrawn" }, { status: 409 });
+  }
 
   const thread = Array.isArray(trade.thread) ? trade.thread : [];
   const note = (text: string) => [...thread, { who: me.slot, at: new Date().toISOString(), text }];
   const message = typeof body.message === "string" ? body.message.slice(0, 500) : "";
+
+  if (action === "rescind") {
+    // Only your own terms, and only while they are still waiting. Checked here
+    // so the manager gets a sentence rather than a constraint violation; the
+    // database enforces the same rule for anything that does not come through
+    // this route.
+    const mineStands = isFrom ? trade.from_accepted : trade.to_accepted;
+    const theirsStands = isFrom ? trade.to_accepted : trade.from_accepted;
+
+    if (!mineStands) {
+      return Response.json(
+        { error: "There is nothing of yours on the table to withdraw" },
+        { status: 409 },
+      );
+    }
+    if (theirsStands) {
+      return Response.json(
+        { error: "They have already accepted. Too late to withdraw." },
+        { status: 409 },
+      );
+    }
+
+    // Only this manager's own flag is written. The other side's is already
+    // false, and the database refuses anyone touching a flag that is not
+    // theirs even when the value would not change.
+    const { error } = await db
+      .from("trades")
+      .update({
+        status: "rescinded",
+        ...(isFrom ? { from_accepted: false } : { to_accepted: false }),
+        thread: note(message || "Withdrew the offer."),
+      })
+      .eq("id", id);
+
+    if (error) {
+      console.error("[trades] rescind failed", error);
+      return Response.json({ error: "Could not withdraw the offer" }, { status: 400 });
+    }
+
+    return Response.json({ ok: true, status: "rescinded" });
+  }
 
   if (action === "decline") {
     await db

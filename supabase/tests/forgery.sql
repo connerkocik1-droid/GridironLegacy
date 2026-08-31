@@ -311,3 +311,114 @@ select expect('and picks are read-only to the browser in production',
 \o /dev/null
 reset role;
 \o
+
+\o /dev/null
+reset role;
+
+\set W  'ffff2222-0000-0000-0000-000000000003'
+\set W1 'ffff2222-0000-0000-0000-0000000000c1'
+\set W2 'ffff2222-0000-0000-0000-0000000000c2'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'W', 'Withdrawals', 2026, 'AAA', '{"starters":{"QB":1},"bench":4}'::jsonb);
+insert into auth.users (id) values (:'W1'), (:'W2');
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'W', 'AAA', 'A', 'Alpha', true,  :'W1'),
+  (:'W', 'BBB', 'B', 'Bravo', false, :'W2');
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'W', id, 'Alpha Star', 'BENCH' from managers where league_id = :'W' and slot = 'AAA';
+
+-- Alpha offers, which means Alpha has accepted their own terms and Bravo has
+-- not seen them yet.
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted)
+select 'eeee0000-0000-0000-0000-000000000001', :'W',
+       (select id from managers where league_id = :'W' and slot = 'AAA'),
+       (select id from managers where league_id = :'W' and slot = 'BBB'),
+       '{"give": ["Alpha Star"], "get": []}'::jsonb, 'open', true, false;
+
+grant select, insert, update, delete on all tables in schema public to authenticated;
+
+-- Bravo, the manager who received it.
+select set_config('test.uid', :'W2', false);
+set role authenticated;
+\o
+
+\echo ''
+\echo '--- withdrawing an offer ---'
+
+select expect('the manager who received an offer cannot mark it withdrawn',
+  refuses('update trades set status = ''rescinded'' where id = ''eeee0000-0000-0000-0000-000000000001'''),
+  'Only the manager waiting on a reply may withdraw the offer');
+
+select expect('so the offer still stands',
+  (select status from trades where id = 'eeee0000-0000-0000-0000-000000000001'), 'open');
+
+\o /dev/null
+reset role;
+select set_config('test.uid', :'W1', false);
+set role authenticated;
+\o
+
+select expect('the manager who sent it may take it back',
+  refuses('update trades set status = ''rescinded'', from_accepted = false where id = ''eeee0000-0000-0000-0000-000000000001'''),
+  null);
+
+select expect('and it is withdrawn, not declined',
+  (select status from trades where id = 'eeee0000-0000-0000-0000-000000000001'), 'rescinded');
+
+select expect('a withdrawn offer cannot be executed',
+  refuses('select execute_trade(''eeee0000-0000-0000-0000-000000000001'')'),
+  'Both managers must accept first');
+
+select expect('and the player never moved',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'W' and r.player_name = 'Alpha Star'), 'AAA');
+
+-- Once the other side has accepted there is nothing left to withdraw: the
+-- deal either ran or is blocked on something real.
+\o /dev/null
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted)
+select 'eeee0000-0000-0000-0000-000000000002', :'W',
+       (select id from managers where league_id = :'W' and slot = 'AAA'),
+       (select id from managers where league_id = :'W' and slot = 'BBB'),
+       '{"give": ["Alpha Star"], "get": []}'::jsonb, 'agreed', true, true;
+\o
+
+select expect('an offer both sides have accepted cannot be withdrawn',
+  refuses('update trades set status = ''rescinded'' where id = ''eeee0000-0000-0000-0000-000000000002'''),
+  'Only the manager waiting on a reply may withdraw the offer');
+
+-- A counter is the other manager's terms, so it is theirs to take back.
+\o /dev/null
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted)
+select 'eeee0000-0000-0000-0000-000000000003', :'W',
+       (select id from managers where league_id = :'W' and slot = 'AAA'),
+       (select id from managers where league_id = :'W' and slot = 'BBB'),
+       '{"give": ["Alpha Star"], "get": []}'::jsonb, 'countered', false, true;
+\o
+
+select expect('the manager who sent an offer cannot withdraw the reply to it',
+  refuses('update trades set status = ''rescinded'' where id = ''eeee0000-0000-0000-0000-000000000003'''),
+  'Only the manager waiting on a reply may withdraw the offer');
+
+\o /dev/null
+reset role;
+select set_config('test.uid', :'W2', false);
+set role authenticated;
+\o
+
+select expect('but the manager who countered may take their counter back',
+  refuses('update trades set status = ''rescinded'', to_accepted = false where id = ''eeee0000-0000-0000-0000-000000000003'''),
+  null);
+
+select expect('nor can withdrawing be used to fake a completed deal',
+  refuses('update trades set status = ''executed'' where id = ''eeee0000-0000-0000-0000-000000000001'''),
+  'A trade is executed by accepting it, not by setting its status');
+
+\o /dev/null
+reset role;
+\o

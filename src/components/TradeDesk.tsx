@@ -27,13 +27,15 @@ interface Trade {
   from_manager: string;
   to_manager: string;
   offer: { give: string[]; get: string[]; givePicks?: string[]; getPicks?: string[] };
-  status: "open" | "countered" | "agreed" | "executed" | "declined";
+  status: "open" | "countered" | "agreed" | "executed" | "declined" | "rescinded";
   from_accepted: boolean;
   to_accepted: boolean;
   thread: { who: string; at: string; text: string }[];
   created_at: string;
   incoming: boolean;
   awaitingMe: boolean;
+  /** Your terms are on the table and they have not taken them yet. */
+  canRescind: boolean;
 }
 
 interface Desk {
@@ -63,6 +65,7 @@ const STATUS_COLOR: Record<Trade["status"], string> = {
   agreed: "#7fd1a8",
   executed: "#7fd1a8",
   declined: "#75798c",
+  rescinded: "#75798c",
 };
 
 /**
@@ -309,7 +312,7 @@ export default function TradeDesk() {
     }
   }
 
-  async function respond(trade: Trade, action: "accept" | "decline") {
+  async function respond(trade: Trade, action: "accept" | "decline" | "rescind") {
     setBusy(true);
     try {
       const res = await fetch(`/api/trades/${trade.id}`, {
@@ -541,7 +544,10 @@ export default function TradeDesk() {
                   You get: {theirs.length ? theirs.join(", ") : "nothing"}
                 </div>
 
-                {t.awaitingMe && t.status !== "executed" && t.status !== "declined" ? (
+                {t.awaitingMe &&
+                t.status !== "executed" &&
+                t.status !== "declined" &&
+                t.status !== "rescinded" ? (
                   <div style={{ display: "flex", gap: 6 }}>
                     <button onClick={() => respond(t, "accept")} disabled={busy} style={smallButton("#7fd1a8")}>
                       Accept
@@ -549,6 +555,20 @@ export default function TradeDesk() {
                     <button onClick={() => respond(t, "decline")} disabled={busy} style={smallButton("#e0b573")}>
                       Decline
                     </button>
+                  </div>
+                ) : t.canRescind ? (
+                  /* Waiting on them, so it is still yours to take back. */
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button
+                      onClick={() => respond(t, "rescind")}
+                      disabled={busy}
+                      style={smallButton("#e0b573")}
+                    >
+                      Withdraw
+                    </button>
+                    <span style={{ fontSize: 10, color: "#75798c" }}>
+                      Waiting on the other manager.
+                    </span>
                   </div>
                 ) : t.status === "agreed" ? (
                   <div style={{ fontSize: 10, color: "#75798c" }}>Waiting on the other manager.</div>

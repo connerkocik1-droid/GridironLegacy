@@ -88,12 +88,24 @@ export async function GET() {
       // offer that cannot execute.
       tradeable: inaugural == null ? false : p.season > inaugural,
     })),
-    trades: (trades ?? []).map((t) => ({
-      ...t,
-      // Say whose turn it is without the client re-deriving the rule.
-      incoming: t.to_manager === me.id,
-      awaitingMe: t.to_manager === me.id ? !t.to_accepted : !t.from_accepted,
-    })),
+    trades: (trades ?? []).map((t) => {
+      const incoming = t.to_manager === me.id;
+      const mineStands = incoming ? t.to_accepted : t.from_accepted;
+      const theirsStands = incoming ? t.from_accepted : t.to_accepted;
+
+      return {
+        ...t,
+        // Say whose turn it is without the client re-deriving the rule.
+        incoming,
+        awaitingMe: incoming ? !t.to_accepted : !t.from_accepted,
+        // Your terms are on the table and they have not taken them, so you can
+        // still take them back. The same rule the database enforces.
+        canRescind:
+          mineStands &&
+          !theirsStands &&
+          !["executed", "declined", "rescinded"].includes(t.status),
+      };
+    }),
   });
 }
 
