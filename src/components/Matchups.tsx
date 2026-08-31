@@ -14,7 +14,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 interface Side {
   id: string;
   slot: string;
+  /** Whoever holds the franchise, or "Open" when nobody does yet. */
   name: string;
+  claimed: boolean;
   franchise: string;
   division: string | null;
   /** Null for a week that has neither been played nor started. */
@@ -67,9 +69,17 @@ function Score({ side, won, lost }: { side: Side; won: boolean; lost: boolean })
         >
           {side.franchise}
         </div>
-        <div style={{ fontSize: 9, letterSpacing: ".14em", color: "#75798c", marginTop: 2 }}>
-          {side.slot}
-          {side.division ? ` · ${side.division.toUpperCase()}` : ""}
+        {/* Who is behind the franchise. A team name is a name somebody made
+            up; the person is who you are actually playing. */}
+        <div
+          style={{
+            fontSize: 9.5,
+            letterSpacing: ".14em",
+            color: side.claimed ? "#75798c" : "#5a5d6e",
+            marginTop: 2,
+          }}
+        >
+          {side.claimed ? side.name : "Open"}
         </div>
       </div>
       <div

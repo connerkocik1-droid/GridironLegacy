@@ -33,7 +33,9 @@ export async function GET() {
     db.from("leagues").select("name, season, settings").eq("id", me.league_id).single(),
     db
       .from("managers")
-      .select("id, slot, name, franchise, division")
+      // pin_hash never leaves the server; it is read only to say whether
+      // anybody holds the franchise yet.
+      .select("id, slot, name, franchise, division, pin_hash")
       .eq("league_id", me.league_id)
       .order("slot"),
     db
@@ -91,10 +93,15 @@ export async function GET() {
   const side = (id: string, week: number, settled: number | null, final: boolean) => {
     const m = byId.get(id);
     if (!m) return null;
+    const claimed = m.pin_hash != null;
     return {
       id,
       slot: m.slot,
-      name: m.name,
+      // Whoever holds the franchise, or nobody yet. A seat with no manager
+      // carries the placeholder name the database gave it, which is not a
+      // person and should not be shown as one.
+      name: claimed ? m.name : "Open",
+      claimed,
       franchise: m.franchise,
       division: m.division,
       points: pointsFor(id, week, settled, final),

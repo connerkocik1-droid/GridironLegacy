@@ -2,12 +2,11 @@ import Link from "next/link";
 import CommissionerOnly from "./CommissionerOnly";
 import ProfileMenu from "./ProfileMenu";
 
+// Lineup, Matchups, Standings and Rankings are not here on purpose: the home
+// page is the way to all four, and listing them twice made a nav bar with
+// thirteen tabs in it.
 const PRIMARY = [
   { href: "/", label: "Home" },
-  { href: "/lineup", label: "Lineup" },
-  { href: "/matchups", label: "Matchups" },
-  { href: "/standings", label: "Standings" },
-  { href: "/rankings", label: "Rankings" },
   { href: "/draft", label: "Draft" },
 ];
 
