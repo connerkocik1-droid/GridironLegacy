@@ -6,9 +6,12 @@ export const dynamic = "force-dynamic";
 const PAGE = 60;
 
 /**
- * Everyone nobody holds, plus this manager's own roster and pending claims —
- * the three things the add/drop screen needs, read together so they cannot
- * disagree with each other.
+ * Everyone nobody holds, plus this manager's own roster, their pending claims,
+ * and the waiver wire — read together so they cannot disagree with each other.
+ *
+ * The wire is the difference between the two halves of this list. A player on
+ * it was dropped recently and can only be claimed; everybody else is a free
+ * agent and can be added on the spot.
  */
 export async function GET(req: Request) {
   if (!isConfigured()) {
@@ -33,7 +36,7 @@ export async function GET(req: Request) {
   const search = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   const page = Math.max(0, Number(url.searchParams.get("page") ?? 0) || 0);
 
-  const [{ data: league }, { data: rostered }, { data: mine }, { data: claims }] =
+  const [{ data: league }, { data: rostered }, { data: mine }, { data: claims }, { data: wire }] =
     await Promise.all([
       db.from("leagues").select("settings").eq("id", me.league_id).single(),
       db.from("roster_slots").select("player_name, manager_id").eq("league_id", me.league_id),
@@ -43,9 +46,15 @@ export async function GET(req: Request) {
         .select("id, add_player, drop_player, claim_order, status, reason, created_at")
         .eq("manager_id", me.id)
         .order("claim_order"),
+      db
+        .from("waiver_wire")
+        .select("player_name, clears_at, dropped_by")
+        .eq("league_id", me.league_id)
+        .order("clears_at"),
     ]);
 
   const taken = new Set((rostered ?? []).map((r) => r.player_name));
+  const clears = new Map((wire ?? []).map((w) => [w.player_name, w.clears_at as string]));
 
   const free = POOL.filter((p) => {
     if (taken.has(p.n)) return false;
@@ -63,15 +72,30 @@ export async function GET(req: Request) {
   // IR sits outside the roster count, the same rule the database enforces.
   const held = (mine ?? []).filter((r) => r.lineup_slot !== "IR").length;
 
+  const mode =
+    settings.waiverMode === "open" || settings.waiverMode === "all"
+      ? (settings.waiverMode as "open" | "all")
+      : "waivers";
+
   return Response.json({
     me,
-    // "waivers" means claims queue for the scheduled run; "open" means an add
-    // lands immediately, first come first served.
-    mode: settings.waiverMode === "open" ? "open" : "waivers",
+    // "waivers": dropped players are claimed, everyone else is an instant add.
+    // "open": no wire at all. "all": every pickup is a claim.
+    mode,
+    waiverDays: Math.max(1, Number(settings.waiverDays ?? 1) || 1),
     capacity,
     held,
     roster: mine ?? [],
     claims: claims ?? [],
+    // The whole wire, not just this page of it: it is short, and it is the
+    // one list a manager wants to see before the run rather than after.
+    wire: (wire ?? []).map((w) => ({
+      name: w.player_name,
+      clearsAt: w.clears_at,
+      position: POOL.find((p) => p.n === w.player_name)?.p ?? "",
+      team: POOL.find((p) => p.n === w.player_name)?.t ?? "",
+      mine: w.dropped_by === me.id,
+    })),
     total: free.length,
     page,
     hasMore: free.length > (page + 1) * PAGE,
@@ -82,6 +106,7 @@ export async function GET(req: Request) {
       adp: p.adp,
       posRank: p.posRank,
       bye: p.bye,
+      clearsAt: clears.get(p.n) ?? null,
     })),
   });
 }

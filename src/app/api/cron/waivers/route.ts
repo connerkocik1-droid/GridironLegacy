@@ -4,11 +4,15 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Settles the week's waiver claims.
+ * Settles the claims that are ripe and releases the players nobody won.
  *
- * Runs on the league's waiver day. Everything that decides who gets a player
- * is in process_waivers(), so this only has to authorise the run and report
- * what happened.
+ * Nightly rather than weekly. A player dropped on Thursday sits on the wire
+ * for his waiver period and is then judged at the next run — if that run only
+ * came on Wednesdays, the period would be decoration and half the league's
+ * drops would be untouchable for the best part of a week.
+ *
+ * Everything that decides who gets a player is in process_waivers(), so this
+ * only has to authorise the run and report what happened.
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;

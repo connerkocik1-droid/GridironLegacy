@@ -422,3 +422,61 @@ select expect('nor can withdrawing be used to fake a completed deal',
 \o /dev/null
 reset role;
 \o
+
+-- ----------------------------------------------------------- waiver wire ---
+-- The wire is the only thing standing between a dropped player and whoever
+-- has the page open. A manager may read it and nothing else — writing to it
+-- would let somebody release a player early, or park a free agent on it and
+-- keep the league off him until they were ready to claim.
+--
+-- Every privilege is granted to authenticated by now, on purpose: what refuses
+-- these is the absence of a write policy, not a missing grant.
+
+\o /dev/null
+reset role;
+
+insert into waiver_wire (league_id, player_name, dropped_by, clears_at)
+values (:'L', 'Wire Star',
+        (select id from managers where league_id = :'L' and slot = 'BBB'),
+        now() + interval '1 day');
+
+insert into waiver_wire (league_id, player_name, clears_at)
+values (:'OTHER', 'Their Wire Star', now() + interval '1 day');
+
+select set_config('test.uid', :'U1', false);
+set role authenticated;
+\o
+
+\echo ''
+\echo '--- the waiver wire is read-only ---'
+
+select expect('a manager sees who is on his own league''s wire',
+  (select count(*)::int from waiver_wire where player_name = 'Wire Star'), 1);
+
+select expect('but not another league''s',
+  (select count(*)::int from waiver_wire where player_name = 'Their Wire Star'), 0);
+
+-- Each of these runs and is thrown away; what matters is the state afterwards.
+\o /dev/null
+select refuses('delete from waiver_wire where player_name = ''Wire Star''');
+select refuses(format(
+  'update waiver_wire set clears_at = now() - interval ''2 days'' where league_id = %L', :'L'));
+\o
+
+select expect('nobody releases a player early by deleting him off the wire',
+  on_waivers(:'L', 'Wire Star'), true);
+
+select expect('nor by bringing his clearing time forward',
+  (select clears_at > now() from waiver_wire where player_name = 'Wire Star'), true);
+
+select expect('nor parks a free agent on it to keep him from the league',
+  refuses(format(
+    'insert into waiver_wire (league_id, player_name, clears_at) values (%L, %L, now() + interval ''9 days'')',
+    :'L', 'Nobody Touched Him')) like '%row-level security%', true);
+
+select expect('so the player they tried to park is still free',
+  on_waivers(:'L', 'Nobody Touched Him'), false);
+
+\o /dev/null
+reset role;
+\o

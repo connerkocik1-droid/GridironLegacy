@@ -372,6 +372,197 @@ select expect('every move is logged',
   (select count(*)::int > 0 from transactions where league_id = :'W' and kind = 'waiver'), true);
 
 \echo ''
+\echo '--- the waiver wire ---'
+
+\o /dev/null
+\set X '99999999-0000-0000-0000-000000000018'
+\set X1 'eeee9000-0000-0000-0000-000000000001'
+\set X2 'eeee9000-0000-0000-0000-000000000002'
+\set X3 'eeee9000-0000-0000-0000-000000000003'
+
+-- Capacity 3 again: 2 starters and a bench spot.
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'X', 'Wire', 2026, 'AAA',
+        '{"starters": {"QB": 1, "RB": 1}, "bench": 1, "rounds": 1}'::jsonb);
+
+insert into auth.users (id) values (:'X1'), (:'X2'), (:'X3');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id, waiver_priority) values
+  (:'X', 'AAA', 'A', 'Alpha',   true,  :'X1', 1),
+  (:'X', 'BBB', 'B', 'Bravo',   false, :'X2', 2),
+  (:'X', 'CCC', 'C', 'Charlie', false, :'X3', 3);
+
+select signin(:'X2');
+\o
+
+select expect('a player nobody dropped is a free agent, added on the spot',
+  (select (add_player(:'X', 'Wire Guy') ->> 'ok')::boolean), true);
+
+select expect('dropping him reports when he clears',
+  (select (drop_player(:'X', 'Wire Guy') ->> 'clearsAt') is not null), true);
+
+select expect('and he is on the wire, not back on the shelf',
+  on_waivers(:'X', 'Wire Guy'), true);
+
+select expect('with a clearing time in the future',
+  (select clears_at > now() from waiver_wire where league_id = :'X' and player_name = 'Wire Guy'),
+  true);
+
+select expect('he has left the roster all the same',
+  (select count(*)::int from roster_slots where league_id = :'X' and player_name = 'Wire Guy'), 0);
+
+\o /dev/null
+select signin(:'X3');
+\o
+
+select expect('nobody can simply take a player off the wire',
+  refuses(format('select add_player(%L, %L)', :'X', 'Wire Guy')) like '%on waivers%', true);
+
+select expect('so he is still nobody''s',
+  (select count(*)::int from roster_slots where league_id = :'X' and player_name = 'Wire Guy'), 0);
+
+-- Alpha and Charlie both want him. Alpha has the better priority.
+\o /dev/null
+insert into waiver_claims (league_id, manager_id, add_player) values
+  (:'X', (select id from managers where league_id = :'X' and slot = 'AAA'), 'Wire Guy'),
+  (:'X', (select id from managers where league_id = :'X' and slot = 'CCC'), 'Wire Guy');
+select process_waivers(:'X');
+\o
+
+select expect('a run before his time is up settles nothing',
+  (select count(*)::int from waiver_claims
+    where league_id = :'X' and add_player = 'Wire Guy' and status = 'pending'), 2);
+
+select expect('and does not release him either',
+  on_waivers(:'X', 'Wire Guy'), true);
+
+-- His waiver period elapses.
+\o /dev/null
+update waiver_wire set clears_at = now() - interval '1 minute'
+ where league_id = :'X' and player_name = 'Wire Guy';
+select process_waivers(:'X');
+\o
+
+select expect('the next run gives him to the best priority',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'X' and r.player_name = 'Wire Guy'), 'AAA');
+
+select expect('the other claim is told why it lost',
+  (select count(*)::int from waiver_claims
+    where league_id = :'X' and add_player = 'Wire Guy'
+      and status = 'lost' and reason like '%already rostered%'), 1);
+
+select expect('a player who has been won is off the wire',
+  on_waivers(:'X', 'Wire Guy'), false);
+
+select expect('and winning still sends you to the back',
+  (select string_agg(slot, ',' order by waiver_priority) from managers where league_id = :'X'),
+  'BBB,CCC,AAA');
+
+-- Nobody wants him the second time.
+\o /dev/null
+select signin(:'X1');
+select drop_player(:'X', 'Wire Guy');
+select process_waivers(:'X');
+\o
+
+select expect('an unclaimed player is not released early',
+  on_waivers(:'X', 'Wire Guy'), true);
+
+\o /dev/null
+update waiver_wire set clears_at = now() - interval '1 minute'
+ where league_id = :'X' and player_name = 'Wire Guy';
+select process_waivers(:'X');
+\o
+
+select expect('but the run past his time lets him go',
+  on_waivers(:'X', 'Wire Guy'), false);
+
+\o /dev/null
+select signin(:'X3');
+\o
+
+select expect('and then anybody may have him',
+  (select (add_player(:'X', 'Wire Guy') ->> 'ok')::boolean), true);
+
+-- Charlie fills up, then claims somebody while dropping to make room. The
+-- player he drops must not be handed to the league in the same run.
+\o /dev/null
+select add_player(:'X', 'Spare One');
+select add_player(:'X', 'Spare Two');
+insert into waiver_claims (league_id, manager_id, add_player, drop_player) values
+  (:'X', (select id from managers where league_id = :'X' and slot = 'CCC'), 'Fresh Face', 'Spare One');
+select process_waivers(:'X');
+\o
+
+select expect('a claim on a free agent is settled by the same run',
+  (select count(*)::int from roster_slots
+    where league_id = :'X' and player_name = 'Fresh Face'), 1);
+
+select expect('the player dropped to make room goes on the wire',
+  on_waivers(:'X', 'Spare One'), true);
+
+select expect('and the run that put him there does not also release him',
+  (select clears_at > now() from waiver_wire where league_id = :'X' and player_name = 'Spare One'),
+  true);
+
+-- Re-dropping restarts the clock rather than failing.
+\o /dev/null
+select signin(:'X2');
+select add_player(:'X', 'Boomerang');
+select drop_player(:'X', 'Boomerang');
+update waiver_wire set clears_at = now() - interval '1 minute'
+ where league_id = :'X' and player_name = 'Boomerang';
+select process_waivers(:'X');
+select add_player(:'X', 'Boomerang');
+select drop_player(:'X', 'Boomerang');
+\o
+
+select expect('a player dropped twice starts his period over',
+  (select clears_at > now() from waiver_wire where league_id = :'X' and player_name = 'Boomerang'),
+  true);
+
+-- An open league has no wire at all.
+\o /dev/null
+update leagues set settings = settings || '{"waiverMode": "open"}'::jsonb where id = :'X';
+select add_player(:'X', 'Open Season');
+select drop_player(:'X', 'Open Season');
+\o
+
+select expect('an open league drops straight back to free agency',
+  on_waivers(:'X', 'Open Season'), false);
+
+select expect('so the next manager may take him at once',
+  (select (add_player(:'X', 'Open Season') ->> 'ok')::boolean), true);
+
+-- A league that runs everything through waivers has no open market.
+\o /dev/null
+update leagues set settings = settings || '{"waiverMode": "all"}'::jsonb where id = :'X';
+\o
+
+select expect('a claims-only league refuses an open-market add',
+  refuses(format('select add_player(%L, %L)', :'X', 'Anybody At All'))
+    like '%goes through waivers%', true);
+
+\o /dev/null
+update leagues set settings = settings || '{"waiverMode": "waivers"}'::jsonb where id = :'X';
+select signin(:'X1');
+select reset_draft(:'X');
+\o
+
+select expect('resetting the draft clears the wire with the rosters',
+  (select count(*)::int from waiver_wire where league_id = :'X'), 0);
+
+select expect('the waiver period is floored at a day',
+  waiver_days(:'X'), 1);
+
+\o /dev/null
+update leagues set settings = settings || '{"waiverDays": 3}'::jsonb where id = :'X';
+\o
+
+select expect('but a league may make it longer', waiver_days(:'X'), 3);
+
+\echo ''
 \echo '--- schedule ---'
 
 \o /dev/null

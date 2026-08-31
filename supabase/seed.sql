@@ -82,7 +82,9 @@ begin
       'ir', 2,
       'regularWeeks', 13,
       'playoffWeeks', 4,
-      'waiverMode', 'waivers'
+      'waiverMode', 'waivers',
+      -- How long a dropped player sits on the wire before the run releases him.
+      'waiverDays', 1
     ),
     'pending', 1
   )

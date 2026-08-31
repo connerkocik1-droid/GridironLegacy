@@ -22,11 +22,16 @@ async function me(db: Awaited<ReturnType<typeof serverClient>>) {
 }
 
 /**
- * Adds a player.
+ * Adds a player, or claims him.
  *
- * In open mode the add happens now. Otherwise it queues a claim for the
- * scheduled run, because someone else may want the same player and the run is
- * what settles that in priority order.
+ * Which one it is depends on the player, not on a league-wide switch: someone
+ * dropped in the last few days is on the waiver wire and can only be claimed,
+ * so the whole league gets a look at him in priority order; anybody else is a
+ * free agent and lands now.
+ *
+ * The database refuses an open-market add of a player on the wire regardless,
+ * so this decision is about giving the right answer rather than about being
+ * the thing that enforces it.
  */
 export async function POST(req: Request) {
   if (!isConfigured()) return NOT_CONFIGURED;
@@ -46,15 +51,21 @@ export async function POST(req: Request) {
   const drop = typeof body.drop === "string" && body.drop ? body.drop : null;
   if (!add) return Response.json({ error: "Name the player to add" }, { status: 400 });
 
-  const { data: league } = await db
-    .from("leagues")
-    .select("settings")
-    .eq("id", manager.league_id)
-    .single();
+  const [{ data: league }, { data: wired }] = await Promise.all([
+    db.from("leagues").select("settings").eq("id", manager.league_id).single(),
+    db
+      .from("waiver_wire")
+      .select("clears_at")
+      .eq("league_id", manager.league_id)
+      .eq("player_name", add)
+      .maybeSingle(),
+  ]);
 
-  const open = league?.settings?.waiverMode === "open";
+  const mode = league?.settings?.waiverMode;
+  // 'open' has no wire at all; 'all' sends every pickup through the run.
+  const instant = mode === "open" || (mode !== "all" && !wired);
 
-  if (open) {
+  if (instant) {
     const { data, error } = await db.rpc("add_player", {
       p_league_id: manager.league_id,
       p_add: add,
@@ -65,7 +76,7 @@ export async function POST(req: Request) {
       const taken = error.code === "23505";
       return Response.json({ error: error.message }, { status: taken ? 409 : 400 });
     }
-    return Response.json({ ...data, mode: "open" });
+    return Response.json({ ...data, mode: "now" });
   }
 
   const claimOrder = Number(body.claimOrder ?? 1);
@@ -90,7 +101,7 @@ export async function POST(req: Request) {
     );
   }
 
-  return Response.json({ ok: true, mode: "waivers", claimId: data.id });
+  return Response.json({ ok: true, mode: "claim", claimId: data.id });
 }
 
 /** Withdraws a pending claim. */
