@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Bracket from "./Bracket";
 import TeamCrest from "./TeamCrest";
 import { useLogos } from "@/lib/use-logos";
 
@@ -145,6 +146,11 @@ export default function Standings() {
           ? "Ordered by record, then by points scored."
           : "Nothing has been graded yet, so this is ordered by points scored."}
       </p>
+
+      {/* Above the table once there is one, because from the night the bracket
+          is drawn it is the more urgent half of the same question. It draws
+          nothing at all for the rest of the year. */}
+      <Bracket />
 
       <div
         style={{
