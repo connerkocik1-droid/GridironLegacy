@@ -480,3 +480,62 @@ select expect('so the player they tried to park is still free',
 \o /dev/null
 reset role;
 \o
+
+-- --------------------------------------------------------------- notices ---
+-- A notice is the league telling you something. A manager who could write one
+-- could tell somebody anything, in the league's own voice, and a manager who
+-- could read somebody else's would know their trade offers before they did.
+
+\o /dev/null
+reset role;
+
+insert into notices (league_id, manager_id, kind, body, href)
+select :'L', id, 'trade', 'Bravo has offered you a trade.', '/trade-builder'
+  from managers where league_id = :'L' and slot = 'BBB';
+
+insert into notices (league_id, manager_id, kind, body)
+select :'L', id, 'draft', 'You are on the clock.'
+  from managers where league_id = :'L' and slot = 'AAA';
+
+select set_config('test.uid', :'U1', false);
+set role authenticated;
+\o
+
+\echo ''
+\echo '--- notices are yours alone ---'
+
+select expect('a manager reads their own',
+  (select count(*)::int from notices where body = 'You are on the clock.'), 1);
+
+select expect('and nobody else''s, however curious',
+  (select count(*)::int from notices where body like '%offered you a trade%'), 0);
+
+\o /dev/null
+select refuses('update notices set read_at = now()');
+\o
+
+select expect('marking your own read is allowed',
+  (select count(*)::int from notices where read_at is null), 0);
+
+-- The column grant that stops a body being rewritten cannot be exercised here:
+-- the harness hands authenticated a table-wide UPDATE above, which covers every
+-- column and masks it. It is checked directly against the grants in rules.sql,
+-- where nothing has been widened.
+
+select expect('a notice cannot be invented for somebody else',
+  refuses(format(
+    'insert into notices (league_id, manager_id, kind, body) select %L, id, ''draft'', ''Skip your pick'' from managers where league_id = %L and slot = ''BBB''',
+    :'L', :'L')) like '%row-level security%', true);
+
+-- Named rather than counted: the trade sections above trip the same trigger,
+-- so this manager's inbox is not a number this check can know.
+\o /dev/null
+select refuses('delete from notices');
+\o
+
+select expect('and nobody deletes the record of what they were told',
+  (select count(*)::int from notices where body = 'You are on the clock.'), 1);
+
+\o /dev/null
+reset role;
+\o

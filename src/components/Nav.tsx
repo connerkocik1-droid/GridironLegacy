@@ -1,5 +1,6 @@
 import Link from "next/link";
 import CommissionerOnly from "./CommissionerOnly";
+import Notices from "./Notices";
 import ProfileMenu from "./ProfileMenu";
 
 // Lineup, Matchups, Standings and Rankings are not here on purpose: the home
@@ -162,6 +163,9 @@ export default function Nav({ current, note }: { current: string; note?: string 
         }}
       >
         {note ? <span>{note}</span> : null}
+        {/* Beside the profile rather than in the tab list: it is not a place
+            you go, it is the league getting your attention. */}
+        <Notices />
         <ProfileMenu />
       </div>
     </div>

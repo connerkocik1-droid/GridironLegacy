@@ -987,6 +987,131 @@ select expect('and placing him takes him off the wire',
   on_waivers(:'M', 'Alpha Filler'), false);
 
 \echo ''
+\echo '--- telling people things happened ---'
+
+\o /dev/null
+\set N  '99999999-0000-0000-0000-000000000022'
+\set N1 'bb229000-0000-0000-0000-000000000001'
+\set N2 'bb229000-0000-0000-0000-000000000002'
+\set N3 'bb229000-0000-0000-0000-000000000003'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'N', 'Notices', 2026, 'AAA',
+        '{"starters": {"QB": 1}, "bench": 4, "rounds": 1, "tradeDeadlineWeek": 0}'::jsonb);
+
+insert into auth.users (id) values (:'N1'), (:'N2'), (:'N3');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id, waiver_priority)
+values
+  (:'N', 'AAA', 'A', 'Alpha', true,  :'N1', 1),
+  (:'N', 'BBB', 'B', 'Bravo', false, :'N2', 2),
+  (:'N', 'CCC', 'C', 'Charlie', false, :'N3', 3);
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'N', id, 'Alpha Star', 'BENCH' from managers where league_id = :'N' and slot = 'AAA';
+\o
+
+-- A trade offer.
+\o /dev/null
+insert into trades (id, league_id, from_manager, to_manager, offer, status)
+select 'bb290000-0000-0000-0000-0000000000a1', :'N',
+       (select id from managers where league_id = :'N' and slot = 'AAA'),
+       (select id from managers where league_id = :'N' and slot = 'BBB'),
+       '{"give": ["Alpha Star"], "get": []}'::jsonb, 'open';
+\o
+
+select expect('an offer is news to the manager who received it',
+  (select body from notices n join managers m on m.id = n.manager_id
+    where n.league_id = :'N' and m.slot = 'BBB'), 'Alpha has offered you a trade.');
+
+select expect('and not to the one who sent it',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where n.league_id = :'N' and m.slot = 'AAA'), 0);
+
+select expect('it points at the page that answers it',
+  (select href from notices where league_id = :'N'), '/trade-builder');
+
+\o /dev/null
+update trades set status = 'declined'
+ where id = 'bb290000-0000-0000-0000-0000000000a1';
+\o
+
+select expect('a decline goes back to whoever offered',
+  (select body from notices n join managers m on m.id = n.manager_id
+    where n.league_id = :'N' and m.slot = 'AAA'), 'Bravo declined your offer.');
+
+-- Losing a waiver claim is the thing nobody would otherwise find out about.
+\o /dev/null
+insert into waiver_claims (league_id, manager_id, add_player) values
+  (:'N', (select id from managers where league_id = :'N' and slot = 'BBB'), 'Wanted Man'),
+  (:'N', (select id from managers where league_id = :'N' and slot = 'CCC'), 'Wanted Man');
+select process_waivers(:'N');
+\o
+
+select expect('winning a claim is announced',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where n.league_id = :'N' and m.slot = 'BBB' and n.body = 'You won Wanted Man on waivers.'), 1);
+
+select expect('and so is losing one, with the reason the database recorded',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where n.league_id = :'N' and m.slot = 'CCC'
+      and n.body like 'Your claim for Wanted Man did not go through:%already rostered%'), 1);
+
+-- Being on the clock.
+\o /dev/null
+select signin(:'N1');
+select rebuild_draft_board(:'N');
+update leagues set draft_state = 'running', current_pick = 2 where id = :'N';
+\o
+
+select expect('the manager on the clock is told',
+  (select count(*)::int from notices n
+     join managers m on m.id = n.manager_id
+    where n.league_id = :'N' and n.kind = 'draft' and n.body = 'You are on the clock.'
+      and m.id = (select manager_id from draft_picks where league_id = :'N' and overall = 2)), 1);
+
+\o /dev/null
+update leagues set current_pick = 2 where id = :'N';
+\o
+
+select expect('and not told again for the same pick',
+  (select count(*)::int from notices where league_id = :'N' and kind = 'draft'), 1);
+
+\o /dev/null
+update leagues set draft_state = 'paused', current_pick = 3 where id = :'N';
+\o
+
+select expect('a paused draft puts nobody on the clock',
+  (select count(*)::int from notices where league_id = :'N' and kind = 'draft'), 1);
+
+-- Reading them.
+-- Three for Bravo: the offer, the claim he won, and the clock — with no
+-- lottery drawn the board runs in slot order, so Bravo holds the second pick.
+select expect('everything starts unread',
+  (select count(*)::int from notices
+    where league_id = :'N' and read_at is null and manager_id =
+      (select id from managers where league_id = :'N' and slot = 'BBB')), 3);
+
+\o /dev/null
+select signin(:'N2');
+\o
+
+select expect('marking them read reports how many there were', read_notices(:'N'), 3);
+
+select expect('and they stay read',
+  (select count(*)::int from notices
+    where league_id = :'N' and read_at is null and manager_id =
+      (select id from managers where league_id = :'N' and slot = 'BBB')), 0);
+
+select expect('reading yours does not read anybody else''s',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where n.league_id = :'N' and m.slot = 'CCC' and n.read_at is null), 1);
+
+select expect('a manager cannot read notices for a league they are not in',
+  refuses(format('select read_notices(%L)', '99999999-0000-0000-0000-000000000001'))
+    like '%Not your league%', true);
+
+\echo ''
 \echo '--- schedule ---'
 
 \o /dev/null
@@ -1287,6 +1412,18 @@ select expect('a manager cannot update is_commissioner',
 
 select expect('nor waiver_priority',
   has_column_privilege('authenticated', 'managers', 'waiver_priority', 'UPDATE'), false);
+
+-- A manager marks their own notices read and writes nothing else about them.
+-- Anybody who could set the body could tell somebody anything at all, in the
+-- league's own voice.
+select expect('a manager may mark a notice read',
+  has_column_privilege('authenticated', 'notices', 'read_at', 'UPDATE'), true);
+
+select expect('but cannot rewrite what it says',
+  has_column_privilege('authenticated', 'notices', 'body', 'UPDATE'), false);
+
+select expect('nor who it was for',
+  has_column_privilege('authenticated', 'notices', 'manager_id', 'UPDATE'), false);
 
 select expect('nor their own PIN hash',
   has_column_privilege('authenticated', 'managers', 'pin_hash', 'UPDATE'), false);
