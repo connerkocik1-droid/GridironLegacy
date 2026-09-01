@@ -1,4 +1,4 @@
-import { POOL } from "@/data/league-data";
+import { availablePlayers } from "@/lib/draft-pool";
 import { MEDIA_BUCKET } from "@/lib/league-media";
 import { isConfigured, serverClient, serviceClient } from "@/lib/supabase";
 
@@ -125,16 +125,7 @@ export async function GET() {
     .eq("league_id", me.league_id);
 
   const taken = new Set((rostered ?? []).map((r) => r.player_name));
-  const available = POOL.filter((p) => !taken.has(p.n))
-    .slice(0, 200)
-    .map((p) => ({
-      name: p.n,
-      position: p.p,
-      team: p.t,
-      adp: p.adp,
-      posRank: p.posRank,
-      bye: p.bye,
-    }));
+  const available = availablePlayers(taken);
 
   const onTheClock = (picks ?? []).find((p) => p.overall === league.current_pick) ?? null;
   const pickSeconds = Number(league.settings?.pickSeconds ?? 90);
