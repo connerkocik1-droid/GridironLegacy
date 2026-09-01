@@ -14,6 +14,7 @@
     "test": "tsx src/lib/__tests__/scoring.test.mts && tsx src/lib/__tests__/lineup.test.mts && tsx src/lib/__tests__/news.test.mts && tsx src/lib/__tests__/mock-draft.test.mts && tsx src/lib/__tests__/twenty-zero.test.mts && tsx src/lib/__tests__/power.test.mts && tsx src/lib/__tests__/rankings.test.mts",
     "verify-espn": "node scripts/verify-espn.mjs",
     "test:db": "./scripts/test-db.sh",
+    "audit:mobile": "./scripts/audit-mobile.sh",
     "test:all": "npm run test && npm run test:db"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
     "@types/react-dom": "^19.2.5",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.3",
+    "playwright": "^1.62.1",
     "tsx": "^4.23.12",
     "typescript": "^5.6.3"
   }

@@ -1,0 +1,261 @@
+/**
+ * Enough of a league that every page has something real to lay out.
+ *
+ * Deliberately hostile data: a twelve-team league rather than four, long
+ * franchise names, long player names, and every panel populated. An empty
+ * fixture lays out beautifully on a phone and proves nothing.
+ */
+export const ME = {
+  id: "m0", slot: "T01", franchise: "Steel Cartel", league_id: "l1",
+  name: "Conner", waiver_priority: 7,
+};
+
+const NAMES = [
+  ["m0", "T01", "Conner", "Steel Cartel", "East"],
+  ["m1", "T02", "Dana", "Bay Area Brawlers", "East"],
+  ["m2", "T03", "Open", "Open Team", "East"],
+  ["m3", "T04", "Kim", "Kim's Very Long Franchise Name", "East"],
+  ["m4", "T05", "Alex", "Thunderbolts", "East"],
+  ["m5", "T06", "Sam", "Riverside Rattlesnakes", "East"],
+  ["m6", "T07", "Jo", "Nine Lives", "West"],
+  ["m7", "T08", "Pat", "Gold Coast Gladiators", "West"],
+  ["m8", "T09", "Chris", "Iron Rail", "West"],
+  ["m9", "T10", "Morgan", "Dust Devils", "West"],
+  ["m10", "T11", "Riley", "Harbour Hounds", "West"],
+  ["m11", "T12", "Casey", "Northside Nomads", "West"],
+];
+
+export const MANAGERS = NAMES.map(([id, slot, name, franchise, division]) => ({
+  id, slot, name, franchise, division,
+}));
+
+const ROSTER = [
+  ["Jayden Daniels", "QB"], ["Jahmyr Gibbs", "RB"], ["Bijan Robinson", "RB"],
+  ["Ja'Marr Chase", "WR"], ["Puka Nacua", "WR"], ["Brock Bowers", "TE"],
+  ["James Cook III", "FLEX"], ["Marvin Harrison Jr.", "FLEX"],
+  ["Brandon Aubrey", "K"], ["Baltimore Ravens D/ST", "D/ST"],
+  ["Rome Odunze", "BENCH"], ["Tank Bigsby", "BENCH"], ["Trey McBride", "BENCH"],
+];
+
+const SETTINGS = {
+  starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, "D/ST": 1, K: 1 },
+  bench: 14, ir: 2, rounds: 24, pickSeconds: 90, cinematicRounds: 3,
+  regularWeeks: 16, waiverDays: 1, tradeDeadlineWeek: 14,
+};
+
+const side = (m, points) => ({ ...m, claimed: m.name !== "Open", points });
+const ago = (mins) => new Date(Date.now() - mins * 60_000).toISOString();
+
+export function routes(page) {
+  const json = (body) => (r) => r.fulfill({ json: body });
+
+  page.route("**/api/auth/me", json({
+    manager: { ...ME, is_commissioner: true, ready: false, logo: null }, configured: true,
+  }));
+  page.route("**/api/logos", json({ logos: {} }));
+
+  page.route("**/api/notices", (r) =>
+    r.request().method() === "POST"
+      ? r.fulfill({ json: { ok: true, read: 2 } })
+      : r.fulfill({ json: {
+          unread: 2,
+          notices: [
+            { id: "n1", kind: "draft", body: "You are on the clock.", href: "/draft",
+              read_at: null, created_at: ago(3) },
+            { id: "n2", kind: "waiver",
+              body: "Your claim for Ashton Jeanty did not go through: That player is already rostered",
+              href: "/free-agents", read_at: null, created_at: ago(300) },
+          ],
+        } }));
+
+  page.route("**/api/activity**", json({
+    me: { id: "m0" }, managers: MANAGERS, total: 4, page: 0, hasMore: false,
+    entries: [
+      { id: "e1", kind: "trade", player: "Bijan Robinson", at: ago(20), managerId: "m0",
+        franchise: "Steel Cartel", who: "Conner", mine: true,
+        from: "Kim's Very Long Franchise Name", toWaivers: false, clearsAt: null, isPick: false },
+      { id: "e2", kind: "trade", player: "2027 round 2 pick", at: ago(20), managerId: "m3",
+        franchise: "Kim's Very Long Franchise Name", who: "Kim", mine: false,
+        from: "Steel Cartel", toWaivers: false, clearsAt: null, isPick: true },
+      { id: "e3", kind: "waiver", player: "Jayden Reed", at: ago(200), managerId: "m5",
+        franchise: "Riverside Rattlesnakes", who: "Sam", mine: false, from: null,
+        toWaivers: false, clearsAt: null, isPick: false },
+      { id: "e4", kind: "drop", player: "Marvin Harrison Jr.", at: ago(900), managerId: "m0",
+        franchise: "Steel Cartel", who: "Conner", mine: true, from: null,
+        toWaivers: true, clearsAt: ago(-1400), isPick: false },
+    ],
+  }));
+
+  page.route("**/api/home", json({
+    meId: "m0", league: { name: "Gridiron Legacy", season: 2026 }, week: 3, live: true,
+    lineupProblems: 2,
+    games: MANAGERS.filter((_, i) => i % 2 === 0).map((m, i) => ({
+      final: i > 0, mine: i === 0,
+      home: { ...m, total: 104.6 - i * 9 },
+      away: { ...MANAGERS[i * 2 + 1], total: 98.2 - i * 7 },
+    })),
+    byes: [],
+    leaders: ["QB", "RB", "WR", "TE", "K", "D/ST"].map((position) => ({
+      position,
+      player: { name: "Marvin Harrison Jr.", team: "ARI", points: 88.4,
+        franchise: "Kim's Very Long Franchise Name", managerSlot: "T04" },
+    })),
+    leaderBasis: "scored",
+    power: MANAGERS.map((m, i) => ({
+      id: m.id, slot: m.slot, franchise: m.franchise, name: m.name,
+      rank: i + 1, rating: 90 - i * 6, wins: 12 - i, losses: i, ties: 0,
+      pointsFor: 340 - i * 12, mine: i === 0,
+    })),
+    played: true,
+  }));
+
+  page.route("**/api/schedule", json({
+    meId: "m0", league: { name: "Gridiron Legacy", season: 2026 },
+    weeks: [1, 2, 3], liveWeek: 3,
+    games: [
+      { week: 1, final: true, divisional: true, live: false, mine: true,
+        home: side(MANAGERS[0], 120.4), away: side(MANAGERS[3], 98.0) },
+      { week: 1, final: true, divisional: false, live: false, mine: false,
+        home: side(MANAGERS[2], 61.2), away: side(MANAGERS[5], 88.0) },
+      { week: 3, final: false, divisional: false, live: true, mine: true,
+        home: side(MANAGERS[0], 44.1), away: side(MANAGERS[7], 30.0) },
+    ],
+  }));
+
+  page.route("**/api/league", json({
+    meId: "m0", league: { name: "Gridiron Legacy", season: 2026, settings: SETTINGS },
+    weeksScored: 3, played: true,
+    franchises: MANAGERS.map((m, i) => ({
+      ...m, id: m.id, claimed: m.name !== "Open", isCommissioner: i === 0,
+      pointsFor: 340 - i * 12,
+      record: { wins: 12 - i, losses: i, ties: 0, divWins: 4, divLosses: 1,
+        pointsFor: 340 - i * 12, pointsAgainst: 250 + i * 8 },
+      roster: ROSTER.map(([n, s]) => ({ name: n, slot: s, acquired: "draft" })),
+    })),
+  }));
+
+  // A live postseason, which the standings page draws above the table.
+  const seat = (id, seed, points) => ({
+    id, franchise: MANAGERS.find((m) => m.id === id).franchise,
+    who: null, seed, mine: id === "m0", points,
+  });
+  page.route("**/api/playoffs", json({
+    seeded: true, season: 2026, me: { id: "m0" }, totalRounds: 3,
+    champions: [{ season: 2025, manager_id: "m8", franchise: "Iron Rail",
+      decided_at: "2026-01-05" }],
+    seeds: [
+      { seed: 1, id: "m0", franchise: "Steel Cartel", mine: true, bye: true },
+      { seed: 2, id: "m3", franchise: "Kim's Very Long Franchise Name", mine: false, bye: true },
+      { seed: 3, id: "m5", franchise: "Riverside Rattlesnakes", mine: false, bye: false },
+      { seed: 4, id: "m7", franchise: "Gold Coast Gladiators", mine: false, bye: false },
+      { seed: 5, id: "m8", franchise: "Iron Rail", mine: false, bye: false },
+      { seed: 6, id: "m10", franchise: "Harbour Hounds", mine: false, bye: false },
+    ],
+    rounds: [
+      { round: 1, games: [
+        { id: "g1", week: 17, final: true, winner: "m5", onSeed: false,
+          home: seat("m5", 3, 121.4), away: seat("m10", 6, 98.2) },
+        { id: "g2", week: 17, final: true, winner: "m8", onSeed: true,
+          home: seat("m7", 4, 110.0), away: seat("m8", 5, 110.0) },
+      ] },
+      { round: 2, games: [
+        { id: "g3", week: 18, final: false, winner: null, onSeed: false,
+          home: seat("m0", 1, 44.2), away: seat("m8", 5, 51.8) },
+        { id: "g4", week: 18, final: false, winner: null, onSeed: false,
+          home: seat("m3", 2, 39.0), away: seat("m5", 3, 30.1) },
+      ] },
+    ],
+  }));
+
+  page.route("**/api/lineup**", json({
+    week: 3, me: ME, settings: SETTINGS,
+    assignments: ROSTER.map(([playerName, slot]) => ({ playerName, slot })),
+    lockedPlayers: ["Jayden Daniels"],
+  }));
+  page.route("**/api/scores", json({ week: 3, scores: {
+    "Jayden Daniels": { points: 27.4, statLine: "312 yds, 3 TD", updatedAt: "" } } }));
+  page.route("**/api/matchup**", json({
+    week: 3, scheduled: true, final: false, live: true,
+    home: { id: "m0", slot: "T01", franchise: "Steel Cartel", total: 104.6 },
+    away: { id: "m3", slot: "T04", franchise: "Kim's Very Long Franchise Name", total: 98.2 },
+    rows: ROSTER.map(([n, slot]) => ({ slot,
+      home: { name: n, position: slot, team: "WSH", points: 18.2, projected: 17,
+        live: true, statLine: "312 yds, 3 TD" },
+      away: { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", points: 22.1,
+        projected: 22, live: true, statLine: "9 rec, 140 yds" } })),
+    managers: MANAGERS,
+  }));
+  page.route("**/api/rankings", json({ points: {}, rostered: {}, basis: "2025" }));
+
+  page.route("**/api/players**", json({
+    me: ME, mode: "waivers", waiverDays: 1, capacity: 25, held: 13,
+    roster: ROSTER.map(([n, s]) => ({ player_name: n, lineup_slot: s })),
+    claims: [{ id: "c1", add_player: "Ashton Jeanty", drop_player: "Tank Bigsby",
+      claim_order: 1, status: "pending", reason: null }],
+    wire: [
+      { name: "Marvin Harrison Jr.", clearsAt: ago(-300), position: "WR", team: "ARI", mine: true },
+      { name: "Jayden Reed", clearsAt: ago(-1800), position: "WR", team: "GB", mine: false },
+    ],
+    total: 3, page: 0, hasMore: false,
+    players: [
+      { name: "Ashton Jeanty", position: "RB", team: "LV", adp: 10, posRank: "RB6",
+        bye: 10, clearsAt: null },
+      { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", adp: 22, posRank: "WR9",
+        bye: 8, clearsAt: ago(-300) },
+      { name: "Seattle Seahawks D/ST", position: "D/ST", team: "SEA", adp: 240,
+        posRank: "DST1", bye: 8, clearsAt: null },
+    ],
+  }));
+
+  page.route("**/api/trades", json({
+    me: ME, managers: MANAGERS, block: [], picks: [], inauguralSeason: 2026,
+    trades: [{ id: "t1", from_manager: "m0", to_manager: "m3",
+      offer: { give: ["Bijan Robinson"], get: ["Marvin Harrison Jr."], givePicks: [], getPicks: [] },
+      status: "open", from_accepted: true, to_accepted: false, thread: [],
+      created_at: ago(60), incoming: false, awaitingMe: false, canRescind: true }],
+  }));
+  page.route("**/api/rosters**", json({ players: ROSTER.map(([n]) => n) }));
+
+  const PICKS = MANAGERS.map((m, i) => ({
+    overall: i + 1, round: 1, manager_id: m.id,
+    player_name: i < 2 ? ROSTER[i][0] : null,
+    picked_at: i < 2 ? "2026-08-01T00:00:00Z" : null,
+  }));
+  page.route("**/api/draft", json({
+    me: { ...ME, is_commissioner: true, ready: true },
+    league: { state: "running", currentPick: 3, pickStartedAt: new Date().toISOString(),
+      pickSeconds: 90, serverNow: new Date().toISOString(), draftAt: null,
+      cinematicRounds: 3, introVideo: null },
+    onTheClock: PICKS[2], myTurn: false, picks: PICKS, managers: MANAGERS,
+    available: [
+      { name: "Ashton Jeanty", position: "RB", team: "LV", adp: 10, posRank: "RB6", bye: 10 },
+      { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", adp: 22, posRank: "WR9", bye: 8 },
+    ],
+  }));
+
+  page.route("**/api/pickem**", json({
+    week: 5, me: ME,
+    games: [{ id: "e1", week: 5, starts_at: "2026-10-04T17:00:00Z", home_team: "CAR",
+      away_team: "BUF", home_score: 24, away_score: 17, state: "post", winner: "CAR",
+      completed: true }],
+    picks: {},
+    standings: MANAGERS.map((m, i) => ({ ...m, correct: 40 - i, played: 60, mine: i === 0 })),
+  }));
+
+  page.route("**/api/admin/league**", json({
+    isCommissioner: true,
+    league: { id: "l1", name: "Gridiron Legacy", season: 2026, settings: SETTINGS,
+      draft_state: "pending", current_pick: 1, draft_at: null, lottery_order: null },
+    managers: MANAGERS.map((m, i) => ({ ...m, claimed: m.name !== "Open",
+      isCommissioner: i === 0 })),
+    board: { picks: 288, made: 0 }, canResize: true,
+  }));
+  page.route("**/api/admin/roster", json({
+    managers: MANAGERS,
+    players: ROSTER.map(([n]) => ({ name: n, managerId: "m0",
+      franchise: "Steel Cartel", slot: "BENCH" })),
+  }));
+  page.route("**/api/admin/season", json({
+    season: 2026, champion: "Iron Rail", isCommissioner: true,
+  }));
+}

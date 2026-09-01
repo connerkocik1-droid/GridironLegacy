@@ -237,6 +237,13 @@ a:hover {
     flex: none;
   }
 
+  /* A path or a variable name has no spaces to break at, so it holds a
+     paragraph open at its own width. On the setup message that is the first
+     screen a fresh deployment shows, which made it the worst place for it. */
+  code {
+    overflow-wrap: anywhere;
+  }
+
   /* A franchise, its owner, and three columns of numbers. The numbers are
      fixed-width and the name is the only part that can give, so on a phone it
      gave until "Kim's Very Long Franchise Name" was one word per line. The

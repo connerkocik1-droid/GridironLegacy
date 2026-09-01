@@ -93,6 +93,7 @@ export default async function HomePage() {
       {/* No nav for a signed-out visitor: every link behind it would only ask
           them to sign in, which is what this page is for. */}
       <div
+        className="gl-cols"
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0,420px) minmax(0,1fr)",

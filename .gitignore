@@ -8,3 +8,6 @@ build/
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+
+# Screenshots from ./scripts/audit-mobile.sh --shots
+.mobile-audit/

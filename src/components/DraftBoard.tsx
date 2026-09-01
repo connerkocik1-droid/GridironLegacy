@@ -254,14 +254,17 @@ export default function DraftBoard({
                         <div
                           style={{
                             color: onClock ? "#d2cefd" : "#464a5e",
-                            fontSize: onClock ? 9 : 10,
-                            letterSpacing: onClock ? ".12em" : 0,
+                            // Ten, not the nine this used to be to make "ON
+                            // THE CLOCK" fit: below ten it stops being
+                            // readable on a phone, so the label gave instead.
+                            fontSize: 10,
+                            letterSpacing: onClock ? ".1em" : 0,
                             fontVariantNumeric: "tabular-nums",
                             padding: "3px 0",
                           }}
                         >
                           {onClock
-                            ? "ON THE CLOCK"
+                            ? "ON CLOCK"
                             : p
                               ? `${p.round}.${String(p.overall).padStart(2, "0")}`
                               : ""}
