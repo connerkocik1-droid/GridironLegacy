@@ -539,3 +539,58 @@ select expect('and nobody deletes the record of what they were told',
 \o /dev/null
 reset role;
 \o
+
+-- ------------------------------------------------------------- watchlist ---
+-- Who a manager is watching is the one thing on this site that is nobody
+-- else's business at all: knowing it before a waiver run is knowing what
+-- somebody is about to claim.
+
+\o /dev/null
+reset role;
+
+insert into watchlist (manager_id, player_name, league_id)
+select id, 'My Secret Target', :'L' from managers where league_id = :'L' and slot = 'AAA';
+
+insert into watchlist (manager_id, player_name, league_id)
+select id, 'Their Secret Target', :'L' from managers where league_id = :'L' and slot = 'BBB';
+
+select set_config('test.uid', :'U1', false);
+set role authenticated;
+\o
+
+\echo ''
+\echo '--- a watchlist is private ---'
+
+select expect('a manager reads their own watchlist',
+  (select count(*)::int from watchlist where player_name = 'My Secret Target'), 1);
+
+select expect('and cannot see who else is watching whom',
+  (select count(*)::int from watchlist where player_name = 'Their Secret Target'), 0);
+
+select expect('a manager may watch somebody new',
+  refuses(format(
+    'insert into watchlist (manager_id, player_name, league_id) select id, ''Another Target'', %L from managers where league_id = %L and slot = ''AAA''',
+    :'L', :'L')), null);
+
+select expect('but not on somebody else''s behalf',
+  refuses(format(
+    'insert into watchlist (manager_id, player_name, league_id) select id, ''Planted'', %L from managers where league_id = %L and slot = ''BBB''',
+    :'L', :'L')) like '%row-level security%', true);
+
+\o /dev/null
+select refuses('delete from watchlist');
+\o
+
+select expect('stopping watching somebody removes only your own',
+  (select count(*)::int from watchlist where player_name = 'My Secret Target'), 0);
+
+\o /dev/null
+reset role;
+\o
+
+select expect('and theirs is untouched',
+  (select count(*)::int from watchlist where player_name = 'Their Secret Target'), 1);
+
+\o /dev/null
+set role authenticated;
+\o

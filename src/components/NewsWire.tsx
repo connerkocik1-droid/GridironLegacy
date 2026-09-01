@@ -75,7 +75,16 @@ export default function NewsWire({
                       href={story.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: "inherit", textDecoration: "none" }}
+                      style={{
+                        color: "inherit",
+                        textDecoration: "none",
+                        // A one-line headline is nineteen pixels of link, which
+                        // on a phone is a target you miss. Padding rather than
+                        // a min-height, so a headline that wraps to two lines
+                        // still reads as one block of text.
+                        display: "inline-block",
+                        padding: "6px 0",
+                      }}
                     >
                       {story.headline}
                     </a>

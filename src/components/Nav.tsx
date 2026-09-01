@@ -3,9 +3,9 @@ import CommissionerOnly from "./CommissionerOnly";
 import Notices from "./Notices";
 import ProfileMenu from "./ProfileMenu";
 
-// Lineup, Matchups, Standings and Rankings are not here on purpose: the home
-// page is the way to all four, and listing them twice made a nav bar with
-// thirteen tabs in it.
+// Lineup, Matchups, Standings, Rankings and News are not here on purpose: the
+// home page is the way to all of them, and listing them twice made a nav bar
+// with thirteen tabs in it.
 const PRIMARY = [
   { href: "/", label: "Home" },
   { href: "/draft", label: "Draft" },
@@ -24,7 +24,6 @@ const SECONDARY = [
   { href: "/free-agents", label: "Free Agents" },
   { href: "/trade-builder", label: "Trade Builder" },
   { href: "/league", label: "League" },
-  { href: "/news", label: "News" },
   { href: "/minigames", label: "Mini-games" },
 ];
 

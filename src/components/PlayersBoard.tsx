@@ -102,6 +102,10 @@ export default function PlayersBoard() {
   const [busy, setBusy] = useState(false);
   // The player being added, while we ask which one to drop for him.
   const [pendingAdd, setPendingAdd] = useState<string | null>(null);
+  // Players this manager is keeping an eye on. Kept apart from the feed
+  // because it changes on its own clock — a star does not need the whole pool
+  // re-read behind it.
+  const [watching, setWatching] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     try {
@@ -120,11 +124,62 @@ export default function PlayersBoard() {
     }
   }, [filter, search, page]);
 
+  const loadWatchlist = useCallback(async () => {
+    try {
+      const res = await fetch("/api/watchlist", { cache: "no-store" });
+      if (!res.ok) return;
+      const body = await res.json();
+      setWatching(new Set<string>(body.players ?? []));
+    } catch {
+      // A star nobody can draw is a star nobody has set. The page works.
+    }
+  }, []);
+
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadWatchlist();
+  }, [loadWatchlist]);
+
+  /**
+   * Starts or stops watching a player.
+   *
+   * The star flips before the request lands and flips back if it fails. A
+   * watchlist is a note to yourself; waiting on a round trip to see it change
+   * is more ceremony than the thing deserves.
+   */
+  async function watch(name: string, on: boolean) {
+    setWatching((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(name);
+      else next.delete(name);
+      return next;
+    });
+
+    try {
+      const res = on
+        ? await fetch("/api/watchlist", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ player: name }),
+          })
+        : await fetch(`/api/watchlist?player=${encodeURIComponent(name)}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(String(res.status));
+    } catch {
+      setWatching((prev) => {
+        const next = new Set(prev);
+        if (on) next.delete(name);
+        else next.add(name);
+        return next;
+      });
+      setError("Could not change your watchlist.");
+    }
+  }
 
   const full = feed != null && feed.held >= feed.capacity;
 
@@ -226,7 +281,8 @@ export default function PlayersBoard() {
             ? `Every pickup here is a claim, settled on the next waiver run, best priority first. You are number ${feed.me.waiver_priority}; winning a claim sends you to the back.`
             : `Anybody on this list is yours on the spot. A player somebody dropped goes on waivers for ${feed.waiverDays === 1 ? "a day" : `${feed.waiverDays} days`} first, and can only be claimed — the run settles those in priority order. You are number ${feed.me.waiver_priority}; winning a claim sends you to the back.`}{" "}
         Your roster holds {feed.held} of {feed.capacity}
-        {full ? " — you must drop someone to add anyone." : "."}
+        {full ? " — you must drop someone to add anyone." : "."}{" "}
+        Star anyone you are deciding about and his news joins yours on the home page.
       </p>
 
       {notice ? (
@@ -532,6 +588,36 @@ export default function PlayersBoard() {
                   ) : null}
                 </div>
               </div>
+
+              {/* A star rather than a word: it sits beside the button that
+                  actually costs something, and confusing the two would be
+                  expensive. */}
+              <button
+                onClick={() => void watch(p.name, !watching.has(p.name))}
+                aria-pressed={watching.has(p.name)}
+                aria-label={
+                  watching.has(p.name) ? `Stop watching ${p.name}` : `Watch ${p.name}`
+                }
+                title={
+                  watching.has(p.name)
+                    ? "You are watching him — his news shows on your home page"
+                    : "Watch him, and his news shows on your home page"
+                }
+                style={{
+                  padding: "6px 9px",
+                  fontSize: 13,
+                  lineHeight: 1,
+                  border: `1px solid ${watching.has(p.name) ? "rgba(224,181,115,.55)" : "rgba(145,132,217,.22)"}`,
+                  background: "transparent",
+                  color: watching.has(p.name) ? "#e0b573" : "#5a5d6e",
+                  borderRadius: "var(--radius-sm)",
+                  font: "inherit",
+                  cursor: "pointer",
+                  flex: "0 0 auto",
+                }}
+              >
+                {watching.has(p.name) ? "★" : "☆"}
+              </button>
 
               <button
                 onClick={() => (full ? setPendingAdd(p.name) : add(p.name, null))}

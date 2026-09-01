@@ -68,6 +68,24 @@ export function routes(page) {
           ],
         } }));
 
+  const story = (id, headline, players) => ({
+    id, headline,
+    description: `Something happened involving ${players.join(" and ") || "nobody in particular"}.`,
+    published: ago(90), byline: "ESPN", link: "https://example.com", image: null, players,
+  });
+  page.route("**/api/news", json({
+    stories: [
+      story("s1", "Bijan Robinson carries a heavy load again in a headline long enough to wrap", ["Bijan Robinson"]),
+      story("s2", "Marvin Harrison Jr. is limited in practice", ["Marvin Harrison Jr."]),
+      story("s3", "A league-wide rule change lands", []),
+      story("s4", "Ashton Jeanty impresses", ["Ashton Jeanty"]),
+    ],
+  }));
+  page.route("**/api/watchlist**", (r) =>
+    r.request().method() === "GET"
+      ? r.fulfill({ json: { players: ["Ashton Jeanty"] } })
+      : r.fulfill({ json: { ok: true } }));
+
   page.route("**/api/activity**", json({
     me: { id: "m0" }, managers: MANAGERS, total: 4, page: 0, hasMore: false,
     entries: [

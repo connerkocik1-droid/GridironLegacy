@@ -5,6 +5,7 @@ import ActivityFeed from "./ActivityFeed";
 import HomeButtons from "./HomeButtons";
 import LeagueOverview from "./LeagueOverview";
 import MiniGamesStrip from "./MiniGamesStrip";
+import NewsBand from "./NewsBand";
 import ScoreTicker from "./ScoreTicker";
 import Section from "./Section";
 import WeekScoreboard from "./WeekScoreboard";
@@ -82,6 +83,13 @@ export default function HomeBoard() {
           that. Five rows here; the rest is a page. */}
       <Section eyebrow="COMINGS AND GOINGS" title="Recent moves" collapseId="home.moves">
         <ActivityFeed limit={5} />
+      </Section>
+
+      {/* After the league's own moves and before the mini-games: it is the
+          football rather than the league, but it is still the reason somebody
+          opens this page on a Wednesday. */}
+      <Section eyebrow="THE WIRE" title="News" collapseId="home.news">
+        <NewsBand />
       </Section>
 
       <Section eyebrow="ON THE SIDE" title="Mini-games" collapseId="home.games">
