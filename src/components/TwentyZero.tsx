@@ -217,7 +217,7 @@ export default function TwentyZero() {
         dynasty team.
       </p>
 
-      <div
+      <div className="gl-cols"
         style={{
           display: "grid",
           gridTemplateColumns: complete

@@ -155,7 +155,7 @@ export default function Standings() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit,minmax(340px,1fr))",
+          gridTemplateColumns: "repeat(auto-fit,minmax(min(340px,100%),1fr))",
           gap: 12,
           alignItems: "start",
         }}
@@ -181,6 +181,10 @@ export default function Standings() {
               {name.toUpperCase()}
             </div>
 
+            {/* Six columns of numbers do not narrow below a point where they
+                stop meaning anything, so on a phone the table scrolls inside
+                its own card rather than dragging the page sideways with it. */}
+            <div className="gl-scroll-x">
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 320 }}>
               <thead>
                 <tr>
@@ -260,6 +264,7 @@ export default function Standings() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         ))}
       </div>

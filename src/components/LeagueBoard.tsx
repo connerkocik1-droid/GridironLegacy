@@ -120,6 +120,7 @@ export default function LeagueBoard() {
                     setOpen(isOpen ? null : f.id);
                   }
                 }}
+                className="gl-league-row"
                 style={{
                   display: "flex",
                   alignItems: "center",

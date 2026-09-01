@@ -300,7 +300,7 @@ export default function MockDraft() {
 
       {finished ? <Summary roster={myRoster} league={league} /> : null}
 
-      <div
+      <div className="gl-cols"
         style={{
           display: "grid",
           gridTemplateColumns: finished ? "1fr" : "minmax(0,1fr) minmax(280px,340px)",

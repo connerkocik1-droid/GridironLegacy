@@ -769,7 +769,7 @@ export default function DraftRoom() {
             ) : null}
 
             {visible.map((p) => (
-              <div
+              <div className="gl-draft-row"
                 key={p.name}
                 style={{
                   display: "flex",
@@ -795,8 +795,21 @@ export default function DraftRoom() {
                   }}
                 />
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}>{p.name}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                    {/* Without somewhere to give, a long name holds the row
+                        open and the line beneath it is squeezed to nothing. */}
+                    <span
+                      style={{
+                        fontFamily: "var(--font-heading)",
+                        fontSize: 14,
+                        minWidth: 0,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {p.name}
+                    </span>
                     {p.team ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img

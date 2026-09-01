@@ -359,7 +359,7 @@ export default function TradeDesk() {
         <div style={{ padding: "0 26px 8px", fontSize: 12, color: "#e0b573" }}>{error}</div>
       ) : null}
 
-      <div
+      <div className="gl-cols"
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0,1fr) minmax(300px,380px)",

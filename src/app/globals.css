@@ -188,6 +188,26 @@ a:hover {
     padding-left: 0 !important;
   }
 
+  /* A layout of two or three columns with a fixed minimum width each. There
+     is no arrangement of those that fits a phone, so they become one column.
+     Marked rather than matched on a selector, because plenty of grids on this
+     site are meant to stay side by side. */
+  .gl-cols {
+    /* minmax(0,1fr) rather than 1fr: a bare 1fr track carries an implicit
+       min-content floor, so a column with anything wide in it refuses to
+       shrink and pushes the whole page sideways instead. */
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* A table is the one thing allowed to scroll sideways: its columns mean
+     something together, and dropping any of them would be answering a
+     different question. It scrolls inside its own box, never taking the page
+     with it. */
+  .gl-scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   /* Anything you press gets a thumb-sized target. min-height only ever grows
      a control, so the rows and cards that are already tall are untouched —
      this reaches the small ones wherever they are, including the ones nobody
@@ -196,6 +216,73 @@ a:hover {
   select,
   input:not([type="checkbox"]):not([type="radio"]) {
     min-height: 40px;
+  }
+
+  /* And wide enough to hit. A thirty-pixel square is a target you miss with a
+     thumb; this only ever grows one, so the arrows and single-digit buttons
+     that were thirty come up to a size a finger can find. */
+  button,
+  select {
+    min-width: 34px;
+  }
+
+  /* A browser's own checkbox is thirteen pixels square, which on a phone is
+     not a control, it is a dare. */
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 20px;
+    height: 20px;
+    /* These sit inside flex labels, which were squeezing them back down to
+       thirteen pixels wide however tall they were told to be. */
+    flex: none;
+  }
+
+  /* A franchise, its owner, and three columns of numbers. The numbers are
+     fixed-width and the name is the only part that can give, so on a phone it
+     gave until "Kim's Very Long Franchise Name" was one word per line. The
+     name takes the first line instead and the numbers share the second. */
+  .gl-league-row {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .gl-league-row > :nth-child(2) {
+    flex: 1 1 calc(100% - 40px) !important;
+  }
+  .gl-league-row > :nth-child(n + 3) {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 62px;
+    text-align: left !important;
+  }
+
+  /* A headshot, a name, and a button. "Pick for them" is a hundred and sixty
+     pixels the button will not give up, which left eighteen for the name. The
+     row wraps instead, so the ordinary "Draft" stays on one line and only the
+     long commissioner label pushes itself onto a second. */
+  .gl-draft-row {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .gl-draft-row > :nth-child(2) {
+    flex: 1 1 140px !important;
+  }
+
+  /* A kickoff time, then two teams to choose between. Side by side that is
+     three columns on a screen with room for one and a half, and the second
+     team fell off the edge. The time goes above the choice instead. */
+  .gl-pickem-row {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .gl-pickem-row > :first-child {
+    width: auto !important;
+    flex: 1 1 100% !important;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .gl-pickem-row > :first-child > * {
+    margin-top: 0 !important;
   }
 
   /* A link inside a sentence is not a button and must not be stretched into

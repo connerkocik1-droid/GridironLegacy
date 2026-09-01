@@ -186,7 +186,18 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
       <>
         {rows}
         <div style={{ marginTop: 10, fontSize: 11 }}>
-          <Link href="/activity" style={{ color: "#b5abfc", textDecoration: "none" }}>
+          <Link
+            href="/activity"
+            style={{
+              color: "#b5abfc",
+              textDecoration: "none",
+              // The only way through to the whole record, so it is a target
+              // rather than a line of text somebody has to hit exactly.
+              display: "inline-flex",
+              alignItems: "center",
+              minHeight: 34,
+            }}
+          >
             Every move the league has made →
           </Link>
         </div>

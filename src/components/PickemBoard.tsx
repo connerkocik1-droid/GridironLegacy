@@ -210,7 +210,7 @@ export default function PickemBoard() {
         <div style={{ padding: "0 26px 8px", fontSize: 12, color: "#e0b573" }}>{error}</div>
       ) : null}
 
-      <div
+      <div className="gl-cols"
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0,1fr) minmax(280px,340px)",
@@ -245,6 +245,7 @@ export default function PickemBoard() {
             return (
               <div
                 key={game.id}
+                className="gl-pickem-row"
                 style={{
                   display: "flex",
                   alignItems: "center",
