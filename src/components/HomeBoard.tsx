@@ -55,6 +55,13 @@ export default function HomeBoard() {
           about the actual football rather than the league. */}
       <ScoreTicker />
 
+      {/* Above everything the league does, because it is the thing that
+          changed since you last looked. Where to go is always in the same
+          place; who got hurt on Wednesday is not. */}
+      <Section eyebrow="THE WIRE" title="News" collapseId="home.news">
+        <NewsBand />
+      </Section>
+
       <Section eyebrow="THE LEAGUE" title="Where to" collapseId="home.where">
         <HomeButtons lineupProblems={home?.lineupProblems ?? 0} />
       </Section>
@@ -83,13 +90,6 @@ export default function HomeBoard() {
           that. Five rows here; the rest is a page. */}
       <Section eyebrow="COMINGS AND GOINGS" title="Recent moves" collapseId="home.moves">
         <ActivityFeed limit={5} />
-      </Section>
-
-      {/* After the league's own moves and before the mini-games: it is the
-          football rather than the league, but it is still the reason somebody
-          opens this page on a Wednesday. */}
-      <Section eyebrow="THE WIRE" title="News" collapseId="home.news">
-        <NewsBand />
       </Section>
 
       <Section eyebrow="ON THE SIDE" title="Mini-games" collapseId="home.games">
