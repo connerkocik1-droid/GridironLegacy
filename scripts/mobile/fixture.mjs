@@ -53,6 +53,46 @@ export function routes(page) {
     manager: { ...ME, is_commissioner: true, ready: false, logo: null }, configured: true,
   }));
   page.route("**/api/logos", json({ logos: {} }));
+  // The injury report, with one of each state that draws a badge — so any
+  // screen showing players shows every colour the badge can be.
+  page.route("**/api/player-status", json({
+    statuses: {
+      "puka nacua": { status: "questionable", detail: "Questionable", note: "Knee" },
+      "james cook": { status: "out", detail: "Out", note: "Ankle" },
+      "trey mcbride": { status: "ir", detail: "Injured Reserve", note: "Back" },
+      "tank bigsby": { status: "suspended", detail: "Suspension", note: "" },
+    },
+    fetchedAt: new Date().toISOString(),
+  }));
+
+  page.route("**/api/player/**", (r) => {
+    const name = decodeURIComponent((r.request().url().split("/api/player/")[1] ?? "").split("?")[0]);
+    return r.fulfill({ json: {
+      profile: {
+        name, found: true, position: "WR", team: "LAR", bye: 11,
+        headshot: "", teamLogo: "",
+        adp: 6.5, posRank: "WR4", rostered: 99.9,
+        archetype: "Volume Machine",
+        insight: "Carries an injury designation and the market has not moved off him.",
+        career: [
+          { year: 2024, team: "LAR", position: "WR",
+            line: "79 rec · 990 yds · 12.5 Y/R · 3 TD",
+            line2: "121 tgt · 24.4% share · 208.0 FPTS · 18.9/G", era: "2020s" },
+          { year: 2023, team: "LAR", position: "WR",
+            line: "105 rec · 1,486 yds · 14.2 Y/R · 6 TD",
+            line2: "160 tgt · 27.1% share · 274.6 FPTS · 16.2/G", era: "2020s" },
+        ],
+      },
+      news: [],
+      season: { year: 2026, total: 48.6, best: 22.4, weeks: [
+        { week: 1, points: 22.4, statLine: "11 tgt \u00b7 9 rec \u00b7 140 rec yds \u00b7 1 rec TD", stats: null },
+        { week: 2, points: 14.8, statLine: "8 tgt \u00b7 6 rec \u00b7 88 rec yds", stats: null },
+        { week: 3, points: 11.4, statLine: "6 tgt \u00b7 4 rec \u00b7 74 rec yds", stats: null },
+      ] },
+      owner: { slot: "T01", franchise: "Steel Cartel", mine: true, lineupSlot: "WR" },
+    } });
+  });
+
 
   // A watchlist with everything on it that a row can be: somebody else's
   // player, one of your own, a free agent, and one sitting on the wire — plus

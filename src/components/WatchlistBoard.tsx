@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import NewsWire from "./NewsWire";
 import { player as pooled } from "@/lib/roster";
+import PlayerName from "./PlayerName";
 import type { Story } from "@/lib/news";
 
 /**
@@ -206,15 +207,15 @@ export default function WatchlistBoard() {
                   }}
                 >
                   <div style={{ minWidth: 0, flex: "1 1 180px" }}>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-heading)",
-                        fontSize: 15.5,
-                        color: "#e9e9ed",
-                        overflowWrap: "anywhere",
-                      }}
-                    >
-                      {w.name}
+                    <div style={{ minWidth: 0 }}>
+                      <PlayerName
+                        name={w.name}
+                        style={{
+                          fontFamily: "var(--font-heading)",
+                          fontSize: 15.5,
+                          color: "#e9e9ed",
+                        }}
+                      />
                     </div>
                     <div style={{ fontSize: 11, color: "#75798c", marginTop: 2 }}>
                       {p ? `${p.p} · ${p.t}` : "Not in the pool"}

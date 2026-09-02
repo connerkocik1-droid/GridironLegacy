@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { headshot, logo } from "@/data/league-data";
+import PlayerName from "./PlayerName";
 import DraftBoard from "./DraftBoard";
 import DraftCountdown from "./DraftCountdown";
 import DraftReveal, { type RevealPick } from "./DraftReveal";
@@ -800,15 +801,14 @@ export default function DraftRoom() {
                         open and the line beneath it is squeezed to nothing. */}
                     <span
                       style={{
-                        fontFamily: "var(--font-heading)",
-                        fontSize: 14,
                         minWidth: 0,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
                       }}
                     >
-                      {p.name}
+                      <PlayerName
+                        name={p.name}
+                        plain
+                        style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}
+                      />
                     </span>
                     {p.team ? (
                       // eslint-disable-next-line @next/next/no-img-element

@@ -80,13 +80,21 @@ export interface Flag {
   kind: FlagKind;
 }
 
-/** An injury designation, a bye week, or a conditional depth-chart role. */
+/**
+ * A bye week, or a conditional depth-chart role.
+ *
+ * Fitness used to be here too, as a "Q" drawn from the draft pool's own
+ * questionable flag. It is not any more: the health badge beside every name
+ * carries it, from today's injury report rather than from a snapshot taken
+ * when the pool was built. Two badges saying Q on the same row was the
+ * visible half of the problem; the invisible half was that this one could not
+ * say OUT, IR or SUS at all.
+ */
 export function flagsFor(name: string): Flag[] {
   const p = player(name);
   if (!p) return [];
 
   const out: Flag[] = [];
-  if (p.q) out.push({ label: "Q", kind: "inj" });
 
   const bye = byeOf(p);
   if (bye) out.push({ label: `BYE ${bye}`, kind: "bye" });

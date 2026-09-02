@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { headshot } from "@/data/league-data";
+import PlayerName from "./PlayerName";
 import {
   COLUMNS,
   filter,
@@ -276,16 +277,8 @@ function PlayerRow({
             }}
           />
           <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 13,
-                color: "#e9e9ed",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {row.name}
+            <div style={{ fontSize: 13, color: "#e9e9ed", minWidth: 0 }}>
+              <PlayerName name={row.name} />
             </div>
             <div style={{ fontSize: 10, color: "#75798c", whiteSpace: "nowrap" }}>
               <span style={{ color: TINT[row.position] ?? "#75798c" }}>{row.position}</span>

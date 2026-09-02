@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { headshot, logo } from "@/data/league-data";
+import PlayerName from "./PlayerName";
 import { flagColor, flagsFor, player, proj } from "@/lib/roster";
 
 const BLANK =
@@ -554,7 +555,7 @@ export default function PlayersBoard() {
               />
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                  <span style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}>{p.name}</span>
+                  <PlayerName name={p.name} style={{ fontFamily: "var(--font-heading)", fontSize: 14 }} />
                   {p.team ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

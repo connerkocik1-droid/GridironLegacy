@@ -1,6 +1,7 @@
 "use client";
 
 import { headshot } from "@/data/league-data";
+import PlayerName from "./PlayerName";
 import type { Home } from "@/lib/home-types";
 
 /**
@@ -104,16 +105,8 @@ export default function LeagueOverview({ home }: { home: Home }) {
                     }}
                   />
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: "#e9e9ed",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {l.player.name}
+                    <div style={{ fontSize: 13, color: "#e9e9ed", minWidth: 0 }}>
+                      <PlayerName name={l.player.name} />
                     </div>
                     <div
                       style={{

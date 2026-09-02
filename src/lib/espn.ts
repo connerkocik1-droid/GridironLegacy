@@ -405,3 +405,59 @@ function abbrevOfSide(competitors: unknown[], side: "home" | "away"): string {
   }
   return "";
 }
+
+/**
+ * The league's injury report.
+ *
+ * A separate endpoint from everything else here, and the only one whose answer
+ * is about a player rather than about a game. ESPN groups it by team, each with
+ * a list of the men who are on it; anybody not on it is fit, which is why the
+ * absence of a name is as meaningful as the presence of one.
+ */
+export interface InjuryReport {
+  /** ESPN's own status word: "Questionable", "Injured Reserve", "Out"… */
+  status: string;
+  /** The line ESPN prints under it, when it prints one. */
+  detail: string;
+  name: string;
+  team: string;
+}
+
+export async function fetchInjuries(): Promise<InjuryReport[]> {
+  const body = asRecord(await getJson(`${SITE}/injuries`));
+  const out: InjuryReport[] = [];
+
+  for (const rawTeam of asArray(body.injuries)) {
+    const block = asRecord(rawTeam);
+    const teamName = typeof block.displayName === "string" ? block.displayName : "";
+
+    for (const rawEntry of asArray(block.injuries)) {
+      const entry = asRecord(rawEntry);
+      const athlete = asRecord(entry.athlete);
+
+      const name = typeof athlete.displayName === "string" ? athlete.displayName : "";
+      if (!name) continue;
+
+      // The status hangs off the entry as a string on some responses and as a
+      // { name } object on others.
+      const type = asRecord(entry.type);
+      const status =
+        (typeof entry.status === "string" ? entry.status : "") ||
+        (typeof type.description === "string" ? type.description : "") ||
+        (typeof type.name === "string" ? type.name : "");
+
+      const shortComment = asRecord(entry.details).type;
+
+      out.push({
+        name,
+        team: teamName,
+        status,
+        detail:
+          (typeof entry.shortComment === "string" ? entry.shortComment : "") ||
+          (typeof shortComment === "string" ? shortComment : ""),
+      });
+    }
+  }
+
+  return out;
+}

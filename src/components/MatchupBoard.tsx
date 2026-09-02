@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { headshot, logo } from "@/data/league-data";
+import PlayerName from "./PlayerName";
 import type { MatchupRow, SideEntry } from "@/lib/matchup";
 
 interface Side {
@@ -95,16 +96,12 @@ function PlayerCell({
           }}
         >
           <span
-            style={{
-              fontFamily: "var(--font-heading)",
-              fontSize: 14,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              minWidth: 0,
-            }}
+            style={{ minWidth: 0 }}
           >
-            {entry.name}
+            <PlayerName
+              name={entry.name}
+              style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}
+            />
           </span>
           {entry.team ? (
             // eslint-disable-next-line @next/next/no-img-element

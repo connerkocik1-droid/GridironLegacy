@@ -37,6 +37,7 @@ const PAGES = [
   ["/the-league", "the-league"],
   ["/my-team/edit", "edit-team"],
   ["/watchlist", "watchlist"],
+  ["/player/Puka%20Nacua", "player-profile"],
   ["/lineup", "lineup"],
   ["/matchups", "matchups"],
   ["/standings", "standings"],

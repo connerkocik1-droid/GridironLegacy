@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { headshot, logo, statLine } from "@/data/league-data";
+import PlayerName from "./PlayerName";
 import {
   BENCH,
   lineupProblems,
@@ -440,18 +441,13 @@ function PlayerRow({
                 flexWrap: "wrap",
               }}
             >
-              <span
+              <PlayerName
+                name={name}
                 style={{
                   fontFamily: "var(--font-heading)",
                   fontSize: starter ? 15 : 14,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  minWidth: 0,
                 }}
-              >
-                {name}
-              </span>
+              />
               {p?.t ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img

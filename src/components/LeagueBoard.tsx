@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { headshot, logo } from "@/data/league-data";
+import PlayerName from "./PlayerName";
 import { player } from "@/lib/roster";
 import LeagueOverview from "./LeagueOverview";
 import type { Home } from "@/lib/home-types";
@@ -289,15 +290,11 @@ export default function LeagueBoard() {
                             flex: "0 0 auto",
                           }}
                         />
-                        <span
-                          style={{
-                            fontSize: 13,
-                            color: starting ? "#e9e9ed" : "#9397ab",
-                            minWidth: 0,
-                            flex: 1,
-                          }}
-                        >
-                          {r.name}
+                        <span style={{ minWidth: 0, flex: 1 }}>
+                          <PlayerName
+                            name={r.name}
+                            style={{ fontSize: 13, color: starting ? "#e9e9ed" : "#9397ab" }}
+                          />
                         </span>
                         {p?.t ? (
                           // eslint-disable-next-line @next/next/no-img-element

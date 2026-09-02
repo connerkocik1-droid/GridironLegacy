@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { headshot } from "@/data/league-data";
 import { timeAgo, type Story } from "@/lib/news";
 
@@ -121,19 +122,26 @@ export default function NewsWire({
               {mine.length ? (
                 <div style={{ marginTop: 7, display: "flex", gap: 5, flexWrap: "wrap" }}>
                   {mine.map((name) => (
-                    <span
+                    <Link
                       key={name}
+                      href={`/player/${encodeURIComponent(name)}`}
                       style={{
                         fontSize: 10,
                         letterSpacing: ".1em",
-                        padding: "2px 6px",
+                        padding: "0 9px",
                         borderRadius: 2,
                         border: "1px solid rgba(181,171,252,.45)",
                         color: "#b5abfc",
+                        textDecoration: "none",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        // A chip is now a link to the player, so it has to be
+                        // big enough to press with a thumb.
+                        minHeight: 34,
                       }}
                     >
                       {name.toUpperCase()}
-                    </span>
+                    </Link>
                   ))}
                 </div>
               ) : null}
