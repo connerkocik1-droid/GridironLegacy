@@ -2805,3 +2805,256 @@ select expect('a reset clears the refresh record',
 
 select expect('so the first look at the new season claims immediately',
   (select claim_score_refresh(:'L', 1, 3600)), true);
+
+\echo ''
+\echo '--- the pick clock, the queue and the autodraft ---'
+
+-- A league deep enough to reach the third rung of the clock: twelve rounds of
+-- two franchises, which is round eleven at pick twenty-one.
+--
+-- The clock is set here rather than left to the migration's backfill, because
+-- this harness runs the migrations against an empty database — there is no
+-- league in existence at the moment the backfill runs, so what it does to an
+-- existing one cannot be observed from in here. The fallback path a league
+-- without a pickClock takes is checked below instead.
+\set CK  '99999999-0000-0000-0000-0000000000c1'
+\set CK1 'c10c0000-0000-0000-0000-000000000001'
+\set CK2 'c10c0000-0000-0000-0000-000000000002'
+
+\o /dev/null
+insert into auth.users (id) values (:'CK1'), (:'CK2');
+insert into leagues (id, name, season, commissioner_slot, settings, draft_state)
+values (:'CK', 'Clock', 2033, 'AAA',
+  '{"rounds": 12, "pickClock": [{"throughRound": 4, "seconds": 90},
+                                {"throughRound": 10, "seconds": 75},
+                                {"throughRound": null, "seconds": 60}]}'::jsonb,
+  'pending');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'CK', 'AAA', 'One', 'Alpha', true,  :'CK1'),
+  (:'CK', 'BBB', 'Two', 'Bravo', false, :'CK2');
+
+select signin(:'CK1');
+select rebuild_draft_board(:'CK');
+\o
+
+-- --------------------------------------------------------------- the clock --
+
+select expect('the board is twelve rounds deep',
+  (select count(*)::int from draft_picks where league_id = :'CK'), 24);
+
+select expect('round 1 gets ninety seconds',
+  pick_seconds_for((select settings from leagues where id = :'CK'), 1), 90);
+
+select expect('and so does round 4',
+  pick_seconds_for((select settings from leagues where id = :'CK'), 4), 90);
+
+select expect('round 5 drops to seventy-five',
+  pick_seconds_for((select settings from leagues where id = :'CK'), 5), 75);
+
+select expect('and holds through round 10',
+  pick_seconds_for((select settings from leagues where id = :'CK'), 10), 75);
+
+select expect('round 11 drops to sixty',
+  pick_seconds_for((select settings from leagues where id = :'CK'), 11), 60);
+
+select expect('and stays there however deep the draft runs',
+  pick_seconds_for((select settings from leagues where id = :'CK'), 40), 60);
+
+-- The database and the app read the same array, so a settings blob nobody
+-- validated must not be able to stop a draft from either side.
+select expect('a league still on the old single number keeps it',
+  pick_seconds_for('{"pickSeconds": 45}'::jsonb, 9), 45);
+
+select expect('a pickClock that is not a list falls back to that number',
+  pick_seconds_for('{"pickClock": "90", "pickSeconds": 45}'::jsonb, 3), 45);
+
+select expect('a tier with nonsense in it is skipped, not raised on',
+  pick_seconds_for(
+    '{"pickClock": [{"throughRound": "soon", "seconds": 20}, {"seconds": 55}]}'::jsonb, 2), 55);
+
+select expect('and a settings blob with nothing usable still has a clock',
+  pick_seconds_for('{}'::jsonb, 7), 90);
+
+select expect('nothing at all is still a clock',
+  pick_seconds_for(null, 1), 90);
+
+-- A nought is a typo, not a clock. draft-clock.ts skips such a tier too, and
+-- the two implementations have to agree: one draws the countdown, the other
+-- decides when the pick is taken.
+select expect('a nought-second tier is skipped, not honoured',
+  pick_seconds_for('{"pickClock": [{"seconds": 0}]}'::jsonb, 1), 90);
+
+select expect('and the tier under it is used instead',
+  pick_seconds_for('{"pickClock": [{"seconds": 0}, {"seconds": 40}]}'::jsonb, 1), 40);
+
+select expect('a one-second tier is clamped up to five',
+  pick_seconds_for('{"pickClock": [{"seconds": 1}]}'::jsonb, 1), 5);
+
+select expect('and an absurdly long one down to ten minutes',
+  pick_seconds_for('{"pickClock": [{"seconds": 99999}]}'::jsonb, 1), 600);
+
+-- --------------------------------------------------------------- the queue --
+
+\o /dev/null
+select signin(:'CK2');
+select set_draft_queue(:'CK', array['Bravo Two', 'Bravo Three', 'Bravo One']);
+\o
+
+select expect('a queue is kept in the order it was given',
+  (select string_agg(player_name, ',' order by rank) from draft_queue
+    where league_id = :'CK'), 'Bravo Two,Bravo Three,Bravo One');
+
+\o /dev/null
+select set_draft_queue(:'CK', array['Bravo One', 'Bravo Two']);
+\o
+
+select expect('setting it again replaces it rather than adding to it',
+  (select string_agg(player_name, ',' order by rank) from draft_queue
+    where league_id = :'CK'), 'Bravo One,Bravo Two');
+
+\o /dev/null
+select set_draft_queue(:'CK', array['Bravo One', 'Bravo One', '', 'Bravo Three']);
+\o
+
+select expect('a name twice is one place, and a blank is nobody',
+  (select string_agg(player_name, ',' order by rank) from draft_queue
+    where league_id = :'CK'), 'Bravo One,Bravo Three');
+
+select expect('an empty list empties the queue',
+  (select set_draft_queue(:'CK', array[]::text[]) ->> 'count'), '0');
+
+select expect('a queue has a limit',
+  refuses(format('select set_draft_queue(%L, (select array_agg(''P'' || g) from generate_series(1, 151) g))', :'CK')),
+  'A queue holds at most 150 players, not 151');
+
+select expect('and it is nobody else''s league to queue in',
+  refuses(format('select set_draft_queue(%L, array[''Alpha One''])', :'L')),
+  'Not your league');
+
+select expect('the refused attempts left nothing behind',
+  (select count(*)::int from draft_queue where league_id = :'CK'), 0);
+
+-- ----------------------------------------------------------- the autodraft --
+
+\o /dev/null
+select set_draft_queue(:'CK', array['Bravo One', 'Bravo Two']);
+select signin(:'CK1');
+update leagues set draft_state = 'running', pick_started_at = now() where id = :'CK';
+\o
+
+select expect('nothing happens while somebody is on the clock',
+  (select autodraft_expired(:'CK') ->> 'reason'), 'on the clock');
+
+-- Alpha is on pick one. Seventy seconds is past the sixty a late round gets
+-- and short of the ninety round one gets, which is the whole point of the
+-- ladder: the round decides, not the league.
+\o /dev/null
+update leagues set pick_started_at = now() - interval '70 seconds' where id = :'CK';
+\o
+
+select expect('seventy seconds is not yet late in round one',
+  (select autodraft_expired(:'CK') ->> 'reason'), 'on the clock');
+
+\o /dev/null
+update leagues set pick_started_at = now() - interval '95 seconds' where id = :'CK';
+\o
+
+select expect('but ninety-five is, and the fallback is taken',
+  (select autodraft_expired(:'CK', 'Alpha One') ->> 'player_name'), 'Alpha One');
+
+select expect('and it is recorded as the clock running out',
+  (select detail ->> 'reason' from admin_log
+    where league_id = :'CK' and action = 'autodraft'), 'clock');
+
+select expect('the board moved on',
+  (select current_pick from leagues where id = :'CK'), 2);
+
+-- Bravo is on the clock now, and has a queue. The queue wins over any
+-- fallback, which is the whole reason the queue exists.
+\o /dev/null
+update leagues set pick_started_at = now() - interval '95 seconds' where id = :'CK';
+\o
+
+select expect('a manager''s own queue is taken before the fallback',
+  (select autodraft_expired(:'CK', 'Somebody Else') ->> 'player_name'), 'Bravo One');
+
+select expect('and the record says the queue is where it came from',
+  (select detail ->> 'reason' from admin_log
+    where league_id = :'CK' and action = 'autodraft'
+    order by created_at desc limit 1), 'clock_queue');
+
+select expect('a drafted player leaves every queue, not just the picker''s',
+  (select count(*)::int from draft_queue
+    where league_id = :'CK' and player_name = 'Bravo One'), 0);
+
+-- A manager who says they will not be here does not wait for a clock at all.
+-- The flag goes on whoever actually holds the pick rather than on a franchise
+-- named here, so the check does not quietly depend on reading the snake right.
+\o /dev/null
+update leagues set pick_started_at = now() where id = :'CK';
+update managers set autodraft = true
+ where id = (select manager_id from draft_picks
+              where league_id = :'CK'
+                and overall = (select current_pick from leagues where id = :'CK'));
+\o
+
+select expect('autodraft picks the moment the turn comes round, clock or no clock',
+  (select autodraft_expired(:'CK', 'Wanted Nobody') ->> 'reason'), 'autodraft_queue');
+
+select expect('and it is still the queue it picks from, not the fallback',
+  (select player_name from draft_picks where league_id = :'CK' and overall = 3),
+  'Bravo Two');
+
+-- With nothing queued, the same switch falls through to the fallback the
+-- caller worked out — which is the ADP-and-need pick, not best available.
+\o /dev/null
+delete from draft_queue where league_id = :'CK';
+update leagues set pick_started_at = now() where id = :'CK';
+update managers set autodraft = false where league_id = :'CK';
+update managers set autodraft = true
+ where id = (select manager_id from draft_picks
+              where league_id = :'CK'
+                and overall = (select current_pick from leagues where id = :'CK'));
+\o
+
+select expect('an empty queue falls through to the fallback',
+  (select autodraft_expired(:'CK', 'Wanted Nobody') ->> 'reason'), 'autodraft');
+
+select expect('and that is who was drafted',
+  (select player_name from draft_picks where league_id = :'CK' and overall = 4),
+  'Wanted Nobody');
+
+\o /dev/null
+update leagues set pick_started_at = now() where id = :'CK';
+update managers set autodraft = false where league_id = :'CK';
+\o
+
+select expect('a manager who has not said so still gets their clock',
+  (select autodraft_expired(:'CK', 'Bravo Three') ->> 'reason'), 'on the clock');
+
+-- The fallback is worked out before the league row is locked, so it can name
+-- somebody who has since been taken. That is a "call me again", not a crash.
+\o /dev/null
+update leagues set pick_started_at = now() - interval '200 seconds' where id = :'CK';
+\o
+
+select expect('a fallback who is already rostered is refused cleanly',
+  (select autodraft_expired(:'CK', 'Alpha One') ->> 'reason'), 'already rostered');
+
+select expect('and nothing was drafted twice',
+  (select count(*)::int from roster_slots
+    where league_id = :'CK' and player_name = 'Alpha One'), 1);
+
+-- The commissioner's clock nudge works against the round's limit too, not a
+-- league-wide one.
+\o /dev/null
+update leagues set pick_started_at = now(), current_pick = 21 where id = :'CK';
+select signin(:'CK1');
+\o
+
+select expect('pick twenty-one is in round eleven',
+  (select round from draft_picks where league_id = :'CK' and overall = 21), 11);
+
+select expect('so the clock it is nudged against is sixty seconds, not ninety',
+  (select (nudge_clock(:'CK', 0) ->> 'remaining')::int between 55 and 61), true);

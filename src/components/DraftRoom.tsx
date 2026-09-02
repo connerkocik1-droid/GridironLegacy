@@ -12,6 +12,7 @@ import ResetDraft from "./ResetDraft";
 import TeamCrest from "./TeamCrest";
 import { useLogos } from "@/lib/use-logos";
 import { setPickAnimations, usePickAnimations } from "@/lib/use-pick-animations";
+import { describeClock, pickSecondsFor, type ClockTier } from "@/lib/draft-clock";
 
 const BLANK =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -34,12 +35,21 @@ interface Available {
 }
 
 interface Board {
-  me: { id: string; slot: string; franchise: string; is_commissioner: boolean; ready: boolean };
+  me: {
+    id: string;
+    slot: string;
+    franchise: string;
+    is_commissioner: boolean;
+    ready: boolean;
+    autodraft: boolean;
+  };
   league: {
     state: "pending" | "running" | "paused" | "complete";
     currentPick: number;
     pickStartedAt: string | null;
+    /** The clock for the round on the board now, not for the draft. */
     pickSeconds: number;
+    pickClock: ClockTier[];
     serverNow: string;
     draftAt: string | null;
     cinematicRounds: number;
@@ -48,8 +58,10 @@ interface Board {
   onTheClock: Pick | null;
   myTurn: boolean;
   picks: Pick[];
-  managers: { id: string; slot: string; franchise: string; ready?: boolean }[];
+  managers: { id: string; slot: string; franchise: string; ready?: boolean; autodraft?: boolean }[];
   available: Available[];
+  /** This manager's own list, in their own order. */
+  queue: string[];
 }
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"];
@@ -103,6 +115,17 @@ export default function DraftRoom() {
   const [reveal, setReveal] = useState<RevealPick | null>(null);
   // The board is the reference view; the player list is where you pick from.
   const [view, setView] = useState<"players" | "board">("players");
+
+  /**
+   * The queue, held here as well as on the server.
+   *
+   * Reordering a list one round trip at a time is unusable — a manager
+   * dragging the fourth name to the top would watch it snap back three times
+   * while the server catches up. So the local copy leads and the server
+   * follows, and the poll stops overwriting it while a write is in flight.
+   */
+  const [queue, setQueue] = useState<string[]>([]);
+  const queueDirty = useRef(false);
 
   // The chime, and whether the browser has let us play it yet. Autoplay is
   // blocked until the page has been interacted with, so it is primed silently
@@ -161,6 +184,9 @@ export default function DraftRoom() {
       const data: Board = await res.json();
       setSkew(new Date(data.league.serverNow).getTime() - Date.now());
       setBoard(data);
+      // Not while this browser is mid-write: the server's answer is behind
+      // what the manager is looking at until the write lands.
+      if (!queueDirty.current) setQueue(data.queue ?? []);
       setError(null);
 
       // Everybody in, or the commissioner has opened the room. The countdown
@@ -346,6 +372,86 @@ export default function DraftRoom() {
     }
   }
 
+  /**
+   * Writes the queue as the manager has just arranged it.
+   *
+   * The whole list every time, because a queue is an order and almost every
+   * edit to one renumbers most of it. Optimistic: the list on screen changes
+   * first and is put back if the write fails, since a queue is a note to
+   * yourself and waiting on a round trip to watch a name move is the wrong
+   * amount of ceremony for one.
+   */
+  async function saveQueue(next: string[]) {
+    const before = queue;
+    queueDirty.current = true;
+    setQueue(next);
+
+    try {
+      const res = await fetch("/api/draft/queue", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ players: next }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setQueue(before);
+        setError(body.error ?? "Could not save your queue.");
+      } else {
+        setError(null);
+      }
+    } catch {
+      setQueue(before);
+      setError("Could not save your queue.");
+    } finally {
+      queueDirty.current = false;
+    }
+  }
+
+  function queuePlayer(name: string) {
+    if (queue.includes(name)) return;
+    void saveQueue([...queue, name]);
+  }
+
+  function unqueuePlayer(name: string) {
+    void saveQueue(queue.filter((n) => n !== name));
+  }
+
+  function moveInQueue(index: number, by: number) {
+    const to = index + by;
+    if (to < 0 || to >= queue.length) return;
+    const next = [...queue];
+    [next[index], next[to]] = [next[to], next[index]];
+    void saveQueue(next);
+  }
+
+  /**
+   * "I will not be here."
+   *
+   * Not the same thing as a clock running out. A manager who has said so is
+   * picked for the moment their turn comes round rather than costing the other
+   * eleven a minute a round, and the queue above is what they are picked from.
+   */
+  async function toggleAutodraft(on: boolean) {
+    if (picking) return;
+    setPicking("__autodraft__");
+    try {
+      const res = await fetch("/api/draft/autodraft", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ on }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? "Could not change autodraft.");
+      } else {
+        setError(null);
+      }
+      await load();
+    } finally {
+      setPicking(null);
+    }
+  }
+
   async function resetDraft() {
     if (picking) return;
     setPicking("__reset__");
@@ -477,6 +583,21 @@ export default function DraftRoom() {
             setIntroPlaying(true);
           }}
         />
+        {/* What the clock does, before anybody is on it. A ladder is worth
+            saying out loud once: a manager who learns ninety seconds in round
+            one and finds out about sixty in round eleven by watching it run
+            out has been told nothing. */}
+        <div
+          style={{
+            textAlign: "center",
+            padding: "0 26px 18px",
+            fontSize: 11.5,
+            color: "#75798c",
+          }}
+        >
+          Pick clock — {describeClock(board.league.pickClock)}
+        </div>
+
         {board.me.is_commissioner ? (
           <div style={{ textAlign: "center", padding: "0 26px 48px" }}>
             <ResetDraft
@@ -533,7 +654,12 @@ export default function DraftRoom() {
           </div>
           <div style={{ fontSize: 11, color: "#75798c", marginTop: 2 }}>
             {board.onTheClock
-              ? `Round ${board.onTheClock.round} · pick ${board.onTheClock.overall}`
+              ? `Round ${board.onTheClock.round} · pick ${board.onTheClock.overall}` +
+                // The clock shortens as the draft goes on, so the round has to
+                // say which one it is on: a manager who learned ninety seconds
+                // in round one should not find out about sixty in round eleven
+                // by watching it run out.
+                ` · ${pickSecondsFor(board.league.pickClock, board.onTheClock.round)}s clock`
               : `Draft ${board.league.state}`}
           </div>
         </div>
@@ -599,6 +725,37 @@ export default function DraftRoom() {
               style={{ accentColor: "#9184d9", cursor: "pointer" }}
             />
             Pick animation
+          </label>
+
+          {/* Everybody's, not the commissioner's. A manager saying they will
+              not be here is the one thing in this row that changes what the
+              draft does for them rather than what this screen looks like. */}
+          <label
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              minHeight: 34,
+              padding: "6px 11px",
+              fontSize: 10,
+              letterSpacing: ".1em",
+              textTransform: "uppercase",
+              color: board.me.autodraft ? "#e0b573" : "#9397ab",
+              border: `1px solid ${board.me.autodraft ? "rgba(224,181,115,.55)" : "rgba(145,132,217,.24)"}`,
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+            title="Pick for me the moment my turn comes round, from my queue first"
+          >
+            <input
+              type="checkbox"
+              checked={board.me.autodraft}
+              disabled={picking != null}
+              onChange={(e) => void toggleAutodraft(e.target.checked)}
+              style={{ accentColor: "#e0b573", cursor: "pointer" }}
+            />
+            Autodraft
           </label>
 
           {board.me.is_commissioner ? (
@@ -708,6 +865,107 @@ export default function DraftRoom() {
           padding: "6px 26px 40px",
         }}
       >
+        {/* ------------------------------------------------------ queue --- */}
+        {/* The list that gets drafted for you. It has existed in the database
+            since the room was built and no screen ever wrote to it, so the
+            autodraft it feeds has always fallen through to best-available. */}
+        <div
+          style={{
+            border: `1px solid ${board.me.autodraft ? "rgba(224,181,115,.4)" : "rgba(145,132,217,.22)"}`,
+            borderRadius: "var(--radius-lg)",
+            background: "rgba(26,28,43,.55)",
+            overflow: "hidden",
+            marginBottom: 12,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 10,
+              padding: "11px 16px",
+              borderBottom: queue.length ? "1px solid rgba(145,132,217,.18)" : undefined,
+              flexWrap: "wrap",
+            }}
+          >
+            <h6 style={{ margin: 0, color: "#d2cefd" }}>Your queue</h6>
+            <span style={{ fontSize: 11, color: "#75798c" }}>
+              {queue.length ? `${queue.length} queued` : "Nobody yet"}
+            </span>
+            {board.me.autodraft ? (
+              <span style={{ fontSize: 11, color: "#e0b573", marginLeft: "auto" }}>
+                Autodraft is on — these are who you get.
+              </span>
+            ) : null}
+          </div>
+
+          {queue.length === 0 ? (
+            <div style={{ padding: "12px 16px", fontSize: 11.5, color: "#75798c", lineHeight: 1.6 }}>
+              Queue players below and they are drafted for you, in this order,
+              if your clock runs out or you switch autodraft on. Anyone already
+              taken is skipped. With nothing queued you get the best available
+              for what your roster still needs.
+            </div>
+          ) : (
+            queue.map((name, i) => (
+              <div
+                key={name}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                  padding: "8px 16px",
+                  borderTop: i === 0 ? undefined : "1px solid rgba(145,132,217,.1)",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: "#75798c",
+                    width: 18,
+                    flex: "0 0 auto",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {i + 1}
+                </span>
+                <span style={{ minWidth: 0, flex: 1 }}>
+                  <PlayerName
+                    name={name}
+                    plain
+                    style={{ fontFamily: "var(--font-heading)", fontSize: 13.5 }}
+                  />
+                </span>
+                <div style={{ display: "flex", gap: 3, flex: "0 0 auto" }}>
+                  <button
+                    onClick={() => moveInQueue(i, -1)}
+                    disabled={i === 0}
+                    aria-label={`Move ${name} up the queue`}
+                    style={queueButton(i > 0)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    onClick={() => moveInQueue(i, 1)}
+                    disabled={i === queue.length - 1}
+                    aria-label={`Move ${name} down the queue`}
+                    style={queueButton(i < queue.length - 1)}
+                  >
+                    ↓
+                  </button>
+                  <button
+                    onClick={() => unqueuePlayer(name)}
+                    aria-label={`Take ${name} off your queue`}
+                    style={queueButton(true)}
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
         <div
           style={{
             border: `1px solid ${board.myTurn ? "rgba(181,171,252,.55)" : "rgba(145,132,217,.22)"}`,
@@ -826,6 +1084,30 @@ export default function DraftRoom() {
                   </div>
                 </div>
                 <button
+                  onClick={() =>
+                    queue.includes(p.name) ? unqueuePlayer(p.name) : queuePlayer(p.name)
+                  }
+                  aria-label={
+                    queue.includes(p.name)
+                      ? `Take ${p.name} off your queue`
+                      : `Add ${p.name} to your queue`
+                  }
+                  title={
+                    queue.includes(p.name)
+                      ? "On your queue — press to take them off"
+                      : "Queue them: drafted for you if your clock runs out"
+                  }
+                  style={{
+                    ...queueButton(true),
+                    color: queue.includes(p.name) ? "#e0b573" : "#9397ab",
+                    borderColor: queue.includes(p.name)
+                      ? "rgba(224,181,115,.5)"
+                      : "rgba(145,132,217,.28)",
+                  }}
+                >
+                  {queue.includes(p.name) ? "★" : "+"}
+                </button>
+                <button
                   onClick={() => pick(p.name)}
                   disabled={!canPick || picking != null}
                   title={
@@ -863,4 +1145,27 @@ export default function DraftRoom() {
       )}
     </>
   );
+}
+
+/**
+ * The small square buttons on a queue row.
+ *
+ * Thirty-four across whatever is in them: an arrow is two pixels wide and a
+ * thumb is not, and this row is the one place on the page where four controls
+ * sit side by side.
+ */
+function queueButton(enabled: boolean): React.CSSProperties {
+  return {
+    minWidth: 34,
+    minHeight: 34,
+    padding: "4px 8px",
+    fontSize: 12,
+    lineHeight: 1,
+    border: "1px solid rgba(145,132,217,.28)",
+    background: "transparent",
+    color: enabled ? "#9397ab" : "#4d5062",
+    borderRadius: "var(--radius-sm)",
+    font: "inherit",
+    cursor: enabled ? "pointer" : "default",
+  };
 }

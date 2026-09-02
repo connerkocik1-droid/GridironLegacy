@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "extract-images": "node scripts/extract-images.mjs",
     "seed": "node scripts/seed.mjs",
-    "test": "tsx src/lib/__tests__/scoring.test.mts && tsx src/lib/__tests__/live-scoring.test.mts && tsx src/lib/__tests__/player-names.test.mts && tsx src/lib/__tests__/preseason.test.mts && tsx src/lib/__tests__/stat-line.test.mts && tsx src/lib/__tests__/player-profile.test.mts && tsx src/lib/__tests__/health.test.mts && tsx src/lib/__tests__/lineup.test.mts && tsx src/lib/__tests__/news.test.mts && tsx src/lib/__tests__/draft-pool.test.mts && tsx src/lib/__tests__/mock-draft.test.mts && tsx src/lib/__tests__/twenty-zero.test.mts && tsx src/lib/__tests__/power.test.mts && tsx src/lib/__tests__/rankings.test.mts",
+    "test": "tsx src/lib/__tests__/scoring.test.mts && tsx src/lib/__tests__/live-scoring.test.mts && tsx src/lib/__tests__/player-names.test.mts && tsx src/lib/__tests__/preseason.test.mts && tsx src/lib/__tests__/draft-clock.test.mts && tsx src/lib/__tests__/autodraft.test.mts && tsx src/lib/__tests__/stat-line.test.mts && tsx src/lib/__tests__/player-profile.test.mts && tsx src/lib/__tests__/health.test.mts && tsx src/lib/__tests__/lineup.test.mts && tsx src/lib/__tests__/news.test.mts && tsx src/lib/__tests__/draft-pool.test.mts && tsx src/lib/__tests__/mock-draft.test.mts && tsx src/lib/__tests__/twenty-zero.test.mts && tsx src/lib/__tests__/power.test.mts && tsx src/lib/__tests__/rankings.test.mts",
     "verify-espn": "node scripts/verify-espn.mjs",
     "test:db": "./scripts/test-db.sh",
     "audit:mobile": "./scripts/audit-mobile.sh",

@@ -1,4 +1,6 @@
 import { availablePlayers } from "@/lib/draft-pool";
+import { maybeAutopick } from "@/lib/draft-autopick";
+import { pickSecondsFor, readPickClock } from "@/lib/draft-clock";
 import { MEDIA_BUCKET } from "@/lib/league-media";
 import { isConfigured, serverClient, serviceClient } from "@/lib/supabase";
 
@@ -88,7 +90,7 @@ export async function GET() {
 
   const { data: me } = await db
     .from("managers")
-    .select("id, slot, franchise, league_id, is_commissioner, ready")
+    .select("id, slot, franchise, league_id, is_commissioner, ready, autodraft")
     .eq("auth_user_id", user.id)
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
@@ -116,19 +118,53 @@ export async function GET() {
 
   const { data: managers } = await db
     .from("managers")
-    .select("id, slot, franchise, ready")
+    .select("id, slot, franchise, ready, autodraft")
     .eq("league_id", me.league_id);
 
+  // Who holds whom, not just who is gone: the autopick fallback is measured
+  // against the roster of the manager on the clock, so it needs both.
   const { data: rostered } = await db
     .from("roster_slots")
-    .select("player_name")
+    .select("player_name, manager_id")
     .eq("league_id", me.league_id);
+
+  // This manager's own list, in their own order. The row policy on draft_queue
+  // is what keeps it theirs; nothing here has to check.
+  const { data: queued } = await db
+    .from("draft_queue")
+    .select("player_name, rank")
+    .eq("league_id", me.league_id)
+    .eq("manager_id", me.id)
+    .order("rank");
 
   const taken = new Set((rostered ?? []).map((r) => r.player_name));
   const available = availablePlayers(taken);
 
   const onTheClock = (picks ?? []).find((p) => p.overall === league.current_pick) ?? null;
-  const pickSeconds = Number(league.settings?.pickSeconds ?? 90);
+
+  // The clock is the round's, not the league's: ninety seconds is right for
+  // the first round and absurd for the fourteenth. The client counts down from
+  // this number, so what it draws is what the database will act on.
+  const clock = readPickClock(league.settings);
+  const pickSeconds = pickSecondsFor(clock, onTheClock?.round ?? 1);
+
+  // The pick nobody is there to make, made from whichever browser noticed. The
+  // cron is still behind this; it is a minute coarse, and the room polls every
+  // five seconds. Scheduled for after this response, so nobody waits on it.
+  const onClockManager = (managers ?? []).find((m) => m.id === onTheClock?.manager_id);
+  maybeAutopick({
+    leagueId: me.league_id,
+    state: league.draft_state,
+    pickStartedAt: league.pick_started_at,
+    settings: league.settings ?? {},
+    onTheClock: onTheClock
+      ? { manager_id: onTheClock.manager_id, round: onTheClock.round, overall: onTheClock.overall }
+      : null,
+    autodraft: onClockManager?.autodraft === true,
+    rostered: (rostered ?? []) as { player_name: string; manager_id: string }[],
+    totalPicks: (picks ?? []).length,
+    teams: (managers ?? []).length,
+  });
 
   return Response.json({
     me,
@@ -139,6 +175,9 @@ export async function GET() {
       // twelve browsers cannot drift apart and skip someone.
       pickStartedAt: league.pick_started_at,
       pickSeconds,
+      // The whole ladder as well as this round's rung, so the room can say
+      // what the clock does next rather than only what it is now.
+      pickClock: clock,
       serverNow: new Date().toISOString(),
       draftAt: league.draft_at,
       // How many rounds get the full-screen reveal. Past these the board just
@@ -153,6 +192,7 @@ export async function GET() {
     picks: picks ?? [],
     managers: managers ?? [],
     available,
+    queue: (queued ?? []).map((q) => q.player_name as string),
   });
 }
 

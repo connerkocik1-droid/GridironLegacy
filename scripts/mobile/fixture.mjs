@@ -39,7 +39,16 @@ const ROSTER = [
 
 const SETTINGS = {
   starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, "D/ST": 1, K: 1 },
-  bench: 14, ir: 2, rounds: 24, pickSeconds: 90, cinematicRounds: 3,
+  bench: 14, ir: 2, rounds: 24, cinematicRounds: 3,
+  // The clock is a ladder now. pickSeconds is kept beside it because a league
+  // that has not been migrated still has only that, and the office has to lay
+  // out either one without falling over.
+  pickSeconds: 90,
+  pickClock: [
+    { throughRound: 4, seconds: 90 },
+    { throughRound: 10, seconds: 75 },
+    { throughRound: null, seconds: 60 },
+  ],
   regularWeeks: 16, waiverDays: 1, tradeDeadlineWeek: 14,
 };
 
@@ -412,17 +421,51 @@ export function routes(page) {
     player_name: i < 2 ? ROSTER[i][0] : null,
     picked_at: i < 2 ? "2026-08-01T00:00:00Z" : null,
   }));
-  page.route("**/api/draft", json({
-    me: { ...ME, is_commissioner: true, ready: true },
-    league: { state: "running", currentPick: 3, pickStartedAt: new Date().toISOString(),
-      pickSeconds: 90, serverNow: new Date().toISOString(), draftAt: null,
-      cinematicRounds: 3, introVideo: null },
-    onTheClock: PICKS[2], myTurn: false, picks: PICKS, managers: MANAGERS,
-    available: [
-      { name: "Ashton Jeanty", position: "RB", team: "LV", adp: 10, posRank: "RB6", bye: 10 },
-      { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", adp: 22, posRank: "WR9", bye: 8 },
-    ],
-  }));
+  // The clock is the round's, so the room is given the whole ladder as well as
+  // the rung it is on. A queue with somebody already in it, because an empty
+  // panel proves the empty state and nothing else.
+  const PICK_CLOCK = [
+    { throughRound: 4, seconds: 90 },
+    { throughRound: 10, seconds: 75 },
+    { throughRound: null, seconds: 60 },
+  ];
+
+  // The queue and the autodraft switch are state, not fixtures: the room polls
+  // every five seconds and writes back what it holds, so a route that always
+  // answers the same thing would quietly undo every edit a second after it was
+  // made — and a check written against it would pass on a page that does not
+  // work. These two remember.
+  let queue = ["Marquez Valdes-Scantling", "Jacory Croskey-Merritt"];
+  let autodraft = false;
+
+
+  page.route("**/api/draft", (r) =>
+    r.fulfill({ json: {
+      me: { ...ME, is_commissioner: true, ready: true, autodraft },
+      league: { state: "running", currentPick: 3, pickStartedAt: new Date().toISOString(),
+        pickSeconds: 90, pickClock: PICK_CLOCK, serverNow: new Date().toISOString(),
+        draftAt: null, cinematicRounds: 3, introVideo: null },
+      onTheClock: PICKS[2], myTurn: false, picks: PICKS, managers: MANAGERS,
+      available: [
+        { name: "Ashton Jeanty", position: "RB", team: "LV", adp: 10, posRank: "RB6", bye: 10 },
+        { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", adp: 22, posRank: "WR9", bye: 8 },
+      ],
+      queue,
+    } }),
+  );
+
+  page.route("**/api/draft/queue", async (r) => {
+    if (r.request().method() === "GET") return r.fulfill({ json: { queue } });
+    const body = JSON.parse(r.request().postData() ?? "{}");
+    queue = Array.isArray(body.players) ? body.players : queue;
+    return r.fulfill({ json: { ok: true, count: queue.length, queue } });
+  });
+
+  page.route("**/api/draft/autodraft", async (r) => {
+    const body = JSON.parse(r.request().postData() ?? "{}");
+    autodraft = body.on === true;
+    return r.fulfill({ json: { ok: true, autodraft } });
+  });
 
   page.route("**/api/pickem**", json({
     week: 5, me: ME,

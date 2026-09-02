@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
 import DraftSettings from "./DraftSettings";
+import { readPickClock, type ClockTier } from "@/lib/draft-clock";
 import NextSeason from "./NextSeason";
 import RosterFix from "./RosterFix";
 import SeasonRules from "./SeasonRules";
@@ -26,7 +27,9 @@ interface Admin {
     season: number;
     settings: {
       rounds?: number;
+      /** What a league had before the clock was tiered: one number for the draft. */
       pickSeconds?: number;
+      pickClock?: unknown;
       cinematicRounds?: number;
       introVideo?: string;
       regularWeeks?: number;
@@ -210,7 +213,10 @@ export default function Commissioner() {
     }
   }
 
-  async function saveSettings(changes: Record<string, number>, what: string) {
+  async function saveSettings(
+    changes: Record<string, number | ClockTier[]>,
+    what: string,
+  ) {
     if (busy) return;
     setBusy(true);
     setError(null);
@@ -538,7 +544,7 @@ export default function Commissioner() {
 
       <div style={card}>
         <DraftSettings
-          pickSeconds={admin.league?.settings?.pickSeconds ?? 90}
+          pickClock={readPickClock(admin.league?.settings)}
           cinematicRounds={admin.league?.settings?.cinematicRounds ?? 3}
           order={admin.league?.lottery_order ?? null}
           managers={admin.managers}
