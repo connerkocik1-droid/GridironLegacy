@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import ActivityFeed from "./ActivityFeed";
 import HomeButtons from "./HomeButtons";
 import LeagueOverview from "./LeagueOverview";
+import MatchupBand from "./MatchupBand";
 import MiniGamesStrip from "./MiniGamesStrip";
 import NewsBand from "./NewsBand";
 import ScoreTicker from "./ScoreTicker";
@@ -55,9 +56,16 @@ export default function HomeBoard() {
           about the actual football rather than the league. */}
       <ScoreTicker />
 
-      {/* Above everything the league does, because it is the thing that
-          changed since you last looked. Where to go is always in the same
-          place; who got hurt on Wednesday is not. */}
+      {/* First of all, because on a Sunday it is the only question anybody
+          has. Not collapsible: a band you can fold away is a band somebody
+          folds away once and then wonders where their score went. */}
+      <Section eyebrow="YOUR GAME" title="This matchup">
+        <MatchupBand home={home} />
+      </Section>
+
+      {/* Then the wire, because it is the thing that changed since you last
+          looked. Where to go is always in the same place; who got hurt on
+          Wednesday is not. */}
       <Section eyebrow="THE WIRE" title="News" collapseId="home.news">
         <NewsBand />
       </Section>
