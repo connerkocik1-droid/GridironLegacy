@@ -117,14 +117,16 @@ function PlayerCell({
             />
           ) : null}
         </div>
+        {/* Wraps rather than clips. These columns are narrow and a
+            quarterback's line is five parts long, so an ellipsis would hide
+            exactly the touchdowns somebody opened the page to see. */}
         <div
           style={{
             fontSize: 10,
             color: "#75798c",
             marginTop: 2,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
+            lineHeight: 1.45,
+            overflowWrap: "anywhere",
           }}
         >
           {entry.statLine || `${entry.position}${entry.team ? ` · ${entry.team}` : ""}`}

@@ -252,17 +252,35 @@ export function routes(page) {
     assignments: ROSTER.map(([playerName, slot]) => ({ playerName, slot })),
     lockedPlayers: ["Jayden Daniels"],
   }));
-  page.route("**/api/scores", json({ week: 3, scores: {
-    "Jayden Daniels": { points: 27.4, statLine: "312 yds, 3 TD", updatedAt: "" } } }));
+  // The longest line each position can produce, because a stat line that fits
+  // is not the one that breaks a phone. A quarterback who also ran and also
+  // threw a pick is six parts long and lands in a column half a screen wide.
+  const LINES = {
+    QB: "24/38 · 312 pass yds · 41 rush yds · 3 pass TD · 1 rush TD · 1 INT",
+    RB: "18 car · 104 rush yds · 22 rec yds · 1 rush TD · 1 rec TD",
+    WR: "11 tgt · 9 rec · 140 rec yds · 1 rec TD",
+    TE: "8 tgt · 6 rec · 71 rec yds · 1 rec TD",
+    K: "3/4 FG · 2/2 XP",
+    "D/ST": "3.5 sack · 1 FR · 2 INT · 288 yds allowed · 1 KORTD · 1 PRTD",
+  };
+  const lineFor = (slot) => LINES[slot] ?? LINES.RB;
+
+  page.route("**/api/scores", json({ week: 3, scores: Object.fromEntries(
+    ROSTER.map(([n, slot], i) => [
+      n,
+      { points: 27.4 - i, statLine: lineFor(slot === "FLEX" || slot === "BENCH" ? "RB" : slot),
+        updatedAt: "" },
+    ]),
+  ) }));
   page.route("**/api/matchup**", json({
-    week: 3, scheduled: true, final: false, live: true,
+    week: 3, scheduled: true, final: false, live: true, started: true, weekPhase: "live",
     home: { id: "m0", slot: "T01", franchise: "Steel Cartel", total: 104.6 },
     away: { id: "m3", slot: "T04", franchise: "Kim's Very Long Franchise Name", total: 98.2 },
-    rows: ROSTER.map(([n, slot]) => ({ slot,
+    rows: ROSTER.filter(([, slot]) => slot !== "BENCH").map(([n, slot]) => ({ slot,
       home: { name: n, position: slot, team: "WSH", points: 18.2, projected: 17,
-        live: true, statLine: "312 yds, 3 TD" },
+        live: true, statLine: lineFor(slot === "FLEX" ? "RB" : slot) },
       away: { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", points: 22.1,
-        projected: 22, live: true, statLine: "9 rec, 140 yds" } })),
+        projected: 22, live: true, statLine: LINES.WR } })),
     managers: MANAGERS,
   }));
   page.route("**/api/rankings", json({ points: {}, rostered: {}, basis: "2025" }));

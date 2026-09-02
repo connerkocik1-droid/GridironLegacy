@@ -231,7 +231,29 @@ const scoringPlays = [
 ];
 
 export const SUMMARY = {
-  boxscore: boxScore,
+  boxscore: {
+    ...boxScore,
+    // The row along the bottom of a box score. Total yards is the only place
+    // "what this defence gave up" is written down — no per-player line adds
+    // up to it, because a hundred and forty rushing yards spread over four
+    // backs has to be totalled by somebody.
+    teams: [
+      {
+        team: { abbreviation: "KC" },
+        statistics: [
+          { name: "totalYards", label: "Total Yards", displayValue: "421" },
+          { name: "turnovers", label: "Turnovers", displayValue: "1" },
+        ],
+      },
+      {
+        team: { abbreviation: "BUF" },
+        statistics: [
+          { name: "totalYards", label: "Total Yards", displayValue: "388" },
+          { name: "turnovers", label: "Turnovers", displayValue: "3" },
+        ],
+      },
+    ],
+  },
   scoringPlays,
   header: {
     competitions: [

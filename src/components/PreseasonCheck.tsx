@@ -191,7 +191,7 @@ function PlayerRow({ player, slot }: { player: PreseasonPlayer; slot?: string })
           >
             {player.name}
           </div>
-          <div style={{ fontSize: 11, color: "#75798c", marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: "#75798c", marginTop: 2, lineHeight: 1.45 }}>
             {player.position || "—"} · {player.team}
             {player.positionSource !== "espn" ? (
               <span style={{ color: "#8a7fd4" }}>
@@ -201,6 +201,22 @@ function PlayerRow({ player, slot }: { player: PreseasonPlayer; slot?: string })
             ) : null}
             {player.workload ? ` · ${player.workload} touches` : ""}
           </div>
+
+          {/* The same line the lineup and the matchup show, written by the
+              same function, so checking it here is checking it there. */}
+          {player.statLine ? (
+            <div
+              style={{
+                fontSize: 11.5,
+                color: "#c8ccdc",
+                marginTop: 3,
+                lineHeight: 1.45,
+                overflowWrap: "anywhere",
+              }}
+            >
+              {player.statLine}
+            </div>
+          ) : null}
         </div>
 
         <div

@@ -1,5 +1,6 @@
 import { slotsOf } from "@/data/league-sim";
 import { proj, player, type LeagueShape } from "./roster";
+import { formatStatLine, type StatLine } from "./scoring";
 import type { Position } from "@/data/league-data";
 
 const FLEX_TAKES: Position[] = ["RB", "WR", "TE"];
@@ -23,7 +24,10 @@ export interface MatchupRow {
 
 export interface Score {
   points: number;
+  /** What the ingestion wrote, used when there is no structured line to read. */
   statLine: string;
+  /** The numbers themselves. Absent on rows written before migration 0032. */
+  line?: StatLine;
 }
 
 /**
@@ -61,14 +65,21 @@ function pointsFor(name: string, scores: Map<string, Score>): number {
 function entryFor(name: string, scores: Map<string, Score>): SideEntry {
   const p = player(name);
   const score = scores.get(name);
+  const position = p?.p ?? "";
+
+  // Written here rather than at ingestion because this is where the position
+  // is known for certain: the roster says a man is a tight end even when he
+  // never entered the draft pool and the box score did not say.
+  const line = score?.line ? formatStatLine(score.line, position) : "";
+
   return {
     name,
-    position: p?.p ?? "",
+    position,
     team: p?.t ?? "",
     points: score?.points ?? proj(name),
     projected: proj(name),
     live: score != null,
-    statLine: score?.statLine ?? "",
+    statLine: line || score?.statLine || "",
   };
 }
 

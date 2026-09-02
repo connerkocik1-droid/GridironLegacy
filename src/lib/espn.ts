@@ -88,6 +88,16 @@ export interface ScoringPlay {
 export interface GameDetail {
   stats: PlayerStat[];
   plays: ScoringPlay[];
+  /**
+   * Whole-team totals, by abbreviation: "totalYards", "turnovers" and the
+   * rest of the row along the bottom of a box score.
+   *
+   * A defence is judged partly on what the other side gained, and that number
+   * exists nowhere in the per-player lines — a hundred and forty rushing yards
+   * spread over four backs has to be added up by somebody, and ESPN has
+   * already done it.
+   */
+  teamTotals: Record<string, Record<string, string>>;
 }
 
 async function getJson(url: string): Promise<unknown> {
@@ -186,7 +196,11 @@ export async function fetchScoreboard(
  */
 export async function fetchGameDetail(eventId: string): Promise<GameDetail> {
   const body = asRecord(await getJson(`${SITE}/summary?event=${encodeURIComponent(eventId)}`));
-  return { stats: readBoxScore(body), plays: readScoringPlays(body) };
+  return {
+    stats: readBoxScore(body),
+    plays: readScoringPlays(body),
+    teamTotals: readTeamTotals(body),
+  };
 }
 
 /**
@@ -240,6 +254,34 @@ function readBoxScore(body: Record<string, unknown>): PlayerStat[] {
         });
       }
     }
+  }
+
+  return out;
+}
+
+/**
+ * The team-total row, keyed by ESPN's own stat names ("totalYards",
+ * "netPassingYards", "rushingYards"…).
+ */
+function readTeamTotals(body: Record<string, unknown>): Record<string, Record<string, string>> {
+  const out: Record<string, Record<string, string>> = {};
+
+  for (const raw of asArray(asRecord(body.boxscore).teams)) {
+    const block = asRecord(raw);
+    const abbrev = asRecord(block.team).abbreviation;
+    if (typeof abbrev !== "string" || !abbrev) continue;
+
+    const totals: Record<string, string> = {};
+    for (const rawStat of asArray(block.statistics)) {
+      const stat = asRecord(rawStat);
+      const name = typeof stat.name === "string" ? stat.name : "";
+      const value = stat.displayValue;
+      if (name && (typeof value === "string" || typeof value === "number")) {
+        totals[name] = String(value);
+      }
+    }
+
+    out[abbrev] = totals;
   }
 
   return out;

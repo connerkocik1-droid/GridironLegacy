@@ -12,7 +12,7 @@
 -- has the early schema and no record of it; this file recognises that and
 -- writes the record down rather than failing on the tables already there.
 --
--- Built from 31 migrations:
+-- Built from 32 migrations:
 --   0001_schema.sql
 --   0002_trades.sql
 --   0003_draft.sql
@@ -44,6 +44,7 @@
 --   0029_next_season.sql
 --   0030_watchlist.sql
 --   0031_live_scoring.sql
+--   0032_stat_lines.sql
 
 begin;
 
@@ -7201,6 +7202,49 @@ begin
 
     insert into schema_migrations (name) values ('0031_live_scoring.sql');
     raise notice 'applied %', '0031_live_scoring.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0032_stat_lines.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0032_stat_lines.sql') then
+    raise notice 'skipping %, already applied', '0032_stat_lines.sql';
+  else
+    -- The numbers behind the number.
+    --
+    -- A score on its own is a thing to be argued about. "18.4" beside a name tells
+    -- a manager nothing about whether his receiver was quiet or whether the app
+    -- lost half a box score, and the only way to settle it is to go and look
+    -- somewhere else. The stat line is what makes the score legible.
+    --
+    -- Kept as structured JSON rather than as the sentence to be shown, because the
+    -- wording depends on the position and the position is better known where the
+    -- line is displayed than where it is written. The roster knows a man is a
+    -- tight end even when he never entered our draft pool and ESPN forgot to say;
+    -- the ingestion, looking only at a box score, does not always.
+    --
+    -- player_scores already carries a stat_line column holding a sentence written
+    -- without regard to position. It stays, and stays written, so that a row from
+    -- before this migration still shows something rather than a blank.
+
+    alter table player_scores
+      add column if not exists stats jsonb;
+
+    comment on column player_scores.stats is
+      'Structured stat line: completions, attempts, passYards, carries, targets, '
+      'receptions, recYards, touchdowns by kind, and for a unit sacks, takeaways, '
+      'fumblesRecovered, pointsAllowed, yardsAllowed, kickReturnTd, puntReturnTd. '
+      'Formatted for display by src/lib/scoring.ts formatStatLine(), which decides '
+      'the wording from the position. Null on rows written before 0032.';
+
+    insert into schema_migrations (name) values ('0032_stat_lines.sql');
+    raise notice 'applied %', '0032_stat_lines.sql';
   end if;
 end
 $__migration__$;

@@ -5,7 +5,7 @@ import {
   type SeasonType,
 } from "./espn";
 import { NameIndex, defenseTeamName, isDefense } from "./player-names";
-import { scoreGameDetail, type ScoringFormat } from "./scoring";
+import { scoreGameDetail, type ScoringFormat, type StatLine } from "./scoring";
 import type { serviceClient } from "./supabase";
 
 type Db = ReturnType<typeof serviceClient>;
@@ -64,7 +64,7 @@ export interface PulledWeek {
   games: Game[];
   state: WeekState;
   /** Every rostered player who scored, keyed by the league's own spelling. */
-  scores: Map<string, { points: number; statLine: string }>;
+  scores: Map<string, { points: number; statLine: string; line: StatLine }>;
   /** Games whose box score could not be read. */
   failed: string[];
   /** Points the summary proved happened but could not pin on a player. */
@@ -119,7 +119,7 @@ export async function pullWeek(
     if (abbrev) defenseByAbbrev.set(abbrev, name);
   }
 
-  const scores = new Map<string, { points: number; statLine: string }>();
+  const scores = new Map<string, { points: number; statLine: string; line: StatLine }>();
   const failed: string[] = [];
   const unattributed: string[] = [];
 
@@ -158,13 +158,21 @@ export async function pullWeek(
     );
 
     for (const player of scored.players) {
-      scores.set(player.name, { points: player.points, statLine: player.statLine });
+      scores.set(player.name, {
+        points: player.points,
+        statLine: player.statLine,
+        line: player.line,
+      });
     }
 
     for (const [abbrev, defense] of scored.defenses) {
       const name = defenseByAbbrev.get(abbrev);
       if (!name) continue;
-      scores.set(name, { points: defense.points, statLine: defense.statLine });
+      scores.set(name, {
+        points: defense.points,
+        statLine: defense.statLine,
+        line: defense.line,
+      });
     }
 
     unattributed.push(...scored.unattributed.map((note) => `${game.id}: ${note}`));
@@ -259,6 +267,7 @@ export async function refreshScores(
     player_name,
     points: score.points,
     stat_line: score.statLine,
+    stats: score.line,
     updated_at: pulled.fetchedAt,
   }));
 

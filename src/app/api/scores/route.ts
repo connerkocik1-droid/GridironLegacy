@@ -1,4 +1,6 @@
 import { freshenWeek } from "@/lib/live-refresh";
+import { player } from "@/lib/roster";
+import { formatStatLine } from "@/lib/scoring";
 import { isConfigured, serverClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +52,7 @@ export async function GET(req: Request) {
 
   const { data: scoreRows } = await db
     .from("player_scores")
-    .select("player_name, points, stat_line, updated_at")
+    .select("player_name, points, stat_line, stats, updated_at")
     .eq("league_id", me.league_id)
     .eq("week", week)
     .in(
@@ -66,10 +68,21 @@ export async function GET(req: Request) {
     weekPhase: state.phase,
     roster,
     scores: Object.fromEntries(
-      (scoreRows ?? []).map((r) => [
-        r.player_name,
-        { points: Number(r.points), statLine: r.stat_line ?? "", updatedAt: r.updated_at },
-      ]),
+      (scoreRows ?? []).map((r) => {
+        // The position decides the wording, and the roster is what knows it —
+        // a tight end reads as targets and catches, a back as carries.
+        const position = player(r.player_name)?.p ?? "";
+        const line = r.stats ? formatStatLine(r.stats, position) : "";
+
+        return [
+          r.player_name,
+          {
+            points: Number(r.points),
+            statLine: line || r.stat_line || "",
+            updatedAt: r.updated_at,
+          },
+        ];
+      }),
     ),
   });
 }

@@ -157,6 +157,47 @@ near(
   ) / 100,
 );
 
+console.log("\n--- the stat line beside the score ---");
+
+// The same function the lineup and the matchup use, so what is checked here
+// is what a manager will read there.
+eq(
+  "a quarterback: comp/att, yards, and only the touchdowns he threw",
+  by("Mahomes")!.statLine,
+  "25/38 · 300 pass yds · 1 pass TD · 1 INT",
+);
+ok(
+  "with no rushing line, because he did not run",
+  !by("Mahomes")!.statLine.includes("rush"),
+);
+
+eq(
+  "a dual-threat quarterback shows both",
+  by("Josh Allen")!.statLine,
+  "22/35 · 250 pass yds · 40 rush yds · 1 pass TD · 1 rush TD · 2 INT",
+);
+
+eq(
+  "a back: carries, both kinds of yards, and the fumble he lost",
+  by("Cook")!.statLine,
+  "18 car · 100 rush yds · 20 rec yds · 1 rec TD · 1 fum lost",
+);
+
+eq(
+  "a tight end: targets, catches, yards, score",
+  by("Kelce")!.statLine,
+  "9 tgt · 7 rec · 90 rec yds · 1 rec TD",
+);
+
+eq("a kicker: made over attempted", by("Butker")!.statLine, "3/4 FG · 1/1 XP");
+
+// Yards allowed comes from ESPN's team-total row, which is the only place the
+// figure exists — no per-player line adds up to it.
+const kc = by("Kansas City")!;
+ok("a defence names what it gave up", /yds allowed/.test(kc.statLine));
+eq("read from the team totals", kc.line.yardsAllowed, 388);
+ok("and the sacks, recoveries and takeaways", /3 sack · 1 FR · 2 INT/.test(kc.statLine));
+
 console.log("\n--- what it shows its working with ---");
 
 const mahomes = by("Mahomes")!;

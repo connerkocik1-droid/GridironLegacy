@@ -200,10 +200,19 @@ const returnTds = readReturnTouchdowns([
   { name: "Marvin Mims Jr.", team: "DEN", group: "kickReturns", stats: { TD: "1" } },
   { name: "Somebody", team: "DEN", group: "receiving", stats: { TD: "2" } },
 ]);
-eq("both returns count, the receiving score does not", returnTds.get("DEN"), 2);
+// Kept apart, because a stat line that calls a punt return a kickoff is wrong
+// in the way that stops somebody trusting the rest of it.
+eq("the kickoff return counts", returnTds.kick.get("DEN"), 1);
+eq("and the punt return separately", returnTds.punt.get("DEN"), 1);
+eq("the receiving touchdown is not a return", returnTds.kick.get("KC"), undefined);
 
-const withReturns = scoreDefense([], "DEN", 0, { returnTouchdowns: 1 });
+const withReturns = scoreDefense([], "DEN", 0, { kickReturnTouchdowns: 1 });
 near("a return touchdown scores for the unit", withReturns.points, 16);
+near(
+  "and a punt return is worth exactly the same",
+  scoreDefense([], "DEN", 0, { puntReturnTouchdowns: 1 }).points,
+  16,
+);
 
 // ---------------------------------------------------------------------------
 

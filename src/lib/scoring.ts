@@ -243,6 +243,8 @@ export interface DefenseScore {
   statLine: string;
   /** The arithmetic, line by line, so a unit's score can be checked too. */
   terms: ScoreTerm[];
+  /** The unit's afternoon, for the row it is shown in. */
+  line: StatLine;
 }
 
 /** What the summary can tell a defence that its own box-score lines cannot. */
@@ -258,8 +260,16 @@ export interface DefenseExtras {
   fumblesRecovered?: number;
   /** Safeties this defence scored, from the scoring summary. */
   safeties?: number;
-  /** Kick and punt returns taken back for a touchdown. */
-  returnTouchdowns?: number;
+  /** Kickoff returns taken back for a touchdown. */
+  kickReturnTouchdowns?: number;
+  /** Punt returns taken back for a touchdown. */
+  puntReturnTouchdowns?: number;
+  /**
+   * Total yards the opposing offence gained. Shown, not scored — this league
+   * bands a defence on points allowed — but it is the number that says whether
+   * a low score was a defensive performance or a quiet opponent.
+   */
+  yardsAllowed?: number;
 }
 
 /**
@@ -299,7 +309,10 @@ export function scoreDefense(
   // recovery of its own fumble but is the only figure available.
   const fumbleRecoveries = extras.fumblesRecovered ?? ownFumbleRecoveries;
   const safeties = extras.safeties ?? 0;
-  touchdowns += extras.returnTouchdowns ?? 0;
+  const kickReturnTd = extras.kickReturnTouchdowns ?? 0;
+  const puntReturnTd = extras.puntReturnTouchdowns ?? 0;
+  const defensiveTd = touchdowns;
+  touchdowns += kickReturnTd + puntReturnTd;
 
   const band = POINTS_ALLOWED.find(([max]) => pointsAllowed <= max);
   const allowedPoints = band ? band[1] : 0;
@@ -326,12 +339,25 @@ export function scoreDefense(
   const points = breakdown.reduce((sum, t) => sum + t.points, 0);
   const safetyNote = safeties ? ` · ${safeties} SFTY` : "";
 
+  const line: StatLine = {
+    sacks,
+    takeaways: interceptions,
+    fumblesRecovered: fumbleRecoveries,
+    pointsAllowed,
+    yardsAllowed: extras.yardsAllowed,
+    kickReturnTd,
+    puntReturnTd,
+    defTd: defensiveTd,
+    safeties,
+  };
+
   return {
     points: Math.round(points * 100) / 100,
     statLine:
       `${sacks} sacks · ${interceptions} INT · ${fumbleRecoveries} FR${safetyNote}` +
       ` · ${touchdowns} TD · ${pointsAllowed} allowed`,
     terms: breakdown,
+    line,
   };
 }
 
@@ -349,7 +375,14 @@ export interface ScoredPlayer {
   name: string;
   team: string;
   points: number;
+  /**
+   * A readable line, written without knowing the position. Kept as a fallback
+   * for anything holding a score from before `line` existed; where the
+   * position is known, format `line` instead.
+   */
   statLine: string;
+  /** The numbers themselves, for a caller that knows what position he plays. */
+  line: StatLine;
 }
 
 /** Everything read out of one game, ready to be written or shown. */
@@ -389,6 +422,9 @@ export function scoreGame(
         : new NameIndex(rostered);
 
   const byPlayer = new Map<string, ScoredPlayer>();
+  // The raw groups behind each row, so the stat line is read from all of them
+  // at once rather than assembled a fragment at a time.
+  const groupsOf = new Map<string, PlayerStat[]>();
 
   for (const stat of stats) {
     // The league's spelling wins, so every table stays keyed by one name.
@@ -396,15 +432,23 @@ export function scoreGame(
     if (!name) continue;
 
     const points = scoreGroup(stat, format, extras?.fieldGoals?.get(stat.name));
-    const line = summarize(stat);
+    const summary = summarize(stat);
     const existing = byPlayer.get(name);
+
+    groupsOf.set(name, [...(groupsOf.get(name) ?? []), stat]);
 
     if (existing) {
       existing.points += points;
-      if (line) existing.statLine = existing.statLine ? `${existing.statLine} · ${line}` : line;
+      if (summary) {
+        existing.statLine = existing.statLine ? `${existing.statLine} · ${summary}` : summary;
+      }
     } else {
-      byPlayer.set(name, { name, team: stat.team, points, statLine: line });
+      byPlayer.set(name, { name, team: stat.team, points, statLine: summary, line: {} });
     }
+  }
+
+  for (const [name, row] of byPlayer) {
+    row.line = readStatLine(groupsOf.get(name) ?? []);
   }
 
   // Conversions land on players who already have a line from the box score;
@@ -448,6 +492,209 @@ function summarize(stat: PlayerStat): string {
     default:
       return "";
   }
+}
+
+
+// ---------------------------------------------------------------------------
+// The stat line
+//
+// What a manager wants beside the number, which is not the same thing as what
+// the number was made of. A quarterback's line and a receiver's line share
+// almost no columns, and a zero is worth showing in some of them and worth
+// hiding in the rest — "0 rush TD" beside every quarterback in the league is
+// noise that makes the ones who did run for a score harder to spot.
+// ---------------------------------------------------------------------------
+
+/**
+ * A player's afternoon, in numbers, kept structured rather than as a
+ * pre-written sentence.
+ *
+ * Structured because the position decides the wording, and the position is
+ * better known where the line is *shown* — the roster knows a man is a tight
+ * end even when he never entered our draft pool and ESPN forgot to say.
+ */
+export interface StatLine {
+  // Passing
+  completions?: number;
+  attempts?: number;
+  passYards?: number;
+  passTd?: number;
+  intsThrown?: number;
+
+  // Rushing
+  carries?: number;
+  rushYards?: number;
+  rushTd?: number;
+
+  // Receiving
+  targets?: number;
+  receptions?: number;
+  recYards?: number;
+  recTd?: number;
+
+  fumblesLost?: number;
+
+  // Kicking
+  fgMade?: number;
+  fgAttempted?: number;
+  xpMade?: number;
+  xpAttempted?: number;
+
+  // A unit rather than a man
+  sacks?: number;
+  takeaways?: number;
+  fumblesRecovered?: number;
+  pointsAllowed?: number;
+  yardsAllowed?: number;
+  kickReturnTd?: number;
+  puntReturnTd?: number;
+  defTd?: number;
+  safeties?: number;
+}
+
+/** Everything a player did, gathered off whichever groups he appeared in. */
+export function readStatLine(stats: PlayerStat[]): StatLine {
+  const line: StatLine = {};
+
+  for (const stat of stats) {
+    const s = stat.stats;
+
+    switch (stat.group) {
+      case "passing": {
+        const [comp, att] = made(s["C/ATT"]);
+        line.completions = (line.completions ?? 0) + comp;
+        line.attempts = (line.attempts ?? 0) + att;
+        line.passYards = (line.passYards ?? 0) + num(s.YDS);
+        line.passTd = (line.passTd ?? 0) + num(s.TD);
+        line.intsThrown = (line.intsThrown ?? 0) + num(s.INT);
+        break;
+      }
+      case "rushing":
+        line.carries = (line.carries ?? 0) + num(s.CAR);
+        line.rushYards = (line.rushYards ?? 0) + num(s.YDS);
+        line.rushTd = (line.rushTd ?? 0) + num(s.TD);
+        break;
+      case "receiving":
+        // ESPN labels targets TGTS on some responses and TAR on others, and
+        // omits the column altogether on a few. Receptions are the floor: a
+        // man cannot have been thrown at fewer times than he caught.
+        line.receptions = (line.receptions ?? 0) + num(s.REC);
+        line.targets =
+          (line.targets ?? 0) + Math.max(num(s.TGTS) || num(s.TAR), num(s.REC));
+        line.recYards = (line.recYards ?? 0) + num(s.YDS);
+        line.recTd = (line.recTd ?? 0) + num(s.TD);
+        break;
+      case "fumbles":
+        line.fumblesLost = (line.fumblesLost ?? 0) + num(s.LOST);
+        break;
+      case "kicking": {
+        const [fgMade, fgAtt] = made(s.FG);
+        const [xpMade, xpAtt] = made(s.XP);
+        line.fgMade = (line.fgMade ?? 0) + fgMade;
+        line.fgAttempted = (line.fgAttempted ?? 0) + fgAtt;
+        line.xpMade = (line.xpMade ?? 0) + xpMade;
+        line.xpAttempted = (line.xpAttempted ?? 0) + xpAtt;
+        break;
+      }
+    }
+  }
+
+  return line;
+}
+
+/** A number, without a trailing ".0" on the half-sacks that do not need one. */
+function tidy(n: number): string {
+  return Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10);
+}
+
+/**
+ * The line as it is shown beside a score, in the vocabulary of the position.
+ *
+ * Two rules, applied throughout. What the position is *for* always shows, even
+ * at nought — a running back who was given the ball twice and went nowhere
+ * should say so, and a blank looks like missing data rather than a bad
+ * afternoon. Everything else, touchdowns included, shows only when it happened.
+ */
+export function formatStatLine(line: StatLine | null | undefined, position: string): string {
+  if (!line || Object.keys(line).length === 0) return "";
+
+  const parts: string[] = [];
+
+  /**
+   * `always` means the column belongs to this position and is shown even at
+   * nought — including when the group is missing from the box score entirely,
+   * which is how a back who never ran a route is reported. That absence is
+   * itself the fact worth showing: nought receiving yards is a bad afternoon,
+   * and a gap where the number should be looks like a bug.
+   */
+  const push = (value: number | undefined, render: (n: number) => string, always = false) => {
+    if (value == null && !always) return;
+    const n = value ?? 0;
+    if (!always && n === 0) return;
+    parts.push(render(n));
+  };
+
+  switch (position) {
+    case "QB":
+      if (line.attempts != null) parts.push(`${line.completions ?? 0}/${line.attempts}`);
+      push(line.passYards, (n) => `${n} pass yds`, true);
+      push(line.rushYards, (n) => `${n} rush yds`);
+      push(line.passTd, (n) => `${n} pass TD`);
+      push(line.rushTd, (n) => `${n} rush TD`);
+      break;
+
+    case "RB":
+      push(line.carries, (n) => `${n} car`, true);
+      push(line.rushYards, (n) => `${n} rush yds`, true);
+      push(line.recYards, (n) => `${n} rec yds`, true);
+      push(line.rushTd, (n) => `${n} rush TD`);
+      push(line.recTd, (n) => `${n} rec TD`);
+      break;
+
+    case "WR":
+    case "TE":
+      push(line.targets, (n) => `${n} tgt`, true);
+      push(line.receptions, (n) => `${n} rec`, true);
+      push(line.recYards, (n) => `${n} rec yds`, true);
+      push(line.recTd, (n) => `${n} rec TD`);
+      break;
+
+    case "K":
+      if (line.fgAttempted != null) parts.push(`${line.fgMade ?? 0}/${line.fgAttempted} FG`);
+      if (line.xpAttempted != null) parts.push(`${line.xpMade ?? 0}/${line.xpAttempted} XP`);
+      break;
+
+    case "D/ST":
+      push(line.sacks, (n) => `${tidy(n)} sack`, true);
+      push(line.fumblesRecovered, (n) => `${n} FR`, true);
+      push(line.takeaways, (n) => `${n} INT`, true);
+      push(line.yardsAllowed, (n) => `${n} yds allowed`, true);
+      push(line.kickReturnTd, (n) => `${n} KORTD`);
+      push(line.puntReturnTd, (n) => `${n} PRTD`);
+      break;
+
+    default: {
+      // An unknown position still deserves a line rather than a blank, so it
+      // gets whatever he actually did.
+      push(line.passYards, (n) => `${n} pass yds`);
+      push(line.carries, (n) => `${n} car`);
+      push(line.rushYards, (n) => `${n} rush yds`);
+      push(line.receptions, (n) => `${n} rec`);
+      push(line.recYards, (n) => `${n} rec yds`);
+      push(line.passTd, (n) => `${n} pass TD`);
+      push(line.rushTd, (n) => `${n} rush TD`);
+      push(line.recTd, (n) => `${n} rec TD`);
+    }
+  }
+
+  // Turnovers are worth saying whoever he is, because they are the only lines
+  // that took points off him.
+  if (position !== "D/ST") {
+    push(line.fumblesLost, (n) => `${n} fum lost`);
+    push(line.intsThrown, (n) => `${n} INT`);
+  }
+
+  return parts.join(" · ");
 }
 
 // ---------------------------------------------------------------------------
@@ -549,18 +796,35 @@ export function readTwoPointConversions(plays: ScoringPlay[]): TwoPointRead {
   return { scorers, unattributed };
 }
 
-/** Kick and punt returns taken to the house, by the returning team. */
-export function readReturnTouchdowns(stats: PlayerStat[]): Map<string, number> {
-  const out = new Map<string, number>();
+export interface ReturnTouchdowns {
+  /** Kickoff returns taken back, by team. */
+  kick: Map<string, number>;
+  /** Punt returns taken back, by team. */
+  punt: Map<string, number>;
+}
+
+/**
+ * Returns taken to the house, kept apart by kind.
+ *
+ * They score the same — six to the unit either way — but a stat line that says
+ * KORTD when it was a punt is wrong in the way that makes somebody stop
+ * trusting the rest of it.
+ */
+export function readReturnTouchdowns(stats: PlayerStat[]): ReturnTouchdowns {
+  const kick = new Map<string, number>();
+  const punt = new Map<string, number>();
 
   for (const stat of stats) {
-    if (stat.group !== "kickReturns" && stat.group !== "puntReturns") continue;
+    const into =
+      stat.group === "kickReturns" ? kick : stat.group === "puntReturns" ? punt : null;
+    if (!into) continue;
+
     const tds = num(stat.stats.TD);
     if (!tds) continue;
-    out.set(stat.team, (out.get(stat.team) ?? 0) + tds);
+    into.set(stat.team, (into.get(stat.team) ?? 0) + tds);
   }
 
-  return out;
+  return { kick, punt };
 }
 
 /** Fumbles each side lost, which is what the other side's defence recovered. */
@@ -575,6 +839,15 @@ export function readFumblesLost(stats: PlayerStat[]): Map<string, number> {
   }
 
   return out;
+}
+
+/** ESPN's team-total row, reduced to the one number a defence is judged on. */
+function totalYards(totals: Record<string, string> | undefined): number | undefined {
+  if (!totals) return undefined;
+  const raw = totals.totalYards;
+  if (raw == null) return undefined;
+  const yards = Number(String(raw).replace(/[^\d.-]/g, ""));
+  return Number.isFinite(yards) ? yards : undefined;
 }
 
 /** One side of a game, as far as scoring a defence is concerned. */
@@ -600,7 +873,7 @@ export function scoreGameDetail(
   const fieldGoals = readFieldGoals(detail.plays);
   const conversions = readTwoPointConversions(detail.plays);
   const safeties = readSafeties(detail.plays);
-  const returnTds = readReturnTouchdowns(detail.stats);
+  const returns = readReturnTouchdowns(detail.stats);
   const fumblesLost = readFumblesLost(detail.stats);
 
   const players = scoreGame(detail.stats, format, rostered, {
@@ -619,7 +892,10 @@ export function scoreGameDetail(
       scoreDefense(detail.stats, side.abbrev, other.score, {
         fumblesRecovered: fumblesLost.get(other.abbrev) ?? 0,
         safeties: safeties.get(side.abbrev) ?? 0,
-        returnTouchdowns: returnTds.get(side.abbrev) ?? 0,
+        kickReturnTouchdowns: returns.kick.get(side.abbrev) ?? 0,
+        puntReturnTouchdowns: returns.punt.get(side.abbrev) ?? 0,
+        // What the other side gained, which is what this defence gave up.
+        yardsAllowed: totalYards(detail.teamTotals[other.abbrev]),
       }),
     );
   }

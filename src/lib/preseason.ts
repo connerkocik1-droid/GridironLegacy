@@ -3,6 +3,8 @@ import { normalizeName } from "./player-names";
 import { player as pooledPlayer } from "./roster";
 import {
   explainGroup,
+  formatStatLine,
+  readStatLine,
   readFieldGoals,
   readReturnTouchdowns,
   readSafeties,
@@ -10,6 +12,7 @@ import {
   scoreDefense,
   type ScoreTerm,
   type ScoringFormat,
+  type StatLine,
 } from "./scoring";
 import { slotsOf } from "@/data/league-sim";
 import type { LeagueShape } from "./roster";
@@ -55,7 +58,10 @@ export interface PreseasonPlayer {
    */
   workload: number;
   points: number;
+  /** The afternoon in words, in the vocabulary of the position. */
   statLine: string;
+  /** And the numbers behind it. */
+  line: StatLine;
   /** The arithmetic, line by line. */
   terms: ScoreTerm[];
   /** Exactly what ESPN published, group by group, with nothing dropped. */
@@ -233,7 +239,7 @@ export async function preseasonWeek(
       conversionsByKey.set(key, (conversionsByKey.get(key) ?? 0) + count);
     }
     const safeties = readSafeties(detail.plays);
-    const returnTds = readReturnTouchdowns(detail.stats);
+    const returns = readReturnTouchdowns(detail.stats);
 
     if (conversions.unattributed) {
       unattributed.push(
@@ -271,6 +277,7 @@ export async function preseasonWeek(
       if (!terms.length && workload === 0) continue;
 
       const { position, source } = positionOf(name, held);
+      const line = readStatLine(held);
 
       players.push({
         name,
@@ -279,7 +286,8 @@ export async function preseasonWeek(
         positionSource: source,
         workload,
         points: Math.round(terms.reduce((sum, t) => sum + t.points, 0) * 100) / 100,
-        statLine: terms.map((t) => t.stat).join(" · "),
+        statLine: formatStatLine(line, position),
+        line,
         terms,
         raw: held.map((s) => ({ group: s.group, stats: s.stats })),
         gameId: game.id,
@@ -300,7 +308,11 @@ export async function preseasonWeek(
       const unit = scoreDefense(detail.stats, side.abbrev, other.score, {
         fumblesRecovered: opponentLost,
         safeties: safeties.get(side.abbrev) ?? 0,
-        returnTouchdowns: returnTds.get(side.abbrev) ?? 0,
+        kickReturnTouchdowns: returns.kick.get(side.abbrev) ?? 0,
+        puntReturnTouchdowns: returns.punt.get(side.abbrev) ?? 0,
+        yardsAllowed: Number(
+          String(detail.teamTotals[other.abbrev]?.totalYards ?? "").replace(/[^\d.-]/g, ""),
+        ) || undefined,
       });
 
       players.push({
@@ -313,7 +325,8 @@ export async function preseasonWeek(
         // checked, not to be picked.
         workload: 0,
         points: unit.points,
-        statLine: unit.statLine,
+        statLine: formatStatLine(unit.line, "D/ST"),
+        line: unit.line,
         terms: unit.terms,
         raw: [],
         gameId: game.id,

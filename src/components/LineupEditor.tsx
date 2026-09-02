@@ -426,7 +426,20 @@ function PlayerRow({
           />
 
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            {/* Wraps, so the badges drop to their own line rather than
+                squeezing the name. On a phone a locked bye-week starter
+                carries three of them, which was cutting "Jayden Daniels"
+                down to "J.." — and a stat line nobody can attribute to a
+                player is worse than no stat line. */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                rowGap: 4,
+                flexWrap: "wrap",
+              }}
+            >
               <span
                 style={{
                   fontFamily: "var(--font-heading)",
@@ -481,14 +494,15 @@ function PlayerRow({
                 </span>
               ))}
             </div>
+            {/* The line a manager is actually here to read, so it wraps
+                rather than being cut off. */}
             <div
               style={{
                 fontSize: 11,
                 color: live ? "#9397ab" : "#75798c",
                 marginTop: 3,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
+                lineHeight: 1.45,
+                overflowWrap: "anywhere",
               }}
             >
               {live ? score.statLine : p ? statLine(p) : ""}

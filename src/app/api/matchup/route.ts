@@ -100,7 +100,7 @@ export async function GET(req: Request) {
 
   const { data: scoreRows } = await db
     .from("player_scores")
-    .select("player_name, points, stat_line")
+    .select("player_name, points, stat_line, stats")
     .eq("league_id", me.league_id)
     .eq("week", week)
     .in("player_name", [...mine, ...theirs].map((s) => s.player_name));
@@ -108,7 +108,7 @@ export async function GET(req: Request) {
   const scores = new Map<string, Score>(
     (scoreRows ?? []).map((r) => [
       r.player_name,
-      { points: Number(r.points), statLine: r.stat_line ?? "" },
+      { points: Number(r.points), statLine: r.stat_line ?? "", line: r.stats ?? undefined },
     ]),
   );
 
