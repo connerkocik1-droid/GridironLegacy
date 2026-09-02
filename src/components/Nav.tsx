@@ -3,10 +3,13 @@ import CommissionerOnly from "./CommissionerOnly";
 import Notices from "./Notices";
 import ProfileMenu from "./ProfileMenu";
 
-// Two doors and the draft room. Everything else is behind one of the two:
-// My Team is the lineup, the matchups, the watchlist, the trade builder; The
+// Two doors and the draft room, and that is the whole bar.
+//
+// My Team is the lineup, the matchups, the watchlist, the trade builder. The
 // League is the standings, the overview, the wire, the rankings, the free
-// agents. Listing all of them here is what made a nav bar with thirteen tabs.
+// agents. Mini-games are on the home page, in their own band. Nothing that
+// used to be a tab has gone anywhere — it is one press further in, and the
+// bar is legible on a phone for the first time.
 const PRIMARY = [
   { href: "/", label: "Home" },
   { href: "/my-team", label: "My Team" },
@@ -20,13 +23,6 @@ const PRIMARY = [
 const OFFICE = [
   { href: "/draft/rehearsal", label: "Rehearsal" },
   { href: "/commissioner", label: "Commissioner" },
-];
-
-// What is left over: the games on the side. Free Agents and League have gone
-// to The League hub, and Trade Builder to My Team, so this row is one link
-// rather than the overflow it had become.
-const SECONDARY = [
-  { href: "/minigames", label: "Mini-games" },
 ];
 
 const bar: React.CSSProperties = {
@@ -56,20 +52,6 @@ const primaryLink = (active: boolean): React.CSSProperties => ({
   letterSpacing: ".14em",
   textTransform: "uppercase",
   padding: "8px 12px",
-  whiteSpace: "nowrap",
-  flex: "0 0 auto",
-  textDecoration: "none",
-});
-
-const secondaryLink = (active: boolean): React.CSSProperties => ({
-  background: active ? "rgba(145,132,217,.2)" : undefined,
-  border: active ? "1px solid rgba(181,171,252,.45)" : undefined,
-  borderRadius: active ? "var(--radius-sm)" : undefined,
-  color: active ? "#e9e9ed" : "#75798c",
-  fontSize: 10,
-  letterSpacing: ".16em",
-  textTransform: "uppercase",
-  padding: "6px 11px",
   whiteSpace: "nowrap",
   flex: "0 0 auto",
   textDecoration: "none",
@@ -124,29 +106,6 @@ export default function Nav({ current, note }: { current: string; note?: string 
             </Link>
           ))}
         </CommissionerOnly>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          gap: 2,
-          marginLeft: 12,
-          paddingLeft: 12,
-          borderLeft: "1px solid rgba(145,132,217,.22)",
-          flexWrap: "wrap",
-          rowGap: 4,
-        }}
-      >
-        {SECONDARY.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="gl-navlink"
-            style={secondaryLink(item.href === current)}
-          >
-            {item.label}
-          </Link>
-        ))}
       </div>
 
       <div
