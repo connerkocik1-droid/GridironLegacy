@@ -54,6 +54,67 @@ export function routes(page) {
   }));
   page.route("**/api/logos", json({ logos: {} }));
 
+  // The commissioner's scoring check. Hostile on purpose in the way that page
+  // can actually be hostile: long names, a defence whose name is three words
+  // and a suffix, deep breakdowns, and raw ESPN columns that want to run off
+  // the side of a phone.
+  const term = (stat, rule, points) => ({ stat, rule, points });
+  const preseasonPlayer = (name, team, position, workload, points, terms, raw) => ({
+    name, team, position, positionSource: "espn", workload, points,
+    statLine: terms.map((t) => t.stat).join(" \u00b7 "),
+    terms, raw, gameId: "401671800",
+  });
+
+  const psPlayers = [
+    preseasonPlayer("Jacory Croskey-Merritt", "WSH", "QB", 43, 20, [
+      term("250 pass yds", "\u00f7 25", 10), term("1 pass TD", "\u00d7 4", 4),
+      term("2 interceptions", "\u00d7 -2", -4), term("40 rush yds", "\u00f7 10", 4),
+      term("1 rush TD", "\u00d7 6", 6),
+    ], [
+      { group: "passing", stats: { "C/ATT": "22/35", YDS: "250", AVG: "7.1", TD: "1", INT: "2" } },
+      { group: "rushing", stats: { CAR: "8", YDS: "40", AVG: "5.0", TD: "1", LONG: "12" } },
+    ]),
+    preseasonPlayer("Marquez Valdes-Scantling", "NO", "WR", 21, 17.5, [
+      term("100 rec yds", "\u00f7 10", 10), term("1 rec TD", "\u00d7 6", 6),
+      term("3 catches", "\u00d7 0.5", 1.5),
+    ], [
+      { group: "receiving", stats: { REC: "3", YDS: "100", AVG: "33.3", TD: "1", LONG: "62", TGTS: "5" } },
+    ]),
+    preseasonPlayer("Brandon Aubrey", "DAL", "K", 5, 13, [
+      term("54 yd FG", "50+", 5), term("52 yd FG", "50+", 5),
+      term("22 yd FG", "under 50", 3), term("1 missed FG", "\u00d7 -1", -1),
+      term("1 XP", "\u00d7 1", 1),
+    ], [{ group: "kicking", stats: { FG: "3/4", PCT: "75.0", LONG: "54", XP: "1/1", PTS: "10" } }]),
+    preseasonPlayer("Jacksonville Jaguars D/ST", "JAX", "D/ST", 0, 10, [
+      term("3 sacks", "\u00d7 1", 3), term("2 interceptions", "\u00d7 2", 4),
+      term("1 fumble recovered", "\u00d7 2", 2), term("15 allowed", "14-20", 1),
+    ], []),
+  ];
+
+  page.route("**/api/admin/preseason**", json({
+    week: 3, found: true, format: "half",
+    games: [{ id: "401671800", label: "BUF 15 @ KC 24", state: "post", detail: "Final" }],
+    players: psPlayers,
+    // Nobody appears twice, because the real lineup builder will not do that
+    // and a fixture that shows it teaches the audit to accept it.
+    lineup: [
+      { slot: "QB", player: psPlayers[0] },
+      { slot: "RB", player: null },
+      { slot: "RB", player: null },
+      { slot: "WR", player: psPlayers[1] },
+      { slot: "WR", player: null },
+      { slot: "TE", player: null },
+      { slot: "FLEX", player: null },
+      { slot: "FLEX", player: null },
+      { slot: "D/ST", player: psPlayers[3] },
+      { slot: "K", player: psPlayers[2] },
+    ],
+    total: 60.5,
+    failed: [], unattributed: [],
+    fetchedAt: new Date().toISOString(),
+  }));
+
+
   page.route("**/api/notices", (r) =>
     r.request().method() === "POST"
       ? r.fulfill({ json: { ok: true, read: 2 } })

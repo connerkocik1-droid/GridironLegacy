@@ -49,6 +49,7 @@ const PAGES = [
   ["/20-0", "twenty-zero"],
   ["/minigames", "minigames"],
   ["/commissioner", "commissioner"],
+  ["/commissioner/preseason", "preseason-check"],
 ];
 
 const WIDTHS = [320, 390];

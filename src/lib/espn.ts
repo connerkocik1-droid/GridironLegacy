@@ -44,6 +44,12 @@ export interface PlayerStat {
   group: string;
   /** Column label to value, read off the group's own `labels` array. */
   stats: Record<string, string>;
+  /**
+   * "QB", "TE" — when ESPN says. It often does not, and nothing that scores
+   * points depends on it: a tight end and a receiver are scored identically.
+   * It matters only for working out which slot a player could fill.
+   */
+  position?: string;
 }
 
 /**
@@ -223,7 +229,15 @@ function readBoxScore(body: Record<string, unknown>): PlayerStat[] {
           if (values[i] != null) stats[label] = values[i];
         });
 
-        out.push({ name, team: abbrev, group: groupName, stats });
+        const position = asRecord(athlete.position).abbreviation;
+
+        out.push({
+          name,
+          team: abbrev,
+          group: groupName,
+          stats,
+          position: typeof position === "string" && position ? position : undefined,
+        });
       }
     }
   }

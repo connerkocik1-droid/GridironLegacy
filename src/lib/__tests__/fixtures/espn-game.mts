@@ -32,7 +32,7 @@ const boxScore = {
           athletes: [
             // ESPN's own spelling carries the suffix; the pool's does not.
             {
-              athlete: { displayName: "Patrick Mahomes II" },
+              athlete: { displayName: "Patrick Mahomes II", position: { abbreviation: "QB" } },
               stats: ["25/38", "300", "7.9", "1", "1"],
             },
           ],
@@ -41,21 +41,30 @@ const boxScore = {
           name: "rushing",
           labels: ["CAR", "YDS", "AVG", "TD", "LONG"],
           athletes: [
-            { athlete: { displayName: "Isiah Pacheco" }, stats: ["15", "80", "5.3", "1", "18"] },
+            {
+              athlete: { displayName: "Isiah Pacheco", position: { abbreviation: "RB" } },
+              stats: ["15", "80", "5.3", "1", "18"],
+            },
           ],
         },
         {
           name: "receiving",
           labels: ["REC", "YDS", "AVG", "TD", "LONG", "TGTS"],
           athletes: [
-            { athlete: { displayName: "Travis Kelce" }, stats: ["7", "90", "12.9", "1", "24", "9"] },
+            {
+              athlete: { displayName: "Travis Kelce", position: { abbreviation: "TE" } },
+              stats: ["7", "90", "12.9", "1", "24", "9"],
+            },
           ],
         },
         {
           name: "kicking",
           labels: ["FG", "PCT", "LONG", "XP", "PTS"],
           athletes: [
-            { athlete: { displayName: "Harrison Butker" }, stats: ["3/4", "75.0", "54", "1/1", "10"] },
+            {
+              athlete: { displayName: "Harrison Butker", position: { abbreviation: "PK" } },
+              stats: ["3/4", "75.0", "54", "1/1", "10"],
+            },
           ],
         },
         {
@@ -109,7 +118,10 @@ const boxScore = {
           name: "receiving",
           labels: ["REC", "YDS", "AVG", "TD", "LONG", "TGTS"],
           athletes: [
-            { athlete: { displayName: "James Cook" }, stats: ["3", "20", "6.7", "1", "9", "3"] },
+            {
+              athlete: { displayName: "James Cook", position: { abbreviation: "RB" } },
+              stats: ["3", "20", "6.7", "1", "9", "3"],
+            },
           ],
         },
         {
@@ -267,6 +279,23 @@ export const SCOREBOARD = {
           ],
         },
       ],
+    },
+  ],
+};
+
+/**
+ * The same game, labelled as a preseason fixture.
+ *
+ * The commissioner's scoring check asks ESPN for seasontype 1, and the point
+ * of a separate board is to prove it gets one back rather than quietly being
+ * handed the regular season.
+ */
+export const PRESEASON_SCOREBOARD = {
+  events: [
+    {
+      ...SCOREBOARD.events[0],
+      season: { type: 1 },
+      week: { number: 3 },
     },
   ],
 };

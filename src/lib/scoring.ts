@@ -1,5 +1,5 @@
 import type { GameDetail, PlayerStat, ScoringPlay } from "./espn";
-import { NameIndex } from "./player-names";
+import { NameIndex, normalizeName } from "./player-names";
 
 export type ScoringFormat = "standard" | "half" | "ppr";
 
@@ -81,54 +81,139 @@ export function fieldGoalPoints(
 }
 
 /**
- * Fantasy points for one stat group. ESPN's labels are the column headers of
- * its own box score, so an unrecognised group scores zero rather than guessing.
+ * One line of arithmetic: a statistic, the rule applied to it, and what that
+ * came to.
+ *
+ * This exists so a score can be checked rather than believed. "18.4" tells a
+ * manager nothing about whether the app read the box score correctly;
+ * "90 rec yds ÷ 10 = 9.0" can be held up against ESPN's own page and settled
+ * in a second.
+ */
+export interface ScoreTerm {
+  /** What was counted: "300 pass yds". */
+  stat: string;
+  /** How it converts: "÷ 25", "× 4". */
+  rule: string;
+  points: number;
+}
+
+/** Drops the terms worth nothing, which are noise in a breakdown. */
+function terms(...list: ScoreTerm[]): ScoreTerm[] {
+  return list.filter((t) => t.points !== 0);
+}
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * Every rule that fired for one stat group, and what each was worth.
+ *
+ * This is the primitive: `scoreGroup` is its sum. Deliberately, so the
+ * breakdown shown on a page cannot drift away from the number written into
+ * the league — there is only one implementation to be wrong.
+ *
+ * ESPN's labels are the column headers of its own box score, so an
+ * unrecognised group scores nothing rather than guessing.
  *
  * `distances` is optional and only read for the kicking group.
  */
-export function scoreGroup(
+export function explainGroup(
   stat: PlayerStat,
   format: ScoringFormat,
   distances?: number[],
-): number {
+): ScoreTerm[] {
   const s = stat.stats;
 
   switch (stat.group) {
     case "passing":
-      return (
-        num(s.YDS) / RULES.passYardsPer +
-        num(s.TD) * RULES.passTd +
-        num(s.INT) * RULES.interception
+      return terms(
+        { stat: `${num(s.YDS)} pass yds`, rule: `÷ ${RULES.passYardsPer}`,
+          points: num(s.YDS) / RULES.passYardsPer },
+        { stat: plural(num(s.TD), "pass TD"), rule: `× ${RULES.passTd}`,
+          points: num(s.TD) * RULES.passTd },
+        { stat: plural(num(s.INT), "interception"), rule: `× ${RULES.interception}`,
+          points: num(s.INT) * RULES.interception },
       );
 
     case "rushing":
-      return num(s.YDS) / RULES.rushRecYardsPer + num(s.TD) * RULES.rushRecTd;
+      return terms(
+        { stat: `${num(s.YDS)} rush yds`, rule: `÷ ${RULES.rushRecYardsPer}`,
+          points: num(s.YDS) / RULES.rushRecYardsPer },
+        { stat: plural(num(s.TD), "rush TD"), rule: `× ${RULES.rushRecTd}`,
+          points: num(s.TD) * RULES.rushRecTd },
+      );
 
     case "receiving":
-      return (
-        num(s.YDS) / RULES.rushRecYardsPer +
-        num(s.TD) * RULES.rushRecTd +
-        num(s.REC) * PPR[format]
+      return terms(
+        { stat: `${num(s.YDS)} rec yds`, rule: `÷ ${RULES.rushRecYardsPer}`,
+          points: num(s.YDS) / RULES.rushRecYardsPer },
+        { stat: plural(num(s.TD), "rec TD"), rule: `× ${RULES.rushRecTd}`,
+          points: num(s.TD) * RULES.rushRecTd },
+        { stat: plural(num(s.REC), "catch", "catches"), rule: `× ${PPR[format]}`,
+          points: num(s.REC) * PPR[format] },
       );
 
     case "fumbles":
-      return num(s.LOST) * RULES.fumbleLost;
+      return terms({
+        stat: plural(num(s.LOST), "fumble lost"),
+        rule: `× ${RULES.fumbleLost}`,
+        points: num(s.LOST) * RULES.fumbleLost,
+      });
 
     case "kicking": {
       const [fgMade, fgAtt] = made(s.FG);
       const [xpMade, xpAtt] = made(s.XP);
-      return (
-        fieldGoalPoints(fgMade, fgAtt, distances ?? [], num(s.LONG)) +
-        xpMade * RULES.xp +
-        Math.max(0, xpAtt - xpMade) * RULES.xpMissed
+      const misses = Math.max(0, fgAtt - fgMade);
+      const kicks: ScoreTerm[] = [];
+
+      // Kick by kick when the summary accounted for all of them, which is the
+      // only way two fifty-yarders score as two.
+      if ((distances?.length ?? 0) === fgMade && fgMade > 0) {
+        for (const yards of distances!) {
+          kicks.push({
+            stat: `${yards} yd FG`,
+            rule: yards >= 50 ? "50+" : "under 50",
+            points: yards >= 50 ? RULES.fg50Plus : RULES.fgUnder50,
+          });
+        }
+      } else if (fgMade > 0) {
+        kicks.push({
+          stat: plural(fgMade, "FG"),
+          rule: `× ${RULES.fgUnder50}`,
+          points: fgMade * RULES.fgUnder50,
+        });
+        if (num(s.LONG) >= 50) {
+          kicks.push({
+            stat: `longest ${num(s.LONG)}`,
+            rule: "50+ bonus",
+            points: RULES.fg50Plus - RULES.fgUnder50,
+          });
+        }
+      }
+
+      return terms(
+        ...kicks,
+        { stat: plural(misses, "missed FG"), rule: `× ${RULES.fgMissed}`,
+          points: misses * RULES.fgMissed },
+        { stat: plural(xpMade, "XP"), rule: `× ${RULES.xp}`, points: xpMade * RULES.xp },
+        { stat: plural(Math.max(0, xpAtt - xpMade), "missed XP"), rule: `× ${RULES.xpMissed}`,
+          points: Math.max(0, xpAtt - xpMade) * RULES.xpMissed },
       );
     }
 
     default:
       // Return yardage included: a punt returned for a touchdown is the
       // defence's score, not the returner's, and it is counted there.
-      return 0;
+      return [];
   }
+}
+
+/** What one stat group was worth. The sum of its own explanation. */
+export function scoreGroup(
+  stat: PlayerStat,
+  format: ScoringFormat,
+  distances?: number[],
+): number {
+  return explainGroup(stat, format, distances).reduce((sum, t) => sum + t.points, 0);
 }
 
 /**
@@ -156,6 +241,8 @@ const DEFENSE_RULES = {
 export interface DefenseScore {
   points: number;
   statLine: string;
+  /** The arithmetic, line by line, so a unit's score can be checked too. */
+  terms: ScoreTerm[];
 }
 
 /** What the summary can tell a defence that its own box-score lines cannot. */
@@ -217,14 +304,26 @@ export function scoreDefense(
   const band = POINTS_ALLOWED.find(([max]) => pointsAllowed <= max);
   const allowedPoints = band ? band[1] : 0;
 
-  const points =
-    sacks * DEFENSE_RULES.sack +
-    interceptions * DEFENSE_RULES.interception +
-    fumbleRecoveries * DEFENSE_RULES.fumbleRecovery +
-    safeties * DEFENSE_RULES.safety +
-    touchdowns * DEFENSE_RULES.touchdown +
-    allowedPoints;
+  // The points-allowed band is always shown, even at zero, because it is the
+  // largest term in most defensive scores and its absence would read as an
+  // oversight rather than as a nil.
+  const breakdown: ScoreTerm[] = [
+    ...terms(
+      { stat: plural(sacks, "sack"), rule: `× ${DEFENSE_RULES.sack}`,
+        points: sacks * DEFENSE_RULES.sack },
+      { stat: plural(interceptions, "interception"), rule: `× ${DEFENSE_RULES.interception}`,
+        points: interceptions * DEFENSE_RULES.interception },
+      { stat: plural(fumbleRecoveries, "fumble recovered"), rule: `× ${DEFENSE_RULES.fumbleRecovery}`,
+        points: fumbleRecoveries * DEFENSE_RULES.fumbleRecovery },
+      { stat: plural(safeties, "safety", "safeties"), rule: `× ${DEFENSE_RULES.safety}`,
+        points: safeties * DEFENSE_RULES.safety },
+      { stat: plural(touchdowns, "TD"), rule: `× ${DEFENSE_RULES.touchdown}`,
+        points: touchdowns * DEFENSE_RULES.touchdown },
+    ),
+    { stat: `${pointsAllowed} allowed`, rule: bandLabel(pointsAllowed), points: allowedPoints },
+  ];
 
+  const points = breakdown.reduce((sum, t) => sum + t.points, 0);
   const safetyNote = safeties ? ` · ${safeties} SFTY` : "";
 
   return {
@@ -232,7 +331,18 @@ export function scoreDefense(
     statLine:
       `${sacks} sacks · ${interceptions} INT · ${fumbleRecoveries} FR${safetyNote}` +
       ` · ${touchdowns} TD · ${pointsAllowed} allowed`,
+    terms: breakdown,
   };
+}
+
+/** "14-20" — which band of points allowed a score fell into. */
+function bandLabel(pointsAllowed: number): string {
+  let low = 0;
+  for (const [max] of POINTS_ALLOWED) {
+    if (pointsAllowed <= max) return max === Infinity ? `${low}+` : low === max ? `${max}` : `${low}-${max}`;
+    low = max + 1;
+  }
+  return "";
 }
 
 export interface ScoredPlayer {
@@ -299,8 +409,16 @@ export function scoreGame(
 
   // Conversions land on players who already have a line from the box score;
   // a two-point conversion is always somebody's carry or catch.
+  //
+  // The name comes from the scoring summary and the row from the box score,
+  // and ESPN does not always spell them the same way, so with no roster index
+  // to go through the rows are matched on their own normalised keys instead.
+  const byKey = index
+    ? null
+    : new Map([...byPlayer.keys()].map((n) => [normalizeName(n), n]));
+
   for (const [espnName, count] of extras?.twoPointers ?? []) {
-    const name = index ? index.lookup(espnName) : espnName;
+    const name = index ? index.lookup(espnName) : byKey!.get(normalizeName(espnName));
     const row = name ? byPlayer.get(name) : undefined;
     if (!row) continue;
     row.points += count * RULES.twoPoint;

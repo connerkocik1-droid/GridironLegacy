@@ -423,6 +423,22 @@ export default function Commissioner() {
         {admin.league?.name ?? "League"}
       </h1>
 
+      <div style={{ marginBottom: 18 }}>
+        <a
+          href="/commissioner/preseason"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            minHeight: 34,
+            fontSize: 12,
+            color: "#b5abfc",
+            textDecoration: "none",
+          }}
+        >
+          Check the scoring against preseason box scores →
+        </a>
+      </div>
+
       {notice ? (
         <div style={{ fontSize: 12, color: "#7fd1a8", marginBottom: 14 }}>{notice}</div>
       ) : null}
