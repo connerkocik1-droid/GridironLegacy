@@ -16,7 +16,10 @@ interface Board {
   home: Side;
   away: Side;
   rows: MatchupRow[];
+  /** A game on the slate is in progress this second. */
   live: boolean;
+  /** Anything on the slate has kicked off, so these are results not guesses. */
+  started: boolean;
   managers: { id: string; slot: string; franchise: string }[];
 }
 
@@ -225,7 +228,7 @@ export default function MatchupBoard() {
             VS
           </div>
           <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#75798c" }}>
-            {board.live ? "LIVE" : "PROJECTED"}
+            {board.live ? "LIVE" : board.started ? "SCORED" : "PROJECTED"}
           </div>
         </div>
 

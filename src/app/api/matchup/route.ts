@@ -1,3 +1,4 @@
+import { freshenWeek } from "@/lib/live-refresh";
 import { pairLineups, totalOf, type Score } from "@/lib/matchup";
 import { isConfigured, serverClient } from "@/lib/supabase";
 
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
 
   const { data: league } = await db
     .from("leagues")
-    .select("settings")
+    .select("season, settings")
     .eq("id", me.league_id)
     .single();
 
@@ -39,6 +40,10 @@ export async function GET(req: Request) {
   }
 
   const oppParam = url.searchParams.get("opponent");
+
+  // Whether the week is being played, and a pull scheduled for after this
+  // response if what we hold has gone stale.
+  const state = await freshenWeek(db, me.league_id, league?.season, week);
 
   const { data: managers } = await db
     .from("managers")
@@ -120,7 +125,11 @@ export async function GET(req: Request) {
     home: { ...me, total: totalOf(rows, "home") },
     away: { ...opponent, total: totalOf(rows, "away") },
     rows,
-    live: scores.size > 0,
+    // A game in progress, rather than "we hold some numbers for this week" —
+    // which stayed true from the first kickoff until the next season.
+    live: state.live,
+    started: state.started,
+    weekPhase: state.phase,
     managers: roster,
   });
 }

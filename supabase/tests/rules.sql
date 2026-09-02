@@ -2683,3 +2683,125 @@ select signin(:'U1');
 select expect('somebody from another league cannot reach in and clear it',
   refuses(format('select claim_intro_video_cleanup(%L)', :'V')),
   'Not your league');
+
+-- ---------------------------------------------------------------------------
+-- Live scoring: the refresh throttle, and what "this week is over" means
+-- ---------------------------------------------------------------------------
+
+\o /dev/null
+\set L '99999999-0000-0000-0000-000000000023'
+\set M1 '99999999-0000-0000-0000-000000000024'
+\set M2 '99999999-0000-0000-0000-000000000025'
+
+insert into leagues (id, name, season, commissioner_slot, settings, draft_state, current_pick)
+values (:'L', 'Live Scoring', 2031, 'AA',
+        jsonb_build_object('rounds', 1, 'regularWeeks', 3, 'tradeDeadlineWeek', 0,
+                           'starters', jsonb_build_object('QB', 1)),
+        'complete', 1);
+
+insert into managers (id, league_id, slot, name, franchise)
+values (:'M1', :'L', 'AA', 'Ann', 'Anvils'),
+       (:'M2', :'L', 'BB', 'Ben', 'Bears');
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+values (:'L', :'M1', 'Ann QB', 'QB'),
+       (:'L', :'M2', 'Ben QB', 'QB');
+
+insert into player_scores (league_id, week, player_name, points)
+values (:'L', 1, 'Ann QB', 20), (:'L', 1, 'Ben QB', 10);
+
+insert into matchups (league_id, week, home_manager, away_manager)
+values (:'L', 1, :'M1', :'M2');
+\o
+
+-- The throttle. One yes per window, however many instances ask.
+
+select expect('the first look claims the refresh',
+  (select claim_score_refresh(:'L', 1, 60)), true);
+
+select expect('the second, a moment later, is turned away',
+  (select claim_score_refresh(:'L', 1, 60)), false);
+
+select expect('and so is the third',
+  (select claim_score_refresh(:'L', 1, 60)), false);
+
+\o /dev/null
+-- Wind the clock back to just past the window rather than waiting for it.
+update score_refresh set refreshed_at = now() - interval '61 seconds'
+ where league_id = :'L' and week = 1;
+\o
+
+select expect('once the window has passed, the next caller claims it',
+  (select claim_score_refresh(:'L', 1, 60)), true);
+
+select expect('a different week is throttled separately',
+  (select claim_score_refresh(:'L', 2, 60)), true);
+
+\o /dev/null
+update score_refresh set refreshed_at = now() - interval '5 seconds'
+ where league_id = :'L' and week = 1;
+\o
+
+-- A caller asking for a one-second window would be a way to use us to hammer
+-- ESPN. The floor is enforced in the database, not in the code that calls it.
+select expect('a window below the floor is raised to it',
+  (select claim_score_refresh(:'L', 1, 1)), false);
+
+-- Grading: a week is over when *this* league's season says so.
+
+\o /dev/null
+-- An earlier season's week 1, complete for ever. Other blocks in this file
+-- have left week-1 rows of their own in other seasons, some finished and some
+-- not, which is exactly the noise the season filter has to see through.
+insert into nfl_games (id, season, week, season_type, starts_at, home_team, away_team,
+                       home_score, away_score, state, completed)
+values ('old-1', 2030, 1, 2, now() - interval '1 year', 'KC', 'BUF', 24, 15, 'post', true);
+\o
+
+select expect('a week with no games of its own cannot be closed',
+  (select grade_week(:'L', 1) ->> 'final'), 'false');
+
+\o /dev/null
+-- This season's week 1, still being played.
+insert into nfl_games (id, season, week, season_type, starts_at, home_team, away_team,
+                       home_score, away_score, state, completed)
+values ('new-1', 2031, 1, 2, now(), 'KC', 'BUF', 7, 3, 'in', false);
+\o
+
+select expect('another season''s completed games do not close this one',
+  (select grade_week(:'L', 1) ->> 'final'), 'false');
+
+select expect('but the points are live while it is open',
+  (select home_points from matchups where league_id = :'L' and week = 1), 20::numeric);
+
+select expect('and no winner is declared yet',
+  (select winner from matchups where league_id = :'L' and week = 1), null);
+
+\o /dev/null
+-- A preseason fixture is not a fantasy week and must not hold one open.
+insert into nfl_games (id, season, week, season_type, starts_at, home_team, away_team,
+                       home_score, away_score, state, completed)
+values ('pre-1', 2031, 1, 1, now(), 'KC', 'BUF', 0, 0, 'pre', false);
+update nfl_games set state = 'post', completed = true where id = 'new-1';
+\o
+
+select expect('a preseason game does not hold the week open',
+  (select grade_week(:'L', 1) ->> 'final'), 'true');
+
+select expect('the winner is the one who scored more',
+  (select winner from matchups where league_id = :'L' and week = 1), :'M1');
+
+select expect('and the week is final',
+  (select final from matchups where league_id = :'L' and week = 1), true);
+
+-- A reset takes the throttle's memory with it, or next season's week one
+-- would sit behind a timestamp set by last season's.
+\o /dev/null
+select purge_league_season(:'L');
+\o
+
+select expect('a reset clears the refresh record',
+  (select count(*)::int from score_refresh where league_id = :'L'), 0);
+
+select expect('so the first look at the new season claims immediately',
+  (select claim_score_refresh(:'L', 1, 3600)), true);

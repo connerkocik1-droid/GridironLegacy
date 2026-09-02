@@ -1,10 +1,13 @@
+import { freshenWeek } from "@/lib/live-refresh";
 import { isConfigured, serverClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Live fantasy points for the signed-in manager's roster, as written by the
- * ESPN ingestion job. A player with no row has not played yet.
+ * Live fantasy points for the signed-in manager's roster.
+ *
+ * A player with no row has not played yet — which is not the same as having
+ * scored nothing, and the two must never be shown the same way.
  */
 export async function GET(req: Request) {
   if (!isConfigured()) {
@@ -30,6 +33,14 @@ export async function GET(req: Request) {
     return Response.json({ error: "week must be an integer" }, { status: 400 });
   }
 
+  const { data: league } = await db
+    .from("leagues")
+    .select("season")
+    .eq("id", me.league_id)
+    .single();
+
+  const state = await freshenWeek(db, me.league_id, league?.season, week);
+
   const { data: slots } = await db
     .from("roster_slots")
     .select("player_name, lineup_slot")
@@ -50,6 +61,9 @@ export async function GET(req: Request) {
   return Response.json({
     week,
     me,
+    live: state.live,
+    started: state.started,
+    weekPhase: state.phase,
     roster,
     scores: Object.fromEntries(
       (scoreRows ?? []).map((r) => [

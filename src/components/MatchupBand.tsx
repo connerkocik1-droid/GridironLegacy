@@ -114,11 +114,18 @@ export default function MatchupBand({ home }: { home: Home | null }) {
     );
   }
 
-  // `live` is the league's week rather than this game: scores exist once
-  // anybody has played, and a franchise whose players are all on Monday night
-  // is still in a week that has started.
-  const started = home.live || game.final;
-  const label = game.final ? "FINAL" : started ? "CURRENT MATCHUP" : "NEXT MATCHUP";
+  // `started` is about the slate, not this fixture: a franchise whose players
+  // are all on Monday night is still in a week that has begun, and showing it
+  // a dash rather than a zero would be the wrong kind of honest.
+  const started = home.started || game.final;
+
+  // Two ways to be finished. `game.final` is the league's — the week has been
+  // graded and the result is in a record. A slate where every game is over is
+  // the NFL's, and it comes first: between the last whistle and the small
+  // hours when grading runs, the score on this card cannot change, and calling
+  // it current would be telling a manager to keep watching.
+  const done = game.final || home.weekPhase === "final";
+  const label = done ? "FINAL" : started ? "CURRENT MATCHUP" : "NEXT MATCHUP";
 
   const homeScore = started ? game.home.total : null;
   const awayScore = started ? game.away.total : null;
@@ -139,7 +146,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
             style={{
               fontSize: 10,
               letterSpacing: ".22em",
-              color: game.final ? "#75798c" : started ? "#7fd1a8" : "#b5abfc",
+              color: done ? "#75798c" : started ? "#7fd1a8" : "#b5abfc",
             }}
           >
             {label}

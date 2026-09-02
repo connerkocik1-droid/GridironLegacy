@@ -48,7 +48,11 @@ export interface Home {
   week: number | null;
   games: HomeGame[];
   byes: { slot: string; franchise: string }[];
+  /** A game on this week's NFL slate is in progress right now. */
   live: boolean;
+  /** Anything on this week's slate has kicked off, so scores exist. */
+  started: boolean;
+  weekPhase: "upcoming" | "live" | "final";
   leaders: Leader[];
   leaderBasis: "scored" | "projected";
   power: PowerRow[];

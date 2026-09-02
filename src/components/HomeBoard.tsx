@@ -44,11 +44,24 @@ export default function HomeBoard() {
     // Sets state only once the request resolves, not synchronously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-    // The same minute the lineup and matchup panels use, so the three never
-    // drift into showing different points for the same player.
-    const timer = setInterval(() => void load(), 60_000);
-    return () => clearInterval(timer);
   }, [load]);
+
+  // How hard to chase the score, decided by whether there is a score to chase.
+  // Half a minute while the ball is in the air; five minutes in February, when
+  // asking more often would only wake the server up to tell it nothing has
+  // happened since 1997.
+  const phase = home?.weekPhase ?? "upcoming";
+  const every = phase === "live" ? 30_000 : phase === "final" ? 120_000 : 300_000;
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      // A phone left on this page overnight should not spend the night
+      // pulling box scores nobody is reading.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void load();
+    }, every);
+    return () => clearInterval(timer);
+  }, [load, every]);
 
   return (
     <div style={{ paddingBottom: 44 }}>
@@ -80,7 +93,7 @@ export default function HomeBoard() {
         collapseId="home.week"
         aside={
           home?.week != null
-            ? `Week ${home.week}${home.live ? " · live" : " · projected"}`
+            ? `Week ${home.week}${home.live ? " · live" : home.started ? " · scored" : " · projected"}`
             : undefined
         }
       >
@@ -89,7 +102,7 @@ export default function HomeBoard() {
         ) : !home ? (
           <div style={{ fontSize: 12.5, color: "#75798c" }}>Reading the league…</div>
         ) : (
-          <WeekScoreboard games={home.games} byes={home.byes} live={home.live} />
+          <WeekScoreboard games={home.games} byes={home.byes} live={home.started} />
         )}
       </Section>
 

@@ -1,4 +1,5 @@
 import { lineupProblems } from "@/lib/lineup";
+import { freshenWeek } from "@/lib/live-refresh";
 import { player, proj } from "@/lib/roster";
 import { setLineup, type Score } from "@/lib/matchup";
 import { rank, type Team } from "@/lib/power";
@@ -83,6 +84,15 @@ export async function GET() {
   );
 
   const settings = league?.settings ?? null;
+
+  // Whether this week's games are actually being played, which is a question
+  // about the NFL and not about us. The old answer — "do we hold any score
+  // rows for this week" — went true the moment the first game kicked off and
+  // stayed true through the following Saturday, so a Wednesday read as a live
+  // Sunday.
+  //
+  // Reading it also sets the next pull going, off the back of this response.
+  const state = await freshenWeek(db, me.league_id, league?.season, week);
 
   // What each franchise is putting on the field this week. A manager who has
   // never set a lineup is fielded at their best legal one, the same fallback
@@ -241,7 +251,12 @@ export async function GET() {
     week,
     games,
     byes,
-    live: thisWeek.size > 0,
+    // `live` is a game in progress this second; `started` is anything on the
+    // slate having kicked off. The matchup band needs both: one decides
+    // whether to show a score at all, the other whether to call it current.
+    live: state.live,
+    started: state.started,
+    weekPhase: state.phase,
     leaders,
     leaderBasis: basis,
     power,

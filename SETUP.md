@@ -171,6 +171,27 @@ Pro instead.
 
 You can run any job by hand from the Actions tab — useful for testing.
 
+### Live scores do not depend on any of this
+
+A page that shows a score also fetches one. Opening the home page, the lineup
+or the matchup checks how old this week's numbers are and, if they are more
+than about twenty seconds stale while a game is on, pulls the box scores again
+— after the response has gone out, so nobody waits on ESPN to see a page.
+
+The throttle for that lives in the database, not in the app, because each
+serverless instance has its own memory and cannot see the others. One pull per
+window is handed out no matter how many managers are refreshing at once, so
+twelve people watching the same Sunday cost the same as one.
+
+What that means in practice:
+
+- Scores move within roughly half a minute of a scoring play, on any day of
+  the week, whether or not the GitHub secrets above were ever set.
+- Nothing is fetched at all when nobody is looking, or between slates.
+- The scheduled jobs above still matter. They are what grades a week, moves
+  the playoffs on and keeps a league correct on a Tuesday when nobody has
+  opened the site — none of which should happen because somebody hit refresh.
+
 ---
 
 ## 7. Open the league

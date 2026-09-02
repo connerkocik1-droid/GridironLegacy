@@ -105,7 +105,8 @@ export function routes(page) {
   }));
 
   page.route("**/api/home", json({
-    meId: "m0", league: { name: "Gridiron Legacy", season: 2026 }, week: 3, live: true,
+    meId: "m0", league: { name: "Gridiron Legacy", season: 2026 }, week: 3,
+    live: true, started: true, weekPhase: "live",
     lineupProblems: 2,
     games: MANAGERS.filter((_, i) => i % 2 === 0).map((m, i) => ({
       final: i > 0, mine: i === 0,

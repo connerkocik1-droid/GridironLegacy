@@ -46,6 +46,44 @@ export interface PlayerStat {
   stats: Record<string, string>;
 }
 
+/**
+ * One play that put points on the board.
+ *
+ * The box score cannot see several things fantasy scoring needs. It gives
+ * field goals as "3/4" with a single LONG, so two fifty-yarders look like one.
+ * It has no column at all for a two-point conversion or a safety. Those live
+ * only in the scoring summary, as prose.
+ *
+ * So `text` is parsed — carefully, and never as the only source. Everything
+ * read out of it is a correction applied on top of a score the box score can
+ * already stand up on its own, so a change in ESPN's wording costs accuracy
+ * rather than correctness.
+ */
+export interface ScoringPlay {
+  /** ESPN's own abbreviation: TD, FG, SF, EP… */
+  type: string;
+  /** The abbreviation of the team that scored. */
+  team: string;
+  /** "Harrison Butker 54 Yd Field Goal" — free text, and treated as such. */
+  text: string;
+  /**
+   * What this play was worth to the team that scored it, measured by how far
+   * their running score moved rather than by what the play was called.
+   *
+   * This is the whole trick for extra points. ESPN folds the conversion into
+   * the touchdown's own text, so a touchdown is worth six, seven or eight and
+   * only the scoreboard says which. Eight means a two-point conversion was
+   * good; prose never has to be trusted for that.
+   */
+  value: number;
+}
+
+/** A game's box score and its scoring summary, from one request. */
+export interface GameDetail {
+  stats: PlayerStat[];
+  plays: ScoringPlay[];
+}
+
 async function getJson(url: string): Promise<unknown> {
   const res = await fetch(url, {
     headers: { accept: "application/json" },
@@ -137,12 +175,30 @@ export async function fetchScoreboard(
 }
 
 /**
- * Per-player statistics for one game. ESPN returns each stat group as a
- * `labels` array plus a parallel `stats` array per athlete, so the two are
- * zipped by name here rather than read by fixed position.
+ * A game's box score and scoring summary, from the one request that carries
+ * both. Everything fantasy scoring needs about a game comes from here.
+ */
+export async function fetchGameDetail(eventId: string): Promise<GameDetail> {
+  const body = asRecord(await getJson(`${SITE}/summary?event=${encodeURIComponent(eventId)}`));
+  return { stats: readBoxScore(body), plays: readScoringPlays(body) };
+}
+
+/**
+ * Per-player statistics for one game.
+ *
+ * Kept as its own entry point because the verification script and the tests
+ * ask for exactly this and nothing else.
  */
 export async function fetchGameStats(eventId: string): Promise<PlayerStat[]> {
-  const body = asRecord(await getJson(`${SITE}/summary?event=${encodeURIComponent(eventId)}`));
+  return (await fetchGameDetail(eventId)).stats;
+}
+
+/**
+ * ESPN returns each stat group as a `labels` array plus a parallel `stats`
+ * array per athlete, so the two are zipped by name here rather than read by
+ * fixed position.
+ */
+function readBoxScore(body: Record<string, unknown>): PlayerStat[] {
   const out: PlayerStat[] = [];
 
   for (const rawTeam of asArray(asRecord(body.boxscore).players)) {
@@ -173,4 +229,72 @@ export async function fetchGameStats(eventId: string): Promise<PlayerStat[]> {
   }
 
   return out;
+}
+
+/**
+ * The scoring summary: every play that changed the score, in ESPN's own words.
+ *
+ * `value` is read from ESPN rather than inferred from the type, because a
+ * touchdown play's value already folds in whatever followed it — seven with
+ * the extra point, eight with a two-point conversion, six when the kick was
+ * missed. That arithmetic is what makes the conversion recoverable at all.
+ */
+function readScoringPlays(body: Record<string, unknown>): ScoringPlay[] {
+  const out: ScoringPlay[] = [];
+
+  // The scoreboard after the previous scoring play, which is what makes the
+  // next one's value a subtraction.
+  let home = 0;
+  let away = 0;
+
+  const competitors = asArray(asRecord(asArray(asRecord(body.header).competitions)[0]).competitors);
+  const homeAbbrev = abbrevOfSide(competitors, "home");
+
+  for (const raw of asArray(body.scoringPlays)) {
+    const play = asRecord(raw);
+    const type = asRecord(play.type);
+    const team = asRecord(play.team);
+
+    const text = typeof play.text === "string" ? play.text : "";
+
+    const nextHome = Number(play.homeScore ?? home);
+    const nextAway = Number(play.awayScore ?? away);
+    const abbrev = typeof team.abbreviation === "string" ? team.abbreviation : "";
+
+    // Whichever side's total moved is the side that scored, so the value holds
+    // even when the play carries no usable team.
+    const homeDelta = nextHome - home;
+    const awayDelta = nextAway - away;
+    const scored = abbrev && homeAbbrev ? (abbrev === homeAbbrev ? homeDelta : awayDelta)
+      : Math.max(homeDelta, awayDelta);
+
+    home = Number.isFinite(nextHome) ? nextHome : home;
+    away = Number.isFinite(nextAway) ? nextAway : away;
+
+    if (!text) continue;
+
+    out.push({
+      type: typeof type.abbreviation === "string" ? type.abbreviation : "",
+      // The summary identifies the scoring team by id on some responses and by
+      // abbreviation on others; only the abbreviation is any use downstream.
+      team: abbrev,
+      text,
+      // Falls back to what ESPN called the play when the running score is
+      // missing or went backwards, which would otherwise read as a value of 0.
+      value: Number.isFinite(scored) && scored > 0 ? scored : Number(play.scoreValue ?? 0),
+    });
+  }
+
+  return out;
+}
+
+/** The abbreviation of the home or away competitor in a summary header. */
+function abbrevOfSide(competitors: unknown[], side: "home" | "away"): string {
+  for (const raw of competitors) {
+    const c = asRecord(raw);
+    if (c.homeAway !== side) continue;
+    const team = asRecord(c.team);
+    if (typeof team.abbreviation === "string") return team.abbreviation;
+  }
+  return "";
 }
