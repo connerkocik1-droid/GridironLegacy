@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { headshot, logo } from "@/data/league-data";
 import { player } from "@/lib/roster";
+import LeagueOverview from "./LeagueOverview";
+import type { Home } from "@/lib/home-types";
 
 const BLANK =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -29,6 +31,7 @@ interface Feed {
 
 export default function LeagueBoard() {
   const [feed, setFeed] = useState<Feed | null>(null);
+  const [home, setHome] = useState<Home | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
 
@@ -53,6 +56,16 @@ export default function LeagueBoard() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+
+  useEffect(() => {
+    // The leaders and the power rankings, which moved here off the home page.
+    // Fetched separately because the franchise list below does not need it and
+    // should not wait for it — if this never arrives the page is still a page.
+    void fetch("/api/home", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setHome)
+      .catch(() => {});
+  }, []);
 
   if (error && !feed) {
     return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
@@ -95,6 +108,29 @@ export default function LeagueBoard() {
             ? `Ordered by points across ${feed.weeksScored} scored ${feed.weeksScored === 1 ? "week" : "weeks"}. No week has finished yet, so there are no records to stand on.`
             : "Nothing has been played yet. Once the schedule is built and games are graded, this becomes the standings."}
       </p>
+
+      {/* Who is scoring and who is any good, above the franchise-by-franchise
+          list — it is the summary the list below is the detail of. */}
+      {home ? (
+        <div style={{ marginBottom: 26 }}>
+          <div
+            style={{
+              fontSize: 10,
+              letterSpacing: ".28em",
+              color: "#75798c",
+              marginBottom: 12,
+            }}
+          >
+            WHERE YOU STAND
+            {home.played ? "" : " · NOTHING GRADED YET, RANKED ON POINTS ALONE"}
+          </div>
+          <LeagueOverview home={home} />
+        </div>
+      ) : null}
+
+      <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c", marginBottom: 12 }}>
+        EVERY FRANCHISE
+      </div>
 
       <div
         style={{

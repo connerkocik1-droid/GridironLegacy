@@ -34,6 +34,7 @@ const PAGES = [
   ["/", "home"],
   ["/activity", "activity"],
   ["/my-team", "my-team"],
+  ["/the-league", "the-league"],
   ["/my-team/edit", "edit-team"],
   ["/watchlist", "watchlist"],
   ["/lineup", "lineup"],

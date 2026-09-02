@@ -2,12 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import ActivityFeed from "./ActivityFeed";
-import HomeButtons from "./HomeButtons";
-import LeagueOverview from "./LeagueOverview";
 import MatchupBand from "./MatchupBand";
 import MiniGamesStrip from "./MiniGamesStrip";
 import MyTeamButton from "./MyTeamButton";
-import NewsBand from "./NewsBand";
+import TheLeagueButton from "./TheLeagueButton";
 import ScoreTicker from "./ScoreTicker";
 import Section from "./Section";
 import WeekScoreboard from "./WeekScoreboard";
@@ -77,21 +75,11 @@ export default function HomeBoard() {
         <MatchupBand home={home} />
       </Section>
 
-      {/* Directly under the score, because everything a manager does about
-          that score — the lineup that produced it, the trade that might fix
-          it — is on the other side of this one button. */}
+      {/* Two doors, directly under the score, because the score is what
+          raises every question either of them answers. Yours first: on a
+          Sunday what a manager wants is almost always their own. */}
       <MyTeamButton lineupProblems={home?.lineupProblems ?? 0} />
-
-      {/* Then the wire, because it is the thing that changed since you last
-          looked. Where to go is always in the same place; who got hurt on
-          Wednesday is not. */}
-      <Section eyebrow="THE WIRE" title="News" collapseId="home.news">
-        <NewsBand />
-      </Section>
-
-      <Section eyebrow="THE LEAGUE" title="Where to" collapseId="home.where">
-        <HomeButtons />
-      </Section>
+      <TheLeagueButton />
 
       <Section
         eyebrow="RIGHT NOW"
@@ -112,28 +100,14 @@ export default function HomeBoard() {
         )}
       </Section>
 
-      {/* Between the week and the standings, because it is the answer to the
-          question the standings make you ask: how did that roster get like
-          that. Five rows here; the rest is a page. */}
+      {/* The last thing that changed, which is the other reason to open a
+          home page at all. Five rows here; the rest is a page. */}
       <Section eyebrow="COMINGS AND GOINGS" title="Recent moves" collapseId="home.moves">
         <ActivityFeed limit={5} />
       </Section>
 
       <Section eyebrow="ON THE SIDE" title="Mini-games" collapseId="home.games">
         <MiniGamesStrip />
-      </Section>
-
-      <Section
-        eyebrow="WHERE YOU STAND"
-        title="League overview"
-        collapseId="home.standing"
-        aside={home?.played ? undefined : "Nothing graded yet — ranked on points alone."}
-      >
-        {home ? (
-          <LeagueOverview home={home} />
-        ) : (
-          <div style={{ fontSize: 12.5, color: "#75798c" }}>Reading the league…</div>
-        )}
       </Section>
     </div>
   );

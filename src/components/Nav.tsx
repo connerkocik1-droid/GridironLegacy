@@ -3,13 +3,14 @@ import CommissionerOnly from "./CommissionerOnly";
 import Notices from "./Notices";
 import ProfileMenu from "./ProfileMenu";
 
-// Standings, Rankings and News are not here on purpose: the home page is the
-// way to all of them, and listing them twice made a nav bar with thirteen tabs
-// in it. My Team is the way to everything about one franchise — the lineup,
-// the matchups, the watchlist, the trade builder.
+// Two doors and the draft room. Everything else is behind one of the two:
+// My Team is the lineup, the matchups, the watchlist, the trade builder; The
+// League is the standings, the overview, the wire, the rankings, the free
+// agents. Listing all of them here is what made a nav bar with thirteen tabs.
 const PRIMARY = [
   { href: "/", label: "Home" },
   { href: "/my-team", label: "My Team" },
+  { href: "/the-league", label: "The League" },
   { href: "/draft", label: "Draft" },
 ];
 
@@ -21,12 +22,10 @@ const OFFICE = [
   { href: "/commissioner", label: "Commissioner" },
 ];
 
-// Where a manager goes to change their roster, plus the reading matter.
-// Trade Builder is not here any more: it belongs to one franchise rather than
-// to the league, so it sits with the rest of them behind My Team.
+// What is left over: the games on the side. Free Agents and League have gone
+// to The League hub, and Trade Builder to My Team, so this row is one link
+// rather than the overflow it had become.
 const SECONDARY = [
-  { href: "/free-agents", label: "Free Agents" },
-  { href: "/league", label: "League" },
   { href: "/minigames", label: "Mini-games" },
 ];
 
