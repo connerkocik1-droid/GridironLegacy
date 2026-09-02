@@ -65,7 +65,10 @@ function pointsFor(name: string, scores: Map<string, Score>): number {
 function entryFor(name: string, scores: Map<string, Score>): SideEntry {
   const p = player(name);
   const score = scores.get(name);
-  const position = p?.p ?? "";
+  // The roster is authoritative for anybody it knows. For anybody it does
+  // not — a pickup from outside the pool — ESPN's own team sheet answers,
+  // which is better than formatting his line by guesswork.
+  const position = p?.p ?? score?.line?.position ?? "";
 
   // Written here rather than at ingestion because this is where the position
   // is known for certain: the roster says a man is a tight end even when he

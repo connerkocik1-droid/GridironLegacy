@@ -230,7 +230,37 @@ const scoringPlays = [
   },
 ];
 
+/**
+ * The team sheets.
+ *
+ * ESPN's box score names a position only sometimes; this block always does,
+ * which is what stops a receiver being guessed at from the columns he happens
+ * to appear in. Josh Allen and Tyler Bass are deliberately left without one in
+ * the box score above, so anything that gets their position right can only
+ * have got it from here.
+ */
+const rosters = [
+  {
+    team: { abbreviation: "BUF" },
+    roster: [
+      { athlete: { id: "3918298", displayName: "Josh Allen" }, position: { abbreviation: "QB" } },
+      { athlete: { id: "4362238", displayName: "Tyler Bass" }, position: { abbreviation: "PK" } },
+      { athlete: { id: "4241474", displayName: "James Cook" }, position: { abbreviation: "RB" } },
+    ],
+  },
+  {
+    team: { abbreviation: "KC" },
+    roster: [
+      // Position on the athlete rather than the entry, which is the other
+      // shape ESPN returns.
+      { athlete: { id: "3139477", displayName: "Patrick Mahomes II", position: { abbreviation: "QB" } } },
+      { athlete: { id: "15847", displayName: "Travis Kelce" }, position: { abbreviation: "TE" } },
+    ],
+  },
+];
+
 export const SUMMARY = {
+  rosters,
   boxscore: {
     ...boxScore,
     // The row along the bottom of a box score. Total yards is the only place

@@ -172,7 +172,10 @@ export default function MatchupBand({ home }: { home: Home | null }) {
         />
       </div>
 
-      <div style={{ marginTop: 10, fontSize: 11 }}>
+      {/* Two ways further in, and between them they are what the band of
+          every fixture underneath used to be for: down into this game, or
+          out to the rest of the week. */}
+      <div style={{ marginTop: 10, fontSize: 11, display: "flex", gap: 16, flexWrap: "wrap" }}>
         <Link
           href="/lineup"
           style={{
@@ -184,6 +187,18 @@ export default function MatchupBand({ home }: { home: Home | null }) {
           }}
         >
           Both lineups, player by player →
+        </Link>
+        <Link
+          href="/matchups"
+          style={{
+            color: "#9397ab",
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            minHeight: 34,
+          }}
+        >
+          Every game this week →
         </Link>
       </div>
     </>

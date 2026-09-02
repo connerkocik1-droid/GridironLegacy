@@ -196,8 +196,13 @@ export async function fetchScoreboard(
  */
 export async function fetchGameDetail(eventId: string): Promise<GameDetail> {
   const body = asRecord(await getJson(`${SITE}/summary?event=${encodeURIComponent(eventId)}`));
+  // Positions come from the roster block rather than from the box score,
+  // which carries them only sometimes. Read first, so the box score can be
+  // filled in from it as it is parsed.
+  const positions = readRosterPositions(body);
+
   return {
-    stats: readBoxScore(body),
+    stats: readBoxScore(body, positions),
     plays: readScoringPlays(body),
     teamTotals: readTeamTotals(body),
   };
@@ -218,7 +223,10 @@ export async function fetchGameStats(eventId: string): Promise<PlayerStat[]> {
  * array per athlete, so the two are zipped by name here rather than read by
  * fixed position.
  */
-function readBoxScore(body: Record<string, unknown>): PlayerStat[] {
+function readBoxScore(
+  body: Record<string, unknown>,
+  positions: Map<string, string> = new Map(),
+): PlayerStat[] {
   const out: PlayerStat[] = [];
 
   for (const rawTeam of asArray(asRecord(body.boxscore).players)) {
@@ -243,16 +251,59 @@ function readBoxScore(body: Record<string, unknown>): PlayerStat[] {
           if (values[i] != null) stats[label] = values[i];
         });
 
-        const position = asRecord(athlete.position).abbreviation;
+        // The box score's own position when it has one, the team sheet's
+        // when it does not. Between them a player should never have to be
+        // guessed at from the columns he appears in.
+        const stated = asRecord(athlete.position).abbreviation;
+        const id = typeof athlete.id === "string" || typeof athlete.id === "number"
+          ? String(athlete.id)
+          : "";
+        const position =
+          (typeof stated === "string" && stated ? stated : "") ||
+          (id ? positions.get(`#${id}`) : undefined) ||
+          positions.get(name.toLowerCase()) ||
+          undefined;
 
-        out.push({
-          name,
-          team: abbrev,
-          group: groupName,
-          stats,
-          position: typeof position === "string" && position ? position : undefined,
-        });
+        out.push({ name, team: abbrev, group: groupName, stats, position });
       }
+    }
+  }
+
+  return out;
+}
+
+/**
+ * Every player named on either team sheet, and what he plays.
+ *
+ * The box score is a set of stat tables and only sometimes says what position
+ * a man plays; the roster block is the team sheet and always does. Keyed twice
+ * — by athlete id and by lower-cased name — because the id is exact when it is
+ * there and the name is all there is when it is not.
+ */
+function readRosterPositions(body: Record<string, unknown>): Map<string, string> {
+  const out = new Map<string, string>();
+
+  const note = (key: string, position: string) => {
+    if (!key || !position) return;
+    if (!out.has(key)) out.set(key, position);
+  };
+
+  for (const rawTeam of asArray(body.rosters)) {
+    for (const rawEntry of asArray(asRecord(rawTeam).roster)) {
+      const entry = asRecord(rawEntry);
+      const athlete = asRecord(entry.athlete);
+
+      // The position hangs off the entry on some responses and off the
+      // athlete on others.
+      const position =
+        asRecord(entry.position).abbreviation ?? asRecord(athlete.position).abbreviation;
+      if (typeof position !== "string" || !position) continue;
+
+      const id = athlete.id ?? entry.playerId;
+      if (typeof id === "string" || typeof id === "number") note(`#${id}`, position);
+
+      const name = athlete.displayName ?? athlete.fullName;
+      if (typeof name === "string") note(name.toLowerCase(), position);
     }
   }
 

@@ -112,10 +112,23 @@ eq("a kicker is a K, not a PK", by("Butker")!.position, "K");
 eq("read from ESPN", by("Butker")!.positionSource, "espn");
 eq("a tight end is a tight end", by("Kelce")!.position, "TE");
 
-// Josh Allen carries no position in the fixture, so the pool answers for him.
+// Josh Allen has no position in the box score at all. ESPN's team sheet has
+// one, which is the whole point of reading it: nothing should have to be
+// inferred from the columns a man happens to appear in.
 const allen = by("Josh Allen")!;
-ok("a player ESPN did not label still gets a position", allen.position !== "");
-ok("and the page says where it came from", allen.positionSource !== "espn");
+eq("a player the box score did not label is still a QB", allen.position, "QB");
+eq("read from ESPN, not guessed", allen.positionSource, "espn");
+
+// The kicker likewise, and PK still becomes K.
+eq("the team sheet's kicker is a K", by("Bass")!.position, "K");
+eq("also from ESPN", by("Bass")!.positionSource, "espn");
+
+// Nothing in a real game should ever reach the inference fallback.
+eq(
+  "nobody had their position guessed at",
+  week.players.filter((p) => p.positionSource === "inferred").map((p) => p.name),
+  [],
+);
 
 console.log("\n--- who is picked, and why ---");
 

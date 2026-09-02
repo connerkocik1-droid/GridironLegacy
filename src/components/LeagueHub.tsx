@@ -7,8 +7,8 @@ import { useEffect, useState } from "react";
  * Everything that belongs to the twelve of them rather than to any one.
  *
  * The other half of the split that put a manager's own things behind My Team.
- * The home page is now the score, two doors, and what has happened since you
- * last looked — which is a home page rather than a table of contents.
+ * The home page is now the score and three doors, which is a home page rather
+ * than a table of contents.
  *
  * Places, not panels. Each one leads somewhere that does the work.
  */
@@ -39,6 +39,11 @@ const PLACES: Place[] = [
     line: "Who is scoring at each position, the power rankings, and every franchise's roster.",
   },
   {
+    href: "/activity",
+    name: "Recent moves",
+    line: "Every trade, claim and drop the league has made, newest first.",
+  },
+  {
     href: "/news",
     name: "League news",
     line: "The whole wire, everything the league might care about.",
@@ -61,7 +66,7 @@ export default function LeagueHub() {
 
   useEffect(() => {
     // Only for the heading and one badge. A failure costs both and nothing
-    // else, so it is not allowed to break a page whose job is to be five links.
+    // else, so it is not allowed to break a page whose job is to be links.
     void fetch("/api/home", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((home) => {

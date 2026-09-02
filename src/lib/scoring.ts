@@ -448,7 +448,10 @@ export function scoreGame(
   }
 
   for (const [name, row] of byPlayer) {
-    row.line = readStatLine(groupsOf.get(name) ?? []);
+    const groups = groupsOf.get(name) ?? [];
+    row.line = readStatLine(groups);
+    const stated = groups.find((g) => g.position)?.position;
+    if (stated) row.line.position = stated;
   }
 
   // Conversions land on players who already have a line from the box score;
@@ -514,6 +517,15 @@ function summarize(stat: PlayerStat): string {
  * end even when he never entered our draft pool and ESPN forgot to say.
  */
 export interface StatLine {
+  /**
+   * What ESPN says he plays, when it said.
+   *
+   * The roster knows the position of everybody it holds, so this is only ever
+   * consulted for somebody it does not — a waiver pickup from outside the
+   * draft pool, whose line would otherwise be formatted by guesswork.
+   */
+  position?: string;
+
   // Passing
   completions?: number;
   attempts?: number;

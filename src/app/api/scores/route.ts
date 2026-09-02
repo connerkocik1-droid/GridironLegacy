@@ -71,7 +71,8 @@ export async function GET(req: Request) {
       (scoreRows ?? []).map((r) => {
         // The position decides the wording, and the roster is what knows it —
         // a tight end reads as targets and catches, a back as carries.
-        const position = player(r.player_name)?.p ?? "";
+        const position =
+          player(r.player_name)?.p ?? (r.stats as { position?: string } | null)?.position ?? "";
         const line = r.stats ? formatStatLine(r.stats, position) : "";
 
         return [

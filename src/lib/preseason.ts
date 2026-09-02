@@ -151,6 +151,9 @@ function positionOf(
   const pooled = pooledPlayer(name);
   if (pooled) return { position: pooled.p, source: "pool" };
 
+  // Reaching here means ESPN named neither the man on its team sheet nor in
+  // its box score, and the league has never heard of him either — which is
+  // rare enough that saying so on the row is more use than a quiet guess.
   const groups = new Set(stats.map((s) => s.group));
   if (groups.has("kicking")) return { position: "K", source: "inferred" };
   if (groups.has("passing")) return { position: "QB", source: "inferred" };

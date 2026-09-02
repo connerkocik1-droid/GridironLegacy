@@ -1,14 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import ActivityFeed from "./ActivityFeed";
 import MatchupBand from "./MatchupBand";
+import Section from "./Section";
 import MyTeamButton from "./MyTeamButton";
 import TheLeagueButton from "./TheLeagueButton";
 import MiniGamesButton from "./MiniGamesButton";
 import ScoreTicker from "./ScoreTicker";
-import Section from "./Section";
-import WeekScoreboard from "./WeekScoreboard";
 import type { Home } from "@/lib/home-types";
 
 /**
@@ -72,40 +70,24 @@ export default function HomeBoard() {
           has. Not collapsible: a band you can fold away is a band somebody
           folds away once and then wonders where their score went. */}
       <Section eyebrow="YOUR GAME" title="This matchup">
-        <MatchupBand home={home} />
-      </Section>
-
-      {/* Two doors, directly under the score, because the score is what
-          raises every question either of them answers. Yours first: on a
-          Sunday what a manager wants is almost always their own. */}
-      <MyTeamButton lineupProblems={home?.lineupProblems ?? 0} />
-      <TheLeagueButton />
-      <MiniGamesButton />
-
-      <Section
-        eyebrow="RIGHT NOW"
-        title="This week"
-        collapseId="home.week"
-        aside={
-          home?.week != null
-            ? `Week ${home.week}${home.live ? " · live" : home.started ? " · scored" : " · projected"}`
-            : undefined
-        }
-      >
         {error && !home ? (
           <div style={{ fontSize: 12.5, color: "#e0b573" }}>{error}</div>
-        ) : !home ? (
-          <div style={{ fontSize: 12.5, color: "#75798c" }}>Reading the league…</div>
         ) : (
-          <WeekScoreboard games={home.games} byes={home.byes} live={home.started} />
+          <MatchupBand home={home} />
         )}
       </Section>
 
-      {/* The last thing that changed, which is the other reason to open a
-          home page at all. Five rows here; the rest is a page. */}
-      <Section eyebrow="COMINGS AND GOINGS" title="Recent moves" collapseId="home.moves">
-        <ActivityFeed limit={5} />
-      </Section>
+      {/* Three doors, directly under the score, because the score is what
+          raises every question any of them answers. Yours first: on a Sunday
+          what a manager wants is almost always their own.
+
+          Nothing below them any more. The bands that used to be here — this
+          week's fixtures, the recent moves — are behind the doors now, and a
+          home page you can read without scrolling is the point of the whole
+          rearrangement. */}
+      <MyTeamButton lineupProblems={home?.lineupProblems ?? 0} />
+      <TheLeagueButton />
+      <MiniGamesButton />
     </div>
   );
 }
