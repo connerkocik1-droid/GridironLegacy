@@ -1,9 +1,9 @@
 import Nav from "@/components/Nav";
-import MyTeamHub from "@/components/MyTeamHub";
+import WatchlistBoard from "@/components/WatchlistBoard";
 
-export const metadata = { title: "My Team · Gridiron Legacy" };
+export const metadata = { title: "Watchlist · Gridiron Legacy" };
 
-export default function MyTeamPage() {
+export default function WatchlistPage() {
   return (
     <div
       style={{
@@ -13,7 +13,7 @@ export default function MyTeamPage() {
       }}
     >
       <Nav current="/my-team" />
-      <MyTeamHub />
+      <WatchlistBoard />
     </div>
   );
 }

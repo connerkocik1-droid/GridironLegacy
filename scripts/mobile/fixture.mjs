@@ -54,6 +54,33 @@ export function routes(page) {
   }));
   page.route("**/api/logos", json({ logos: {} }));
 
+  // A watchlist with everything on it that a row can be: somebody else's
+  // player, one of your own, a free agent, and one sitting on the wire — plus
+  // the longest names in the pool, since this page is mostly names.
+  page.route("**/api/watchlist**", (r) =>
+    r.request().method() === "GET"
+      ? r.fulfill({
+          json: {
+            players: [
+              "Marquez Valdes-Scantling", "Jacory Croskey-Merritt",
+              "Jaxon Smith-Njigba", "Marvin Harrison Jr.",
+            ],
+            watching: [
+              { name: "Marquez Valdes-Scantling", addedAt: ago(300),
+                owner: { id: "m3", slot: "T04", franchise: "Kim's Very Long Franchise Name", mine: false },
+                clearsAt: null },
+              { name: "Jacory Croskey-Merritt", addedAt: ago(600), owner: null,
+                clearsAt: new Date(Date.now() + 36e5).toISOString() },
+              { name: "Jaxon Smith-Njigba", addedAt: ago(900), owner: null, clearsAt: null },
+              { name: "Marvin Harrison Jr.", addedAt: ago(1200),
+                owner: { id: "m0", slot: "T01", franchise: "Steel Cartel", mine: true },
+                clearsAt: null },
+            ],
+          },
+        })
+      : r.fulfill({ json: { ok: true } }),
+  );
+
   // The commissioner's scoring check. Hostile on purpose in the way that page
   // can actually be hostile: long names, a defence whose name is three words
   // and a suffix, deep breakdowns, and raw ESPN columns that want to run off
@@ -142,11 +169,6 @@ export function routes(page) {
       story("s4", "Ashton Jeanty impresses", ["Ashton Jeanty"]),
     ],
   }));
-  page.route("**/api/watchlist**", (r) =>
-    r.request().method() === "GET"
-      ? r.fulfill({ json: { players: ["Ashton Jeanty"] } })
-      : r.fulfill({ json: { ok: true } }));
-
   page.route("**/api/activity**", json({
     me: { id: "m0" }, managers: MANAGERS, total: 4, page: 0, hasMore: false,
     entries: [

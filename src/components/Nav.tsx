@@ -3,11 +3,13 @@ import CommissionerOnly from "./CommissionerOnly";
 import Notices from "./Notices";
 import ProfileMenu from "./ProfileMenu";
 
-// Lineup, Matchups, Standings, Rankings and News are not here on purpose: the
-// home page is the way to all of them, and listing them twice made a nav bar
-// with thirteen tabs in it.
+// Standings, Rankings and News are not here on purpose: the home page is the
+// way to all of them, and listing them twice made a nav bar with thirteen tabs
+// in it. My Team is the way to everything about one franchise — the lineup,
+// the matchups, the watchlist, the trade builder.
 const PRIMARY = [
   { href: "/", label: "Home" },
+  { href: "/my-team", label: "My Team" },
   { href: "/draft", label: "Draft" },
 ];
 
@@ -20,9 +22,10 @@ const OFFICE = [
 ];
 
 // Where a manager goes to change their roster, plus the reading matter.
+// Trade Builder is not here any more: it belongs to one franchise rather than
+// to the league, so it sits with the rest of them behind My Team.
 const SECONDARY = [
   { href: "/free-agents", label: "Free Agents" },
-  { href: "/trade-builder", label: "Trade Builder" },
   { href: "/league", label: "League" },
   { href: "/minigames", label: "Mini-games" },
 ];

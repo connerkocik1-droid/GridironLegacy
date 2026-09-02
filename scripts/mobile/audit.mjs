@@ -33,6 +33,9 @@ const SHOTS = process.env.AUDIT_SHOTS ?? null;
 const PAGES = [
   ["/", "home"],
   ["/activity", "activity"],
+  ["/my-team", "my-team"],
+  ["/my-team/edit", "edit-team"],
+  ["/watchlist", "watchlist"],
   ["/lineup", "lineup"],
   ["/matchups", "matchups"],
   ["/standings", "standings"],

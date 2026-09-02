@@ -1,9 +1,9 @@
 import Nav from "@/components/Nav";
-import MyTeamHub from "@/components/MyTeamHub";
+import EditTeam from "@/components/EditTeam";
 
-export const metadata = { title: "My Team · Gridiron Legacy" };
+export const metadata = { title: "Edit team · Gridiron Legacy" };
 
-export default function MyTeamPage() {
+export default function EditTeamPage() {
   return (
     <div
       style={{
@@ -13,7 +13,7 @@ export default function MyTeamPage() {
       }}
     >
       <Nav current="/my-team" />
-      <MyTeamHub />
+      <EditTeam />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import HomeButtons from "./HomeButtons";
 import LeagueOverview from "./LeagueOverview";
 import MatchupBand from "./MatchupBand";
 import MiniGamesStrip from "./MiniGamesStrip";
+import MyTeamButton from "./MyTeamButton";
 import NewsBand from "./NewsBand";
 import ScoreTicker from "./ScoreTicker";
 import Section from "./Section";
@@ -76,6 +77,11 @@ export default function HomeBoard() {
         <MatchupBand home={home} />
       </Section>
 
+      {/* Directly under the score, because everything a manager does about
+          that score — the lineup that produced it, the trade that might fix
+          it — is on the other side of this one button. */}
+      <MyTeamButton lineupProblems={home?.lineupProblems ?? 0} />
+
       {/* Then the wire, because it is the thing that changed since you last
           looked. Where to go is always in the same place; who got hurt on
           Wednesday is not. */}
@@ -84,7 +90,7 @@ export default function HomeBoard() {
       </Section>
 
       <Section eyebrow="THE LEAGUE" title="Where to" collapseId="home.where">
-        <HomeButtons lineupProblems={home?.lineupProblems ?? 0} />
+        <HomeButtons />
       </Section>
 
       <Section

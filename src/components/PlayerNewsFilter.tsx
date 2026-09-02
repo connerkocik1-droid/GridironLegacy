@@ -33,11 +33,25 @@ export default function PlayerNewsFilter({
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/lineup", { cache: "no-store" });
+      // The roster and the watchlist together. "Your players" means the ones
+      // you own and the ones you are deciding about — the player you do not
+      // hold yet is exactly the one whose hamstring you want to hear about
+      // before you spend a claim on him.
+      const [res, watching] = await Promise.all([
+        fetch("/api/lineup", { cache: "no-store" }),
+        fetch("/api/watchlist", { cache: "no-store" })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null),
+      ]);
+
       if (!res.ok) return setSignedOut(true);
       const body = await res.json();
+
       setRoster(
-        new Set((body.assignments ?? []).map((a: { playerName: string }) => a.playerName)),
+        new Set([
+          ...(body.assignments ?? []).map((a: { playerName: string }) => a.playerName),
+          ...((watching?.players ?? []) as string[]),
+        ]),
       );
     } catch {
       setSignedOut(true);
@@ -78,12 +92,13 @@ export default function PlayerNewsFilter({
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 12px", flexWrap: "wrap" }}>
         <p style={{ fontSize: 12, color: "#9397ab", margin: 0 }}>
-          {mine.length} of {stories.length} stories mention your players.
+          {mine.length} of {stories.length} stories mention your players or the ones
+          you are watching.
         </p>
         <div style={{ display: "flex", gap: 4 }}>
           {[
             { label: "Everything", on: false },
-            { label: "My players", on: true },
+            { label: "Mine & watched", on: true },
           ].map((opt) => (
             <button
               key={opt.label}

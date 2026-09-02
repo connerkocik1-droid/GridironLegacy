@@ -1,23 +1,16 @@
 import Link from "next/link";
 
 /**
- * The four things a manager comes here to do.
+ * The league's own places.
  *
- * Big enough to be the first thing on the page and to be hit with a thumb.
- * Each one is a place, not a panel: the home page says where everything is,
- * and the pages themselves do the work.
+ * Lineup and Matchups used to be here and are now behind My Team, with the
+ * rest of what belongs to one franchise. The split is by ownership: what is
+ * yours is one button up the page, and what is everybody's is here.
+ *
+ * Each one is a place, not a panel: the home page says where things are, and
+ * the pages themselves do the work.
  */
 const PLACES = [
-  {
-    href: "/lineup",
-    name: "Lineup",
-    line: "Set your starters, and see what they are playing against this week.",
-  },
-  {
-    href: "/matchups",
-    name: "Matchups",
-    line: "Your season, week by week, with the score of every one. Or the whole league's.",
-  },
   {
     href: "/standings",
     name: "Standings",
@@ -30,7 +23,7 @@ const PLACES = [
   },
 ];
 
-export default function HomeButtons({ lineupProblems = 0 }: { lineupProblems?: number }) {
+export default function HomeButtons() {
   return (
     <div
       style={{
@@ -66,15 +59,6 @@ export default function HomeButtons({ lineupProblems = 0 }: { lineupProblems?: n
           <div style={{ fontSize: 11.5, color: "#9397ab", lineHeight: 1.55, marginTop: 6 }}>
             {p.line}
           </div>
-          {/* Counted, not named. The number is enough to make somebody click,
-              and the lineup page is where the problems are actually said. */}
-          {p.href === "/lineup" && lineupProblems > 0 ? (
-            <div style={{ fontSize: 11.5, color: "#e0b573", marginTop: 8 }}>
-              {lineupProblems === 1
-                ? "1 problem with this week's lineup."
-                : `${lineupProblems} problems with this week's lineup.`}
-            </div>
-          ) : null}
         </Link>
       ))}
     </div>
