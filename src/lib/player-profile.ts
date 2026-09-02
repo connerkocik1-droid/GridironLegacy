@@ -44,11 +44,20 @@ export interface PlayerProfile {
   archetype: string | null;
   insight: string | null;
 
-  /** Real NFL seasons, newest first. */
+  /**
+   * Last year, and only last year.
+   *
+   * The historical pool reaches back to 2002. A profile is read while deciding
+   * something this week, and a man's 2014 season has no bearing on that — so
+   * the page shows the season before this one and nothing else.
+   */
   career: CareerSeason[];
 }
 
-/** Every season the historical pool holds for one player, newest first. */
+/** The year the profile shows beside the current one. */
+const LAST_SEASON = 2025;
+
+/** The one earlier season worth showing, if the pool holds it. */
 function careerOf(name: string): CareerSeason[] {
   const key = normalizeName(name);
   const seen = new Set<string>();
@@ -57,6 +66,7 @@ function careerOf(name: string): CareerSeason[] {
   for (const seasons of Object.values(POOLS)) {
     for (const s of seasons as Season[]) {
       if (normalizeName(s.n) !== key) continue;
+      if (s.yr !== LAST_SEASON) continue;
 
       // The pool holds a player's best season per era, so the same year can
       // appear twice when two eras overlap it. One row per year.

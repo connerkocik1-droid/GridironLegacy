@@ -15,9 +15,11 @@ import type { Story } from "@/lib/news";
  * looking at a lineup and wondering about somebody should not have to go and
  * look him up on another site.
  *
- * Four things, in the order the question usually comes in: is he fit, what has
- * he done for me this season, what is being said about him, and what kind of
- * player is he.
+ * In the order the question comes in: is he fit, what kind of player is he,
+ * what has he done — this season as one line, last season as another — and
+ * what is being said about him. The season line opens into the weeks behind
+ * it, because the total answers "is he producing" and only the weeks answer
+ * "is he still producing", and the second question is asked far less often.
  */
 
 const BLANK = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -28,6 +30,16 @@ const card: React.CSSProperties = {
   background: "rgba(26,28,43,.55)",
   overflow: "hidden",
 };
+
+/**
+ * The one earlier season the page shows.
+ *
+ * Written out rather than imported from player-profile, which is where the
+ * filtering happens: that module reaches into the 20-0 export, and a client
+ * component that imports a value from it drags four hundred kilobytes of
+ * historical seasons into this route for the sake of one number.
+ */
+const LAST_SEASON = 2025;
 
 const label: React.CSSProperties = {
   fontSize: 10,
@@ -41,6 +53,8 @@ interface Payload {
   season: {
     year: number | null;
     weeks: { week: number; points: number; statLine: string }[];
+    /** The whole season as one line, in the wording of his position. */
+    statLine: string;
     total: number;
     best: number;
   } | null;
@@ -50,6 +64,7 @@ interface Payload {
 export default function PlayerProfileBoard({ name }: { name: string }) {
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [openWeeks, setOpenWeeks] = useState(false);
   const report = useHealthReport();
 
   const load = useCallback(async () => {
@@ -88,6 +103,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
   const health = healthOf(report, profile.name);
   const weeks = season?.weeks ?? [];
   const played = weeks.filter((w) => w.points !== 0 || w.statLine);
+  const hasBio = Boolean(profile.archetype || profile.insight || profile.adp != null);
 
   return (
     <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 18px 44px" }}>
@@ -189,6 +205,41 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
         </div>
       ) : null}
 
+      {/* ------------------------------------------------------------ bio --- */}
+      {/* Above the numbers on purpose: who he is frames what the numbers mean,
+          and a stat line read before the player is read is just arithmetic. */}
+      {hasBio ? (
+        <>
+          <div style={{ ...label, marginBottom: 10 }}>THE SCOUTING LINE</div>
+          <div style={{ ...card, padding: "14px 16px", marginBottom: 24 }}>
+            {profile.archetype ? (
+              <div
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 15,
+                  color: "#d2cefd",
+                  marginBottom: 7,
+                }}
+              >
+                {profile.archetype}
+              </div>
+            ) : null}
+            {profile.insight ? (
+              <p style={{ fontSize: 12.5, color: "#9397ab", lineHeight: 1.65, margin: 0 }}>
+                {profile.insight}
+              </p>
+            ) : null}
+            {profile.adp != null ? (
+              <div style={{ fontSize: 11, color: "#75798c", marginTop: 10 }}>
+                Drafted around pick {profile.adp}
+                {profile.posRank ? ` · ${profile.posRank}` : ""}
+                {profile.rostered != null ? ` · rostered in ${profile.rostered}% of leagues` : ""}
+              </div>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+
       {/* --------------------------------------------------- this season --- */}
       <div style={{ ...label, marginBottom: 10 }}>
         THIS SEASON{season?.year ? ` · ${season.year}` : ""}
@@ -196,52 +247,109 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
       <div style={{ ...card, marginBottom: 24 }}>
         {played.length ? (
           <>
-            <div style={{ display: "flex", gap: 22, padding: "13px 16px", flexWrap: "wrap" }}>
-              <Stat label="POINTS" value={season?.total.toFixed(1) ?? "0.0"} />
-              <Stat label="WEEKS" value={String(played.length)} />
-              <Stat label="BEST" value={(season?.best ?? 0).toFixed(1)} />
-              <Stat
-                label="PER WEEK"
-                value={(played.length ? (season?.total ?? 0) / played.length : 0).toFixed(1)}
-              />
-            </div>
-            {played.map((w) => (
-              <div
-                key={w.week}
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  padding: "10px 16px",
-                  borderTop: "1px solid rgba(145,132,217,.14)",
-                  alignItems: "baseline",
-                }}
-              >
-                <span style={{ ...label, width: 46, flex: "0 0 auto" }}>WK {w.week}</span>
-                <span
+            <button
+              type="button"
+              onClick={() => setOpenWeeks((was) => !was)}
+              aria-expanded={openWeeks}
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                border: 0,
+                background: "transparent",
+                font: "inherit",
+                color: "inherit",
+                padding: "13px 16px",
+                cursor: "pointer",
+              }}
+            >
+              <div style={{ display: "flex", gap: 22, flexWrap: "wrap" }}>
+                <Stat label="POINTS" value={(season?.total ?? 0).toFixed(1)} />
+                <Stat label="WEEKS" value={String(played.length)} />
+                <Stat label="BEST" value={(season?.best ?? 0).toFixed(1)} />
+                <Stat
+                  label="PER WEEK"
+                  value={(played.length ? (season?.total ?? 0) / played.length : 0).toFixed(1)}
+                />
+              </div>
+
+              {season?.statLine ? (
+                <div
                   style={{
-                    flex: 1,
-                    minWidth: 0,
-                    fontSize: 11.5,
+                    fontSize: 12,
                     color: "#c8ccdc",
-                    lineHeight: 1.45,
+                    lineHeight: 1.5,
+                    marginTop: 11,
                     overflowWrap: "anywhere",
                   }}
                 >
-                  {w.statLine || "—"}
-                </span>
+                  {season.statLine}
+                </div>
+              ) : null}
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginTop: 9,
+                  fontSize: 11,
+                  color: "#b5abfc",
+                }}
+              >
+                {openWeeks ? "Hide the weeks" : "Week by week"}
                 <span
+                  aria-hidden
                   style={{
-                    fontFamily: "var(--font-heading)",
-                    fontSize: 15,
-                    color: "#d2cefd",
-                    fontVariantNumeric: "tabular-nums",
-                    flex: "0 0 auto",
+                    display: "inline-block",
+                    transform: openWeeks ? "rotate(180deg)" : "none",
+                    transition: "transform .15s ease",
                   }}
                 >
-                  {w.points.toFixed(1)}
+                  ⌄
                 </span>
               </div>
-            ))}
+            </button>
+
+            {openWeeks
+              ? played.map((w) => (
+                  <div
+                    key={w.week}
+                    style={{
+                      display: "flex",
+                      gap: 12,
+                      padding: "10px 16px",
+                      borderTop: "1px solid rgba(145,132,217,.14)",
+                      alignItems: "baseline",
+                    }}
+                  >
+                    <span style={{ ...label, width: 46, flex: "0 0 auto" }}>WK {w.week}</span>
+                    <span
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        fontSize: 11.5,
+                        color: "#c8ccdc",
+                        lineHeight: 1.45,
+                        overflowWrap: "anywhere",
+                      }}
+                    >
+                      {w.statLine || "—"}
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-heading)",
+                        fontSize: 15,
+                        color: "#d2cefd",
+                        fontVariantNumeric: "tabular-nums",
+                        flex: "0 0 auto",
+                      }}
+                    >
+                      {w.points.toFixed(1)}
+                    </span>
+                  </div>
+                ))
+              : null}
           </>
         ) : (
           <div style={{ padding: "16px 18px", fontSize: 12.5, color: "#9397ab", lineHeight: 1.6 }}>
@@ -250,11 +358,23 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
         )}
       </div>
 
-      {/* -------------------------------------------------- earlier years --- */}
-      {profile.career.length ? (
+      {/* ----------------------------------------------------- last year --- */}
+      {/* 2025 and this season, and nothing else. The historical pool reaches
+          back to 2002, but a profile is read while a decision is being made
+          this week and a man's 2014 has no bearing on it.
+
+          The pool keeps standout seasons rather than every season, so most
+          players have no 2025 row in it. That is said out loud: an empty space
+          where a season should be reads as "he did not play". */}
+      {profile.found ? (
         <>
-          <div style={{ ...label, marginBottom: 10 }}>EARLIER SEASONS</div>
+          <div style={{ ...label, marginBottom: 10 }}>LAST SEASON · {LAST_SEASON}</div>
           <div style={{ ...card, marginBottom: 24 }}>
+            {profile.career.length === 0 ? (
+              <div style={{ padding: "14px 16px", fontSize: 12, color: "#9397ab", lineHeight: 1.6 }}>
+                No {LAST_SEASON} line on file for him.
+              </div>
+            ) : null}
             {profile.career.map((s) => (
               <div
                 key={`${s.year}-${s.team}`}
@@ -297,39 +417,6 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
           emptyMessage={`Nothing about ${profile.name} on the wire just now.`}
         />
       </div>
-
-      {/* ----------------------------------------------------- the scout --- */}
-      {profile.archetype || profile.insight ? (
-        <>
-          <div style={{ ...label, marginBottom: 10 }}>THE SCOUTING LINE</div>
-          <div style={{ ...card, padding: "14px 16px", marginBottom: 20 }}>
-            {profile.archetype ? (
-              <div
-                style={{
-                  fontFamily: "var(--font-heading)",
-                  fontSize: 15,
-                  color: "#d2cefd",
-                  marginBottom: 7,
-                }}
-              >
-                {profile.archetype}
-              </div>
-            ) : null}
-            {profile.insight ? (
-              <p style={{ fontSize: 12.5, color: "#9397ab", lineHeight: 1.65, margin: 0 }}>
-                {profile.insight}
-              </p>
-            ) : null}
-            {profile.adp != null ? (
-              <div style={{ fontSize: 11, color: "#75798c", marginTop: 10 }}>
-                Drafted around pick {profile.adp}
-                {profile.posRank ? ` · ${profile.posRank}` : ""}
-                {profile.rostered != null ? ` · rostered in ${profile.rostered}% of leagues` : ""}
-              </div>
-            ) : null}
-          </div>
-        </>
-      ) : null}
 
       {!profile.found ? (
         <div style={{ ...card, padding: "14px 16px", fontSize: 12, color: "#9397ab", lineHeight: 1.6 }}>

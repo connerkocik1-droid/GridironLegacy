@@ -8,7 +8,7 @@
  * every quarterback in the league is noise that hides the one who ran for two.
  */
 
-import { formatStatLine, readStatLine, scoreDefense, type StatLine } from "../scoring";
+import { formatStatLine, readStatLine, scoreDefense, sumStatLines, type StatLine } from "../scoring";
 import type { PlayerStat } from "../espn";
 
 let failed = 0;
@@ -206,6 +206,46 @@ ok("an unknown position falls back to what happened", formatStatLine(unknown, ""
 const lowYards = scoreDefense([], "SEA", 24, { yardsAllowed: 100 });
 const highYards = scoreDefense([], "SEA", 24, { yardsAllowed: 500 });
 eq("yards allowed does not move the score", lowYards.points, highYards.points);
+
+// --- a whole season on one line -------------------------------------------
+//
+// The profile page leads with the season rather than the weeks, so the sum has
+// to be a real sum — a receiver's targets added across three afternoons, not
+// week one's shown three times — and it has to keep the position, because the
+// position is what decides the wording.
+
+const receiverWeeks: StatLine[] = [
+  { position: "WR", targets: 11, receptions: 9, recYards: 140, recTd: 1 },
+  { position: "WR", targets: 8, receptions: 6, recYards: 88 },
+  { position: "WR", targets: 6, receptions: 4, recYards: 74 },
+];
+const season = sumStatLines(receiverWeeks);
+
+eq("targets add up", season.targets, 25);
+eq("catches add up", season.receptions, 19);
+eq("yards add up", season.recYards, 302);
+eq("touchdowns add up", season.recTd, 1);
+eq("and the position carries through", season.position, "WR");
+eq(
+  "which is what the season line is written in",
+  formatStatLine(season, "WR"),
+  "25 tgt \u00b7 19 rec \u00b7 302 rec yds \u00b7 1 rec TD",
+);
+
+// A week that never mentioned rushing must not zero out the season's.
+const qbSeason = sumStatLines([
+  { position: "QB", completions: 20, attempts: 30, passYards: 250, passTd: 2 },
+  { position: "QB", completions: 18, attempts: 25, passYards: 210, passTd: 1, rushYards: 22 },
+]);
+eq("attempts add up", qbSeason.attempts, 55);
+eq("passing touchdowns add up", qbSeason.passTd, 3);
+ok(
+  "and a silent week does not erase the one that ran",
+  formatStatLine(qbSeason, "QB").includes("22 rush yds"),
+);
+
+// Nobody who has not played yet gets a line of noughts.
+eq("a season with no weeks in it is blank", formatStatLine(sumStatLines([]), "RB"), "");
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 if (failed) process.exitCode = 1;

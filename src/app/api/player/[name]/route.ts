@@ -1,4 +1,5 @@
 import { profileFor, resolvePlayerName } from "@/lib/player-profile";
+import { formatStatLine, sumStatLines, type StatLine } from "@/lib/scoring";
 import { fetchNews } from "@/lib/news";
 import { normalizeName } from "@/lib/player-names";
 import { isConfigured, serverClient } from "@/lib/supabase";
@@ -78,8 +79,16 @@ export async function GET(_req: Request, ctx: { params: Promise<{ name: string }
     week: r.week as number,
     points: Number(r.points),
     statLine: (r.stat_line as string | null) ?? "",
-    stats: r.stats ?? null,
+    stats: (r.stats ?? null) as StatLine | null,
   }));
+
+  // The season as one line, which is what the profile leads with. Summed here
+  // rather than in the page because this is where the position is known, and
+  // the position decides the wording.
+  const seasonLine = formatStatLine(
+    sumStatLines(weeks.map((w) => w.stats).filter((s): s is StatLine => Boolean(s))),
+    profile.position,
+  );
 
   return Response.json({
     profile,
@@ -87,6 +96,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ name: string }
     season: {
       year: league?.season ?? null,
       weeks,
+      statLine: seasonLine,
       total: Math.round(weeks.reduce((sum, w) => sum + w.points, 0) * 10) / 10,
       best: weeks.reduce((best, w) => (w.points > best ? w.points : best), 0),
     },

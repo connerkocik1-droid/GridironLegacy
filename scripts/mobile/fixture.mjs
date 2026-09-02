@@ -67,6 +67,38 @@ export function routes(page) {
 
   page.route("**/api/player/**", (r) => {
     const name = decodeURIComponent((r.request().url().split("/api/player/")[1] ?? "").split("?")[0]);
+
+    // Draftable, but with no 2025 line in the historical pool — which is most
+    // of the pool, since it keeps standout seasons rather than every season.
+    // The page has to say the season is missing rather than leave a gap.
+    if (name === "Blank Slate") {
+      return r.fulfill({ json: {
+        profile: {
+          name, found: true, position: "TE", team: "NYJ", bye: 9,
+          headshot: "", teamLogo: "",
+          adp: 180, posRank: "TE22", rostered: 4.1,
+          archetype: "Depth Piece", insight: "A body at the position.",
+          career: [],
+        },
+        news: [], season: { year: 2026, total: 0, best: 0, statLine: "", weeks: [] },
+        owner: null,
+      } });
+    }
+
+    // A player the pool never heard of: claimed off waivers, never draftable.
+    // His page has to render anyway, and has to promise nothing.
+    if (name === "Nobody At All") {
+      return r.fulfill({ json: {
+        profile: {
+          name, found: false, position: "", team: "", bye: null,
+          headshot: "", teamLogo: "",
+          adp: null, posRank: null, rostered: null,
+          archetype: null, insight: null, career: [],
+        },
+        news: [], season: null, owner: null,
+      } });
+    }
+
     return r.fulfill({ json: {
       profile: {
         name, found: true, position: "WR", team: "LAR", bye: 11,
@@ -75,16 +107,15 @@ export function routes(page) {
         archetype: "Volume Machine",
         insight: "Carries an injury designation and the market has not moved off him.",
         career: [
-          { year: 2024, team: "LAR", position: "WR",
-            line: "79 rec · 990 yds · 12.5 Y/R · 3 TD",
-            line2: "121 tgt · 24.4% share · 208.0 FPTS · 18.9/G", era: "2020s" },
-          { year: 2023, team: "LAR", position: "WR",
+          { year: 2025, team: "LAR", position: "WR",
             line: "105 rec · 1,486 yds · 14.2 Y/R · 6 TD",
             line2: "160 tgt · 27.1% share · 274.6 FPTS · 16.2/G", era: "2020s" },
         ],
       },
       news: [],
-      season: { year: 2026, total: 48.6, best: 22.4, weeks: [
+      season: { year: 2026, total: 48.6, best: 22.4,
+        statLine: "25 tgt · 19 rec · 302 rec yds · 1 rec TD",
+        weeks: [
         { week: 1, points: 22.4, statLine: "11 tgt \u00b7 9 rec \u00b7 140 rec yds \u00b7 1 rec TD", stats: null },
         { week: 2, points: 14.8, statLine: "8 tgt \u00b7 6 rec \u00b7 88 rec yds", stats: null },
         { week: 3, points: 11.4, statLine: "6 tgt \u00b7 4 rec \u00b7 74 rec yds", stats: null },

@@ -614,6 +614,35 @@ export function readStatLine(stats: PlayerStat[]): StatLine {
   return line;
 }
 
+/**
+ * Several weeks of a player's afternoons, added into one season.
+ *
+ * Every field on a StatLine is a count of something that happened, so a season
+ * is the sum of its weeks — with two exceptions that are not counts at all:
+ * `position` is a fact about the man rather than about a week, and it is
+ * carried through from whichever week stated it.
+ *
+ * Points allowed and yards allowed do add up: a defence's season total is what
+ * it gave up across the year, which is the number worth showing.
+ */
+export function sumStatLines(lines: StatLine[]): StatLine {
+  const total: StatLine = {};
+
+  for (const line of lines) {
+    for (const [key, value] of Object.entries(line)) {
+      if (key === "position") {
+        if (!total.position && typeof value === "string") total.position = value;
+        continue;
+      }
+      if (typeof value !== "number") continue;
+      const field = key as keyof StatLine;
+      (total[field] as number) = ((total[field] as number | undefined) ?? 0) + value;
+    }
+  }
+
+  return total;
+}
+
 /** A number, without a trailing ".0" on the half-sacks that do not need one. */
 function tidy(n: number): string {
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10);
