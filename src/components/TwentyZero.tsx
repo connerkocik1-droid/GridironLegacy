@@ -40,15 +40,55 @@ type Phase = "ready" | "spinning" | "board" | "locked" | "done";
 const TICKS = 26;
 const ERA_LOCK = 17;
 
-/** Names to beat. Not real players — a run has to be measured against something. */
-const SEED_BOARD = [
-  { who: "hexline", score: 1284 },
-  { who: "Vantablack", score: 1251 },
-  { who: "cold_open", score: 1206 },
-  { who: "Marrow", score: 1188 },
-  { who: "nine_lives", score: 1140 },
-  { who: "Torchbearer", score: 1097 },
-];
+/**
+ * Your own runs, kept in this browser.
+ *
+ * There used to be six invented names here to be measured against, which is a
+ * scoreboard that has never been earned by anybody — and in a league of twelve
+ * people who know each other, a name nobody recognises sitting above yours is
+ * worse than an empty board. So the only scores here are ones somebody
+ * actually put up.
+ *
+ * Per-browser rather than per-league on purpose: a real board across the
+ * twelve would need somewhere to keep it, and this game deliberately touches
+ * nothing the league runs on. Your own history is enough to answer the only
+ * question a solo game asks, which is whether that run was any good for you.
+ */
+const HISTORY_KEY = "gl.20-0.runs";
+const HISTORY_KEPT = 7;
+
+interface Run {
+  score: number;
+  at: string;
+}
+
+function readRuns(): Run[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((r): r is Run => typeof r === "object" && r !== null && typeof (r as Run).score === "number")
+      .slice(0, HISTORY_KEPT);
+  } catch {
+    // A browser with storage turned off, or something else's key in the way.
+    // Neither is worth breaking a game over.
+    return [];
+  }
+}
+
+function writeRun(score: number): Run[] {
+  const runs = [...readRuns(), { score, at: new Date().toISOString() }]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, HISTORY_KEPT);
+  try {
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(runs));
+  } catch {
+    // Saved or not, the run still counts on the screen in front of them.
+  }
+  return runs;
+}
 
 const card: React.CSSProperties = {
   border: "1px solid rgba(145,132,217,.22)",
@@ -185,11 +225,29 @@ export default function TwentyZero() {
     [],
   );
 
-  const leaderboard = complete
-    ? [...SEED_BOARD, { who: "you · final", score: Math.round(score), me: true }]
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 8)
-    : [];
+  // Recorded once, when a full roster is scored. `saved` is what the board
+  // draws, so the run just finished appears in it in its right place rather
+  // than being pinned to the bottom.
+  const [runs, setRuns] = useState<Run[]>([]);
+  const recorded = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!complete) {
+      recorded.current = null;
+      return;
+    }
+    const final = Math.round(score);
+    if (recorded.current === final) return;
+    recorded.current = final;
+    // Writes to storage and reads back, so the ordering is the stored one.
+    setRuns(writeRun(final));
+  }, [complete, score]);
+
+  const justScored = Math.round(score);
+  // The first row matching this run is "yours"; a previous run of the same
+  // score is not marked, because marking two rows would be a lie about which
+  // one they just played.
+  const markAt = runs.findIndex((r) => r.score === justScored);
 
   const shownTeam = phase === "spinning" ? reelTeam : (spun?.team ?? null);
   const shownEra = phase === "spinning" ? reelEra : (spun?.era ?? null);
@@ -575,29 +633,37 @@ export default function TwentyZero() {
         {complete ? (
           <div style={{ ...card, padding: "16px 14px" }}>
             <div style={{ fontSize: 10, letterSpacing: ".22em", color: "#75798c", marginBottom: 10 }}>
-              LEADERBOARD
+              YOUR BEST RUNS
             </div>
-            {leaderboard.map((l, i) => (
-              <div
-                key={l.who}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 9,
-                  padding: "8px 9px",
-                  marginBottom: 2,
-                  borderRadius: "var(--radius-sm)",
-                  background: "me" in l && l.me ? "rgba(145,132,217,.18)" : "#141625",
-                }}
-              >
-                <span style={{ fontSize: 10, color: "#75798c", width: 16 }}>{i + 1}</span>
-                <span style={{ fontSize: 12, flex: 1, minWidth: 0, color: "#e9e9ed" }}>{l.who}</span>
-                <span style={{ fontFamily: "var(--font-heading)", fontSize: 13, color: "#d2cefd" }}>
-                  {l.score}
-                </span>
-              </div>
-            ))}
+            {runs.map((r, i) => {
+              const mine = i === markAt;
+              return (
+                <div
+                  key={`${r.at}-${r.score}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 9,
+                    padding: "8px 9px",
+                    marginBottom: 2,
+                    borderRadius: "var(--radius-sm)",
+                    background: mine ? "rgba(145,132,217,.18)" : "#141625",
+                  }}
+                >
+                  <span style={{ fontSize: 10, color: "#75798c", width: 16 }}>{i + 1}</span>
+                  <span style={{ fontSize: 12, flex: 1, minWidth: 0, color: "#e9e9ed" }}>
+                    {mine ? "this run" : when(r.at)}
+                  </span>
+                  <span style={{ fontFamily: "var(--font-heading)", fontSize: 13, color: "#d2cefd" }}>
+                    {r.score}
+                  </span>
+                </div>
+              );
+            })}
             <p style={{ fontSize: 10.5, color: "#75798c", lineHeight: 1.6, margin: "12px 0 0" }}>
+              {runs.length === 1
+                ? "Your first scored run. The next one has something to beat."
+                : "Your own runs, kept in this browser and nowhere else."}{" "}
               Perfect run is 20-0. Every slot scores its season, multiplied
               where the position carries one.
             </p>
@@ -606,6 +672,13 @@ export default function TwentyZero() {
       </div>
     </div>
   );
+}
+
+/** "12 Sep" — enough to place a previous run without a full timestamp. */
+function when(iso: string): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return "earlier";
+  return at.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
 function Stat({ label, value, big }: { label: string; value: string; big?: boolean }) {

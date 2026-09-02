@@ -1,16 +1,19 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import MiniGamesStrip from "./MiniGamesStrip";
 import MockDraft from "./MockDraft";
 import PickemBoard from "./PickemBoard";
 import TwentyZero from "./TwentyZero";
 
 /**
- * The three games, behind one tab.
+ * The three games.
  *
- * Which game is showing lives in the URL rather than in state, so a link to a
- * game is a link to that game — the pick-'em deadline is the sort of thing
- * people paste into a group chat.
+ * Arriving with no game named lands on the three of them, the way My Team and
+ * The League land on what is behind them. Naming one opens it, and which one
+ * lives in the URL rather than in state — a link to a game is a link to that
+ * game, and the pick-'em deadline is the sort of thing people paste into a
+ * group chat.
  */
 
 const GAMES = [
@@ -38,7 +41,7 @@ export default function MiniGames() {
   const router = useRouter();
   const params = useSearchParams();
   const asked = params.get("game");
-  const game: GameId = GAMES.some((g) => g.id === asked) ? (asked as GameId) : "pickem";
+  const game: GameId | null = GAMES.some((g) => g.id === asked) ? (asked as GameId) : null;
 
   return (
     <div>
@@ -56,18 +59,27 @@ export default function MiniGames() {
           Mini-games
         </h1>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {GAMES.map((g) => (
-            <button
-              key={g.id}
-              onClick={() => router.replace(`/minigames?game=${g.id}`, { scroll: false })}
-              aria-current={g.id === game ? "page" : undefined}
-              style={tab(g.id === game)}
-            >
-              {g.label}
-            </button>
-          ))}
-        </div>
+        {/* The tabs are for moving between games once you are in one. On the
+            way in there is nothing to move between yet, and three cards say
+            more about each game than three words do. */}
+        {game ? (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {GAMES.map((g) => (
+              <button
+                key={g.id}
+                onClick={() => router.replace(`/minigames?game=${g.id}`, { scroll: false })}
+                aria-current={g.id === game ? "page" : undefined}
+                style={tab(g.id === game)}
+              >
+                {g.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div style={{ paddingBottom: 26 }}>
+            <MiniGamesStrip />
+          </div>
+        )}
       </div>
 
       {/* One game mounted at a time. 20-0 and the mock draft both hold a lot of
