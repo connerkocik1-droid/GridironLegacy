@@ -122,6 +122,16 @@ const boxScore = {
               athlete: { displayName: "James Cook", position: { abbreviation: "RB" } },
               stats: ["3", "20", "6.7", "1", "9", "3"],
             },
+            // A camp body, which is what a preseason box score is mostly made
+            // of: no position here, not on the summary's team sheet below, and
+            // the draft pool has never heard of him. Invented on purpose —
+            // every real name in this fixture is one the pool would answer
+            // for, and this one has to be answerable only by the club's own
+            // roster endpoint.
+            {
+              athlete: { id: "9900001", displayName: "Emory Vance" },
+              stats: ["4", "41", "10.3", "0", "16", "6"],
+            },
           ],
         },
         {
@@ -258,6 +268,39 @@ const rosters = [
     ],
   },
 ];
+
+/**
+ * The club roster endpoint, /teams/{abbrev}/roster.
+ *
+ * The one NFL endpoint that always carries a position, for every player on the
+ * club rather than only the ones who recorded a statistic. Buffalo is grouped
+ * into units, which is what the endpoint returns most of the time; Kansas City
+ * is flat, which is the other shape seen in the wild. Both have to parse or a
+ * position goes missing on whichever clubs happen to answer the other way.
+ */
+export const TEAM_ROSTERS: Record<string, unknown> = {
+  BUF: {
+    athletes: [
+      {
+        position: "offense",
+        items: [
+          { id: "9900001", displayName: "Emory Vance", position: { abbreviation: "TE" } },
+          { id: "3918298", displayName: "Josh Allen", position: { abbreviation: "QB" } },
+        ],
+      },
+      {
+        position: "specialTeam",
+        items: [{ id: "4362238", displayName: "Tyler Bass", position: { abbreviation: "PK" } }],
+      },
+    ],
+  },
+  KC: {
+    athletes: [
+      { id: "3139477", fullName: "Patrick Mahomes II", position: { abbreviation: "QB" } },
+      { id: "15847", displayName: "Travis Kelce", position: { abbreviation: "TE" } },
+    ],
+  },
+};
 
 export const SUMMARY = {
   rosters,

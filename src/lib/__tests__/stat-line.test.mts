@@ -8,7 +8,14 @@
  * every quarterback in the league is noise that hides the one who ran for two.
  */
 
-import { formatStatLine, readStatLine, scoreDefense, sumStatLines, type StatLine } from "../scoring";
+import {
+  formatStatLine,
+  readStatLine,
+  scoreDefense,
+  sumStatLines,
+  toSlotPosition,
+  type StatLine,
+} from "../scoring";
 import type { PlayerStat } from "../espn";
 
 let failed = 0;
@@ -246,6 +253,37 @@ ok(
 
 // Nobody who has not played yet gets a line of noughts.
 eq("a season with no weeks in it is blank", formatStatLine(sumStatLines([]), "RB"), "");
+
+// --- ESPN's vocabulary, in the league's --------------------------------------
+//
+// Reading the club team sheet means nearly every player now arrives carrying
+// ESPN's own word for what he plays, and formatStatLine switches on the
+// league's. Untranslated, a kicker signed off the waiver wire — the one case
+// where the roster cannot name him and ESPN's answer is used — came out with a
+// blank line, because "PK" matches no case in that switch.
+
+eq("a kicker is a K", toSlotPosition("PK"), "K");
+eq("a fullback is a back", toSlotPosition("FB"), "RB");
+eq("and so is a halfback", toSlotPosition("HB"), "RB");
+eq("a defence is a D/ST", toSlotPosition("DEF"), "D/ST");
+eq("however it is spelled", toSlotPosition("DST"), "D/ST");
+eq("a position already in our words is left alone", toSlotPosition("TE"), "TE");
+eq("case does not matter", toSlotPosition("pk"), "K");
+eq("nor does surrounding space", toSlotPosition("  WR "), "WR");
+eq("nothing is nothing", toSlotPosition(null), "");
+
+// A position the league has no slot for passes through rather than being
+// forced into one. There is no fantasy slot for a defensive tackle and
+// nothing downstream should pretend there is.
+eq("a position with no slot is untouched", toSlotPosition("DT"), "DT");
+
+const wireKicker: StatLine = { fgMade: 3, fgAttempted: 4, xpMade: 1, xpAttempted: 1 };
+eq(
+  "and the translation is what makes the kicker's line appear",
+  formatStatLine(wireKicker, toSlotPosition("PK")),
+  "3/4 FG \u00b7 1/1 XP",
+);
+eq("where ESPN's own word gives nothing", formatStatLine(wireKicker, "PK"), "");
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 if (failed) process.exitCode = 1;

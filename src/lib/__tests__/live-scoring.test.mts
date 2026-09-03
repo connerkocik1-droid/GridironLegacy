@@ -9,7 +9,7 @@
  */
 
 import { createServer, type Server } from "node:http";
-import { SCOREBOARD, SUMMARY } from "./fixtures/espn-game.mts";
+import { SCOREBOARD, SUMMARY, TEAM_ROSTERS } from "./fixtures/espn-game.mts";
 
 let failed = 0;
 
@@ -37,8 +37,18 @@ let requests: string[] = [];
 function serve(): Promise<{ server: Server; base: string }> {
   return new Promise((resolve) => {
     const server = createServer((req, res) => {
-      requests.push(req.url ?? "");
-      const body = (req.url ?? "").startsWith("/summary") ? SUMMARY : SCOREBOARD;
+      const url = req.url ?? "";
+      requests.push(url);
+
+      // The club team sheet, which is where a position comes from for anyone
+      // the box score did not label — every defensive player, for a start.
+      const sheet = /^\/teams\/([a-z]+)\/roster/.exec(url);
+
+      const body = sheet
+        ? (TEAM_ROSTERS[sheet[1].toUpperCase()] ?? { athletes: [] })
+        : url.startsWith("/summary")
+          ? SUMMARY
+          : SCOREBOARD;
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(body));
     });
@@ -179,9 +189,20 @@ ok("the statLine names the safety when there is one", /1 SFTY/.test(
 
 console.log("\n--- what is asked of ESPN ---");
 
-// One scoreboard, and one summary for the single game on it. A slate that has
-// not kicked off should cost the scoreboard alone.
-eq("one request per game plus the board", requests.length, 2);
+// One scoreboard, one summary for the single game on it, and one team sheet
+// per club — because a box score names no position at all for defensive
+// players, so every game has a gap on both sides.
+//
+// That sheet is the deliberate new cost of never guessing a position. It is
+// bounded: cached for six hours and keyed by club, so a thirteen-game Sunday
+// pays twenty-six requests on the first refresh of the afternoon and none on
+// the four hundred that follow it.
+eq("the board, the game, and a sheet for each club", requests.length, 4);
+eq(
+  "and the sheets are the two clubs playing",
+  requests.filter((u) => u.includes("/roster")).sort(),
+  ["/teams/buf/roster", "/teams/kc/roster"],
+);
 ok("the scoreboard is pinned to the regular season", requests.some((u) => u.includes("seasontype=2")));
 
 const upcoming = phaseOf([

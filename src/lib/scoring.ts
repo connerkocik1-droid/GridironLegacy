@@ -450,8 +450,9 @@ export function scoreGame(
   for (const [name, row] of byPlayer) {
     const groups = groupsOf.get(name) ?? [];
     row.line = readStatLine(groups);
+    // Translated on the way in, so everything downstream reads one vocabulary.
     const stated = groups.find((g) => g.position)?.position;
-    if (stated) row.line.position = stated;
+    if (stated) row.line.position = toSlotPosition(stated);
   }
 
   // Conversions land on players who already have a line from the box score;
@@ -646,6 +647,36 @@ export function sumStatLines(lines: StatLine[]): StatLine {
 /** A number, without a trailing ".0" on the half-sacks that do not need one. */
 function tidy(n: number): string {
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10);
+}
+
+/**
+ * ESPN's word for a position, in the league's.
+ *
+ * ESPN writes a kicker as PK, a fullback as FB and a back as HB. A lineup slot
+ * is called K, RB and RB. The two vocabularies used not to meet often, because
+ * ESPN's answer was only consulted for a player the draft pool had never heard
+ * of and a box score rarely stated one anyway.
+ *
+ * Reading the club team sheet changed that: nearly every player now arrives
+ * with ESPN's own word for what he plays, and formatStatLine switches on the
+ * league's. Untranslated, a kicker off the waiver wire came out with a blank
+ * stat line — "PK" matches no case — which is a silent wrong answer of exactly
+ * the kind this whole change exists to remove.
+ *
+ * Anything unrecognised passes through unchanged. A DT is a DT; the league has
+ * no slot for one and nothing downstream pretends otherwise.
+ */
+const SLOT_POSITIONS: Record<string, string> = {
+  PK: "K",
+  FB: "RB",
+  HB: "RB",
+  DEF: "D/ST",
+  DST: "D/ST",
+};
+
+export function toSlotPosition(espn: string | null | undefined): string {
+  const upper = (espn ?? "").trim().toUpperCase();
+  return SLOT_POSITIONS[upper] ?? upper;
 }
 
 /**

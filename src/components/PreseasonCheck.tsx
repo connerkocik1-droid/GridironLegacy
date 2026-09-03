@@ -193,10 +193,16 @@ function PlayerRow({ player, slot }: { player: PreseasonPlayer; slot?: string })
           </div>
           <div style={{ fontSize: 11, color: "#75798c", marginTop: 2, lineHeight: 1.45 }}>
             {player.position || "—"} · {player.team}
+            {/* Nothing here is ever a guess. ESPN's own answer is the silent
+                default; the other two say where they came from, and "not
+                stated" is an admitted blank rather than a position invented
+                from the columns a man happened to appear in. */}
             {player.positionSource !== "espn" ? (
-              <span style={{ color: "#8a7fd4" }}>
+              <span style={{ color: player.positionSource === "pool" ? "#8a7fd4" : "#e0b573" }}>
                 {" "}
-                (position {player.positionSource === "pool" ? "from our pool" : "inferred"})
+                {player.positionSource === "pool"
+                  ? "(position from our pool)"
+                  : "(position not stated by ESPN)"}
               </span>
             ) : null}
             {player.workload ? ` · ${player.workload} touches` : ""}

@@ -166,8 +166,8 @@ export function routes(page) {
   // and a suffix, deep breakdowns, and raw ESPN columns that want to run off
   // the side of a phone.
   const term = (stat, rule, points) => ({ stat, rule, points });
-  const preseasonPlayer = (name, team, position, workload, points, terms, raw) => ({
-    name, team, position, positionSource: "espn", workload, points,
+  const preseasonPlayer = (name, team, position, workload, points, terms, raw, source = "espn") => ({
+    name, team, position, positionSource: source, workload, points,
     statLine: terms.map((t) => t.stat).join(" \u00b7 "),
     terms, raw, gameId: "401671800",
   });
@@ -196,6 +196,18 @@ export function routes(page) {
       term("3 sacks", "\u00d7 1", 3), term("2 interceptions", "\u00d7 2", 4),
       term("1 fumble recovered", "\u00d7 2", 2), term("15 allowed", "14-20", 1),
     ], []),
+    // The two rows that are not ESPN's own answer, so the page has to lay both
+    // out: one the draft pool named, and one nobody could. The second is the
+    // row that used to carry a guessed position — it now carries an admitted
+    // blank, and the check reads it to make sure the guess has not come back.
+    preseasonPlayer("Bhayshul Tuten", "JAX", "RB", 12, 8.4, [
+      term("58 rush yds", "\u00f7 10", 5.8), term("26 rec yds", "\u00f7 10", 2.6),
+    ], [{ group: "rushing", stats: { CAR: "12", YDS: "58", AVG: "4.8", TD: "0", LONG: "9" } }],
+      "pool"),
+    preseasonPlayer("Tanner Mordecai", "SF", "", 7, 3.1, [
+      term("31 rec yds", "\u00f7 10", 3.1),
+    ], [{ group: "receiving", stats: { REC: "3", YDS: "31", AVG: "10.3", TD: "0", LONG: "14", TGTS: "5" } }],
+      "unknown"),
   ];
 
   page.route("**/api/admin/preseason**", json({

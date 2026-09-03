@@ -1,4 +1,10 @@
-import { fetchGameDetail, fetchScoreboard, type Game, type PlayerStat } from "./espn";
+import {
+  fetchGameDetail,
+  fetchScoreboard,
+  withTeamPositions,
+  type Game,
+  type PlayerStat,
+} from "./espn";
 import { normalizeName } from "./player-names";
 import { player as pooledPlayer } from "./roster";
 import {
@@ -10,6 +16,7 @@ import {
   readSafeties,
   readTwoPointConversions,
   scoreDefense,
+  toSlotPosition,
   type ScoreTerm,
   type ScoringFormat,
   type StatLine,
@@ -46,8 +53,11 @@ export interface PreseasonPlayer {
   name: string;
   team: string;
   position: string;
-  /** Where the position came from, since ESPN does not always say. */
-  positionSource: "espn" | "pool" | "inferred";
+  /**
+   * Where the position came from. Never a guess: "unknown" is a real answer,
+   * and an honest one, where a guessed position would silently be wrong.
+   */
+  positionSource: "espn" | "pool" | "unknown";
   /**
    * Passing attempts, carries and targets added together.
    *
@@ -113,53 +123,37 @@ function workloadOf(stats: PlayerStat[]): number {
 }
 
 /**
- * ESPN's position vocabulary, in the league's terms.
+ * What position a player is, from ESPN, or from the pool, or not at all.
  *
- * It says PK for a kicker and the roster slot is K, which is the sort of
- * difference that silently leaves a slot unfilled and looks like "nobody
- * kicked this week". A fullback goes in as a back because that is the slot he
- * would occupy if anybody rostered one.
- */
-const POSITION_ALIASES: Record<string, string> = {
-  PK: "K",
-  FB: "RB",
-  HB: "RB",
-  DEF: "D/ST",
-  DST: "D/ST",
-};
-
-function asSlotPosition(espn: string): string {
-  const upper = espn.toUpperCase();
-  return POSITION_ALIASES[upper] ?? upper;
-}
-
-/**
- * What position a player is, from the best source that has an answer.
+ * There used to be a fourth answer here: a guess from the columns a man
+ * appeared in. It has been taken out. That guess cannot tell a tight end from
+ * a receiver or a fullback from a back — which is precisely the distinction a
+ * lineup slot turns on — so it produced a confident label that was wrong about
+ * a fifth of the time, and a wrong position is worse than an admitted blank:
+ * it puts a man in a slot he cannot fill and nothing on the page says so.
  *
- * ESPN first, because it is talking about this game. The league's own pool
- * second, for anyone it knows. And failing both, an inference from what he
- * did — which cannot tell a tight end from a receiver, and says so by
- * labelling itself.
+ * ESPN is asked three ways before we give up. Its box score states a position
+ * sometimes; its game summary carries a `rosters` block sometimes; and the
+ * team sheet at /teams/{abbrev}/roster carries one always, for every player on
+ * the club. The first two are free, being already in the response. The third
+ * costs a request per club and is fetched only for the players still missing
+ * one — see withTeamPositions() in espn.ts, which the caller applies before
+ * this is reached.
+ *
+ * The league's own pool is kept behind all of that, for a player ESPN has
+ * somehow not heard of. Past both, the position is empty and the row says so.
  */
 function positionOf(
   name: string,
   stats: PlayerStat[],
 ): { position: string; source: PreseasonPlayer["positionSource"] } {
   const stated = stats.find((s) => s.position)?.position;
-  if (stated) return { position: asSlotPosition(stated), source: "espn" };
+  if (stated) return { position: toSlotPosition(stated), source: "espn" };
 
   const pooled = pooledPlayer(name);
   if (pooled) return { position: pooled.p, source: "pool" };
 
-  // Reaching here means ESPN named neither the man on its team sheet nor in
-  // its box score, and the league has never heard of him either — which is
-  // rare enough that saying so on the row is more use than a quiet guess.
-  const groups = new Set(stats.map((s) => s.group));
-  if (groups.has("kicking")) return { position: "K", source: "inferred" };
-  if (groups.has("passing")) return { position: "QB", source: "inferred" };
-  if (groups.has("rushing") && !groups.has("receiving")) return { position: "RB", source: "inferred" };
-  if (groups.has("receiving")) return { position: "WR", source: "inferred" };
-  return { position: "", source: "inferred" };
+  return { position: "", source: "unknown" };
 }
 
 /**
@@ -214,7 +208,12 @@ export async function preseasonWeek(
   const details = await Promise.all(
     played.map(async (game) => {
       try {
-        return { game, detail: await fetchGameDetail(game.id) };
+        const detail = await fetchGameDetail(game.id);
+        // Anyone the game itself did not name a position for is looked up on
+        // his club's team sheet, which always carries one. Costs a request per
+        // club with a gap, cached for six hours, and nothing at all when the
+        // box score already said.
+        return { game, detail: { ...detail, stats: await withTeamPositions(detail.stats) } };
       } catch (err) {
         console.error(`[preseason] game ${game.id} failed`, err);
         failed.push(game.id);

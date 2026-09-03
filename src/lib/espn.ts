@@ -461,3 +461,152 @@ export async function fetchInjuries(): Promise<InjuryReport[]> {
 
   return out;
 }
+
+/* ------------------------------------------------------------------ rosters -
+ *
+ * Where a position comes from when the game itself will not say.
+ *
+ * A game summary states a position in two places and neither is reliable: the
+ * box score's athlete objects are often trimmed to an id and a name, and the
+ * `rosters` block is absent from plenty of preseason responses. What is left
+ * is the team sheet — /teams/{abbrev}/roster — which is the one NFL endpoint
+ * that always carries `position.abbreviation`, for every player on the club
+ * rather than only the ones who recorded a statistic.
+ *
+ * Fetching it is the difference between knowing a man is a tight end and
+ * guessing from the fact that he caught a pass. The guess cannot tell a tight
+ * end from a receiver or a fullback from a back, which is exactly the
+ * distinction a lineup slot turns on, so guessing is worse than not knowing.
+ */
+
+/** A team sheet, keyed by athlete id and by lower-cased name. */
+export type PositionIndex = Map<string, string>;
+
+interface CachedRoster {
+  positions: PositionIndex;
+  at: number;
+}
+
+/**
+ * Team sheets barely move inside a week and this is read on the path that
+ * refreshes live scores every twenty seconds. Six hours means one fetch per
+ * club per session rather than one per refresh, and a signing that lands
+ * mid-afternoon is picked up by the evening.
+ */
+const ROSTER_TTL_MS = 6 * 60 * 60 * 1000;
+
+const rosterCache = new Map<string, CachedRoster>();
+
+/** Empties the cache. Exported for tests, which must not inherit each other's. */
+export function forgetTeamRosters(): void {
+  rosterCache.clear();
+}
+
+/**
+ * Every player on one club, and what he plays.
+ *
+ * ESPN groups the squad into offense, defence and special teams on this
+ * endpoint, and returns a flat list on some responses, so both shapes are
+ * read. A club that cannot be fetched yields an empty sheet rather than
+ * throwing: a missing position costs a slot label, and nothing here is worth
+ * failing a whole week's scoring over.
+ */
+export async function fetchTeamRoster(team: string): Promise<PositionIndex> {
+  const abbrev = team.trim().toUpperCase();
+  const out: PositionIndex = new Map();
+  if (!abbrev) return out;
+
+  const cached = rosterCache.get(abbrev);
+  if (cached && Date.now() - cached.at < ROSTER_TTL_MS) return cached.positions;
+
+  let body: Record<string, unknown>;
+  try {
+    body = asRecord(await getJson(`${SITE}/teams/${abbrev.toLowerCase()}/roster`));
+  } catch (err) {
+    console.error(`[espn] team sheet for ${abbrev} failed`, err);
+    return out;
+  }
+
+  const note = (key: unknown, position: unknown) => {
+    if (typeof position !== "string" || !position) return;
+    if (typeof key === "string") {
+      if (key && !out.has(key.toLowerCase())) out.set(key.toLowerCase(), position);
+    } else if (typeof key === "number") {
+      out.set(`#${key}`, position);
+    }
+  };
+
+  const readAthlete = (raw: unknown) => {
+    const athlete = asRecord(raw);
+    const position = asRecord(athlete.position).abbreviation;
+    if (typeof position !== "string" || !position) return;
+
+    const id = athlete.id;
+    if (typeof id === "string" || typeof id === "number") {
+      if (!out.has(`#${id}`)) out.set(`#${id}`, position);
+    }
+    note(athlete.displayName, position);
+    note(athlete.fullName, position);
+  };
+
+  for (const rawGroup of asArray(body.athletes)) {
+    const group = asRecord(rawGroup);
+    const items = asArray(group.items);
+    // Grouped by unit on most responses, flat on some. A flat entry is an
+    // athlete in its own right and has no `items` to walk.
+    if (items.length) items.forEach(readAthlete);
+    else readAthlete(rawGroup);
+  }
+
+  rosterCache.set(abbrev, { positions: out, at: Date.now() });
+  return out;
+}
+
+/**
+ * Fills in the positions a game did not state, from the team sheets.
+ *
+ * What comes back holds one guarantee the input does not: if a position is
+ * known for a player from any source at all — one of his own rows, or his
+ * club's sheet — then every row of his carries it. A caller reading a single
+ * row therefore never has to go looking through the others.
+ *
+ * Only the clubs with a man nobody has named are fetched, and a game whose box
+ * score labelled everybody costs no requests. The stats come back as a new
+ * array; the input is left alone.
+ */
+export async function withTeamPositions(stats: PlayerStat[]): Promise<PlayerStat[]> {
+  // A player appears once per stat group he features in, so a missing position
+  // is a property of the man rather than of the row: a back carrying "RB" on
+  // his rushing line and nothing on his fumbles line does not need looking up.
+  // Deciding this per row instead would fetch a club's sheet for a player it
+  // already had, which on a thirteen-game Sunday is a request per club per
+  // refresh for no answer that was not already in hand.
+  const key = (s: PlayerStat) => `${s.team}|${s.name.toLowerCase()}`;
+
+  const known = new Map<string, string>();
+  for (const stat of stats) {
+    if (stat.position && !known.has(key(stat))) known.set(key(stat), stat.position);
+  }
+
+  // Only the clubs with a man nobody has named are asked, and a game that
+  // labelled everybody asks nobody at all — which is most regular-season
+  // games, and the case this must not make expensive.
+  const gaps = stats.filter((s) => !known.has(key(s)));
+  const sheets = new Map<string, PositionIndex>();
+
+  if (gaps.length) {
+    const teams = [...new Set(gaps.map((s) => s.team).filter(Boolean))];
+    await Promise.all(
+      teams.map(async (team) => {
+        sheets.set(team, await fetchTeamRoster(team));
+      }),
+    );
+  }
+
+  return stats.map((stat) => {
+    if (stat.position) return stat;
+    const found =
+      known.get(key(stat)) ?? sheets.get(stat.team)?.get(stat.name.toLowerCase());
+    return found ? { ...stat, position: found } : stat;
+  });
+}

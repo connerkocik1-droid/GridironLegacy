@@ -9,7 +9,12 @@
  */
 
 import { createServer, type Server } from "node:http";
-import { PRESEASON_SCOREBOARD, SCOREBOARD, SUMMARY } from "./fixtures/espn-game.mts";
+import {
+  PRESEASON_SCOREBOARD,
+  SCOREBOARD,
+  SUMMARY,
+  TEAM_ROSTERS,
+} from "./fixtures/espn-game.mts";
 
 let failed = 0;
 
@@ -40,13 +45,20 @@ function serve(): Promise<{ server: Server; base: string }> {
       // asked for, so a route that forgets to ask gets caught rather than
       // quietly scoring the regular season. And only for week 3, so asking for
       // a week nobody has played gets an empty board, as it would in August.
-      const body = url.startsWith("/summary")
-        ? SUMMARY
-        : url.includes("seasontype=1")
-          ? url.includes("week=3")
-            ? PRESEASON_SCOREBOARD
-            : { events: [] }
-          : SCOREBOARD;
+      // /teams/{abbrev}/roster — the club's own team sheet, which is the only
+      // endpoint that names a position for every player rather than only the
+      // ones the box score labelled.
+      const sheet = /^\/teams\/([a-z]+)\/roster/.exec(url);
+
+      const body = sheet
+        ? (TEAM_ROSTERS[sheet[1].toUpperCase()] ?? { athletes: [] })
+        : url.startsWith("/summary")
+          ? SUMMARY
+          : url.includes("seasontype=1")
+            ? url.includes("week=3")
+              ? PRESEASON_SCOREBOARD
+              : { events: [] }
+            : SCOREBOARD;
 
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(body));
@@ -123,12 +135,34 @@ eq("read from ESPN, not guessed", allen.positionSource, "espn");
 eq("the team sheet's kicker is a K", by("Bass")!.position, "K");
 eq("also from ESPN", by("Bass")!.positionSource, "espn");
 
-// Nothing in a real game should ever reach the inference fallback.
+// A camp body the box score did not label, who is on neither team sheet in
+// the summary and unknown to the draft pool. His position can only have come
+// from his club's own roster endpoint — which is the whole reason that
+// endpoint is now fetched.
+const vance = by("Emory Vance")!;
+eq("a player only the club roster knows is still placed", vance.position, "TE");
+eq("and it came from ESPN", vance.positionSource, "espn");
+
+// The point of the change: there is no longer any code path that guesses.
+// A receiver and a tight end look identical in a box score, and a guess that
+// picks one puts a man in a slot he cannot fill without ever saying so.
 eq(
   "nobody had their position guessed at",
-  week.players.filter((p) => p.positionSource === "inferred").map((p) => p.name),
+  week.players.filter((p) => p.positionSource !== "espn" && p.positionSource !== "pool")
+    .map((p) => `${p.name} (${p.positionSource})`),
   [],
 );
+
+// Both clubs are asked here, and legitimately: a box score names no position
+// at all for defensive players, so every game has a gap on both sides. What
+// matters is that each club is asked once rather than once per player — this
+// runs behind a twenty-second live refresh, and a sheet per gap would be
+// hundreds of requests an afternoon.
+const sheetsAsked = asked.filter((u) => u.includes("/roster")).sort();
+eq("each club's sheet is fetched once, not once per player", sheetsAsked, [
+  "/teams/buf/roster",
+  "/teams/kc/roster",
+]);
 
 console.log("\n--- who is picked, and why ---");
 

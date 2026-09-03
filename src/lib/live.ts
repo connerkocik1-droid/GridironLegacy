@@ -1,5 +1,6 @@
 import {
   fetchGameDetail,
+  withTeamPositions,
   fetchScoreboard,
   type Game,
   type SeasonType,
@@ -133,7 +134,13 @@ export async function pullWeek(
   const details = await Promise.all(
     played.map(async (game) => {
       try {
-        return { game, detail: await fetchGameDetail(game.id) };
+        const detail = await fetchGameDetail(game.id);
+        // The stat line a manager reads is written in the vocabulary of the
+        // position, so a missing position is a missing line — not a cosmetic
+        // gap. Anyone the game did not name is looked up on his club's team
+        // sheet, which is cached for six hours and so costs nothing across the
+        // twenty-second refreshes of an afternoon.
+        return { game, detail: { ...detail, stats: await withTeamPositions(detail.stats) } };
       } catch (err) {
         console.error(`[live] game ${game.id} failed`, err);
         failed.push(game.id);
