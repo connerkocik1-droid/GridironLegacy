@@ -11,6 +11,10 @@ export interface Me {
   ready: boolean;
   /** Their team photo as a data URI, or null for the lettered fallback. */
   logo: string | null;
+  /** Where the league emails them, or null if they have not given an address. */
+  email?: string | null;
+  /** Whether they want those emails at all. */
+  email_notices?: boolean;
 }
 
 export type MeState = {

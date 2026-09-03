@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useMe } from "@/lib/use-me";
 
 interface Notice {
   id: string;
@@ -33,6 +34,7 @@ function when(iso: string) {
  * that will not go away is worse than no count.
  */
 export default function Notices() {
+  const me = useMe();
   const [notices, setNotices] = useState<Notice[]>([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
@@ -155,6 +157,32 @@ export default function Notices() {
             color: "#e9e9ed",
           }}
         >
+          {/* Offered here rather than on the home page, because this is the one
+              moment a manager is demonstrably reading their notices — and the
+              offer is to get these same ones by email. Shown only while there
+              is no address on the franchise, so it disappears the moment it is
+              acted on and never nags anybody who already said yes. */}
+          {me.status === "signed-in" && !me.manager?.email ? (
+            <Link
+              href="/my-team/edit"
+              onClick={() => setOpen(false)}
+              style={{
+                display: "block",
+                padding: "11px 14px",
+                borderBottom: "1px solid rgba(145,132,217,.18)",
+                fontSize: 11.5,
+                color: "#b5abfc",
+                textDecoration: "none",
+                lineHeight: 1.5,
+              }}
+            >
+              Get these by email too →
+              <span style={{ display: "block", color: "#75798c", marginTop: 2 }}>
+                So you hear about your pick when the site is closed.
+              </span>
+            </Link>
+          ) : null}
+
           {notices.length === 0 ? (
             <div style={{ padding: "14px 14px", fontSize: 12, color: "#75798c", lineHeight: 1.6 }}>
               Nothing yet. This is where the league tells you it is your pick, that somebody has

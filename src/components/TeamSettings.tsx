@@ -23,9 +23,12 @@ import TeamCrest from "./TeamCrest";
 export interface EditableManager {
   franchise: string;
   logo: string | null;
+  /** Where the league emails them, or null if they have never said. */
+  email?: string | null;
+  email_notices?: boolean;
 }
 
-type Section = "name" | "photo" | "pin" | null;
+type Section = "name" | "photo" | "email" | "pin" | null;
 
 const label: React.CSSProperties = {
   display: "block",
@@ -86,6 +89,8 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
   const [done, setDone] = useState<string | null>(null);
 
   const [franchise, setFranchise] = useState("");
+  const [email, setEmail] = useState("");
+  const [wantsMail, setWantsMail] = useState(true);
   const [currentPin, setCurrentPin] = useState("");
   const [nextPin, setNextPin] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
@@ -98,6 +103,10 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
     setPreview(null);
     setSection((was) => (was === next ? null : next));
     if (next === "name") setFranchise(manager.franchise);
+    if (next === "email") {
+      setEmail(manager.email ?? "");
+      setWantsMail(manager.email_notices !== false);
+    }
     if (next === "pin") {
       setCurrentPin("");
       setNextPin("");
@@ -140,6 +149,35 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
         setDone("Team name saved.");
       },
       "Could not save that name.",
+    );
+
+  /**
+   * The address and the switch save together, because they are one decision.
+   * Somebody typing an address wants the emails; somebody clearing it does not,
+   * and making them press two buttons to say so is a form arguing with them.
+   */
+  const saveEmail = () =>
+    send(
+      () =>
+        fetch("/api/profile", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email: email.trim(), emailNotices: wantsMail }),
+        }),
+      (body) => {
+        patchMe({
+          email: (body.email as string | null) ?? null,
+          email_notices: body.emailNotices !== false,
+        });
+        setDone(
+          email.trim()
+            ? wantsMail
+              ? "Saved. The league will email you when something happens."
+              : "Saved. Your address is kept, but nothing will be emailed."
+            : "Saved. Nothing will be emailed to you.",
+        );
+      },
+      "Could not save that address.",
     );
 
   const savePin = () =>
@@ -234,6 +272,73 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
               style={action(
                 !busy && Boolean(franchise.trim()) && franchise.trim() !== manager.franchise,
               )}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ---------------------------------------------------- email --- */}
+      {/* Between the name and the photo, because it is the other thing that
+          is about the manager rather than about the team. */}
+      <button onClick={() => show("email")} style={rowButton(section === "email")}>
+        Email me when something happens
+        <span aria-hidden style={{ color: "#75798c" }}>{section === "email" ? "\u2212" : "+"}</span>
+      </button>
+
+      {section === "email" ? (
+        <div style={{ padding: "12px 14px 14px" }}>
+          <p style={{ fontSize: 11.5, color: "#9397ab", lineHeight: 1.6, margin: "0 0 12px" }}>
+            The league already tells you things in the bell at the top of the
+            page. Give an address and it will tell you by email as well &mdash;
+            when you are on the clock, when somebody offers you a trade, when a
+            claim goes through, when Sunday arrives and your lineup has a hole
+            in it. Leave it blank and nothing is sent.
+          </p>
+
+          <label htmlFor="ts-email" style={label}>
+            EMAIL ADDRESS
+          </label>
+          <input
+            id="ts-email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value.slice(0, 200))}
+            placeholder="you@example.com"
+            style={field}
+          />
+
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 9,
+              marginTop: 12,
+              minHeight: 34,
+              fontSize: 12,
+              color: "#c8ccdc",
+              cursor: email.trim() ? "pointer" : "default",
+              opacity: email.trim() ? 1 : 0.5,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={wantsMail}
+              disabled={!email.trim()}
+              onChange={(e) => setWantsMail(e.target.checked)}
+              style={{ accentColor: "#9184d9", cursor: "inherit" }}
+            />
+            Send them
+          </label>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 11 }}>
+            <button
+              onClick={() => void saveEmail()}
+              disabled={busy}
+              style={action(!busy)}
             >
               Save
             </button>

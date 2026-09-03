@@ -3058,3 +3058,112 @@ select expect('pick twenty-one is in round eleven',
 
 select expect('so the clock it is nudged against is sixty seconds, not ninety',
   (select (nudge_clock(:'CK', 0) ->> 'remaining')::int between 55 and 61), true);
+
+\echo ''
+\echo '--- email: a delivery channel for notices that already exist ---'
+
+\set ML  '99999999-0000-0000-0000-0000000000e1'
+\set ML1 'e1a00000-0000-0000-0000-000000000001'
+\set ML2 'e1a00000-0000-0000-0000-000000000002'
+
+\o /dev/null
+insert into auth.users (id) values (:'ML1'), (:'ML2');
+insert into leagues (id, name, season, commissioner_slot, settings, draft_state)
+values (:'ML', 'Mail', 2034, 'AAA', '{"rounds": 2}'::jsonb, 'pending');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'ML', 'AAA', 'One', 'Alpha', true,  :'ML1'),
+  (:'ML', 'BBB', 'Two', 'Bravo', false, :'ML2');
+
+select signin(:'ML1');
+\o
+
+-- A manager owns their own address, the same way they own their team name.
+select expect('an address starts empty',
+  (select email from managers where league_id = :'ML' and slot = 'AAA'), null::text);
+
+\o /dev/null
+update managers set email = 'alpha@example.com'
+ where league_id = :'ML' and slot = 'AAA';
+\o
+
+select expect('and can be set',
+  (select email from managers where league_id = :'ML' and slot = 'AAA'), 'alpha@example.com');
+
+select expect('wanting the emails is the default',
+  (select email_notices from managers where league_id = :'ML' and slot = 'AAA'), true);
+
+-- ------------------------------------------------------------- the queue ---
+
+\o /dev/null
+select notify_manager(:'ML', (select id from managers where league_id = :'ML' and slot = 'AAA'),
+  'draft_turn', 'You are on the clock.', '/draft');
+select notify_manager(:'ML', (select id from managers where league_id = :'ML' and slot = 'BBB'),
+  'trade_offer', 'Alpha offered you a trade.', '/trade-builder');
+\o
+
+select expect('two notices were raised',
+  (select count(*)::int from notices where league_id = :'ML'), 2);
+
+-- Only the manager with an address is eligible, and the row carries everything
+-- an email needs. Bravo gets the in-app notice and nothing else, which is the
+-- whole point of the address being optional.
+select expect('only the manager with an address is claimed, and it carries the email',
+  (select email || '|' || kind || '|' || href || '|' || franchise
+     from claim_notice_mail(25)),
+  'alpha@example.com|draft_turn|/draft|Alpha');
+
+-- Claim-then-send: a second run finds nothing, which is what stops two
+-- overlapping crons posting the same notice twice.
+select expect('claiming again finds nothing to send',
+  (select count(*)::int from claim_notice_mail(25)), 0);
+
+select expect('the claimed notice is marked, the other is not',
+  (select count(*)::int from notices where league_id = :'ML' and emailed_at is not null), 1);
+
+-- A send that fails hands the notice back, and the next run picks it up.
+\o /dev/null
+select release_notice_mail(array(
+  select id from notices where league_id = :'ML' and emailed_at is not null));
+\o
+
+select expect('a released notice is unmarked',
+  (select count(*)::int from notices where league_id = :'ML' and emailed_at is not null), 0);
+
+select expect('and is claimed again on the next run',
+  (select count(*)::int from claim_notice_mail(25)), 1);
+
+-- Switching the emails off stops them without losing the address.
+\o /dev/null
+update managers set email_notices = false
+ where league_id = :'ML' and slot = 'AAA';
+select release_notice_mail(array(select id from notices where league_id = :'ML'));
+\o
+
+select expect('a manager who turned them off is not claimed',
+  (select count(*)::int from claim_notice_mail(25)), 0);
+
+select expect('but their address is still theirs',
+  (select email from managers where league_id = :'ML' and slot = 'AAA'), 'alpha@example.com');
+
+-- An old notice is not delivered late. A cron down for a week should resume,
+-- not post the week.
+\o /dev/null
+update managers set email_notices = true where league_id = :'ML' and slot = 'AAA';
+update notices set created_at = now() - interval '3 days', emailed_at = null
+ where league_id = :'ML';
+\o
+
+select expect('a notice older than a day is left alone',
+  (select count(*)::int from claim_notice_mail(25)), 0);
+
+-- Nobody but the service key may touch the queue. A session that could claim
+-- mail could mark somebody else's notices delivered and silently stop them.
+select expect('a manager cannot claim the mail queue',
+  (select has_function_privilege('authenticated', 'claim_notice_mail(int)', 'execute')), false);
+
+select expect('nor hand notices back',
+  (select has_function_privilege('authenticated', 'release_notice_mail(uuid[])', 'execute')), false);
+
+select expect('but they can still read their own notices',
+  (select has_table_privilege('authenticated', 'notices', 'select')), true);

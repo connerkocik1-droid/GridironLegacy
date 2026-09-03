@@ -58,9 +58,32 @@ const ago = (mins) => new Date(Date.now() - mins * 60_000).toISOString();
 export function routes(page) {
   const json = (body) => (r) => r.fulfill({ json: body });
 
-  page.route("**/api/auth/me", json({
-    manager: { ...ME, is_commissioner: true, ready: false, logo: null }, configured: true,
-  }));
+  // The email a manager has given, so the settings panel has something to show
+  // and the form starts in the state a returning manager actually sees.
+  let managerEmail = "conner@example.com";
+  let managerWantsMail = true;
+
+  page.route("**/api/auth/me", (r) =>
+    r.fulfill({ json: {
+      manager: {
+        ...ME, is_commissioner: true, ready: false, logo: null,
+        email: managerEmail, email_notices: managerWantsMail,
+      },
+      configured: true,
+    } }),
+  );
+
+  page.route("**/api/profile", (r) => {
+    const body = JSON.parse(r.request().postData() ?? "{}");
+    if (body.email !== undefined) managerEmail = body.email || null;
+    if (body.emailNotices !== undefined) managerWantsMail = body.emailNotices;
+    return r.fulfill({ json: {
+      ok: true,
+      franchise: body.franchise ?? ME.franchise,
+      email: managerEmail,
+      emailNotices: managerWantsMail,
+    } });
+  });
   page.route("**/api/logos", json({ logos: {} }));
   // The injury report, with one of each state that draws a badge — so any
   // screen showing players shows every colour the badge can be.

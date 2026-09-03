@@ -5,6 +5,9 @@ export interface SessionManager {
   slot: string;
   name: string;
   franchise: string;
+  /** Where to email them, or null if they have not given one. */
+  email?: string | null;
+  email_notices?: boolean;
   league_id: string;
   is_commissioner: boolean;
   ready: boolean;
@@ -47,7 +50,7 @@ export async function currentManager(): Promise<SessionManager | null> {
 
     let query = db
       .from("managers")
-      .select("id, slot, name, franchise, league_id, is_commissioner, ready")
+      .select("id, slot, name, franchise, league_id, is_commissioner, ready, email, email_notices")
       .eq("auth_user_id", user.id);
 
     // Scoped when the deployment names its league, which it always does in

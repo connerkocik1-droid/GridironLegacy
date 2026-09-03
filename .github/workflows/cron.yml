@@ -29,7 +29,7 @@ on:
         required: true
         default: scores
         type: choice
-        options: [scores, autodraft, waivers]
+        options: [scores, autodraft, waivers, mail]
 
 jobs:
   run:
@@ -51,7 +51,11 @@ jobs:
           if [ -n "$MANUAL" ]; then
             JOBS="$MANUAL"
           else
-            JOBS="scores autodraft"
+            # Mail rides along with the five-minute run rather than getting a
+            # schedule of its own: a notice worth emailing is worth emailing
+            # within five minutes, and the endpoint is a no-op with an empty
+            # queue or no mail provider configured.
+            JOBS="scores autodraft mail"
           fi
 
           FAILED=0
