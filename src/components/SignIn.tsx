@@ -257,8 +257,12 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
       <div>
         {heading}
         <p style={{ fontSize: 13, color: "#9397ab", lineHeight: 1.6, margin: "0 0 8px" }}>
-          Twelve managers, one league, and a franchise each. Sign in if you have
-          one, sign up to take one of the teams that are still going.
+          {/* Counted, not spelled out. The eyebrow above this already reads the
+              real league size, and a hardcoded "Twelve" beside it is wrong the
+              moment a commissioner adds a thirteenth franchise — on the first
+              screen anybody ever sees. */}
+          {slots.length} managers, one league, and a franchise each. Sign in if
+          you have one, sign up to take one of the teams that are still going.
         </p>
         {messages}
 

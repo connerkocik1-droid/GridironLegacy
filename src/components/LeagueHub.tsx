@@ -27,6 +27,14 @@ interface Counts {
 }
 
 const PLACES: Place[] = [
+  // First, and deliberately. Everything else on this page assumes you already
+  // know how the league works; this is the one that says so, and the manager
+  // who needs it most is the one who has never opened the app before.
+  {
+    href: "/rules",
+    name: "How this league works",
+    line: "The lineup you field, how points are scored, waivers, trades and the draft.",
+  },
   {
     href: "/standings",
     name: "Standings",

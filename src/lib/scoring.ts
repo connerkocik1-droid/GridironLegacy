@@ -220,7 +220,7 @@ export function scoreGroup(
  * Points allowed is the single largest term in a defensive score, and it is a
  * band rather than a rate. Ordered high to low so the first match wins.
  */
-const POINTS_ALLOWED: [max: number, points: number][] = [
+export const POINTS_ALLOWED: [max: number, points: number][] = [
   [0, 10],
   [6, 7],
   [13, 4],
@@ -230,7 +230,7 @@ const POINTS_ALLOWED: [max: number, points: number][] = [
   [Infinity, -4],
 ];
 
-const DEFENSE_RULES = {
+export const DEFENSE_RULES = {
   sack: 1,
   interception: 2,
   fumbleRecovery: 2,
