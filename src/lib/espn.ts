@@ -610,3 +610,115 @@ export async function withTeamPositions(stats: PlayerStat[]): Promise<PlayerStat
     return found ? { ...stat, position: found } : stat;
   });
 }
+
+/* ------------------------------------------------------------ play by play -
+ *
+ * The summary endpoint carries `scoringPlays` — every play that changed the
+ * score, which is what fantasy scoring needs and all it has ever used. This is
+ * the other thing: every play of the game, from ESPN's core API.
+ *
+ * A different host and a different shape, so it is kept apart from everything
+ * above rather than folded in. Two differences matter. The core API names a
+ * team by a `$ref` URL rather than an abbreviation, so the id is read out of
+ * the URL and mapped by the caller, who already knows which clubs are playing.
+ * And it paginates, so a game of a hundred and sixty plays arrives in pages.
+ *
+ * Nothing that scores points reads this. It is the drive feed — "what just
+ * happened" — and a live box score is still the right source for a stat line.
+ */
+
+const CORE =
+  process.env.ESPN_CORE_API_BASE ??
+  "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl";
+
+export interface Play {
+  id: string;
+  /** ESPN's ordering within the game; lexicographically sortable as it comes. */
+  sequence: string;
+  /** "Rush", "Pass Reception", "Field Goal Good"… */
+  type: string;
+  text: string;
+  /** Quarter, from 1. Overtime is 5. */
+  period: number;
+  /** "12:04" — the game clock when the play began. */
+  clock: string;
+  /** The club that had the ball, by ESPN team id. Empty when it said nothing. */
+  teamId: string;
+  scoring: boolean;
+  homeScore: number;
+  awayScore: number;
+}
+
+/** How many pages to walk before giving up. A game is about two. */
+const MAX_PAGES = 6;
+
+/**
+ * Every play of one game, oldest first.
+ *
+ * Returns what it managed to read rather than throwing: a drive feed that is
+ * one page short is still a drive feed, and nothing downstream of this scores
+ * points. A game that has not kicked off yields an empty list.
+ */
+export async function fetchPlayByPlay(eventId: string, competitionId = eventId): Promise<Play[]> {
+  const out: Play[] = [];
+
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    let body: Record<string, unknown>;
+    try {
+      body = asRecord(
+        await getJson(
+          `${CORE}/events/${eventId}/competitions/${competitionId}/plays?limit=300&page=${page}`,
+        ),
+      );
+    } catch (err) {
+      console.error(`[espn] play-by-play page ${page} of ${eventId} failed`, err);
+      break;
+    }
+
+    const items = asArray(body.items);
+    for (const raw of items) out.push(readPlay(raw));
+
+    const pageCount = Number(body.pageCount ?? 1);
+    if (!items.length || !Number.isFinite(pageCount) || page >= pageCount) break;
+  }
+
+  // ESPN's sequence numbers are zero-padded strings, so they sort as numbers
+  // do without being parsed as numbers — which matters, because some of them
+  // are longer than a safe integer.
+  return out.sort((a, b) => a.sequence.localeCompare(b.sequence));
+}
+
+function readPlay(raw: unknown): Play {
+  const play = asRecord(raw);
+  const type = asRecord(play.type);
+
+  return {
+    id: String(play.id ?? ""),
+    sequence: String(play.sequenceNumber ?? play.id ?? ""),
+    type: typeof type.text === "string" ? type.text : "",
+    text: typeof play.text === "string" ? play.text : "",
+    period: Number(asRecord(play.period).number ?? 0) || 0,
+    clock: (() => {
+      const value = asRecord(play.clock).displayValue;
+      return typeof value === "string" ? value : "";
+    })(),
+    teamId: teamIdFromRef(asRecord(play.team).$ref),
+    scoring: play.scoringPlay === true,
+    homeScore: Number(play.homeScore ?? 0) || 0,
+    awayScore: Number(play.awayScore ?? 0) || 0,
+  };
+}
+
+/**
+ * The team id out of a core-API reference URL.
+ *
+ * The core API hands back `.../teams/12?lang=en&region=us` where the site API
+ * would simply have said "KC". Following the reference would be a request per
+ * play; the id is in the URL, and the caller already knows which two clubs are
+ * on the field.
+ */
+export function teamIdFromRef(ref: unknown): string {
+  if (typeof ref !== "string") return "";
+  const match = /\/teams\/(\d+)/.exec(ref);
+  return match ? match[1] : "";
+}
