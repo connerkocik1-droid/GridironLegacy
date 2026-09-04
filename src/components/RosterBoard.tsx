@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { headshot, logo, statLine } from "@/data/league-data";
 import PlayerName from "./PlayerName";
+import LiveNumber from "./LiveNumber";
 import TeamCrest from "./TeamCrest";
 import { bestLineup, type Score } from "@/lib/matchup";
 import { flagColor, flagsFor, player, proj, type LeagueShape } from "@/lib/roster";
@@ -195,9 +196,15 @@ export default function RosterBoard() {
           </div>
         </div>
         <div style={{ marginLeft: "auto", textAlign: "right" }}>
-          <div style={{ fontFamily: "var(--font-heading)", fontSize: 26, color: "#d2cefd" }}>
-            {total.toFixed(1)}
-          </div>
+          <LiveNumber
+            value={total}
+            style={{
+              display: "block",
+              fontFamily: "var(--font-heading)",
+              fontSize: 26,
+              color: "#d2cefd",
+            }}
+          />
           <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c" }}>{totalLabel}</div>
         </div>
       </div>
@@ -521,7 +528,7 @@ function PlayerRow({
                   color: live ? "#d2cefd" : "#b2b6ca",
                 }}
               >
-                {(live ? score.points : proj(name)).toFixed(1)}
+                <LiveNumber key={name} value={live ? score.points : proj(name)} />
               </div>
               <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c" }}>
                 {live ? "LIVE" : "PROJ"}

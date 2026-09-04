@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import TeamCrest from "./TeamCrest";
+import LiveNumber from "./LiveNumber";
 import { useLogos } from "@/lib/use-logos";
 import type { Home, HomeSide } from "@/lib/home-types";
 
@@ -67,17 +68,15 @@ function Side({
         </div>
       </div>
       {score != null ? (
-        <div
+        <LiveNumber
+          value={score}
           style={{
             fontFamily: "var(--font-heading)",
             fontSize: 26,
-            fontVariantNumeric: "tabular-nums",
             color: winning ? "#e9e9ed" : "#9397ab",
             flex: "0 0 auto",
           }}
-        >
-          {score.toFixed(1)}
-        </div>
+        />
       ) : null}
     </div>
   );
@@ -232,6 +231,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
         </div>
 
         <Side
+          key={game.home.id}
           side={game.home}
           logo={logos[game.home.id] ?? null}
           score={homeScore}
@@ -239,6 +239,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
           mine={game.home.id === home.meId}
         />
         <Side
+          key={game.away.id}
           side={game.away}
           logo={logos[game.away.id] ?? null}
           score={awayScore}

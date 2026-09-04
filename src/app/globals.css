@@ -359,3 +359,143 @@ body {
     overscroll-behavior-y: none;
   }
 }
+
+
+/* ------------------------------------------------------------- the touch ---
+   Every control in this app is styled inline, on a component of its own, and
+   none of them said anything when pressed. That is not a hundred small
+   omissions — it is one, and it lives here, because whatever else a component
+   draws it is still a button, a link, or something with role=button.
+
+   Two things are wrong with an untreated tap on a phone, and the second is
+   the one nobody can name but everybody feels. */
+
+/* One: the delay. A browser waits about three hundred milliseconds after a tap
+   to see whether a second one is coming, so it can zoom. Declaring that we do
+   not zoom on double-tap gives that third of a second back on every press in
+   the app — the single largest thing that can be done for how fast this feels,
+   and it is one line. */
+html {
+  touch-action: manipulation;
+}
+
+/* Two: the answer. Mobile browsers paint a grey box over whatever you press,
+   which is ugly and, worse, arrives late and stays after your finger has gone.
+   It is turned off here and replaced below — turning it off alone would leave
+   the app feeling dead under the thumb, which is worse than ugly. */
+a,
+button,
+select,
+summary,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The replacement: the control gives, slightly, immediately, and comes back.
+   Sixty milliseconds down and a hundred and forty back — quick enough to feel
+   like a consequence of the press rather than an animation of it.
+
+   Scale rather than colour, because these controls have a dozen different
+   backgrounds between them and one transform reads the same on all of them. */
+a,
+button,
+select,
+[role="button"] {
+  transition:
+    transform 140ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 140ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+a:active,
+button:not([disabled]):active,
+select:active,
+[role="button"]:active {
+  transform: scale(0.972);
+  transition-duration: 60ms;
+}
+
+/* A link inside a sentence is text, not a control. A word that shrinks away
+   from the words either side of it reads as a rendering fault, so those dim
+   instead — the same answer, delivered in a way a paragraph can survive. */
+p a:active,
+li a:active {
+  transform: none;
+  opacity: 0.65;
+}
+
+/* A control that cannot be used says so by not moving. */
+button[disabled],
+button[disabled]:active {
+  transform: none;
+}
+
+/* Motion that cannot be turned off is motion imposed on somebody. The press
+   still answers — it just answers in colour rather than in movement, because
+   the feedback is the point and the animation is only how it is delivered. */
+@media (prefers-reduced-motion: reduce) {
+  a,
+  button,
+  select,
+  [role="button"] {
+    transition: background-color 160ms ease, border-color 160ms ease;
+  }
+  a:active,
+  button:not([disabled]):active,
+  select:active,
+  [role="button"]:active {
+    transform: none;
+    opacity: 0.7;
+  }
+}
+
+
+/* ------------------------------------------------------------ the ticker ---
+   A score that has just moved, saying so. Colour only — the figure itself is
+   counted in JavaScript, because a number that changes has to change from
+   something, and CSS cannot know what it was.
+
+   Up is the green this app already uses for a live week; down is the amber it
+   already uses for a warning. A stat correction three hours after a game is
+   not an error, but it is the kind of thing a manager wants to catch. */
+
+@keyframes gl-tick-up {
+  0%   { color: #7fd1a8; text-shadow: 0 0 18px rgba(127, 209, 168, 0.55); }
+  100% { color: inherit; text-shadow: none; }
+}
+
+@keyframes gl-tick-down {
+  0%   { color: #e0b573; text-shadow: 0 0 18px rgba(224, 181, 115, 0.45); }
+  100% { color: inherit; text-shadow: none; }
+}
+
+.gl-tick {
+  /* Both keyframes end on `inherit`, so whatever colour the number was
+     styled is what it returns to — this has no opinion about that. */
+  animation-duration: 1100ms;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+.gl-tick-up {
+  animation-name: gl-tick-up;
+}
+
+.gl-tick-down {
+  animation-name: gl-tick-down;
+}
+
+/* The colour is the message and it stays; only the glow, which is decoration,
+   is dropped. A manager who has asked for less motion still needs to know a
+   touchdown happened. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes gl-tick-up {
+    0%   { color: #7fd1a8; }
+    100% { color: inherit; }
+  }
+  @keyframes gl-tick-down {
+    0%   { color: #e0b573; }
+    100% { color: inherit; }
+  }
+}

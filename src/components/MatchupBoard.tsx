@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import LiveNumber from "./LiveNumber";
 import { headshot, logo } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import type { MatchupRow, SideEntry } from "@/lib/matchup";
@@ -137,7 +138,7 @@ function PlayerCell({
             color: leading ? "#d2cefd" : "#b2b6ca",
           }}
         >
-          {(entry.live ? entry.points : entry.projected).toFixed(1)}
+          <LiveNumber key={entry.name} value={entry.live ? entry.points : entry.projected} />
         </div>
         {!entry.live ? (
           <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#5a5d6e" }}>PROJ</div>
@@ -231,7 +232,7 @@ export default function MatchupBoard() {
               marginTop: 2,
             }}
           >
-            {board.home.total.toFixed(1)}
+            <LiveNumber key={board.home.id} value={board.home.total} />
           </div>
         </div>
 
@@ -287,7 +288,7 @@ export default function MatchupBoard() {
               marginTop: 2,
             }}
           >
-            {board.away.total.toFixed(1)}
+            <LiveNumber key={board.away.id} value={board.away.total} />
           </div>
         </div>
       </div>
