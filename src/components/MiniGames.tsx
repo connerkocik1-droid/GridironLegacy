@@ -25,6 +25,8 @@ const GAMES = [
 type GameId = (typeof GAMES)[number]["id"];
 
 const tab = (active: boolean): React.CSSProperties => ({
+  flex: "0 0 auto",
+  whiteSpace: "nowrap",
   border: `1px solid ${active ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
   background: active ? "rgba(145,132,217,.22)" : "transparent",
   color: active ? "#e9e9ed" : "#8f94a8",
@@ -63,7 +65,10 @@ export default function MiniGames() {
             way in there is nothing to move between yet, and three cards say
             more about each game than three words do. */}
         {game ? (
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div
+            className="gl-scroll-x"
+            style={{ display: "flex", gap: 8, flexWrap: "nowrap", paddingBottom: 2 }}
+          >
             {GAMES.map((g) => (
               <button
                 key={g.id}

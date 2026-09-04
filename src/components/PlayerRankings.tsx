@@ -38,6 +38,8 @@ const TINT: Record<string, string> = {
 const PAGE = 50;
 
 const tab = (active: boolean): React.CSSProperties => ({
+  flex: "0 0 auto",
+  whiteSpace: "nowrap",
   border: `1px solid ${active ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
   background: active ? "rgba(145,132,217,.24)" : "transparent",
   color: active ? "#e9e9ed" : "#8f94a8",
@@ -141,7 +143,12 @@ export default function PlayerRankings() {
         game on the calendar.
       </p>
 
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+      {/* One rail rather than two rows. Seven positions is more than fits a
+          phone, and wrapped they pushed the table itself below the fold. */}
+      <div
+        className="gl-scroll-x"
+        style={{ display: "flex", gap: 6, flexWrap: "nowrap", marginBottom: 12, paddingBottom: 2 }}
+      >
         {ORDER.map((g) => (
           <button
             key={g}

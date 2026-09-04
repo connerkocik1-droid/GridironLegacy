@@ -217,7 +217,12 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
           marginBottom: 12,
         }}
       >
-        <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+        {/* Five of them, which is two rows on a phone. One rail instead, in
+            the order they are asked for. */}
+        <div
+          className="gl-scroll-x"
+          style={{ display: "flex", gap: 3, flexWrap: "nowrap", minWidth: 0, paddingBottom: 2 }}
+        >
           {FILTERS.map(([value, label]) => (
             <button
               key={value}
@@ -226,6 +231,8 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
                 setPage(0);
               }}
               style={{
+                flex: "0 0 auto",
+                whiteSpace: "nowrap",
                 padding: "5px 9px",
                 fontSize: 10,
                 letterSpacing: ".1em",
@@ -251,7 +258,13 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
           }}
           aria-label="Franchise"
           style={{
+            // Fills the line it wraps onto rather than hugging the right edge
+            // of it, where on a phone it read as a stray control belonging to
+            // nothing. On a desktop there is room for it beside the filters
+            // and the margin still pushes it there.
             marginLeft: "auto",
+            flex: "1 1 180px",
+            maxWidth: "100%",
             padding: "5px 8px",
             fontSize: 11,
             background: "rgba(20,22,35,.8)",
