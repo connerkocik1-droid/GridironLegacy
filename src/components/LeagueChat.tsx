@@ -211,9 +211,8 @@ export default function LeagueChat() {
       >
         League chat
       </h1>
-      <p style={{ fontSize: 12.5, color: "#9397ab", lineHeight: 1.65, margin: "0 0 16px" }}>
-        Everyone in the league sees everything here. Nothing is emailed —
-        this is the one place the app will not chase you about.
+      <p style={{ fontSize: 12.5, color: "#9397ab", lineHeight: 1.65, margin: "0 0 12px" }}>
+        Everyone sees everything here, and nothing is emailed.
       </p>
 
       {error ? (
@@ -237,16 +236,26 @@ export default function LeagueChat() {
           const box = e.currentTarget;
           pinned.current = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
         }}
+        // A height rather than a range. Sized to content, a conversation with
+        // two things in it left the box a fifth of the screen and the rest of
+        // the page empty underneath — and the box grew every time somebody
+        // spoke, so the compose box was never twice in the same place.
         style={{
+          display: "flex",
+          flexDirection: "column",
           border: "1px solid rgba(145,132,217,.22)",
           borderRadius: "var(--radius-lg)",
           background: "rgba(26,28,43,.55)",
           padding: "6px 0",
-          maxHeight: "58vh",
-          minHeight: 220,
+          height: "min(58vh, 520px)",
           overflowY: "auto",
         }}
       >
+        {/* Pushes a short conversation to the bottom of the box, where the
+            newest thing said is nearest the box you say the next one in. A
+            margin rather than justify-content, which cuts off the top of an
+            overflowing list in every browser. */}
+        <div style={{ marginTop: "auto" }}>
         {!feed ? (
           <div style={{ padding: "16px 18px", fontSize: 12.5, color: "#75798c" }}>
             Reading the conversation…
@@ -266,6 +275,11 @@ export default function LeagueChat() {
                 key={m.id}
                 style={{
                   display: "flex",
+                  // Yours comes back the other way. A group chat where your own
+                  // messages sit in the same column as everybody else's is a
+                  // log, not a conversation — and this one has twelve people in
+                  // it, so which of them said a thing is most of the meaning.
+                  flexDirection: m.mine ? "row-reverse" : "row",
                   gap: 10,
                   padding: "9px 16px",
                   alignItems: "flex-start",
@@ -278,13 +292,18 @@ export default function LeagueChat() {
                   shape="box"
                   fallback="empty"
                 />
-                <div style={{ minWidth: 0, flex: 1 }}>
+                {/* Shrink-to-fit rather than filling the row, so the delete
+                    button sits beside the message it deletes instead of at the
+                    far edge of the card — on a wide screen that was most of a
+                    foot away from the thing it belonged to. */}
+                <div style={{ minWidth: 0, flex: "0 1 auto" }}>
                   <div
                     style={{
                       display: "flex",
                       alignItems: "baseline",
                       gap: 8,
                       flexWrap: "wrap",
+                      justifyContent: m.mine ? "flex-end" : "flex-start",
                     }}
                   >
                     <span
@@ -300,15 +319,30 @@ export default function LeagueChat() {
                   </div>
                   <div
                     style={{
-                      fontSize: 13,
-                      color: "#c8ccdc",
-                      lineHeight: 1.55,
-                      marginTop: 2,
-                      overflowWrap: "anywhere",
-                      whiteSpace: "pre-wrap",
+                      display: "flex",
+                      justifyContent: m.mine ? "flex-end" : "flex-start",
+                      marginTop: 3,
                     }}
                   >
-                    {m.body}
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: "#c8ccdc",
+                        lineHeight: 1.55,
+                        padding: "6px 10px",
+                        borderRadius: 12,
+                        borderTopRightRadius: m.mine ? 3 : 12,
+                        borderTopLeftRadius: m.mine ? 12 : 3,
+                        background: m.mine
+                          ? "rgba(145,132,217,.24)"
+                          : "rgba(145,132,217,.09)",
+                        overflowWrap: "anywhere",
+                        whiteSpace: "pre-wrap",
+                        maxWidth: "100%",
+                      }}
+                    >
+                      {m.body}
+                    </span>
                   </div>
                 </div>
                 {canDelete ? (
@@ -335,6 +369,7 @@ export default function LeagueChat() {
             );
           })
         )}
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "flex-end" }}>
