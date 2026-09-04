@@ -117,6 +117,24 @@ a:hover {
 }
 
 @media (max-width: 720px) {
+  /* Sixteen pixels, whatever the component asked for.
+     
+     iOS Safari zooms the whole page in when a field with type smaller than
+     16px takes focus — and it does not zoom back out when the field is left.
+     The PIN box on the sign-in screen is 14px and is the first thing anybody
+     touches, so every manager arrived at their home page zoomed in and stayed
+     that way for the rest of the session.
+     
+     !important because every one of these fields sets its size inline, and an
+     inline style beats a stylesheet. The alternative is maximum-scale=1 in the
+     viewport, which fixes the zoom by taking pinch-zoom away from everybody
+     who needs it — a worse trade than a slightly larger PIN box. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
   /* The two home-page doors the tab bar already is. See HomeBoard. */
   .gl-home-doors {
     display: none;
