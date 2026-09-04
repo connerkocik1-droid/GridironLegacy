@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import TeamCrest from "./TeamCrest";
 import LiveNumber from "./LiveNumber";
+import ScoreBar from "./ScoreBar";
 import { useLogos } from "@/lib/use-logos";
 import type { Home, HomeSide } from "@/lib/home-types";
 
@@ -246,6 +247,16 @@ export default function MatchupBand({ home }: { home: Home | null }) {
           winning={homeScore != null && awayScore != null && awayScore >= homeScore}
           mine={game.away.id === home.meId}
         />
+
+        {/* Only once there is a game. Before kickoff the two scores are
+            absent, and a bar drawn from nothing is a dead heat nobody is in. */}
+        {homeScore != null && awayScore != null ? (
+          <ScoreBar
+            mine={game.away.id === home.meId ? awayScore : homeScore}
+            theirs={game.away.id === home.meId ? homeScore : awayScore}
+            neutral={!game.mine}
+          />
+        ) : null}
       </div>
 
       {/* The way down into a game, player by player. Only for your own: the

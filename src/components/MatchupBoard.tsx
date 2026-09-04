@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import LiveNumber from "./LiveNumber";
+import ScoreBar from "./ScoreBar";
 import { headshot, logo } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import type { MatchupRow, SideEntry } from "@/lib/matchup";
@@ -292,6 +293,15 @@ export default function MatchupBoard() {
           </div>
         </div>
       </div>
+
+      {/* The gap, drawn. This is the screen a manager sits on during a game,
+          so it is the screen where the distance between the two numbers is
+          worth more than either of them. */}
+      {board.started ? (
+        <div style={{ padding: "0 10px" }}>
+          <ScoreBar mine={board.home.total} theirs={board.away.total} />
+        </div>
+      ) : null}
 
       <div
         style={{
