@@ -573,7 +573,11 @@ export function routes(page, over = {}) {
         pickSeconds: 90, pickClock: PICK_CLOCK, serverNow: new Date().toISOString(),
         draftAt: null, cinematicRounds: 3, introVideo: null,
         lotteryOrder: MANAGERS.map((m) => m.slot), lotteryAt },
-      onTheClock: PICKS[2], myTurn: false, picks: PICKS, managers: MANAGERS,
+      onTheClock: PICKS[2], myTurn: false, picks: PICKS,
+      // The route sends a name only for a franchise somebody has claimed, so
+      // the fixture does too — otherwise the lottery reads "Open Team · Open"
+      // here and nowhere else.
+      managers: MANAGERS.map((m) => ({ ...m, name: m.name === "Open" ? null : m.name })),
       available: [
         { name: "Ashton Jeanty", position: "RB", team: "LV", adp: 10, posRank: "RB6", bye: 10 },
         { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", adp: 22, posRank: "WR9", bye: 8 },

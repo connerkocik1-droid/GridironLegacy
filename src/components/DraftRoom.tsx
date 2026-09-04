@@ -69,7 +69,15 @@ interface Board {
   onTheClock: Pick | null;
   myTurn: boolean;
   picks: Pick[];
-  managers: { id: string; slot: string; franchise: string; ready?: boolean; autodraft?: boolean }[];
+  managers: {
+    id: string;
+    slot: string;
+    franchise: string;
+    /** Whoever holds it, or null for a franchise nobody has claimed. */
+    name?: string | null;
+    ready?: boolean;
+    autodraft?: boolean;
+  }[];
   available: Available[];
   /** This manager's own list, in their own order. */
   queue: string[];

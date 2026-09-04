@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import TeamCrest from "./TeamCrest";
+import { firstName } from "@/lib/first-name";
 import { useLogos } from "@/lib/use-logos";
 
 /**
@@ -35,6 +36,8 @@ interface Manager {
   id: string;
   slot: string;
   franchise: string;
+  /** Whoever holds it. Null for a franchise nobody has claimed. */
+  name?: string | null;
 }
 
 /**
@@ -186,18 +189,52 @@ export default function DraftLottery({
                   shape="box"
                   fallback="initials"
                 />
+                {/* The franchise, and whoever holds it. A draft order is read
+                    out loud on the night — "pick four, Gold Coast, Pat" — and
+                    a list of twelve franchise names alone leaves everybody
+                    working out whose is whose.
+                    
+                    Two elements rather than one string, so the name is not the
+                    first thing an ellipsis eats: a franchise called "Kim's Very
+                    Long Franchise Name" would otherwise clip away the one word
+                    that says whose pick it is. The franchise gives instead. */}
                 <span
                   style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    minWidth: 0,
+                    flex: 1,
                     fontFamily: "var(--font-heading)",
                     fontSize: 15,
                     color: first ? "#e9e9ed" : "#c8ccdc",
-                    minWidth: 0,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
                   }}
                 >
-                  {m.franchise}
+                  <span
+                    style={{
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {m.franchise}
+                  </span>
+                  {firstName(m.name) ? (
+                    <span
+                      style={{
+                        flex: "0 0 auto",
+                        // A margin, not a leading space: each of these is a
+                        // flex item and flexbox eats whitespace at the edge of
+                        // one, which ran the dot straight into the franchise.
+                        marginLeft: 6,
+                        color: "#75798c",
+                        fontWeight: 400,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {`· ${firstName(m.name)}`}
+                    </span>
+                  ) : null}
                 </span>
                 {first ? (
                   <span
@@ -335,6 +372,25 @@ function Reel({
               >
                 {m.franchise}
               </span>
+              {/* Under the franchise on the reel rather than beside it: these
+                  cards are 132px wide and a name on the same line would push
+                  the franchise to a third clamped row. */}
+              {firstName(m.name) ? (
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    color: "#75798c",
+                    textAlign: "center",
+                    marginTop: -2,
+                    maxWidth: "100%",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {firstName(m.name)}
+                </span>
+              ) : null}
             </div>
           );
         })}

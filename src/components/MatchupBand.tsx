@@ -6,6 +6,7 @@ import Link from "next/link";
 import TeamCrest from "./TeamCrest";
 import LiveNumber from "./LiveNumber";
 import ScoreBar from "./ScoreBar";
+import { firstName } from "@/lib/first-name";
 import { useLogos } from "@/lib/use-logos";
 import type { Home, HomeSide } from "@/lib/home-types";
 
@@ -15,15 +16,6 @@ const card: React.CSSProperties = {
   background: "rgba(145,132,217,.1)",
   overflow: "hidden",
 };
-
-/**
- * Managers sign up with a first name, but a name typed into a box is whatever
- * somebody typed. The first word of it is the part that belongs on a
- * scoreboard either way.
- */
-function firstName(name: string) {
-  return name.trim().split(/\s+/)[0] || name;
-}
 
 function Side({
   side,
