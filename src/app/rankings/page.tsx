@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 import PlayerRankings from "@/components/PlayerRankings";
 
-export const metadata = { title: "Player rankings · Gridiron Legacy" };
+export const metadata = { title: "Player rankings · Pylon Fantasy" };
 
 export default function RankingsPage() {
   return (

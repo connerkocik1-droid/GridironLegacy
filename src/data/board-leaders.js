@@ -1,5 +1,5 @@
 // The real top of the consensus board, sliced from POOL/FIN25 in
-// Gridiron Legacy.dc.html so the two pages cannot drift apart.
+// Pylon Fantasy.dc.html so the two pages cannot drift apart.
 export const BOARD_LEADERS = [
   {
     "name": "Jahmyr Gibbs",

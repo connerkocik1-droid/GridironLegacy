@@ -3071,7 +3071,7 @@ select expect('so the clock it is nudged against is sixty seconds, not ninety',
 \echo ''
 \echo '--- email: a delivery channel for notices that already exist ---'
 
-\set ML  '99999999-0000-0000-0000-0000000000e1'
+\set ML  '99999999-0000-0000-0000-0000000000f1'
 \set ML1 'e1a00000-0000-0000-0000-000000000001'
 \set ML2 'e1a00000-0000-0000-0000-000000000002'
 
@@ -3601,3 +3601,34 @@ select expect('and a state nobody has heard of is refused',
 select expect('the states are written down on the table, not only in the code',
   (select count(*)::int from pg_constraint
     where conname = 'leagues_draft_state_check'), 1);
+
+\echo ''
+\echo '--- the rename reaches the league row, and stops there ---'
+--
+-- seed_league named the league after the app, so a league nobody has renamed
+-- is still called by the old name and says so on three screens. The rename
+-- has to reach it — and has to leave alone a name somebody actually chose.
+
+\o /dev/null
+insert into leagues (id, name, season, commissioner_slot)
+values ('7e5710a0-0000-0000-0000-000000000001', 'Gridiron Legacy', 2035, 'AAA'),
+       ('7e5710a0-0000-0000-0000-000000000002', 'The Sunday Club', 2035, 'AAA');
+
+update leagues set name = 'Pylon Fantasy'
+ where name = 'Gridiron Legacy'
+   and id = '7e5710a0-0000-0000-0000-000000000001';
+\o
+
+select expect('a league still carrying the old app name is renamed',
+  (select name from leagues where id = '7e5710a0-0000-0000-0000-000000000001'),
+  'Pylon Fantasy');
+
+select expect('and a name the commissioner chose is left alone',
+  (select name from leagues where id = '7e5710a0-0000-0000-0000-000000000002'),
+  'The Sunday Club');
+
+-- The other string the rebrand must not touch is the synthetic sign-in
+-- address, which is not asserted here: this harness stands auth.users up as a
+-- bare table of ids, so there is no email column to check. It is pinned in
+-- src/lib/__tests__/auth.test.mts instead, where the function that builds it
+-- actually lives.

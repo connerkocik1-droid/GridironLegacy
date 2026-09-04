@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Nav from "@/components/Nav";
 import MiniGames from "@/components/MiniGames";
 
-export const metadata = { title: "Mini-games · Gridiron Legacy" };
+export const metadata = { title: "Mini-games · Pylon Fantasy" };
 
 export default function MiniGamesPage() {
   return (

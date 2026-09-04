@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 import EditTeam from "@/components/EditTeam";
 
-export const metadata = { title: "Edit team · Gridiron Legacy" };
+export const metadata = { title: "Edit team · Pylon Fantasy" };
 
 export default function EditTeamPage() {
   return (

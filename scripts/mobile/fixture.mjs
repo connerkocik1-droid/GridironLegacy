@@ -303,7 +303,7 @@ export function routes(page, over = {}) {
   }));
 
   page.route("**/api/home", json({
-    meId: "m0", league: { name: "Gridiron Legacy", season: 2026 }, week: 3,
+    meId: "m0", league: { name: "Pylon Fantasy", season: 2026 }, week: 3,
     live: true, started: true, weekPhase: "live",
     games: MANAGERS.filter((_, i) => i % 2 === 0).map((m, i) => ({
       final: i > 0, mine: i === 0,
@@ -337,7 +337,7 @@ export function routes(page, over = {}) {
   }));
 
   page.route("**/api/schedule", json({
-    meId: "m0", league: { name: "Gridiron Legacy", season: 2026 },
+    meId: "m0", league: { name: "Pylon Fantasy", season: 2026 },
     weeks: [1, 2, 3], liveWeek: 3,
     games: [
       { week: 1, final: true, divisional: true, live: false, mine: true,
@@ -350,7 +350,7 @@ export function routes(page, over = {}) {
   }));
 
   page.route("**/api/league", json({
-    meId: "m0", league: { name: "Gridiron Legacy", season: 2026, settings: SETTINGS },
+    meId: "m0", league: { name: "Pylon Fantasy", season: 2026, settings: SETTINGS },
     weeksScored: 3, played: true,
     franchises: MANAGERS.map((m, i) => ({
       ...m, id: m.id, claimed: m.name !== "Open", isCommissioner: i === 0,
@@ -583,7 +583,7 @@ export function routes(page, over = {}) {
 
   page.route("**/api/admin/league**", json({
     isCommissioner: true,
-    league: { id: "l1", name: "Gridiron Legacy", season: 2026, settings: SETTINGS,
+    league: { id: "l1", name: "Pylon Fantasy", season: 2026, settings: SETTINGS,
       draft_state: "pending", current_pick: 1, draft_at: null, lottery_order: null },
     managers: MANAGERS.map((m, i) => ({ ...m, claimed: m.name !== "Open",
       isCommissioner: i === 0 })),

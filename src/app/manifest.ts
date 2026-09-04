@@ -19,10 +19,10 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Gridiron Legacy",
+    name: "Pylon Fantasy",
     // What actually fits under an icon on a home screen. iOS truncates at
-    // about twelve characters, so the long name would read "Gridiron Le…".
-    short_name: "Gridiron",
+    // about twelve characters, so the long name would read "Pylon Fantas…".
+    short_name: "Pylon",
     description: "A dynasty fantasy football league.",
 
     // The home page, not whichever page was open when it was added. A manager

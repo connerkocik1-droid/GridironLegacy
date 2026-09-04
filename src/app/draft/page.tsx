@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 import DraftRoom from "@/components/DraftRoom";
 
-export const metadata = { title: "Draft · Gridiron Legacy" };
+export const metadata = { title: "Draft · Pylon Fantasy" };
 
 export default function DraftPage() {
   return (

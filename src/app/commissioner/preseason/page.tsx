@@ -2,7 +2,7 @@ import Nav from "@/components/Nav";
 import CommissionerOnly from "@/components/CommissionerOnly";
 import PreseasonCheck from "@/components/PreseasonCheck";
 
-export const metadata = { title: "Preseason scoring check · Gridiron Legacy" };
+export const metadata = { title: "Preseason scoring check · Pylon Fantasy" };
 
 export default function PreseasonPage() {
   return (

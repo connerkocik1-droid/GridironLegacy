@@ -4,7 +4,7 @@ import { resolvePlayerName } from "@/lib/player-profile";
 
 export async function generateMetadata({ params }: { params: Promise<{ name: string }> }) {
   const { name } = await params;
-  return { title: `${resolvePlayerName(decodeURIComponent(name))} · Gridiron Legacy` };
+  return { title: `${resolvePlayerName(decodeURIComponent(name))} · Pylon Fantasy` };
 }
 
 export default async function PlayerPage({ params }: { params: Promise<{ name: string }> }) {

@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 import LeagueBoard from "@/components/LeagueBoard";
 
-export const metadata = { title: "League · Gridiron Legacy" };
+export const metadata = { title: "League · Pylon Fantasy" };
 
 export default function LeaguePage() {
   return (

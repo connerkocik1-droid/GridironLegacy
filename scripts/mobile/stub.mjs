@@ -19,7 +19,7 @@ const USER = {
   id: "auth-user-0",
   aud: "authenticated",
   role: "authenticated",
-  email: "t01@gridiron.local",
+  email: "t01@pylon.local",
   app_metadata: {},
   user_metadata: {},
   created_at: "2026-01-01T00:00:00Z",
@@ -87,7 +87,7 @@ createServer((req, res) => {
   }
 
   if (url.pathname === "/rest/v1/leagues") {
-    return res.end(JSON.stringify([{ id: LEAGUE_ID, name: "Gridiron Legacy", season: 2026 }]));
+    return res.end(JSON.stringify([{ id: LEAGUE_ID, name: "Pylon Fantasy", season: 2026 }]));
   }
 
   res.end("[]");

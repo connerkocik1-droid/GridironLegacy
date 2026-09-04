@@ -81,7 +81,7 @@ if (!Number.isInteger(teams) || teams < 2 || teams > 16) {
   process.exit(1);
 }
 
-const leagueName = arg("--name", "Gridiron Legacy");
+const leagueName = arg("--name", "Pylon Fantasy");
 const commissionerSlot = arg("--commissioner", SEED_FRANCHISES[0][0]).toUpperCase();
 const season = Number(arg("--season", "2026"));
 

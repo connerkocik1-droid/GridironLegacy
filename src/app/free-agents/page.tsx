@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 import PlayersBoard from "@/components/PlayersBoard";
 
-export const metadata = { title: "Free agents · Gridiron Legacy" };
+export const metadata = { title: "Free agents · Pylon Fantasy" };
 
 export default function FreeAgentsPage() {
   return (

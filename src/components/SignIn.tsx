@@ -239,7 +239,7 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
           fontWeight: 500,
         }}
       >
-        {leagueName ?? "Gridiron Legacy"}
+        {leagueName ?? "Pylon Fantasy"}
       </h1>
     </>
   );

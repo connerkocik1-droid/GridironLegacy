@@ -9,7 +9,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Gridiron Legacy",
+  title: "Pylon Fantasy",
   description: "A dynasty fantasy football league.",
 
   /**
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
    */
   appleWebApp: {
     capable: true,
-    title: "Gridiron",
+    title: "Pylon",
     // The status bar becomes part of the page rather than a black strip above
     // it, which is why the layout below pads for the notch.
     statusBarStyle: "black-translucent",

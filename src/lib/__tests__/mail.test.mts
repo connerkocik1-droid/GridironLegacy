@@ -54,22 +54,22 @@ eq(
 
 console.log("\n--- the body ---");
 
-process.env.SITE_URL = "https://gridiron.example.com";
+process.env.SITE_URL = "https://pylon.example.com";
 const both = bodyFor(notice());
 
 ok("carries the notice itself", both.text.includes("You are on the clock"));
 ok("as plain text, which is what keeps it out of a spam folder", both.text.length > 0);
 ok("and as html", both.html.includes("<div"));
-ok("with a link back", both.text.includes("https://gridiron.example.com/draft"));
-ok("and a button in the html", both.html.includes('href="https://gridiron.example.com/draft"'));
+ok("with a link back", both.text.includes("https://pylon.example.com/draft"));
+ok("and a button in the html", both.html.includes('href="https://pylon.example.com/draft"'));
 ok("saying how to stop them", /turn these off/i.test(both.text));
 
 // A trailing slash on the site URL must not produce a double slash in a link
 // somebody is going to click.
-process.env.SITE_URL = "https://gridiron.example.com/";
+process.env.SITE_URL = "https://pylon.example.com/";
 ok(
   "a trailing slash does not become a double one",
-  bodyFor(notice()).text.includes("https://gridiron.example.com/draft"),
+  bodyFor(notice()).text.includes("https://pylon.example.com/draft"),
 );
 
 // No site URL means no link rather than a broken relative one in an inbox.
@@ -77,7 +77,7 @@ delete process.env.SITE_URL;
 const linkless = bodyFor(notice());
 ok("with no site address, no link is invented", !linkless.text.includes("/draft"));
 ok("and the notice still says what happened", linkless.text.includes("on the clock"));
-process.env.SITE_URL = "https://gridiron.example.com";
+process.env.SITE_URL = "https://pylon.example.com";
 
 console.log("\n--- a franchise name is somebody's typing ---");
 

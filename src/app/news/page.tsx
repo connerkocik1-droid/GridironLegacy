@@ -4,7 +4,7 @@ import NewsWire from "@/components/NewsWire";
 import PlayerNewsFilter from "@/components/PlayerNewsFilter";
 import { fetchNews } from "@/lib/news";
 
-export const metadata = { title: "News · Gridiron Legacy" };
+export const metadata = { title: "News · Pylon Fantasy" };
 // The wire is the same for everyone, so it is fetched once and shared rather
 // than re-fetched per visitor. Only the roster it is matched against is
 // per-manager, and that is fetched in the client.

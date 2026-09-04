@@ -6,7 +6,7 @@
 --
 -- Run this whole file, then call it:
 --
---   select * from seed_league('Gridiron Legacy', 12);
+--   select * from seed_league('Pylon Fantasy', 12);
 --
 -- It prints the league id to set as LEAGUE_ID in Vercel.
 
@@ -21,7 +21,7 @@
  * and no way to tell the app which one it serves.
  */
 create or replace function seed_league(
-  p_name text default 'Gridiron Legacy',
+  p_name text default 'Pylon Fantasy',
   p_teams int default 12,
   p_commissioner text default null,
   p_season int default 2026

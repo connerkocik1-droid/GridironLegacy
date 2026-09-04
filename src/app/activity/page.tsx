@@ -1,7 +1,7 @@
 import ActivityFeed from "@/components/ActivityFeed";
 import Nav from "@/components/Nav";
 
-export const metadata = { title: "Moves · Gridiron Legacy" };
+export const metadata = { title: "Moves · Pylon Fantasy" };
 
 export default function ActivityPage() {
   return (

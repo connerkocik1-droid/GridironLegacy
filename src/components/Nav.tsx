@@ -61,14 +61,20 @@ export default function Nav({ current, note }: { current: string; note?: string 
   return (
     <div className="gl-nav" style={bar}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" }}>
-        <div
-          style={{
-            width: 8,
-            height: 17,
-            background: "linear-gradient(180deg,#b5abfc,#5d5294)",
-            boxShadow: "0 0 14px #9184d9",
-          }}
-        />
+        {/* The mark, and the same one as the home-screen icon: a pylon, in the
+            pylon's own colour. It was an abstract purple slab, which was fine
+            when the app was called something else and is a missed opportunity
+            now that it is named after this object. */}
+        <svg
+          width="11"
+          height="18"
+          viewBox="0 0 11 18"
+          aria-hidden
+          style={{ flex: "0 0 auto", filter: "drop-shadow(0 0 9px rgba(226,102,42,.55))" }}
+        >
+          <path d="M2.6 0 h4.2 l2.6 18 h-9.4 z" fill="#f0913f" />
+          <path d="M6.8 0 h1.6 l2.2 18 h-1.6 z" fill="#b8511f" />
+        </svg>
         <span
           style={{
             fontFamily: "var(--font-heading)",
@@ -78,7 +84,7 @@ export default function Nav({ current, note }: { current: string; note?: string 
             whiteSpace: "nowrap",
           }}
         >
-          Gridiron<span style={{ color: "#b5abfc" }}> Legacy</span>
+          Pylon<span style={{ color: "#b5abfc" }}> Fantasy</span>
         </span>
       </div>
 

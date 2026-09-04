@@ -1,4 +1,4 @@
-# Getting Gridiron Legacy live
+# Getting Pylon Fantasy live
 
 Everything here needs an account only you hold — Supabase, Vercel, GitHub
 settings. Work through it in order; it takes about half an hour.
@@ -80,7 +80,7 @@ Still in the SQL editor. Paste **`supabase/seed.sql`**, run it, then run one
 more line with however many franchises you expect:
 
 ```sql
-select * from seed_league('Gridiron Legacy', 12);
+select * from seed_league('Pylon Fantasy', 12);
 ```
 
 It returns four columns. **`new_league_id` is your `LEAGUE_ID`** — copy it.

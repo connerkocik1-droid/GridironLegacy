@@ -2,7 +2,7 @@ import MatchupBoard from "@/components/MatchupBoard";
 import RosterBoard from "@/components/RosterBoard";
 import Nav from "@/components/Nav";
 
-export const metadata = { title: "My team · Gridiron Legacy" };
+export const metadata = { title: "My team · Pylon Fantasy" };
 
 /**
  * Your roster and what it is playing into, on one page.

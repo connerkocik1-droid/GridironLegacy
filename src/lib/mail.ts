@@ -39,7 +39,7 @@ export interface SendResult {
  * The subject line.
  *
  * A subject is read in a list of thirty other subjects, so it says what
- * happened and to whom — "Gridiron Legacy" alone is indistinguishable from the
+ * happened and to whom — "Pylon Fantasy" alone is indistinguishable from the
  * last four. The franchise is in it because a manager may run one in more than
  * one league, and the kind is in it because "you are on the clock" and "your
  * claim went through" want different urgency from the same reader.
@@ -78,7 +78,7 @@ export function bodyFor(mail: NoticeMail): { text: string; html: string } {
   const text = [
     mail.body,
     url ? `\n${url}` : "",
-    "\n\n—\nGridiron Legacy. Turn these off under Edit team.",
+    "\n\n—\nPylon Fantasy. Turn these off under Edit team.",
   ]
     .filter(Boolean)
     .join("");
@@ -94,7 +94,7 @@ export function bodyFor(mail: NoticeMail): { text: string; html: string } {
     url
       ? `<p style="margin:0 0 24px"><a href="${escape(url)}" style="display:inline-block;` +
         `background:#5b4bc4;color:#fff;text-decoration:none;padding:10px 18px;` +
-        `border-radius:4px;font-size:14px">Open Gridiron Legacy</a></p>`
+        `border-radius:4px;font-size:14px">Open Pylon Fantasy</a></p>`
       : "",
     `<p style="font-size:12px;color:#83859c;margin:24px 0 0;border-top:1px solid #ddd9ec;`,
     `padding-top:12px">You are getting this because your franchise has an email `,

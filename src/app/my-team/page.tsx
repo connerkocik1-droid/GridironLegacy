@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 import MyTeamHub from "@/components/MyTeamHub";
 
-export const metadata = { title: "My Team · Gridiron Legacy" };
+export const metadata = { title: "My Team · Pylon Fantasy" };
 
 export default function MyTeamPage() {
   return (

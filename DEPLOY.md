@@ -1,4 +1,4 @@
-# Gridiron Legacy — going live
+# Pylon Fantasy — going live
 
 Everything below assumes you want the same product you have now, running on the
 public internet, for twelve real managers, with live ESPN scoring. It is written
@@ -89,7 +89,7 @@ you can skip section 7 entirely and save yourself a week.
 ## 2. Set up the repository
 
 ```bash
-mkdir gridiron-legacy && cd gridiron-legacy
+mkdir pylon-fantasy && cd pylon-fantasy
 npx create-next-app@latest . --typescript --app --no-tailwind --eslint
 git init && git add -A && git commit -m "scaffold"
 ```
@@ -203,7 +203,7 @@ last, and you can deploy after any of them:
 5. **`Sign Up.dc.html`** — first page needing the database (section 5).
 6. **`Trades.dc.html`** — needs the database for shared state.
 7. **`Commissioner.dc.html`** — needs the database and admin auth.
-8. **`Gridiron Legacy.dc.html`** — the draft room, hardest, needs realtime.
+8. **`Pylon Fantasy.dc.html`** — the draft room, hardest, needs realtime.
 9. **`News.dc.html`**, **`Player News.dc.html`** — need the server-side reader (section 6).
 10. **`20-0 Mode.dc.html`** — self-contained, no shared state; port whenever.
 
@@ -322,7 +322,7 @@ import * as sim from "../src/data/league-sim.js";
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
 const { data: league } = await db.from("leagues")
-  .insert({ name: "Gridiron Legacy", commissioner_slot: "HELX" })
+  .insert({ name: "Pylon Fantasy", commissioner_slot: "HELX" })
   .select().single();
 
 const managers = [];

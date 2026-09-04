@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 import LeagueRules from "@/components/LeagueRules";
 
-export const metadata = { title: "How this league works · Gridiron Legacy" };
+export const metadata = { title: "How this league works · Pylon Fantasy" };
 
 export default function RulesPage() {
   return (

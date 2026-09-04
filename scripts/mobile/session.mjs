@@ -17,7 +17,7 @@ export function sessionCookie() {
     token_type: "bearer",
     expires_in: 3600,
     expires_at: Math.floor(Date.now() / 1000) + 3600,
-    user: { id: "auth-user-0", email: "t01@gridiron.local" },
+    user: { id: "auth-user-0", email: "t01@pylon.local" },
   };
   return {
     name: "sb-127-auth-token",

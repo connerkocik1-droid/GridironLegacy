@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 import LeagueChat from "@/components/LeagueChat";
 
-export const metadata = { title: "League chat · Gridiron Legacy" };
+export const metadata = { title: "League chat · Pylon Fantasy" };
 
 export default function ChatPage() {
   return (
