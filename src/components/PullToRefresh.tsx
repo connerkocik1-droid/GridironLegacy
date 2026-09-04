@@ -47,6 +47,8 @@ export default function PullToRefresh() {
   const decided = useRef(false);
   const busyRef = useRef(false);
   const pullRef = useRef(0);
+  /** Whether this gesture has already ticked, so it ticks once and not sixty. */
+  const buzzed = useRef(false);
 
   useEffect(() => {
     // A pointer that cannot touch cannot pull.
@@ -100,7 +102,26 @@ export default function PullToRefresh() {
       // the browser's own rubber band underneath it, which would otherwise
       // move the page and the indicator by different amounts.
       if (e.cancelable) e.preventDefault();
-      apply(Math.min(MAX, (dy - SLOP) * 0.5));
+      const next = Math.min(MAX, (dy - SLOP) * 0.5);
+
+      // A tick at the moment it would commit, so the threshold can be felt
+      // rather than watched — which is the difference between a gesture you
+      // aim and one you check. Once per pull, and silently absent on iOS,
+      // which has never implemented this; there is no way to ask for the
+      // system haptic from a web page, so the Android half of the league gets
+      // it and the rest lose nothing they had.
+      if (next >= THRESHOLD && !buzzed.current) {
+        buzzed.current = true;
+        try {
+          navigator.vibrate?.(7);
+        } catch {
+          // A browser that exposes it and refuses it. Nothing to do about it.
+        }
+      } else if (next < THRESHOLD) {
+        buzzed.current = false;
+      }
+
+      apply(next);
     };
 
     const onEnd = () => {
@@ -108,6 +129,7 @@ export default function PullToRefresh() {
       start.current = null;
       armed.current = false;
       decided.current = false;
+      buzzed.current = false;
 
       if (distance < THRESHOLD) return apply(0);
 

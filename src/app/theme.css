@@ -95,6 +95,24 @@
   --bad-soft: #e0908f;
   /* Suspended, which is neither hurt nor fine. */
   --suspended: #c98fd0;
+
+  /* ------------------------------------------------------- the old names ---
+     nocturne.css arrived with a token set of its own and a dark value written
+     into each one. Almost all of it is unreachable now — globals.css restates
+     the body and the links underneath it — but three declarations in that file
+     are still live on every page, and every one of them was a fixed dark-theme
+     purple in a light-theme app: the focus ring, the selection highlight, and
+     the one .btn-primary left in the trade desk.
+
+     Aliased rather than edited in place, because these are one file's private
+     names and this is where the app's colours live. And aliased with var()
+     rather than repeated: a custom property that refers to another is
+     substituted against whichever palette is on, so the light block below
+     redefines all three of these without mentioning them. */
+  --color-accent: var(--accent-solid);
+  --color-text: var(--text);
+  --color-bg: var(--bg);
+  --color-divider: rgb(var(--accent-rgb) / .28);
 }
 
 /* ----------------------------------------------------------------- light ---
