@@ -2,7 +2,14 @@ import { isConfigured, serverClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-/** Start, pause or resume the draft, or move the clock on the pick in hand. */
+/**
+ * Draft night's controls: open the room, draw the lottery, start the draft,
+ * pause it, or move the clock on the pick in hand.
+ *
+ * The states are a sequence rather than a switch. Only "running" carries a
+ * pick clock, which is what stops the intro film and the first manager's
+ * ninety seconds from running at the same time.
+ */
 export async function POST(req: Request) {
   if (!isConfigured()) {
     return Response.json({ error: "The league database is not configured yet." }, { status: 503 });
@@ -21,11 +28,22 @@ export async function POST(req: Request) {
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
 
-  let body: { state?: unknown; nudgeSeconds?: unknown };
+  let body: { state?: unknown; nudgeSeconds?: unknown; lottery?: unknown };
   try {
     body = await req.json();
   } catch {
     return Response.json({ error: "Body must be JSON" }, { status: 400 });
+  }
+
+  // Drawing the order, live, in front of everybody. Server-side because
+  // twelve browsers shuffling for themselves would each land on a different
+  // answer; this writes one and starts the clock on the reveal.
+  if (body.lottery === true) {
+    const { data, error } = await db.rpc("start_lottery", { p_league_id: me.league_id });
+    if (error) {
+      return Response.json({ error: error.message }, { status: error.code === "42501" ? 403 : 409 });
+    }
+    return Response.json(data);
   }
 
   // Giving the manager on the clock more time, or taking it back.
@@ -47,7 +65,7 @@ export async function POST(req: Request) {
   }
 
   const state = typeof body.state === "string" ? body.state : "";
-  if (!["pending", "running", "paused", "complete"].includes(state)) {
+  if (!["pending", "lobby", "lottery", "running", "paused", "complete"].includes(state)) {
     return Response.json({ error: "Unknown draft state" }, { status: 400 });
   }
 

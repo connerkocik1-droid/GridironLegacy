@@ -242,7 +242,11 @@ reset role;
 
 -- A second league's picks, so "you see your own" can be told apart from
 -- "you see everything".
-\set PL 'ffff2222-0000-0000-0000-000000000002'
+-- Its own id. This read 'ffff2222-…-02' — the same league the crest checks
+-- above create — so both inserts below failed on a duplicate key, and the
+-- "another league's picks" check underneath was counting a league that had
+-- never been given any. It passed by having nothing to hide.
+\set PL 'ffff2222-0000-0000-0000-000000000009'
 insert into leagues (id, name, season, inaugural_season, commissioner_slot, settings)
 values (:'PL', 'Elsewhere', 2026, 2026, 'AAA', '{"rounds": 1, "rookieRounds": 1}'::jsonb);
 insert into managers (league_id, slot, name, franchise) values (:'PL', 'ZZZ', 'Z', 'Zulu');

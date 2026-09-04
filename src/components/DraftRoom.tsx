@@ -8,6 +8,7 @@ import DraftCountdown from "./DraftCountdown";
 import DraftReveal, { type RevealPick } from "./DraftReveal";
 import DraftTicker from "./DraftTicker";
 import IntroVideo, { type IntroHandle } from "./IntroVideo";
+import DraftLottery from "./DraftLottery";
 import ResetDraft from "./ResetDraft";
 import TeamCrest from "./TeamCrest";
 import { useLogos } from "@/lib/use-logos";
@@ -44,7 +45,12 @@ interface Board {
     autodraft: boolean;
   };
   league: {
-    state: "pending" | "running" | "paused" | "complete";
+    /**
+     * Draft night is a sequence, not a switch. Only "running" carries a pick
+     * clock — which is what stops the intro film and the first manager's
+     * ninety seconds from running at the same time.
+     */
+    state: "pending" | "lobby" | "lottery" | "running" | "paused" | "complete";
     currentPick: number;
     pickStartedAt: string | null;
     /** The clock for the round on the board now, not for the draft. */
@@ -54,6 +60,10 @@ interface Board {
     draftAt: string | null;
     cinematicRounds: number;
     introVideo: string | null;
+    /** The drawn order, first pick first. Null until the lottery runs. */
+    lotteryOrder: string[] | null;
+    /** When the reveal began, so every screen animates from the same instant. */
+    lotteryAt: string | null;
   };
   onTheClock: Pick | null;
   myTurn: boolean;
@@ -152,6 +162,9 @@ export default function DraftRoom() {
    */
   const intro = useRef<IntroHandle | null>(null);
   const [introPlaying, setIntroPlaying] = useState(false);
+  // Whether the reveal has finished playing on *this* screen. The commissioner
+  // cannot start round one over the top of the ceremony everybody is watching.
+  const [lotteryDone, setLotteryDone] = useState(false);
   // Set the moment a decision to play is taken, so the poll that follows a
   // second later does not take it again.
   const introStarted = useRef(false);
@@ -194,7 +207,10 @@ export default function DraftRoom() {
       // that already draws it.
       const everyoneIn =
         data.managers.length > 0 && data.managers.every((m) => m.ready === true);
-      const opened = data.league.state === "running";
+      // The room being open, which is now its own state rather than the draft
+      // having started. That separation is the point: the film plays here, and
+      // nobody is on a clock while it does.
+      const opened = data.league.state === "lobby";
 
       if (
         (everyoneIn || opened) &&
@@ -333,7 +349,28 @@ export default function DraftRoom() {
     });
   }, [board, filter, search]);
 
-  async function setDraftState(state: "running" | "paused") {
+  /** Draws the order and starts the reveal. The server picks it, not this. */
+  async function drawLottery() {
+    if (picking) return;
+    setPicking("__lottery__");
+    try {
+      const res = await fetch("/api/admin/draft", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ lottery: true }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "The lottery did not run.");
+      else setError(null);
+      await load();
+    } catch {
+      setError("The lottery did not run.");
+    } finally {
+      setPicking(null);
+    }
+  }
+
+  async function setDraftState(state: "lobby" | "lottery" | "running" | "paused") {
     if (picking) return;
     setPicking("__state__");
     try {
@@ -555,6 +592,95 @@ export default function DraftRoom() {
     />
   ) : null;
 
+  // The room is open, the film has played (or there was none), and everybody
+  // is waiting. Nobody is on a clock here — that is the whole point of the
+  // state existing.
+  // Rendered while the film is still playing too. The film is an overlay, so
+  // what matters is what sits behind it — and without this the room fell
+  // through to the draft board, which has no business being drawn for a state
+  // that cannot pick.
+  if (board.league.state === "lobby") {
+    return (
+      <>
+        {film}
+        <audio ref={chime} src="/assets/nfl-draft-chime.mp3" preload="auto" />
+        <Waiting
+          title="Everybody is here"
+          line={
+            board.me.is_commissioner
+              ? "When the room is settled, draw the order. Nothing is on a clock until you start round one."
+              : "The commissioner draws the order next. Nothing is on a clock yet — you have not missed anything."
+          }
+          managers={board.managers}
+          error={error}
+          action={
+            board.me.is_commissioner
+              ? { label: "Commence draft lottery", onClick: () => void drawLottery() }
+              : null
+          }
+          busy={picking != null}
+          clock={describeClock(board.league.pickClock)}
+        />
+      </>
+    );
+  }
+
+  // The order, drawn in front of everybody. The reveal is a function of when
+  // the commissioner pressed the button, so every screen is at the same point.
+  if (board.league.state === "lottery") {
+    return (
+      <>
+        {film}
+        <audio ref={chime} src="/assets/nfl-draft-chime.mp3" preload="auto" />
+        {error ? (
+          <div style={{ padding: "0 26px", fontSize: 12, color: "#e0b573" }}>{error}</div>
+        ) : null}
+        {board.league.lotteryOrder && board.league.lotteryAt ? (
+          <DraftLottery
+            order={board.league.lotteryOrder}
+            managers={board.managers}
+            at={board.league.lotteryAt}
+            skew={skew}
+            onDone={() => setLotteryDone(true)}
+          />
+        ) : (
+          <div style={{ padding: "26px", fontSize: 12.5, color: "#9397ab" }}>
+            Drawing the order…
+          </div>
+        )}
+
+        {board.me.is_commissioner ? (
+          <div style={{ textAlign: "center", padding: "0 26px 48px" }}>
+            <button
+              onClick={() => void setDraftState("running")}
+              disabled={picking != null || !lotteryDone}
+              style={{
+                minHeight: 44,
+                padding: "12px 22px",
+                border: `1px solid ${lotteryDone ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.22)"}`,
+                borderRadius: "var(--radius-sm)",
+                background: lotteryDone ? "rgba(145,132,217,.18)" : "transparent",
+                color: lotteryDone ? "#e9e9ed" : "#5a5d6e",
+                font: "inherit",
+                fontSize: 12,
+                letterSpacing: ".14em",
+                textTransform: "uppercase",
+                cursor: lotteryDone && picking == null ? "pointer" : "default",
+              }}
+            >
+              Commence draft
+            </button>
+            <div style={{ fontSize: 11.5, color: "#75798c", marginTop: 10 }}>
+              {lotteryDone
+                ? "Round one, and the pick clock, start when you press it."
+                : "Available once every pick has been drawn."}
+            </div>
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
   // Nothing to show a board for until the draft is open.
   if (board.league.state === "pending" || board.league.state === "paused") {
     return (
@@ -570,7 +696,13 @@ export default function DraftRoom() {
           state={board.league.state}
           isCommissioner={board.me.is_commissioner}
           managers={board.managers}
-          onStart={() => void setDraftState("running")}
+          // This one button is two things. From pending it opens the room —
+          // the film plays on that, and nobody is on a clock behind it. From
+          // paused it is "resume", which must go straight back to running: a
+          // draft halfway through round six does not want a lobby.
+          onStart={() =>
+            void setDraftState(board.league.state === "paused" ? "running" : "lobby")
+          }
           busy={picking != null}
           meReady={board.me.ready}
           onReady={markReady}
@@ -1168,4 +1300,119 @@ function queueButton(enabled: boolean): React.CSSProperties {
     font: "inherit",
     cursor: enabled ? "pointer" : "default",
   };
+}
+
+/**
+ * The screen between the film and the lottery.
+ *
+ * There was nothing here before, because there was nothing to wait for: the
+ * room opened and the draft began in the same instant. Now that the two are
+ * separate, twelve people are looking at something for a minute or two, and
+ * "nothing is on a clock" is the one thing every one of them needs told.
+ */
+function Waiting({
+  title,
+  line,
+  managers,
+  error,
+  action,
+  busy,
+  clock,
+}: {
+  title: string;
+  line: string;
+  managers: { id: string; slot: string; franchise: string; ready?: boolean }[];
+  error: string | null;
+  action: { label: string; onClick: () => void } | null;
+  busy: boolean;
+  clock: string;
+}) {
+  return (
+    <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 18px 48px", textAlign: "center" }}>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c", marginTop: 40 }}>
+        DRAFT NIGHT
+      </div>
+      <h1
+        style={{
+          fontFamily: "var(--font-heading)",
+          fontSize: 34,
+          letterSpacing: "-.03em",
+          margin: "8px 0 10px",
+          fontWeight: 500,
+          color: "#e9e9ed",
+        }}
+      >
+        {title}
+      </h1>
+      <p
+        style={{
+          fontSize: 12.5,
+          color: "#9397ab",
+          lineHeight: 1.7,
+          margin: "0 auto 22px",
+          maxWidth: "46ch",
+        }}
+      >
+        {line}
+      </p>
+
+      {error ? (
+        <div style={{ fontSize: 12, color: "#e0b573", marginBottom: 14 }}>{error}</div>
+      ) : null}
+
+      {action ? (
+        <button
+          onClick={action.onClick}
+          disabled={busy}
+          style={{
+            minHeight: 44,
+            padding: "12px 22px",
+            border: "1px solid rgba(181,171,252,.6)",
+            borderRadius: "var(--radius-sm)",
+            background: "rgba(145,132,217,.18)",
+            color: "#e9e9ed",
+            font: "inherit",
+            fontSize: 12,
+            letterSpacing: ".14em",
+            textTransform: "uppercase",
+            cursor: busy ? "default" : "pointer",
+          }}
+        >
+          {action.label}
+        </button>
+      ) : null}
+
+      {/* Who is in the room. On a night when nothing is happening yet, this is
+          the only thing on screen that changes — and it answers the question
+          the commissioner is actually asking before pressing anything. */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 6,
+          justifyContent: "center",
+          margin: "26px 0 0",
+        }}
+      >
+        {managers.map((m) => (
+          <span
+            key={m.id}
+            style={{
+              fontSize: 11,
+              padding: "5px 10px",
+              borderRadius: "var(--radius-sm)",
+              border: `1px solid ${m.ready ? "rgba(127,209,168,.4)" : "rgba(145,132,217,.22)"}`,
+              color: m.ready ? "#7fd1a8" : "#75798c",
+            }}
+          >
+            {m.franchise}
+          </span>
+        ))}
+      </div>
+
+      <div style={{ fontSize: 11.5, color: "#75798c", marginTop: 22 }}>
+        Pick clock — {clock}
+      </div>
+    </div>
+  );
 }

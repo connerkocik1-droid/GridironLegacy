@@ -97,7 +97,7 @@ export async function GET() {
 
   const { data: league } = await db
     .from("leagues")
-    .select("id, settings, draft_state, current_pick, pick_started_at, draft_at")
+    .select("id, settings, draft_state, current_pick, pick_started_at, draft_at, lottery_order, lottery_at")
     .eq("id", me.league_id)
     .single();
   if (!league) return Response.json({ error: "League not found" }, { status: 404 });
@@ -180,6 +180,11 @@ export async function GET() {
       pickClock: clock,
       serverNow: new Date().toISOString(),
       draftAt: league.draft_at,
+      // The order the lottery drew, and the instant it began. Every browser
+      // animates the reveal from that instant rather than from when its own
+      // page opened, so twelve managers watch the same spin land together.
+      lotteryOrder: (league.lottery_order ?? null) as string[] | null,
+      lotteryAt: league.lottery_at ?? null,
       // How many rounds get the full-screen reveal. Past these the board just
       // updates, because ten seconds a pick stops being a thrill by round four.
       cinematicRounds: Number(league.settings?.cinematicRounds ?? 3),

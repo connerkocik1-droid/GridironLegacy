@@ -55,7 +55,7 @@ const SETTINGS = {
 const side = (m, points) => ({ ...m, claimed: m.name !== "Open", points });
 const ago = (mins) => new Date(Date.now() - mins * 60_000).toISOString();
 
-export function routes(page) {
+export function routes(page, over = {}) {
   const json = (body) => (r) => r.fulfill({ json: body });
 
   // The email a manager has given, so the settings panel has something to show
@@ -535,12 +535,21 @@ export function routes(page) {
   let autodraft = false;
 
 
+  // Draft night is a sequence now, so the room can be asked for any point in
+  // it. A draft in progress is the default; the lobby and the lottery are
+  // asked for by name, because they are screens the audit would otherwise
+  // never see and they are the two with the most on them.
+  const draftState = over.draftState ?? process.env.AUDIT_DRAFT_STATE ?? "running";
+  const lotteryAt =
+    over.lotteryAt ?? process.env.AUDIT_LOTTERY_AT ?? new Date().toISOString();
+
   page.route("**/api/draft", (r) =>
     r.fulfill({ json: {
       me: { ...ME, is_commissioner: true, ready: true, autodraft },
-      league: { state: "running", currentPick: 3, pickStartedAt: new Date().toISOString(),
+      league: { state: draftState, currentPick: 3, pickStartedAt: new Date().toISOString(),
         pickSeconds: 90, pickClock: PICK_CLOCK, serverNow: new Date().toISOString(),
-        draftAt: null, cinematicRounds: 3, introVideo: null },
+        draftAt: null, cinematicRounds: 3, introVideo: null,
+        lotteryOrder: MANAGERS.map((m) => m.slot), lotteryAt },
       onTheClock: PICKS[2], myTurn: false, picks: PICKS, managers: MANAGERS,
       available: [
         { name: "Ashton Jeanty", position: "RB", team: "LV", adp: 10, posRank: "RB6", bye: 10 },

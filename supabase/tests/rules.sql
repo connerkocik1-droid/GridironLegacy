@@ -3478,3 +3478,126 @@ select expect('and raising the bench makes room without touching anybody',
 select expect('the new man is on the roster',
   (select count(*)::int from roster_slots
     where league_id = :'BB' and player_name = 'Somebody New'), 1);
+
+\echo ''
+\echo '--- draft night runs in order, and only round one has a clock ---'
+--
+-- The bug: opening the room set the state to 'running', which both told the
+-- browsers to play the intro film and started the pick clock. By the time the
+-- film ended the first manager's ninety seconds were gone. What follows is the
+-- rule that makes that impossible — a clock exists in exactly one state.
+
+\set DN  '99999999-0000-0000-0000-0000000000d1'
+\set DN1 'dd100000-0000-0000-0000-000000000001'
+\set DN2 'dd100000-0000-0000-0000-000000000002'
+
+\o /dev/null
+insert into auth.users (id) values (:'DN1'), (:'DN2');
+insert into leagues (id, name, season, commissioner_slot, settings, draft_state)
+values (:'DN', 'Draft Night', 2035, 'AAA', '{"rounds": 2}'::jsonb, 'pending');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'DN', 'AAA', 'One', 'Alpha', true,  :'DN1'),
+  (:'DN', 'BBB', 'Two', 'Bravo', false, :'DN2');
+
+select signin(:'DN1');
+select rebuild_draft_board(:'DN');
+\o
+
+select expect('opening the room does not start a clock',
+  (select set_draft_state(:'DN', 'lobby') ->> 'state'), 'lobby');
+
+select expect('— there is none to expire',
+  (select pick_started_at is null from leagues where id = :'DN'), true);
+
+-- The whole point. autodraft_expired is what took the first pick, and it
+-- refuses outright without a clock to have expired.
+select expect('so nothing can be autodrafted out from under anybody',
+  (select autodraft_expired(:'DN') ->> 'ok'), 'false');
+
+select expect('nor can a pick be made from the lobby',
+  (select refuses(format($$select make_pick(%L, 'Anybody')$$, :'DN')) is not null), true);
+
+\echo ''
+\echo '  the lottery'
+
+select expect('the commissioner draws it',
+  (select start_lottery(:'DN') ->> 'ok'), 'true');
+
+select expect('which puts the league in the lottery',
+  (select draft_state from leagues where id = :'DN'), 'lottery');
+
+select expect('every franchise is in the order, exactly once',
+  (select count(distinct s)::int from unnest(
+     (select lottery_order from leagues where id = :'DN')) as s), 2);
+
+select expect('and the order is as long as the league',
+  (select array_length(lottery_order, 1) from leagues where id = :'DN'), 2);
+
+-- The starting gun every browser animates from. Without it the twelve screens
+-- would each begin their spin when their own page happened to load.
+select expect('the moment it began is written down',
+  (select lottery_at is not null from leagues where id = :'DN'), true);
+
+select expect('still no clock during the reveal',
+  (select pick_started_at is null from leagues where id = :'DN'), true);
+
+select expect('and still nothing to autodraft',
+  (select autodraft_expired(:'DN') ->> 'ok'), 'false');
+
+select expect('drawing it again before the draft is allowed, and redraws it',
+  (select start_lottery(:'DN') ->> 'ok'), 'true');
+
+select expect('a manager cannot draw it',
+  (select has_function_privilege('authenticated', 'start_lottery(uuid)', 'execute')), true);
+
+\o /dev/null
+select signin(:'DN2');
+\o
+
+select expect('— only the commissioner, whatever the grant says',
+  (select refuses(format($$select start_lottery(%L)$$, :'DN'))),
+  'Only the commissioner can draw the lottery');
+
+select expect('and only the commissioner opens the room',
+  (select refuses(format($$select set_draft_state(%L, 'lobby')$$, :'DN'))),
+  'Only the commissioner can control the draft');
+
+\echo ''
+\echo '  and then, and only then, round one'
+
+\o /dev/null
+select signin(:'DN1');
+\o
+
+select expect('the commissioner starts the draft',
+  (select set_draft_state(:'DN', 'running') ->> 'state'), 'running');
+
+select expect('and now there is a clock',
+  (select pick_started_at is not null from leagues where id = :'DN'), true);
+
+select expect('which starts at the first pick',
+  (select current_pick from leagues where id = :'DN'), 1);
+
+-- Once it is running, redrawing the order is off the table even before a pick
+-- is made: the room is live and the board is on screen.
+select expect('the lottery cannot be redrawn once the draft is running',
+  (select refuses(format($$select start_lottery(%L)$$, :'DN'))),
+  'The lottery is drawn before the draft, not during it');
+
+-- Pausing has always cleared the clock. The new states clear it too, which is
+-- the same rule stated once instead of case by case.
+select expect('pausing clears the clock',
+  (select set_draft_state(:'DN', 'paused') ->> 'state'), 'paused');
+select expect('— as it always did',
+  (select pick_started_at is null from leagues where id = :'DN'), true);
+
+select expect('and a state nobody has heard of is refused',
+  (select refuses(format($$select set_draft_state(%L, 'halftime')$$, :'DN'))),
+  'Unknown draft state halftime');
+
+-- The column itself now says what it may hold, rather than trusting every
+-- caller to have gone through the function.
+select expect('the states are written down on the table, not only in the code',
+  (select count(*)::int from pg_constraint
+    where conname = 'leagues_draft_state_check'), 1);

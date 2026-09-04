@@ -24,7 +24,7 @@ export default function DraftCountdown({
 }: {
   draftAt: string | null;
   skew: number;
-  state: "pending" | "running" | "paused" | "complete";
+  state: "pending" | "lobby" | "lottery" | "running" | "paused" | "complete";
   isCommissioner: boolean;
   managers: { id: string; franchise: string; ready?: boolean }[];
   onStart: () => void;

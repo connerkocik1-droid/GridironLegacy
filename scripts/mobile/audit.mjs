@@ -237,6 +237,39 @@ for (const width of WIDTHS) {
   await ctx.close();
 }
 
+// Draft night has three screens and the audit only ever saw one of them. The
+// lobby and the lottery exist for a few minutes once a year, in front of the
+// whole league at the same moment, on twelve phones — which is the worst
+// possible time to discover that the reel runs off the side of a 320px screen.
+for (const width of WIDTHS) {
+  for (const [state, name] of [
+    ["lobby", "draft-lobby"],
+    ["lottery", "draft-lottery"],
+  ]) {
+    const ctx = await browser.newContext({
+      viewport: { width, height: 844 }, hasTouch: true, isMobile: true,
+    });
+    await ctx.addCookies([sessionCookie()]);
+    const page = await ctx.newPage();
+    // Nine seconds in: past the lead-in, several names already out, and one
+    // still spinning — every part of the screen on at once.
+    routes(page, {
+      draftState: state,
+      lotteryAt: new Date(Date.now() - 9_000).toISOString(),
+    });
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(String(e).slice(0, 120)));
+    try {
+      await page.goto(`${BASE}/draft`, { waitUntil: "domcontentloaded", timeout: 20000 });
+    } catch {
+      // As above: measure what rendered.
+    }
+    await page.waitForTimeout(1400);
+    findings.push([width, name, `/draft (${state})`, await page.evaluate(measure), errors]);
+    await ctx.close();
+  }
+}
+
 // The add-to-home-screen hint is the one piece of interface that renders for
 // nobody in this browser: it shows only in mobile Safari, to somebody who has
 // not already installed the app. Without pretending to be an iPhone, the audit
