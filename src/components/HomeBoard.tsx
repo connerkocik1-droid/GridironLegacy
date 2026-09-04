@@ -90,9 +90,20 @@ export default function HomeBoard() {
           Nothing below them any more. The bands that used to be here — this
           week's fixtures, the recent moves — are behind the doors now, and a
           home page you can read without scrolling is the point of the whole
-          rearrangement. */}
-      <MyTeamButton />
-      <TheLeagueButton />
+          rearrangement.
+
+          Two of them are hidden on a phone. Since the tab bar arrived, My Team
+          and The League are a thumb's reach away on every screen in the app,
+          and repeating them here cost three hundred and fifty pixels — most of
+          a phone screen — of the page a manager opens more than any other, to
+          say something the bottom of that same screen was already saying. They
+          stay on a desktop, where the room exists and the top bar's links are
+          small. Mini-games is in neither bar, so its door is the only way in
+          and it keeps it. */}
+      <div className="gl-home-doors">
+        <MyTeamButton />
+        <TheLeagueButton />
+      </div>
       <MiniGamesButton />
     </div>
   );
