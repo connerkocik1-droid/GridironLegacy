@@ -601,7 +601,14 @@ export function routes(page, over = {}) {
       away_team: "BUF", home_score: 24, away_score: 17, state: "post", winner: "CAR",
       completed: true }],
     picks: {},
-    standings: MANAGERS.map((m, i) => ({ ...m, correct: 40 - i, played: 60, mine: i === 0 })),
+    // managerId, because that is the field the route sends and the field the
+    // board keys its rows on. Spreading the manager gave every row an `id` and
+    // no `managerId`, so React drew twelve standings rows with no key at all
+    // and said so in the console on every load.
+    standings: MANAGERS.map((m, i) => ({
+      ...m, managerId: m.id, correct: 40 - i, played: 60,
+      pct: Math.round(((40 - i) / 60) * 1000) / 10, mine: i === 0,
+    })),
   }));
 
   page.route("**/api/admin/league**", json({

@@ -5,9 +5,24 @@ import TabBar from "@/components/TabBar";
 import "./nocturne.css";
 import "./globals.css";
 
-// Self-hosted at build time, so the page does not depend on the Google Fonts
-// CDN being reachable. Nocturne's tokens name "Inter", which this satisfies.
-const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], display: "swap" });
+/**
+ * Self-hosted at build time, so the page does not depend on the Google Fonts
+ * CDN being reachable.
+ *
+ * As a variable rather than a class, because a class on <html> is overridden
+ * by the first `font-family` any stylesheet sets on <body> — and nocturne.css
+ * sets one. So this was being loaded on every page and then thrown away, while
+ * the literal "Inter" in the tokens was answered by a stylesheet imported from
+ * Google at the top of that same file: a render-blocking request to somebody
+ * else's CDN, on every page load, for a font already sitting in the build.
+ * The tokens name this variable now and that import is gone.
+ */
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: "Pylon Fantasy",
@@ -57,7 +72,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.className}>
+    <html lang="en" className={inter.variable}>
       <body>
         {children}
         {/* The four places, within a thumb's reach. Phones only — a desktop
