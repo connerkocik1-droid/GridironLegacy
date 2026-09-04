@@ -109,7 +109,18 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
+    // data-theme is written here as well as by the script, so that the markup
+    // the server sends already says which palette it is — the stylesheet's
+    // default is the dark one, and an element with no attribute at all is a
+    // third state nothing in this app describes.
+    //
+    // suppressHydrationWarning is the other half, and is not cosmetic: the
+    // script deliberately changes this element before React hydrates, and
+    // React was calling that a mismatch on every single page load. Told to
+    // suppress it, React keeps what is in the DOM, which is the whole point of
+    // running the script early. It suppresses it for this element only — not
+    // for the tree — so a genuine mismatch anywhere else still says so.
+    <html lang="en" className={inter.variable} data-theme="dark" suppressHydrationWarning>
       <head>
         {/*
           Which theme, before the first pixel.

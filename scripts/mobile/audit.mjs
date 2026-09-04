@@ -24,40 +24,13 @@
 import { chromium } from "playwright";
 import { mkdirSync } from "node:fs";
 import { routes } from "./fixture.mjs";
+import { PAGES } from "./pages.mjs";
 import { sessionCookie } from "./session.mjs";
 
 const BASE = process.env.AUDIT_BASE ?? "http://localhost:3000";
 const STUB = process.env.AUDIT_STUB ?? "http://127.0.0.1:54321";
 const SHOTS = process.env.AUDIT_SHOTS ?? null;
 
-const PAGES = [
-  ["/", "home"],
-  ["/activity", "activity"],
-  ["/my-team", "my-team"],
-  ["/the-league", "the-league"],
-  ["/rules", "rules"],
-  ["/chat", "chat"],
-  ["/my-team/edit", "edit-team"],
-  ["/watchlist", "watchlist"],
-  ["/player/Puka%20Nacua", "player-profile"],
-  ["/lineup", "lineup"],
-  ["/matchups", "matchups"],
-  ["/standings", "standings"],
-  ["/rankings", "rankings"],
-  ["/draft", "draft"],
-  ["/draft/rehearsal", "rehearsal"],
-  ["/draft/mock", "mock-draft"],
-  ["/free-agents", "free-agents"],
-  ["/trade-builder", "trade-builder"],
-  ["/league", "league"],
-  ["/news", "news"],
-  ["/player-news", "player-news"],
-  ["/pickem", "pickem"],
-  ["/20-0", "twenty-zero"],
-  ["/minigames", "minigames"],
-  ["/commissioner", "commissioner"],
-  ["/commissioner/preseason", "preseason-check"],
-];
 
 const WIDTHS = [320, 390];
 

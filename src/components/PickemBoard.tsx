@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { logo } from "@/data/league-data";
+import TeamMark from "./TeamMark";
 
 interface Game {
   id: string;
@@ -337,14 +337,7 @@ export default function PickemBoard() {
                           opacity: locked && !isPick ? 0.55 : 1,
                         }}
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={logo(team)}
-                          alt=""
-                          width={20}
-                          height={20}
-                          style={{ objectFit: "contain", flex: "0 0 auto" }}
-                        />
+                        <TeamMark team={team} size={20} opacity={1} />
                         <span style={{ fontFamily: "var(--font-heading)", fontSize: 13 }}>{team}</span>
                         {locked ? (
                           <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--text-3)" }}>

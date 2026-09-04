@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import ScoreBar from "./ScoreBar";
 import Skeleton from "./Skeleton";
 import TeamCrest from "./TeamCrest";
 import { useLogos } from "@/lib/use-logos";
@@ -114,20 +115,34 @@ function GameCard({
   game,
   highlight,
   logos,
+  meId,
 }: {
   game: Game;
   highlight: boolean;
   logos: Record<string, string>;
+  /** Whose season this is, so their own fixture can be read from their side. */
+  meId: string;
 }) {
   const { home, away } = game;
   const settled = game.final;
   const homeWon = settled && (home.points ?? 0) > (away.points ?? 0);
   const awayWon = settled && (away.points ?? 0) > (home.points ?? 0);
 
+  // In your own fixture you go on top. Home and away are a coin toss in a
+  // fantasy league — nobody travels — and reading your own week from the
+  // second line is a small tax paid twelve times a season. It also lets the
+  // bar below mean "you": the fill starts at the left, so the side it is
+  // measuring has to be the side written above it.
+  const first = game.mine && home.id === meId ? home : away;
+  const second = first === home ? away : home;
+
+  const firstWon = first === home ? homeWon : awayWon;
+  const secondWon = first === home ? awayWon : homeWon;
+
   return (
     <div
       role="group"
-      aria-label={`Week ${game.week}: ${away.franchise} at ${home.franchise}`}
+      aria-label={`Week ${game.week}: ${first.franchise} versus ${second.franchise}`}
       style={{
         border: `1px solid ${highlight ? "rgb(var(--accent-bright-rgb) / .5)" : "rgb(var(--accent-rgb) / .2)"}`,
         borderRadius: "var(--radius-md)",
@@ -154,9 +169,24 @@ function GameCard({
       </div>
 
       <div style={{ display: "grid", gap: 8 }}>
-        <Score side={away} won={awayWon} lost={homeWon} logo={logos[away.id] ?? null} />
-        <Score side={home} won={homeWon} lost={awayWon} logo={logos[home.id] ?? null} />
+        <Score side={first} won={firstWon} lost={secondWon} logo={logos[first.id] ?? null} />
+        <Score side={second} won={secondWon} lost={firstWon} logo={logos[second.id] ?? null} />
       </div>
+
+      {/* Two numbers are a fact; the distance between them is the game. Only
+          once there is one — an unplayed week has no gap to draw, and an
+          empty track under a fixture reads as nought-all rather than as not
+          yet. Neutral unless it is yours, because "up" and "down" mean
+          nothing about somebody else's Sunday. */}
+      {(first.points ?? 0) + (second.points ?? 0) > 0 ? (
+        <ScoreBar
+          mine={first.points ?? 0}
+          theirs={second.points ?? 0}
+          neutral={!game.mine}
+          final={game.final}
+          padding="11px 0 0"
+        />
+      ) : null}
     </div>
   );
 }
@@ -318,6 +348,7 @@ export default function Matchups() {
               game={g}
               highlight={wholeLeague ? g.mine : g.live}
               logos={logos}
+              meId={board.meId}
             />
           ))}
         </div>

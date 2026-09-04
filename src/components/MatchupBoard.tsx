@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import TeamMark from "./TeamMark";
 import Skeleton from "./Skeleton";
 import LiveNumber from "./LiveNumber";
 import ScoreBar from "./ScoreBar";
-import { headshot, logo } from "@/data/league-data";
+import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import type { MatchupRow, SideEntry } from "@/lib/matchup";
 
@@ -13,6 +14,13 @@ interface Side {
   slot: string;
   franchise: string;
   total: number;
+}
+
+/** A week this manager sits out. There is no fixture, so there is no board. */
+interface Bye {
+  week: number;
+  message: string;
+  managers: { id: string; slot: string; franchise: string }[];
 }
 
 interface Board {
@@ -116,17 +124,7 @@ function PlayerCell({
             style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}
           />
         </span>
-        {entry.team ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            className="gl-mcell-team"
-            src={logo(entry.team)}
-            alt=""
-            width={14}
-            height={14}
-            style={{ objectFit: "contain", opacity: 0.85, flex: "0 0 auto" }}
-          />
-        ) : null}
+        <TeamMark team={entry.team} size={14} opacity={0.85} className="gl-mcell-team" />
       </div>
 
       <div
@@ -169,6 +167,11 @@ function PlayerCell({
 
 export default function MatchupBoard() {
   const [board, setBoard] = useState<Board | null>(null);
+  const [bye, setBye] = useState<Bye | null>(null);
+  // Who the schedule says you are playing, remembered from the load that had
+  // no opponent forced on it. Once one is forced the response stops saying,
+  // and without this there is no way back to your own game.
+  const [scheduled, setScheduled] = useState<{ id: string; franchise: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [opponent, setOpponent] = useState("");
 
@@ -182,7 +185,29 @@ export default function MatchupBoard() {
         return setError(body.error ?? "The league database is not configured yet.");
       }
       if (!res.ok) throw new Error(String(res.status));
-      setBoard(await res.json());
+
+      const body = await res.json();
+
+      // A bye answers 200, because sitting out a week is a fact about the
+      // schedule rather than a fault — and it comes back without the two
+      // sides, because there are not two sides. This screen used to read
+      // `board.home.total` off it and take the whole page down with it: an
+      // odd-numbered league gives somebody a bye every single week, and every
+      // one of them opened this page to a crash.
+      if (!body?.home || !body?.away) {
+        setBye({
+          week: body?.week ?? 0,
+          message: body?.error ?? "There is no fixture for you this week.",
+          managers: body?.managers ?? [],
+        });
+        setBoard(null);
+        setError(null);
+        return;
+      }
+
+      setBye(null);
+      setBoard(body);
+      if (!opponent) setScheduled({ id: body.away.id, franchise: body.away.franchise });
       setError(null);
     } catch {
       setError("Could not load this week's matchup.");
@@ -199,6 +224,9 @@ export default function MatchupBoard() {
 
   if (error && !board) {
     return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
+  }
+  if (bye) {
+    return <ByeWeek bye={bye} onCompare={setOpponent} />;
   }
   if (!board) {
     return <Skeleton rows={5} />;
@@ -273,14 +301,22 @@ export default function MatchupBoard() {
               cursor: "pointer",
             }}
           >
-            <option value="">{board.away.franchise}</option>
-            {board.managers
-              .filter((m) => m.id !== board.home.id && m.id !== board.away.id)
-              .map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.franchise}
-                </option>
-              ))}
+            {/* The list has to contain whatever is selected, or the control
+                renders empty. It used to hold "" for the fixture and then
+                every manager except the one on screen — so the moment you
+                picked somebody, the value was an id that no option carried
+                and the name above the score went blank. The scheduled
+                opponent is the "" option; everybody else is themselves; and
+                on a bye there is no "" option because there is no fixture. */}
+            {(scheduled ? [{ value: "", label: scheduled.franchise }] : []).concat(
+              board.managers
+                .filter((m) => m.id !== board.home.id && m.id !== scheduled?.id)
+                .map((m) => ({ value: m.id, label: m.franchise })),
+            ).map((choice) => (
+              <option key={choice.value || "scheduled"} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
           </select>
           <div
             style={{
@@ -375,5 +411,68 @@ export default function MatchupBoard() {
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * The week you are not playing.
+ *
+ * Said plainly rather than in the warning colour, because a bye is not a
+ * fault and an amber line reads as one. And it does not stop at the bad news:
+ * the same screen already knows how to put any two franchises side by side,
+ * so a manager with nothing of their own to watch can pick a game to watch
+ * instead — which is exactly what somebody on a bye is looking for.
+ */
+function ByeWeek({ bye, onCompare }: { bye: Bye; onCompare: (id: string) => void }) {
+  return (
+    <div style={{ padding: "24px 26px 40px" }}>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>
+        WEEK {bye.week}
+      </div>
+      <h1
+        style={{
+          fontFamily: "var(--font-heading)",
+          fontSize: 34,
+          letterSpacing: "-.03em",
+          margin: "8px 0 8px",
+          fontWeight: 500,
+        }}
+      >
+        You have a bye
+      </h1>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 20px", lineHeight: 1.6, maxWidth: "60ch" }}>
+        {bye.message} Nothing you do this week changes your record — but the rest of the league is
+        playing, and any two of them can be put side by side here.
+      </p>
+
+      {bye.managers.length ? (
+        <>
+          <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)", marginBottom: 8 }}>
+            WATCH SOMEBODY ELSE
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {bye.managers.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => onCompare(m.id)}
+                style={{
+                  minHeight: 34,
+                  padding: "7px 12px",
+                  fontFamily: "inherit",
+                  fontSize: 12,
+                  color: "var(--text-2)",
+                  background: "rgb(var(--surface-rgb) / .55)",
+                  border: "1px solid rgb(var(--accent-rgb) / .24)",
+                  borderRadius: "var(--radius-sm)",
+                  cursor: "pointer",
+                }}
+              >
+                {m.franchise}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
+    </div>
   );
 }

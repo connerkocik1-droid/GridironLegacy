@@ -39,12 +39,19 @@ export default function ScoreBar({
    * remembers about a week.
    */
   final = false,
+  /**
+   * The card this sits in. The default is the matchup band's, whose padding
+   * the bar has to line up with; a card that has already padded itself passes
+   * nothing.
+   */
+  padding = "0 16px 12px",
 }: {
   mine: number;
   theirs: number;
   showMargin?: boolean;
   neutral?: boolean;
   final?: boolean;
+  padding?: string;
 }) {
   const total = mine + theirs;
 
@@ -56,7 +63,7 @@ export default function ScoreBar({
   const level = mine === theirs;
 
   return (
-    <div style={{ padding: "0 16px 12px" }}>
+    <div style={{ padding }}>
       <div
         style={{
           position: "relative",

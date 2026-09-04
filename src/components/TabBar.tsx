@@ -223,9 +223,36 @@ function TabLink({ tab, active, dot }: { tab: Tab; active: boolean; dot?: boolea
         minHeight: 52,
         padding: "7px 2px 8px",
         textDecoration: "none",
+        position: "relative",
         color: active ? "var(--accent-text)" : "var(--text-quiet)",
+        // The lit tab is also a lit panel. Colour alone was carrying "you are
+        // here" on a bar that is read at a glance and often in sunlight.
+        background: active
+          ? "linear-gradient(180deg,rgb(var(--accent-rgb) / .16),transparent 72%)"
+          : "transparent",
       }}
     >
+      {/* The filament. It draws itself out from the middle when the tab
+          becomes the current one, which is the app's only acknowledgement
+          that the press landed — the page underneath is still arriving. */}
+      {active ? (
+        <span
+          aria-hidden
+          className="gl-tab-lit"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: "50%",
+            width: 26,
+            marginLeft: -13,
+            height: 2,
+            borderRadius: "0 0 2px 2px",
+            background: "var(--accent-link)",
+            boxShadow: "0 0 8px rgb(var(--accent-bright-rgb) / .55)",
+          }}
+        />
+      ) : null}
+
       <span style={{ position: "relative", display: "inline-flex", flex: "0 0 auto" }}>
         {tab.icon}
         {dot ? (

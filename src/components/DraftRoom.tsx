@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { headshot, logo } from "@/data/league-data";
+import { headshot } from "@/data/league-data";
+import TeamMark from "./TeamMark";
 import PlayerName from "./PlayerName";
 import DraftBoard from "./DraftBoard";
 import DraftCountdown from "./DraftCountdown";
@@ -1253,16 +1254,7 @@ export default function DraftRoom() {
                         style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}
                       />
                     </span>
-                    {p.team ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={logo(p.team)}
-                        alt=""
-                        width={13}
-                        height={13}
-                        style={{ objectFit: "contain", opacity: 0.8 }}
-                      />
-                    ) : null}
+                    <TeamMark team={p.team} />
                   </div>
                   <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
                     {p.posRank} · ADP {p.adp} · bye {p.bye}

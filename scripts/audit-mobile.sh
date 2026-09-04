@@ -27,10 +27,21 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PORT=${AUDIT_PORT:-3123}
 STUB_PORT=${STUB_PORT:-54399}
 SHOTS=""
+CONSOLE=""
 # Written as an if rather than a && list: under `set -e` a bare test that
 # fails is the sort of thing that quietly ends a script one edit later.
 if [ "${1:-}" = "--shots" ]; then
   SHOTS="$ROOT/.mobile-audit"
+fi
+# The other lens on the same app. The audit answers /api/* in the browser from
+# a fixture, which is right for measuring layout and means it never once runs
+# the real route — so a page that renders a crash renders it identically at
+# both widths and passes. --console boots the same pair of servers and lets
+# the routes answer for themselves, watching the console instead of the
+# geometry. It is what found the bye week taking the roster page down.
+if [ "${1:-}" = "--console" ]; then
+  CONSOLE="1"
+  shift
 fi
 
 cd "$ROOT"
@@ -106,5 +117,10 @@ if ! curl -fsS -o /dev/null "http://localhost:$PORT/" 2>/dev/null; then
   exit 1
 fi
 
-AUDIT_BASE="http://localhost:$PORT" AUDIT_STUB="http://127.0.0.1:$STUB_PORT" \
-  AUDIT_SHOTS="$SHOTS" node "$ROOT/scripts/mobile/audit.mjs"
+if [ -n "$CONSOLE" ]; then
+  AUDIT_BASE="http://localhost:$PORT" \
+    node "$ROOT/scripts/mobile/console-check.mjs" "$@"
+else
+  AUDIT_BASE="http://localhost:$PORT" AUDIT_STUB="http://127.0.0.1:$STUB_PORT" \
+    AUDIT_SHOTS="$SHOTS" node "$ROOT/scripts/mobile/audit.mjs"
+fi

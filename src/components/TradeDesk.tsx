@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { logo } from "@/data/league-data";
+import TeamMark from "./TeamMark";
 import { player, proj } from "@/lib/roster";
 
 interface Manager {
@@ -133,10 +133,7 @@ function PlayerChip({ name, onRemove }: { name: string; onRemove?: () => void })
         fontSize: 12,
       }}
     >
-      {p?.t ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logo(p.t)} alt="" width={14} height={14} style={{ objectFit: "contain" }} />
-      ) : null}
+      <TeamMark team={p?.t} size={14} opacity={1} />
       {name}
       <span style={{ color: "var(--text-dim)", fontSize: 10 }}>{proj(name).toFixed(1)}</span>
       {onRemove ? (

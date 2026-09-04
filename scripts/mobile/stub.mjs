@@ -43,6 +43,41 @@ createServer((req, res) => {
   const url = new URL(req.url, "http://x");
   res.setHeader("content-type", "application/json");
 
+  // .single() and .maybeSingle() are not client-side conveniences: supabase-js
+  // asks PostgREST for an object with an Accept header, and PostgREST is what
+  // unwraps the row. A stub that always answers with an array therefore hands
+  // every one of those calls a one-element list, and `me.franchise` is
+  // undefined in the fixture while being perfectly fine in production.
+  //
+  // That is the worst shape a fixture can have — it does not fail, it differs
+  // — and it cost two pages: the roster crashed on an undefined franchise and
+  // the audit measured the crash as a clean page. So the header is honoured
+  // here, in the one place, rather than worked around in the routes.
+  //
+  // No rows means 406 with PGRST116, which is exactly what PostgREST sends and
+  // what supabase-js turns into `data: null` for maybeSingle().
+  const wantsObject = String(req.headers.accept ?? "").includes("vnd.pgrst.object");
+  const end = res.end.bind(res);
+  res.end = (body) => {
+    if (!wantsObject || typeof body !== "string") return end(body);
+    let rows;
+    try {
+      rows = JSON.parse(body);
+    } catch {
+      return end(body);
+    }
+    if (!Array.isArray(rows)) return end(body);
+    if (rows.length === 0) {
+      res.statusCode = 406;
+      return end(JSON.stringify({
+        code: "PGRST116",
+        details: "The result contains 0 rows",
+        message: "JSON object requested, multiple (or no) rows returned",
+      }));
+    }
+    return end(JSON.stringify(rows[0]));
+  };
+
   if (url.pathname === "/__state") {
     let body = "";
     req.on("data", (c) => (body += c));

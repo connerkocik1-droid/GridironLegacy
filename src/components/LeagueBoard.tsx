@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import TeamMark from "./TeamMark";
 import Skeleton from "./Skeleton";
-import { headshot, logo } from "@/data/league-data";
+import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import { player } from "@/lib/roster";
 import LeagueOverview from "./LeagueOverview";
@@ -303,16 +304,7 @@ export default function LeagueBoard() {
                             style={{ fontSize: 13, color: available ? "var(--text)" : "var(--text-muted)" }}
                           />
                         </span>
-                        {p?.t ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={logo(p.t)}
-                            alt=""
-                            width={13}
-                            height={13}
-                            style={{ objectFit: "contain", opacity: 0.75, flex: "0 0 auto" }}
-                          />
-                        ) : null}
+                        <TeamMark team={p?.t} opacity={0.75} />
                         <span
                           style={{
                             fontSize: 10,

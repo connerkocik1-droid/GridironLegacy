@@ -768,3 +768,61 @@ button[disabled]:active {
     transition: none;
   }
 }
+
+
+/* ------------------------------------------------------------- arriving ---
+   The entrance every route gets. See src/app/template.tsx for why it is a
+   template and not a layout. */
+
+@keyframes gl-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.gl-enter {
+  animation: gl-enter 200ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+/* Motion that cannot be turned off is motion imposed on somebody — and this
+   one is on every single navigation, so it is the last thing anybody with a
+   vestibular disorder wants moving. Without it the screen simply appears,
+   which is what it did before. */
+@media (prefers-reduced-motion: reduce) {
+  .gl-enter {
+    animation: none;
+  }
+}
+
+
+/* --------------------------------------------------------- the lit tab ---
+   The rule across the top of whichever tab you are on. It draws out from the
+   centre on arrival: the tab bar is pressed more than anything else in the
+   app, and this is the half of the feedback that happens where the finger
+   was, rather than on the page that is still loading. */
+
+@keyframes gl-tab-lit {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+.gl-tab-lit {
+  animation: gl-tab-lit 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-tab-lit {
+    animation: none;
+  }
+}

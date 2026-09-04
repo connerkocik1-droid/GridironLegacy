@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Skeleton from "./Skeleton";
-import { headshot, logo, statLine } from "@/data/league-data";
+import { headshot, statLine } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import LiveNumber from "./LiveNumber";
 import TeamCrest from "./TeamCrest";
+import TeamMark from "./TeamMark";
 import { bestLineup, bubbleGaps, type Score } from "@/lib/matchup";
 import { flagColor, flagsFor, player, proj, type LeagueShape } from "@/lib/roster";
 import { useLogos } from "@/lib/use-logos";
@@ -502,16 +503,7 @@ function PlayerRow({
                 name={name}
                 style={{ fontFamily: "var(--font-heading)", fontSize: starter ? 15 : 14 }}
               />
-              {p?.t ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logo(p.t)}
-                  alt=""
-                  width={15}
-                  height={15}
-                  style={{ objectFit: "contain", opacity: 0.85, flex: "0 0 auto" }}
-                />
-              ) : null}
+              <TeamMark team={p?.t} size={15} opacity={0.85} />
             </div>
 
             {flags.length || gap != null ? (
