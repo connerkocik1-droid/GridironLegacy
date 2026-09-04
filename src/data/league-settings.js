@@ -24,7 +24,7 @@ export const DEFAULTS = {
   cinematicRounds: 3,
   lottery: true,
   lotteryOrder: null,       // set once the lottery has been drawn
-  scoring: "half",          // half | ppr | standard
+  scoring: "ppr",           // half | ppr | standard
   starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, "D/ST": 1, K: 1 },
   bench: 8,
   ir: 2,

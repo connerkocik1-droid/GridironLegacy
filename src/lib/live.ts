@@ -241,7 +241,7 @@ export async function refreshScores(
 
   if (!league) return { ...NOT_REFRESHED, note: "league not found" };
 
-  const format = (league.settings?.scoring ?? "half") as ScoringFormat;
+  const format = (league.settings?.scoring ?? "ppr") as ScoringFormat;
 
   // Scored against the rosters as they actually stand, not the static draft
   // pool: a waiver pickup from outside the original five hundred would

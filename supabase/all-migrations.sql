@@ -12,7 +12,7 @@
 -- has the early schema and no record of it; this file recognises that and
 -- writes the record down rather than failing on the tables already there.
 --
--- Built from 37 migrations:
+-- Built from 38 migrations:
 --   0001_schema.sql
 --   0002_trades.sql
 --   0003_draft.sql
@@ -50,6 +50,7 @@
 --   0035_league_chat.sql
 --   0036_best_ball.sql
 --   0037_roster_cap.sql
+--   0038_full_ppr.sql
 
 begin;
 
@@ -8345,6 +8346,39 @@ begin
 
     insert into schema_migrations (name) values ('0037_roster_cap.sql');
     raise notice 'applied %', '0037_roster_cap.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0038_full_ppr.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0038_full_ppr.sql') then
+    raise notice 'skipping %, already applied', '0038_full_ppr.sql';
+  else
+    -- A point a catch.
+    --
+    -- The league is full PPR rather than half. One line, because the scorer has
+    -- read the format from the settings since the day it was written and nothing
+    -- else in the database has an opinion about receptions.
+    --
+    -- Worth being explicit about what this does not change: every score already
+    -- recorded stays as it was. player_scores holds numbers, not the rules that
+    -- produced them, and a week already graded keeps the points it was settled on.
+    -- Re-scoring the season under the new rule would rewrite results people have
+    -- already lived with — a matchup somebody lost by two would change hands
+    -- months later. If this needs applying to weeks already played, that is a
+    -- deliberate re-run of the scoring job for those weeks, not a migration.
+
+    update leagues
+       set settings = coalesce(settings, '{}'::jsonb) || '{"scoring": "ppr"}'::jsonb;
+
+    insert into schema_migrations (name) values ('0038_full_ppr.sql');
+    raise notice 'applied %', '0038_full_ppr.sql';
   end if;
 end
 $__migration__$;

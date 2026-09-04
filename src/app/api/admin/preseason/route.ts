@@ -56,7 +56,7 @@ export async function GET(req: Request) {
 
   // The league's own scoring format, so the page is testing the rules this
   // league will actually be run under rather than a default.
-  const format = (league?.settings?.scoring ?? "half") as ScoringFormat;
+  const format = (league?.settings?.scoring ?? "ppr") as ScoringFormat;
 
   try {
     const result = await preseasonWeek(week, format, league?.settings ?? null);

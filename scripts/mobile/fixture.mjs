@@ -234,7 +234,7 @@ export function routes(page) {
   ];
 
   page.route("**/api/admin/preseason**", json({
-    week: 3, found: true, format: "half",
+    week: 3, found: true, format: "ppr",
     games: [{ id: "401671800", label: "BUF 15 @ KC 24", state: "post", detail: "Final" }],
     players: psPlayers,
     // Nobody appears twice, because the real lineup builder will not do that

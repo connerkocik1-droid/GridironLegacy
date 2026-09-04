@@ -47,7 +47,7 @@ const SEASON_NAME: Record<number, string> = {
 
 // The league's own rules. Named here rather than read from the database so
 // this runs against any deployment, or none.
-const FORMAT: ScoringFormat = "half";
+const FORMAT: ScoringFormat = "ppr";
 
 // ------------------------------------------------------------------ arguments
 

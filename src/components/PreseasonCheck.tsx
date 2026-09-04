@@ -18,6 +18,19 @@ import type { PreseasonPlayer, PreseasonWeek } from "@/lib/preseason";
  * without taking anyone's word for it.
  */
 
+/**
+ * The scoring format in the words a commissioner would use.
+ *
+ * This screen exists to settle whether the scoring is right before it counts
+ * for anything, so echoing the settings key back — "ppr" — asks the reader to
+ * know what the app calls things. "full PPR" is the thing being confirmed.
+ */
+const FORMAT_LABEL: Record<string, string> = {
+  ppr: "full PPR — a point a catch",
+  half: "half PPR — half a point a catch",
+  standard: "standard — catches score nothing on their own",
+};
+
 const card: React.CSSProperties = {
   border: "1px solid rgba(145,132,217,.22)",
   borderRadius: "var(--radius-lg)",
@@ -330,7 +343,9 @@ export default function PreseasonCheck() {
           <div style={{ fontSize: 11.5, color: "#75798c", marginBottom: 14, lineHeight: 1.7 }}>
             Preseason week {data.week} · {data.games.length}{" "}
             {data.games.length === 1 ? "game" : "games"} · scoring set to{" "}
-            <span style={{ color: "#b5abfc" }}>{data.format}</span>
+            <span style={{ color: "#b5abfc" }}>
+              {FORMAT_LABEL[data.format] ?? data.format}
+            </span>
             {data.failed.length ? (
               <span style={{ color: "#e0b573" }}>
                 {" "}

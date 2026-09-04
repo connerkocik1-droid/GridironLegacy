@@ -74,7 +74,7 @@ begin
       'pickSeconds', 90,
       'cinematicRounds', 3,
       'lottery', true,
-      'scoring', 'half',
+      'scoring', 'ppr',
       'starters', jsonb_build_object(
         'QB', 1, 'RB', 2, 'WR', 2, 'TE', 1, 'FLEX', 2, 'D/ST', 1, 'K', 1
       ),
