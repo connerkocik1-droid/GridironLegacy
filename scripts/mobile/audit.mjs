@@ -69,6 +69,23 @@ function measure() {
   // Anything that stops its children reaching the edge of the screen: a rail
   // that scrolls sideways on purpose, like the nav bar or the standings table,
   // or a box that simply cuts them off, like the lottery reel.
+  // Next's development overlay is not this app. It draws a toast and a button
+  // over every page in dev, and while a compile is running it draws "Checking
+  // the project for issues" as a 267x18 link — which measured as a tap target
+  // too small to press, on twenty-eight pages at once, and turned one slow run
+  // into a wall of failures that had nothing to do with the app.
+  const isDevChrome = (el) => {
+    for (let p = el; p; p = p.parentElement) {
+      const tag = p.tagName ? p.tagName.toLowerCase() : "";
+      if (tag.startsWith("nextjs-")) return true;
+      if (p.id === "__next-build-watcher") return true;
+      if (p.getAttributeNames && p.getAttributeNames().some((a) => a.startsWith("data-nextjs"))) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   const inClipper = (el) => {
     for (let p = el.parentElement; p; p = p.parentElement) {
       const ov = getComputedStyle(p).overflowX;
@@ -87,7 +104,7 @@ function measure() {
   for (const el of document.querySelectorAll("*")) {
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.right <= limit + 1) continue;
-    if (inClipper(el)) continue;
+    if (isDevChrome(el) || inClipper(el)) continue;
     if (!worst || r.right > worst.right) {
       worst = {
         right: Math.round(r.right),
@@ -106,6 +123,7 @@ function measure() {
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) continue;
     if (r.height >= 32 && r.width >= 32) continue;
+    if (isDevChrome(el)) continue;
     // A link inside a sentence is text, not a control.
     if (el.tagName === "A" && el.closest("p")) continue;
     // A checkbox in a label is pressed by pressing the label; the box is only
@@ -121,6 +139,7 @@ function measure() {
     if (el.children.length) continue;
     const t = (el.textContent ?? "").trim();
     if (t.length < 3) continue;
+    if (isDevChrome(el)) continue;
     const size = parseFloat(getComputedStyle(el).fontSize);
     if (size && size < 10) tiny.push(`${size}px "${t.slice(0, 20)}"`);
   }
@@ -133,6 +152,7 @@ function measure() {
     const t = (el.textContent ?? "").trim();
     if (t.length < 6) continue;
     const r = el.getBoundingClientRect();
+    if (isDevChrome(el)) continue;
     if (r.width > 0 && r.width < 26 && r.height > 40) {
       squeezed.push(`${Math.round(r.width)}px wide "${t.slice(0, 18)}"`);
     }
@@ -307,7 +327,14 @@ for (const width of WIDTHS) {
   }
   await page.waitForTimeout(1200);
 
-  const shown = await page.getByText("Put this on your home screen").count();
+  // Waited for rather than sampled at an instant. It renders in an effect
+  // after hydration, so on a run where the server is still compiling it was
+  // simply not there yet — and the audit called that a regression.
+  const shown = await page
+    .getByText("Put this on your home screen")
+    .waitFor({ state: "attached", timeout: 5000 })
+    .then(() => 1)
+    .catch(() => 0);
   findings.push([
     width,
     "a2hs-hint",
