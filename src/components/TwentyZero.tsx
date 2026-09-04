@@ -105,7 +105,7 @@ const button = (enabled = true): React.CSSProperties => ({
   background: "rgba(145,132,217,.14)",
   color: "#d2cefd",
   borderRadius: "var(--radius-sm)",
-  font: "inherit",
+  fontFamily: "inherit",
   cursor: enabled ? "pointer" : "default",
   opacity: enabled ? 1 : 0.45,
 });

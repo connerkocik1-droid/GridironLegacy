@@ -46,7 +46,7 @@ const button = (enabled = true): React.CSSProperties => ({
   background: "transparent",
   color: "#d2cefd",
   borderRadius: "var(--radius-sm)",
-  font: "inherit",
+  fontFamily: "inherit",
   cursor: enabled ? "pointer" : "default",
   opacity: enabled ? 1 : 0.45,
 });
@@ -330,7 +330,7 @@ export default function DraftRehearsal() {
                 background: player === p.n ? "rgba(145,132,217,.26)" : "transparent",
                 color: player === p.n ? "#e9e9ed" : "#9397ab",
                 borderRadius: "var(--radius-sm)",
-                font: "inherit",
+                fontFamily: "inherit",
                 cursor: "pointer",
               }}
             >
@@ -379,7 +379,7 @@ export default function DraftRehearsal() {
                 background: countdownMins === m ? "rgba(145,132,217,.26)" : "transparent",
                 color: countdownMins === m ? "#e9e9ed" : "#9397ab",
                 borderRadius: "var(--radius-sm)",
-                font: "inherit",
+                fontFamily: "inherit",
                 cursor: "pointer",
               }}
             >

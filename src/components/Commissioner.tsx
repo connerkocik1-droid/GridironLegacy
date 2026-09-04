@@ -651,7 +651,12 @@ export default function Commissioner() {
             <span style={{ fontSize: 10, color: "#75798c", width: 44, flex: "0 0 auto" }}>
               {m.slot}
             </span>
-            <span style={{ fontFamily: "var(--font-heading)", fontSize: 14, minWidth: 0, flex: 1 }}>
+            {/* A floor, not just a share. The row wraps, and with a bare
+                flex: 1 the name took whatever the fixed-width controls left —
+                at 320px that was four pixels and a franchise spelled downwards.
+                Given a basis, it pushes the division buttons onto the next
+                line instead and keeps the name readable. */}
+            <span style={{ fontFamily: "var(--font-heading)", fontSize: 14, minWidth: 0, flex: "1 1 140px" }}>
               {m.franchise}
               {m.isCommissioner ? (
                 <span style={{ fontSize: 10, letterSpacing: ".14em", color: "#b5abfc", marginLeft: 8 }}>
@@ -673,7 +678,7 @@ export default function Commissioner() {
                     background: m.division === d ? "rgba(145,132,217,.26)" : "transparent",
                     color: m.division === d ? "#e9e9ed" : "#75798c",
                     borderRadius: "var(--radius-sm)",
-                    font: "inherit",
+                    fontFamily: "inherit",
                     cursor: busy || m.division === d ? "default" : "pointer",
                   }}
                 >

@@ -77,8 +77,18 @@ interface Board {
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"];
 
-/** The commissioner's small controls in the room header. */
+/**
+ * The commissioner's small controls in the room header.
+ *
+ * fontFamily rather than the `font` shorthand, here and everywhere else in
+ * this app where a button sets its own size: `font: inherit` resets font-size
+ * along with the family, so it silently threw away the 10px above it and drew
+ * every one of these at the body's 15px. The family is the only part of it a
+ * button needs to inherit.
+ */
 const control = (): React.CSSProperties => ({
+  flex: "0 0 auto",
+  whiteSpace: "nowrap",
   padding: "6px 13px",
   fontSize: 10,
   letterSpacing: ".12em",
@@ -87,7 +97,7 @@ const control = (): React.CSSProperties => ({
   background: "transparent",
   color: "#9397ab",
   borderRadius: "var(--radius-sm)",
-  font: "inherit",
+  fontFamily: "inherit",
   cursor: "pointer",
 });
 
@@ -752,12 +762,15 @@ export default function DraftRoom() {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 20,
+          gap: 14,
           padding: "20px 26px 14px",
           flexWrap: "wrap",
         }}
       >
-        <div>
+        {/* Shrinks rather than pushing the clock onto its own line: a long
+            franchise name is worth less than the two of them being read in one
+            glance, so it ellipses instead. */}
+        <div style={{ flex: "1 1 150px", minWidth: 0 }}>
           <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>ON THE CLOCK</div>
           <div
             style={{
@@ -765,8 +778,11 @@ export default function DraftRoom() {
               alignItems: "center",
               gap: 11,
               fontFamily: "var(--font-heading)",
-              fontSize: 32,
+              // Gives way on a phone so the name and the clock share a line.
+              // At a flat 32px the franchise on the clock read "Open T…".
+              fontSize: "clamp(21px, 5.5vw, 32px)",
               marginTop: 4,
+              minWidth: 0,
             }}
           >
             {board.onTheClock?.manager_id && board.league.state !== "complete" ? (
@@ -778,11 +794,20 @@ export default function DraftRoom() {
                 fallback="empty"
               />
             ) : null}
-            {board.league.state === "complete"
-              ? "Draft complete"
-              : board.onTheClock
-                ? (managerName.get(board.onTheClock.manager_id ?? "") ?? "—")
-                : "Waiting to start"}
+            <span
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                minWidth: 0,
+              }}
+            >
+              {board.league.state === "complete"
+                ? "Draft complete"
+                : board.onTheClock
+                  ? (managerName.get(board.onTheClock.manager_id ?? "") ?? "—")
+                  : "Waiting to start"}
+            </span>
           </div>
           <div style={{ fontSize: 11, color: "#75798c", marginTop: 2 }}>
             {board.onTheClock
@@ -796,18 +821,35 @@ export default function DraftRoom() {
           </div>
         </div>
 
+        {/* Beside the name rather than after the controls. On a phone the row
+            of buttons below wraps, and the clock was landing a third of a
+            screen under the franchise whose clock it is — the two things a
+            manager looks up for, separated by everything they did not. */}
+        {board.league.state === "running" ? (
+          <PickClock
+            remaining={remaining}
+            total={board.league.pickSeconds}
+            mine={board.myTurn}
+          />
+        ) : null}
+
         {/* The view toggle and, for the commissioner, the controls that change
-            the draft itself. Wraps on a narrow screen: on a phone this row is
-            wider than the screen, and a Reset button hanging off the edge is
-            not a Reset button. */}
+            the draft itself. Wider than a phone either way: it used to wrap,
+            which cost three rows of the screen before a single player was
+            visible. One row that scrolls instead, in the order a draft
+            actually needs them — what you are looking at, then what happens on
+            your turn, then the commissioner's. Nothing hangs off the edge,
+            because the rail can be dragged to it. */}
         <div
+          className="gl-scroll-x"
           style={{
             display: "flex",
             gap: 4,
             marginLeft: "auto",
-            flexWrap: "wrap",
-            justifyContent: "flex-end",
-            rowGap: 6,
+            flexWrap: "nowrap",
+            flex: "0 1 auto",
+            minWidth: 0,
+            paddingBottom: 2,
           }}
         >
           {(["players", "board"] as const).map((v) => (
@@ -815,6 +857,7 @@ export default function DraftRoom() {
               key={v}
               onClick={() => setView(v)}
               style={{
+                flex: "0 0 auto",
                 padding: "6px 13px",
                 fontSize: 10,
                 letterSpacing: ".12em",
@@ -823,41 +866,13 @@ export default function DraftRoom() {
                 background: view === v ? "rgba(145,132,217,.26)" : "transparent",
                 color: view === v ? "#e9e9ed" : "#9397ab",
                 borderRadius: "var(--radius-sm)",
-                font: "inherit",
+                fontFamily: "inherit",
                 cursor: "pointer",
               }}
             >
               {v === "players" ? "Players" : "Board"}
             </button>
           ))}
-
-          {/* This screen's own choice, not the league's. Everyone else still
-              gets the reveal. */}
-          <label
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              padding: "6px 11px",
-              fontSize: 10,
-              letterSpacing: ".1em",
-              textTransform: "uppercase",
-              color: "#9397ab",
-              border: "1px solid rgba(145,132,217,.24)",
-              borderRadius: "var(--radius-sm)",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-            title="Only on this screen. The other managers still see the reveal."
-          >
-            <input
-              type="checkbox"
-              checked={animations}
-              onChange={(e) => setPickAnimations(e.target.checked)}
-              style={{ accentColor: "#9184d9", cursor: "pointer" }}
-            />
-            Pick animation
-          </label>
 
           {/* Everybody's, not the commissioner's. A manager saying they will
               not be here is the one thing in this row that changes what the
@@ -867,6 +882,7 @@ export default function DraftRoom() {
               display: "inline-flex",
               alignItems: "center",
               gap: 7,
+              flex: "0 0 auto",
               minHeight: 34,
               padding: "6px 11px",
               fontSize: 10,
@@ -890,6 +906,35 @@ export default function DraftRoom() {
             Autodraft
           </label>
 
+          {/* This screen's own choice, not the league's. Everyone else still
+              gets the reveal. */}
+          <label
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              flex: "0 0 auto",
+              padding: "6px 11px",
+              fontSize: 10,
+              letterSpacing: ".1em",
+              textTransform: "uppercase",
+              color: "#9397ab",
+              border: "1px solid rgba(145,132,217,.24)",
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+            title="Only on this screen. The other managers still see the reveal."
+          >
+            <input
+              type="checkbox"
+              checked={animations}
+              onChange={(e) => setPickAnimations(e.target.checked)}
+              style={{ accentColor: "#9184d9", cursor: "pointer" }}
+            />
+            Pick animation
+          </label>
+
           {board.me.is_commissioner ? (
             <>
               {/* Kept apart from the view toggle: one of these changes what
@@ -897,6 +942,7 @@ export default function DraftRoom() {
               <span
                 aria-hidden
                 style={{
+                  flex: "0 0 auto",
                   width: 1,
                   alignSelf: "stretch",
                   margin: "0 5px",
@@ -939,14 +985,6 @@ export default function DraftRoom() {
             </>
           ) : null}
         </div>
-
-        {board.league.state === "running" ? (
-          <PickClock
-            remaining={remaining}
-            total={board.league.pickSeconds}
-            mine={board.myTurn}
-          />
-        ) : null}
       </div>
 
       {error ? (
@@ -1112,6 +1150,8 @@ export default function DraftRoom() {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search"
               style={{
+                flex: "1 1 110px",
+                minWidth: 0,
                 padding: "5px 9px",
                 background: "rgba(20,22,35,.8)",
                 border: "1px solid rgba(145,132,217,.28)",
@@ -1121,12 +1161,27 @@ export default function DraftRoom() {
                 fontSize: 12,
               }}
             />
-            <div style={{ display: "flex", gap: 3, marginLeft: "auto", flexWrap: "wrap" }}>
+            {/* Seven of these wrapped onto two rows on a phone, which put the
+                first player below the fold on the one screen where the list is
+                the whole point. One rail, in position order, that scrolls. */}
+            <div
+              className="gl-scroll-x"
+              style={{
+                display: "flex",
+                gap: 3,
+                marginLeft: "auto",
+                flexWrap: "nowrap",
+                flex: "0 1 auto",
+                minWidth: 0,
+                paddingBottom: 2,
+              }}
+            >
               {POSITIONS.map((pos) => (
                 <button
                   key={pos}
                   onClick={() => setFilter(pos)}
                   style={{
+                    flex: "0 0 auto",
                     padding: "5px 9px",
                     fontSize: 10,
                     letterSpacing: ".1em",
@@ -1134,7 +1189,7 @@ export default function DraftRoom() {
                     background: filter === pos ? "rgba(145,132,217,.26)" : "transparent",
                     color: filter === pos ? "#e9e9ed" : "#9397ab",
                     borderRadius: "var(--radius-sm)",
-                    font: "inherit",
+                    fontFamily: "inherit",
                     cursor: "pointer",
                   }}
                 >
@@ -1242,6 +1297,14 @@ export default function DraftRoom() {
                     fontSize: 10,
                     letterSpacing: ".12em",
                     textTransform: "uppercase",
+                    // Shrinks on a phone and wraps "Pick for them" over two
+                    // lines rather than pushing itself onto a row of its own.
+                    // It never shortens to "Pick": drafting for somebody else
+                    // is the one press here that cannot be undone, and the
+                    // words are what stop it being pressed by accident.
+                    whiteSpace: "normal",
+                    lineHeight: 1.2,
+                    textAlign: "center",
                     border: `1px solid ${
                       pickingForSomeoneElse
                         ? "rgba(224,131,131,.45)"
@@ -1252,9 +1315,10 @@ export default function DraftRoom() {
                     background: "transparent",
                     color: pickingForSomeoneElse ? "#c98f8f" : canPick ? "#d2cefd" : "#5a5d6e",
                     borderRadius: "var(--radius-sm)",
-                    font: "inherit",
+                    fontFamily: "inherit",
                     cursor: canPick ? "pointer" : "default",
-                    flex: "0 0 auto",
+                    flex: "0 1 auto",
+                    minWidth: 78,
                   }}
                 >
                   {pickingForSomeoneElse ? "Pick for them" : "Draft"}
@@ -1287,7 +1351,7 @@ function queueButton(enabled: boolean): React.CSSProperties {
     background: "transparent",
     color: enabled ? "#9397ab" : "#4d5062",
     borderRadius: "var(--radius-sm)",
-    font: "inherit",
+    fontFamily: "inherit",
     cursor: enabled ? "pointer" : "default",
   };
 }

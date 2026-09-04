@@ -234,7 +234,7 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
                 background: kind === value ? "rgba(145,132,217,.26)" : "transparent",
                 color: kind === value ? "#e9e9ed" : "#9397ab",
                 borderRadius: "var(--radius-sm)",
-                font: "inherit",
+                fontFamily: "inherit",
                 cursor: "pointer",
               }}
             >
@@ -258,7 +258,7 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
             border: "1px solid rgba(145,132,217,.28)",
             borderRadius: "var(--radius-sm)",
             color: "#e9e9ed",
-            font: "inherit",
+            fontFamily: "inherit",
           }}
         >
           <option value="all">Every franchise</option>
@@ -316,6 +316,6 @@ const pager = (enabled: boolean): React.CSSProperties => ({
   background: "transparent",
   color: enabled ? "#d2cefd" : "#5a5d6e",
   borderRadius: "var(--radius-sm)",
-  font: "inherit",
+  fontFamily: "inherit",
   cursor: enabled ? "pointer" : "default",
 });

@@ -115,7 +115,7 @@ export default function PlayerNewsFilter({
                 background: mineOnly === opt.on ? "rgba(145,132,217,.26)" : "transparent",
                 color: mineOnly === opt.on ? "#e9e9ed" : "#9397ab",
                 borderRadius: "var(--radius-sm)",
-                font: "inherit",
+                fontFamily: "inherit",
                 cursor: "pointer",
               }}
             >

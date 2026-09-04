@@ -89,7 +89,7 @@ const button = (enabled: boolean): React.CSSProperties => ({
   background: "transparent",
   color: enabled ? "#d2cefd" : "#5a5d6e",
   borderRadius: "var(--radius-sm)",
-  font: "inherit",
+  fontFamily: "inherit",
   cursor: enabled ? "pointer" : "default",
   flex: "0 0 auto",
 });
@@ -507,7 +507,7 @@ export default function PlayersBoard() {
                   background: filter === pos ? "rgba(145,132,217,.26)" : "transparent",
                   color: filter === pos ? "#e9e9ed" : "#9397ab",
                   borderRadius: "var(--radius-sm)",
-                  font: "inherit",
+                  fontFamily: "inherit",
                   cursor: "pointer",
                 }}
               >
@@ -613,7 +613,7 @@ export default function PlayersBoard() {
                   background: "transparent",
                   color: watching.has(p.name) ? "#e0b573" : "#5a5d6e",
                   borderRadius: "var(--radius-sm)",
-                  font: "inherit",
+                  fontFamily: "inherit",
                   cursor: "pointer",
                   flex: "0 0 auto",
                 }}

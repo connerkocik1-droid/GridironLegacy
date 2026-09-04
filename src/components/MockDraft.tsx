@@ -51,7 +51,7 @@ const button = (enabled = true): React.CSSProperties => ({
   background: "transparent",
   color: "#d2cefd",
   borderRadius: "var(--radius-sm)",
-  font: "inherit",
+  fontFamily: "inherit",
   cursor: enabled ? "pointer" : "default",
   opacity: enabled ? 1 : 0.45,
 });
@@ -64,7 +64,7 @@ const chip = (on: boolean): React.CSSProperties => ({
   background: on ? "rgba(145,132,217,.26)" : "transparent",
   color: on ? "#e9e9ed" : "#9397ab",
   borderRadius: "var(--radius-sm)",
-  font: "inherit",
+  fontFamily: "inherit",
   cursor: "pointer",
 });
 

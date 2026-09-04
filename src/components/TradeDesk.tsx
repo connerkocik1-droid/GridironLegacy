@@ -611,7 +611,7 @@ function smallButton(color: string): React.CSSProperties {
     background: "transparent",
     color,
     borderRadius: "var(--radius-sm)",
-    font: "inherit",
+    fontFamily: "inherit",
     cursor: "pointer",
   };
 }

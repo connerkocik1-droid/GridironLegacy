@@ -251,12 +251,19 @@ a:hover {
      pixels the button will not give up, which left eighteen for the name. The
      row wraps instead, so the ordinary "Draft" stays on one line and only the
      long commissioner label pushes itself onto a second. */
-  .gl-draft-row {
-    flex-wrap: wrap;
-    row-gap: 8px;
-  }
+  /* Stays on one line. It used to wrap, which dropped the Draft button onto a
+     full-width bar of its own and doubled the height of every row — two
+     players on a screen, on the one list the whole room exists to read. The
+     name gives up the width instead, and the button wraps its own words. */
   .gl-draft-row > :nth-child(2) {
-    flex: 1 1 140px !important;
+    flex: 1 1 100px !important;
+  }
+  /* A ceiling on the action button, so it cannot take the row's whole width.
+     "Draft" — what the other eleven managers see — comes in well under it and
+     leaves the name a full line. Only the commissioner's "Pick for them" ever
+     reaches it. */
+  .gl-draft-row > :last-child {
+    max-width: 100px;
   }
 
   /* A kickoff time, then two teams to choose between. Side by side that is
@@ -607,4 +614,36 @@ button[disabled]:active {
    the navigation is covering. */
 [id^="office-"] {
   scroll-margin-top: 76px;
+}
+
+/* ------------------------------------------------ stepping through a week ---
+   The matchup card carries twelve franchises' fixtures behind two arrows and,
+   on a phone, a swipe. Without motion a step is indistinguishable from the
+   scores having changed under you — the same card, different numbers — so the
+   new fixture comes in from the side it was fetched from. Short enough that a
+   manager stepping quickly through six games is not waiting on any of them. */
+
+@keyframes gl-step-next {
+  from { opacity: .3; transform: translateX(16px); }
+  to   { opacity: 1;  transform: none; }
+}
+@keyframes gl-step-prev {
+  from { opacity: .3; transform: translateX(-16px); }
+  to   { opacity: 1;  transform: none; }
+}
+
+.gl-step-next { animation: gl-step-next 220ms ease-out; }
+.gl-step-prev { animation: gl-step-prev 220ms ease-out; }
+
+/* The direction is decoration; the change of content is not. Fading in still
+   says "this is new" without anything sliding across the screen. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes gl-step-next {
+    from { opacity: .3; }
+    to   { opacity: 1; }
+  }
+  @keyframes gl-step-prev {
+    from { opacity: .3; }
+    to   { opacity: 1; }
+  }
 }

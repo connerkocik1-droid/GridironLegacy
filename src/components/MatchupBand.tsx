@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Skeleton from "./Skeleton";
 import Link from "next/link";
 import TeamCrest from "./TeamCrest";
@@ -91,7 +91,9 @@ function Side({
  * question anybody has. Two franchises, who owns them, and the score — no
  * lineups, no projections.
  *
- * The arrows step through every fixture in the week without leaving the page.
+ * The arrows step through every fixture in the week without leaving the page,
+ * and on a phone so does a swipe across the card — the arrows are what says
+ * the week is there, the swipe is how it actually gets read on a sofa.
  * This used to be a link to a page listing them all, which is two taps and a
  * load to answer "what is everyone else on" — a question a manager asks about
  * once a minute on a Sunday afternoon. The whole week is already in this
@@ -110,6 +112,16 @@ export default function MatchupBand({ home }: { home: Home | null }) {
   // corrected in an effect once they did; an offset is right from the start
   // and stays right if the list changes underneath it.
   const [step, setStep] = useState(0);
+
+  // Which way the last step went, so the card can come in from that side.
+  // Zero on the first render, where there is nothing to have moved from.
+  const [dir, setDir] = useState(0);
+  const touch = useRef<{ x: number; y: number } | null>(null);
+
+  function go(by: number) {
+    setDir(by);
+    setStep(step + by);
+  }
 
   if (!home) {
     return <Skeleton rows={2} title={false} style={{ padding: 0 }} />;
@@ -155,7 +167,26 @@ export default function MatchupBand({ home }: { home: Home | null }) {
 
   return (
     <>
-      <div style={card}>
+      <div
+        style={card}
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          touch.current = t ? { x: t.clientX, y: t.clientY } : null;
+        }}
+        // A swipe, not a scroll that drifted. Far enough sideways to be
+        // deliberate, and more sideways than down — a thumb flicking the page
+        // up past this card is not asking for next week's fixture.
+        onTouchEnd={(e) => {
+          const from = touch.current;
+          touch.current = null;
+          const t = e.changedTouches[0];
+          if (!from || !t || count < 2) return;
+          const dx = t.clientX - from.x;
+          const dy = t.clientY - from.y;
+          if (Math.abs(dx) < 44 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+          go(dx < 0 ? 1 : -1);
+        }}
+      >
         {/* One row, never two. The arrows were wrapping onto a line of their
             own at phone widths, which put forty pixels of nothing at the top
             of the card the whole page is built around. The label is the part
@@ -199,14 +230,14 @@ export default function MatchupBand({ home }: { home: Home | null }) {
                 whiteSpace: "nowrap",
               }}
             >
-              <Arrow label="Previous matchup" onClick={() => setStep(step - 1)}>
+              <Arrow label="Previous matchup" onClick={() => go(-1)}>
                 ‹
               </Arrow>
               {/* Where you are in the week, and a way back. The count is the
                   only thing saying there is more than one card here, so it
                   stays even on the game you started on. */}
               <button
-                onClick={() => setStep(0)}
+                onClick={() => go(-step)}
                 disabled={step === 0}
                 aria-label="Back to your own matchup"
                 style={{
@@ -225,13 +256,20 @@ export default function MatchupBand({ home }: { home: Home | null }) {
               >
                 {at + 1}/{count}
               </button>
-              <Arrow label="Next matchup" onClick={() => setStep(step + 1)}>
+              <Arrow label="Next matchup" onClick={() => go(1)}>
                 ›
               </Arrow>
             </div>
           ) : null}
         </div>
 
+        {/* Keyed on which fixture this is, so the two rows and the bar are
+            replaced — and the animation restarts — on every step. The card's
+            own header does not move: the week is not what changed. */}
+        <div
+          key={at}
+          className={dir === 0 ? undefined : dir > 0 ? "gl-step-next" : "gl-step-prev"}
+        >
         <Side
           key={game.home.id}
           side={game.home}
@@ -259,6 +297,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
             final={done}
           />
         ) : null}
+        </div>
       </div>
 
       {/* The way down into a game, player by player. Only for your own: the
