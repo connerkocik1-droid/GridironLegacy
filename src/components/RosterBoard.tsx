@@ -6,7 +6,7 @@ import { headshot, logo, statLine } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import LiveNumber from "./LiveNumber";
 import TeamCrest from "./TeamCrest";
-import { bestLineup, type Score } from "@/lib/matchup";
+import { bestLineup, bubbleGaps, type Score } from "@/lib/matchup";
 import { flagColor, flagsFor, player, proj, type LeagueShape } from "@/lib/roster";
 import { useLogos } from "@/lib/use-logos";
 import { healthOf, useHealthReport } from "@/lib/use-player-health";
@@ -148,6 +148,22 @@ export default function RosterBoard() {
 
   const total = rows.reduce((sum, r) => sum + (r.entry?.points ?? 0), 0);
 
+  // How close each man out of the slots is to taking one. Best ball takes the
+  // decision away, and with it the reason to read the rest of the roster at
+  // all — this is what puts it back: on a Sunday afternoon these numbers fall
+  // as the games run, and the smallest of them is the one to watch.
+  const gaps = useMemo(
+    () => (feed ? bubbleGaps(rows, rest, scores, feed.started ? "points" : "projection") : new Map()),
+    [feed, rows, rest, scores],
+  );
+  const closest = useMemo(() => {
+    let best: string | null = null;
+    for (const [name, gap] of gaps) {
+      if (best == null || gap < (gaps.get(best) ?? Infinity)) best = name;
+    }
+    return best;
+  }, [gaps]);
+
   if (error && !feed) {
     return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
   }
@@ -166,11 +182,14 @@ export default function RosterBoard() {
           padding: "24px 26px 12px",
           display: "flex",
           alignItems: "flex-end",
-          gap: 26,
+          gap: 14,
           flexWrap: "wrap",
         }}
       >
-        <div>
+        {/* Shrinks so the total can share the line. It was a 44px franchise
+            name that filled a phone by itself, which pushed the score — the
+            one number this page exists for — onto a band of its own below. */}
+        <div style={{ flex: "1 1 170px", minWidth: 0 }}>
           <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>
             DYNASTY · BEST BALL
           </div>
@@ -180,10 +199,11 @@ export default function RosterBoard() {
               alignItems: "center",
               gap: 12,
               fontFamily: "var(--font-heading)",
-              fontSize: 44,
+              fontSize: "clamp(27px, 7.4vw, 44px)",
               lineHeight: 1.04,
               letterSpacing: "-.035em",
               margin: "8px 0 0",
+              minWidth: 0,
             }}
           >
             <TeamCrest
@@ -193,10 +213,14 @@ export default function RosterBoard() {
               shape="box"
               fallback="empty"
             />
-            {feed.me.franchise}
+            <span
+              style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >
+              {feed.me.franchise}
+            </span>
           </div>
         </div>
-        <div style={{ marginLeft: "auto", textAlign: "right" }}>
+        <div style={{ marginLeft: "auto", textAlign: "right", flex: "0 0 auto" }}>
           <LiveNumber
             value={total}
             style={{
@@ -219,11 +243,15 @@ export default function RosterBoard() {
           lineHeight: 1.6,
         }}
       >
+        {/* One line each. These were paragraphs, and on a phone they cost a
+            third of the screen above the thing they were explaining — every
+            week, to a manager who read them the first Sunday and has known it
+            ever since. */}
         {settled
-          ? "This week is settled. Your best possible lineup is the one that counted — you did not have to be anywhere to get it."
+          ? "Settled. Your best possible lineup is the one that counted."
           : feed.started
-            ? "Your whole roster is playing. The highest scorers fill the slots by themselves and swap as the numbers move; wherever they land when the last game ends is what counts."
-            : "There is no lineup to set. Every player you own is in, and when the games start the highest scorers fill the slots automatically. The order below is a projection until then."}
+            ? "Your whole roster is playing; the highest scorers fill the slots and swap as the numbers move."
+            : "No lineup to set — everyone you own is in, and the best scorers take the slots once the games start. Until then this is a projection."}
       </div>
 
       {error ? (
@@ -273,6 +301,8 @@ export default function RosterBoard() {
                   slot={p?.p === "D/ST" ? "DST" : (p?.p ?? "—")}
                   name={name}
                   score={scores.get(name)}
+                  gap={gaps.get(name)}
+                  nextIn={name === closest}
                   action={
                     // Offered only to somebody the injury report has ruled
                     // out, because that is the only case the server will
@@ -402,6 +432,8 @@ function PlayerRow({
   starter,
   action,
   showValue = true,
+  gap,
+  nextIn,
 }: {
   slot: string;
   name: string | null;
@@ -409,6 +441,10 @@ function PlayerRow({
   starter?: boolean;
   action?: RowAction;
   showValue?: boolean;
+  /** How much more he would have to score to take a slot. Bench rows only. */
+  gap?: number;
+  /** Whether he is the closest of them, which is the one worth watching. */
+  nextIn?: boolean;
 }) {
   const p = name ? player(name) : null;
   const flags = name ? flagsFor(name) : [];
@@ -478,7 +514,7 @@ function PlayerRow({
               ) : null}
             </div>
 
-            {flags.length ? (
+            {flags.length || gap != null ? (
               <div
                 style={{
                   display: "flex",
@@ -489,6 +525,30 @@ function PlayerRow({
                   marginTop: 3,
                 }}
               >
+                {gap != null ? (
+                  // The bubble. Said as what he needs rather than as a rank,
+                  // because "3.3" is a catchable touchdown and "seventh on the
+                  // bench" is nothing anybody can picture.
+                  <span
+                    title={
+                      gap === 0
+                        ? "Worth a starting slot"
+                        : `${gap.toFixed(1)} more points and he takes a slot`
+                    }
+                    style={{
+                      fontSize: 10,
+                      letterSpacing: ".12em",
+                      padding: "2px 5px",
+                      borderRadius: 2,
+                      flex: "0 0 auto",
+                      fontVariantNumeric: "tabular-nums",
+                      border: `1px solid ${nextIn ? "rgba(181,171,252,.55)" : "rgba(145,132,217,.24)"}`,
+                      color: nextIn ? "#b5abfc" : "#75798c",
+                    }}
+                  >
+                    {nextIn ? `NEXT IN · ${gap.toFixed(1)}` : `${gap.toFixed(1)} OFF`}
+                  </span>
+                ) : null}
                 {flags.map((f) => (
                   <span
                     key={f.label}

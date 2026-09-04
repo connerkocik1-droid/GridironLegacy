@@ -220,3 +220,53 @@ export function pairLineups(
 export function totalOf(rows: MatchupRow[], side: "home" | "away"): number {
   return Math.round(rows.reduce((sum, r) => sum + (r[side]?.points ?? 0), 0) * 10) / 10;
 }
+
+/**
+ * How much more a player out of the slots would have to score to take one.
+ *
+ * In best ball nobody sets a lineup, which takes away the decision and — until
+ * now — took the drama with it: the rest of the roster was a list of names in
+ * score order, and nothing said which of them was a touchdown from the team.
+ * That is the whole interest of the format on a Sunday afternoon, and it was
+ * the one thing the page did not say.
+ *
+ * The gap is exact rather than an approximation. A player can only enter the
+ * lineup by displacing somebody in a slot he is eligible for, and the flex is
+ * one of those slots — so the smallest such difference is also the smallest
+ * improvement that would rearrange anything, cascades through the flex
+ * included. Nought means he is already worth a slot, which the greedy
+ * assignment makes impossible; it is returned rather than asserted against.
+ *
+ * A player with no slot to take at all — the fourth quarterback in a
+ * one-quarterback league — is absent from the map rather than carrying a
+ * number that could never fall.
+ */
+export function bubbleGaps(
+  rows: { slot: string; entry: SideEntry | null }[],
+  bench: string[],
+  scores: Map<string, Score>,
+  basis: "points" | "projection" = "projection",
+): Map<string, number> {
+  const value = (name: string) =>
+    basis === "points" ? (scores.get(name)?.points ?? 0) : pointsFor(name, scores);
+
+  const gaps = new Map<string, number>();
+
+  for (const name of bench) {
+    const p = positionOf(name, scores);
+    if (!p) continue;
+
+    let best: number | null = null;
+    for (const row of rows) {
+      const accepts = row.slot === "FLEX" ? FLEX_TAKES : [row.slot];
+      if (!accepts.includes(p as Position)) continue;
+      // An empty slot is not a gap of its own size, it is no gap at all.
+      const gap = Math.max(0, (row.entry?.points ?? 0) - value(name));
+      if (best == null || gap < best) best = gap;
+    }
+
+    if (best != null) gaps.set(name, Math.round(best * 10) / 10);
+  }
+
+  return gaps;
+}

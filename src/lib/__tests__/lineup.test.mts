@@ -16,7 +16,7 @@
  */
 
 import { slotAccepts, startingSlots } from "../lineup";
-import { bestLineup, frozenLineup, pairLineups, totalOf, type Score } from "../matchup";
+import { bestLineup, bubbleGaps, frozenLineup, pairLineups, totalOf, type Score } from "../matchup";
 
 let failed = 0;
 const ok = (label: string, got: boolean, want = true) => {
@@ -259,6 +259,36 @@ eq("and nothing calls half the roster a bench", benched, []);
 // what was wrong, and it was wrong on the first screen anybody saw. It matters
 // more under best ball than it did before: the greedy fill above is only
 // provably correct because the flex is the single shared slot.
+
+// ------------------------------------------------------------ the bubble ---
+// Who on the bench is closest to being in the team. The number is the point of
+// best ball on a Sunday and the page never said it, so it is worth pinning
+// down that the flex is counted as a way in — a running back a mile behind the
+// starting running back can still be three points off the flex.
+
+console.log("\n--- how close the bench is ---");
+
+const benchGaps = bubbleGaps(live, [RB1, WR2], sunday, "points");
+
+// RB1 is 27.1 behind the starting running back and 5.7 behind the flex.
+eq("the cheapest slot to take is the one that counts", benchGaps.get(RB1), 5.7);
+eq("and a receiver's flex is cheaper than the receiver ahead of him",
+  benchGaps.get(WR2), 3.3);
+
+// A frozen or hand-made arrangement can put somebody worse in a slot. The gap
+// is what he needs to score, so it floors at nought rather than going negative
+// and reading as a lead.
+const upsideDown = [{ slot: "TE", entry: { name: TE, points: 1 } }] as Parameters<
+  typeof bubbleGaps
+>[0];
+eq("a bench player already worth a slot needs nothing",
+  bubbleGaps(upsideDown, [TE], scored({ [TE]: 40 }), "points").get(TE), 0);
+
+// The fourth quarterback in a one-quarterback league is not on any bubble, and
+// a gap he could never close is worse than no gap at all.
+const noKicker = bestLineup([QB, RB1], { starters: { QB: 1, RB: 1 }, bench: 6 }, sunday, "points");
+ok("somebody with no slot to take is left out of it",
+  !bubbleGaps(noKicker, [K], sunday, "points").has(K));
 
 console.log("\n--- the flex slot ---");
 
