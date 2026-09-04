@@ -88,7 +88,13 @@ export default function Nav({ current, note }: { current: string; note?: string 
         </span>
       </div>
 
-      <div style={{ display: "flex", gap: 2, marginLeft: 6, flexWrap: "wrap", rowGap: 4 }}>
+      {/* Hidden on a phone, where the same four sit in a bar at the bottom
+          within a thumb's reach. Rendered either way rather than swapped, so
+          there is one list of destinations in this app and not two. */}
+      <div
+        className="gl-navlinks"
+        style={{ display: "flex", gap: 2, marginLeft: 6, flexWrap: "wrap", rowGap: 4 }}
+      >
         {PRIMARY.map((item) => (
           <Link
             key={item.href}

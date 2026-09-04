@@ -63,12 +63,20 @@ export function routes(page, over = {}) {
   let managerEmail = "conner@example.com";
   let managerWantsMail = true;
 
+  // Who the browser thinks is signed in. The Supabase stand-in has an authed
+  // flag of its own, but that only reaches what the server renders — this is
+  // what every client component asking useMe() gets, and until it could say
+  // "nobody" the signed-out screen was only half signed out. Anything whose
+  // visibility depends on being signed in, like the bottom tab bar, was
+  // measured in the wrong state.
   page.route("**/api/auth/me", (r) =>
     r.fulfill({ json: {
-      manager: {
-        ...ME, is_commissioner: true, ready: false, logo: null,
-        email: managerEmail, email_notices: managerWantsMail,
-      },
+      manager: over.signedOut
+        ? null
+        : {
+            ...ME, is_commissioner: true, ready: false, logo: null,
+            email: managerEmail, email_notices: managerWantsMail,
+          },
       configured: true,
     } }),
   );

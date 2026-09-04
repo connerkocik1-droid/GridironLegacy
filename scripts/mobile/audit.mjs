@@ -199,7 +199,10 @@ for (const width of WIDTHS) {
     viewport: { width, height: 844 }, hasTouch: true, isMobile: true,
   });
   const page = await ctx.newPage();
-  routes(page);
+  // Signed out in the browser as well as on the server. Without this the page
+  // renders the sign-in screen while every client component on it still
+  // believes a manager is present.
+  routes(page, { signedOut: true });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e).slice(0, 120)));
   try {

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import AddToHomeScreen from "@/components/AddToHomeScreen";
+import TabBar from "@/components/TabBar";
 import "./nocturne.css";
 import "./globals.css";
 
@@ -59,6 +60,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={inter.className}>
       <body>
         {children}
+        {/* The four places, within a thumb's reach. Phones only — a desktop
+            has the same links across the top of the page, and two navigations
+            are worse than one wherever they are. */}
+        <TabBar />
         {/* Renders nothing at all except in mobile Safari, to somebody who has
             not already installed it and has not said no. */}
         <AddToHomeScreen />

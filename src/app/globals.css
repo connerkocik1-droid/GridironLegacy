@@ -533,3 +533,44 @@ button[disabled]:active {
     background-color: rgba(145, 132, 217, 0.12);
   }
 }
+
+
+/* ------------------------------------------------------------ the tab bar ---
+   The four places, at the bottom, where a thumb can reach them — and only on
+   a phone. A desktop has the same four across the top of the page with room to
+   spare, and two navigations are worse than one wherever they are. */
+
+/* The element carries no inline `display`, so these two rules are the whole
+   of the decision — and a phone is the only thing that gets a bottom bar. */
+.gl-tabbar {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .gl-tabbar {
+    display: flex;
+  }
+
+  /* The top bar gives up its links and keeps its identity: the wordmark, the
+     bell and the avatar. Without this the app would have the same four
+     destinations twice on one screen, which is not twice as easy. */
+  .gl-nav .gl-navlinks {
+    display: none !important;
+  }
+
+  /* Nothing ends underneath it. The bar is about fifty-two pixels plus
+     whatever the home indicator takes, and the last row of a long page has to
+     clear both — a league table whose final franchise is behind the navigation
+     is a league table with eleven teams in it.
+
+     Only when the bar is actually there. The attribute is set by the bar
+     itself, because a stylesheet cannot know whether anybody is signed in. */
+  html[data-tabbar] body {
+    padding-bottom: calc(58px + env(safe-area-inset-bottom));
+  }
+
+  /* The add-to-home-screen hint sits above the bar rather than behind it. */
+  html[data-tabbar] .gl-a2hs {
+    bottom: calc(70px + env(safe-area-inset-bottom)) !important;
+  }
+}

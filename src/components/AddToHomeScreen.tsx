@@ -83,6 +83,7 @@ export default function AddToHomeScreen() {
   return (
     <div
       role="note"
+      className="gl-a2hs"
       style={{
         position: "fixed",
         // Above the home indicator, not under it.
