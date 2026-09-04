@@ -66,21 +66,28 @@ function measure() {
   const doc = document.documentElement;
   const limit = doc.clientWidth;
 
-  const inScroller = (el) => {
+  // Anything that stops its children reaching the edge of the screen: a rail
+  // that scrolls sideways on purpose, like the nav bar or the standings table,
+  // or a box that simply cuts them off, like the lottery reel.
+  const inClipper = (el) => {
     for (let p = el.parentElement; p; p = p.parentElement) {
       const ov = getComputedStyle(p).overflowX;
-      if (ov === "auto" || ov === "scroll") return true;
+      if (ov === "auto" || ov === "scroll" || ov === "hidden" || ov === "clip") return true;
     }
     return false;
   };
 
-  // Sticking out past the screen — unless it is inside something that scrolls
-  // sideways on purpose, like the nav bar or the standings table.
+  // Sticking out past the screen. "Overflow" here means the page drags
+  // sideways and half of it is off the edge, so an element that cannot cause
+  // that does not count — and one inside a box that clips it cannot. The
+  // clipping box is still measured on its own account, so a container that
+  // genuinely runs off the screen is caught either way; what this skips is
+  // its contents, which is how a carousel is built.
   let worst = null;
   for (const el of document.querySelectorAll("*")) {
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.right <= limit + 1) continue;
-    if (inScroller(el)) continue;
+    if (inClipper(el)) continue;
     if (!worst || r.right > worst.right) {
       worst = {
         right: Math.round(r.right),
