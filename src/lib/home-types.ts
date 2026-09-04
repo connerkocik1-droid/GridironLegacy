@@ -40,8 +40,24 @@ export interface PowerRow {
   mine: boolean;
 }
 
+/** A trade it is this manager's turn to answer. */
+export interface TradeAsk {
+  id: string;
+  /** The other franchise — whoever is waiting on the answer. */
+  from: string;
+  /** A counter coming back, rather than a first offer. */
+  countered: boolean;
+  /** What would come to this manager, and what would leave. */
+  get: string[];
+  give: string[];
+  getPicks: number;
+  givePicks: number;
+}
+
 export interface Home {
   meId: string;
+  /** Offers waiting on an answer from this manager. Newest first. */
+  trades: TradeAsk[];
   /** Empty starting slots and bye-week starters, this week, for this manager. */
   league: { name: string; season: number } | null;
   week: number | null;

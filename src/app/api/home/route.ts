@@ -59,6 +59,16 @@ export async function GET() {
       db.rpc("standings", { p_league_id: me.league_id }),
     ]);
 
+  // Trades waiting on this manager's answer. Read here rather than on its own
+  // schedule because an offer nobody knows about is an offer nobody answers —
+  // the trade desk has always held these, and nothing has ever said so.
+  const { data: offers } = await db
+    .from("trades")
+    .select("id, from_manager, to_manager, offer, status, from_accepted, to_accepted, created_at")
+    .or(`from_manager.eq.${me.id},to_manager.eq.${me.id}`)
+    .in("status", ["open", "countered"])
+    .order("created_at", { ascending: false });
+
   const roster = managers ?? [];
   const held = slots ?? [];
   const schedule = (fixtures ?? []) as Fixture[];
@@ -232,8 +242,45 @@ export async function GET() {
     };
   });
 
+  // Only the ones it is this manager's turn to answer. A counter coming back
+  // is as much a question as the original offer, which is why this is about
+  // whose acceptance is missing rather than about who sent it.
+  const asked = (offers ?? []).filter((t) =>
+    t.to_manager === me.id ? !t.to_accepted : !t.from_accepted,
+  );
+
+  const franchiseOf = new Map(roster.map((m) => [m.id, m.franchise]));
+
+  const trades = asked.map((t) => {
+    const incoming = t.to_manager === me.id;
+    const offer = (t.offer ?? {}) as {
+      give?: string[];
+      get?: string[];
+      givePicks?: string[];
+      getPicks?: string[];
+    };
+
+    // `give` leaves the proposer and `get` leaves the receiver, so which of
+    // them is coming to this manager depends on which end of it they are.
+    const coming = (incoming ? offer.give : offer.get) ?? [];
+    const going = (incoming ? offer.get : offer.give) ?? [];
+    const comingPicks = ((incoming ? offer.givePicks : offer.getPicks) ?? []).length;
+    const goingPicks = ((incoming ? offer.getPicks : offer.givePicks) ?? []).length;
+
+    return {
+      id: t.id as string,
+      from: franchiseOf.get(incoming ? t.from_manager : t.to_manager) ?? "Somebody",
+      countered: t.status === "countered",
+      get: coming,
+      give: going,
+      getPicks: comingPicks,
+      givePicks: goingPicks,
+    };
+  });
+
   return Response.json({
     meId: me.id,
+    trades,
     league: league ? { name: league.name, season: league.season } : null,
     week,
     games,

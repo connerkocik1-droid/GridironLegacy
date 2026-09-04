@@ -311,6 +311,17 @@ export function routes(page) {
       away: { ...MANAGERS[i * 2 + 1], total: 98.2 - i * 7 },
     })),
     byes: [],
+    // Two offers, one of them a counter, with the longest names in the league
+    // on both sides: this card sits under the score on the first screen
+    // anybody sees, so it is the one that must not push the page sideways.
+    trades: [
+      { id: "t1", from: "Kim's Very Long Franchise Name", countered: false,
+        get: ["Marvin Harrison Jr."], give: ["Jahmyr Gibbs", "Rome Odunze"],
+        getPicks: 1, givePicks: 0 },
+      { id: "t2", from: "Gold Coast Gladiators", countered: true,
+        get: ["Brock Bowers", "Tank Bigsby", "Trey McBride"], give: [],
+        getPicks: 0, givePicks: 2 },
+    ],
     leaders: ["QB", "RB", "WR", "TE", "K", "D/ST"].map((position) => ({
       position,
       player: { name: "Marvin Harrison Jr.", team: "ARI", points: 88.4,

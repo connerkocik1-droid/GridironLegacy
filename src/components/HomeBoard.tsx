@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import MatchupBand from "./MatchupBand";
 import Section from "./Section";
 import MyTeamButton from "./MyTeamButton";
+import TradeAsks from "./TradeAsks";
 import TheLeagueButton from "./TheLeagueButton";
 import MiniGamesButton from "./MiniGamesButton";
 import ScoreTicker from "./ScoreTicker";
@@ -75,6 +76,11 @@ export default function HomeBoard() {
         ) : (
           <MatchupBand home={home} />
         )}
+
+        {/* Directly under the score, because a trade is the other thing that
+            changes what that score will be — and because an offer nobody is
+            told about is an offer nobody answers. */}
+        <TradeAsks trades={home?.trades ?? []} />
       </Section>
 
       {/* Three doors, directly under the score, because the score is what

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import TeamCrest from "./TeamCrest";
 import { useLogos } from "@/lib/use-logos";
@@ -83,12 +84,18 @@ function Side({
 }
 
 /**
- * Your game, and nothing else about it.
+ * Your game first, and then the rest of the week.
  *
  * The first thing under the ticker, because on a Sunday it is the only
  * question anybody has. Two franchises, who owns them, and the score — no
- * lineups, no projections. Lineup is where both teams are set out player by
- * player, and this links there.
+ * lineups, no projections.
+ *
+ * The arrows step through every fixture in the week without leaving the page.
+ * This used to be a link to a page listing them all, which is two taps and a
+ * load to answer "what is everyone else on" — a question a manager asks about
+ * once a minute on a Sunday afternoon. The whole week is already in this
+ * response, so the cheapest possible answer was a page navigation away for no
+ * reason.
  *
  * Three states, and the difference between the first two is the whole point:
  * before kickoff there is no score to show, so it shows none rather than two
@@ -97,11 +104,20 @@ function Side({
 export default function MatchupBand({ home }: { home: Home | null }) {
   const logos = useLogos();
 
+  // Counted from your own game rather than stored as a position in the list.
+  // The fixtures arrive after the first render, so an index would have to be
+  // corrected in an effect once they did; an offset is right from the start
+  // and stays right if the list changes underneath it.
+  const [step, setStep] = useState(0);
+
   if (!home) {
     return <div style={{ fontSize: 12, color: "#75798c" }}>Reading the league…</div>;
   }
 
-  const game = home.games.find((g) => g.mine);
+  const count = home.games.length;
+  const mineAt = home.games.findIndex((g) => g.mine);
+  const at = count ? (((mineAt < 0 ? 0 : mineAt) + step) % count + count) % count : 0;
+  const game = count ? home.games[at] : undefined;
 
   if (!game) {
     const onBye = home.week != null && home.games.length > 0;
@@ -125,7 +141,13 @@ export default function MatchupBand({ home }: { home: Home | null }) {
   // hours when grading runs, the score on this card cannot change, and calling
   // it current would be telling a manager to keep watching.
   const done = game.final || home.weekPhase === "final";
-  const label = done ? "FINAL" : started ? "CURRENT MATCHUP" : "NEXT MATCHUP";
+  const label = !game.mine
+    ? "IN THE LEAGUE"
+    : done
+      ? "FINAL"
+      : started
+        ? "CURRENT MATCHUP"
+        : "NEXT MATCHUP";
 
   const homeScore = started ? game.home.total : null;
   const awayScore = started ? game.away.total : null;
@@ -133,26 +155,79 @@ export default function MatchupBand({ home }: { home: Home | null }) {
   return (
     <>
       <div style={card}>
+        {/* One row, never two. The arrows were wrapping onto a line of their
+            own at phone widths, which put forty pixels of nothing at the top
+            of the card the whole page is built around. The label is the part
+            that gives. */}
         <div
           style={{
             display: "flex",
-            alignItems: "baseline",
-            gap: 10,
-            padding: "10px 16px",
-            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 10px 8px 16px",
+            minHeight: 34,
           }}
         >
           <span
             style={{
               fontSize: 10,
-              letterSpacing: ".22em",
+              letterSpacing: ".18em",
               color: done ? "#75798c" : started ? "#7fd1a8" : "#b5abfc",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              minWidth: 0,
             }}
           >
             {label}
           </span>
           {home.week != null ? (
-            <span style={{ fontSize: 11, color: "#75798c" }}>Week {home.week}</span>
+            <span style={{ fontSize: 11, color: "#75798c", flex: "0 0 auto" }}>
+              Week {home.week}
+            </span>
+          ) : null}
+
+          {count > 1 ? (
+            <div
+              style={{
+                marginLeft: "auto",
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+                flex: "0 0 auto",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Arrow label="Previous matchup" onClick={() => setStep(step - 1)}>
+                ‹
+              </Arrow>
+              {/* Where you are in the week, and a way back. The count is the
+                  only thing saying there is more than one card here, so it
+                  stays even on the game you started on. */}
+              <button
+                onClick={() => setStep(0)}
+                disabled={step === 0}
+                aria-label="Back to your own matchup"
+                style={{
+                  minHeight: 34,
+                  minWidth: 38,
+                  padding: 0,
+                  border: 0,
+                  background: "transparent",
+                  font: "inherit",
+                  fontSize: 10.5,
+                  letterSpacing: ".1em",
+                  fontVariantNumeric: "tabular-nums",
+                  color: step === 0 ? "#75798c" : "#b5abfc",
+                  cursor: step === 0 ? "default" : "pointer",
+                }}
+              >
+                {at + 1}/{count}
+              </button>
+              <Arrow label="Next matchup" onClick={() => setStep(step + 1)}>
+                ›
+              </Arrow>
+            </div>
           ) : null}
         </div>
 
@@ -172,12 +247,13 @@ export default function MatchupBand({ home }: { home: Home | null }) {
         />
       </div>
 
-      {/* Two ways further in, and between them they are what the band of
-          every fixture underneath used to be for: down into this game, or
-          out to the rest of the week. */}
+      {/* The way down into a game, player by player. Only for your own: the
+          lineup screen is built around you against an opponent, so there is no
+          honest place to send somebody looking at two other franchises — the
+          season page is where those are read in full. */}
       <div style={{ marginTop: 10, fontSize: 11, display: "flex", gap: 16, flexWrap: "wrap" }}>
         <Link
-          href="/lineup"
+          href={game.mine ? "/lineup" : "/matchups"}
           style={{
             color: "#b5abfc",
             textDecoration: "none",
@@ -186,21 +262,41 @@ export default function MatchupBand({ home }: { home: Home | null }) {
             minHeight: 34,
           }}
         >
-          Both lineups, player by player →
-        </Link>
-        <Link
-          href="/matchups"
-          style={{
-            color: "#9397ab",
-            textDecoration: "none",
-            display: "inline-flex",
-            alignItems: "center",
-            minHeight: 34,
-          }}
-        >
-          Every game this week →
+          {game.mine ? "Both lineups, player by player →" : "The whole season →"}
         </Link>
       </div>
     </>
+  );
+}
+
+/** One step through the week. Thumb-sized, because it is pressed repeatedly. */
+function Arrow({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      style={{
+        minWidth: 34,
+        minHeight: 34,
+        border: "1px solid rgba(145,132,217,.3)",
+        borderRadius: "var(--radius-sm)",
+        background: "transparent",
+        color: "#b5abfc",
+        font: "inherit",
+        fontSize: 16,
+        lineHeight: 1,
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
   );
 }
