@@ -136,6 +136,9 @@ export default function IntroVideo({
   // moves.
   return (
     <div
+      // Lit rather than laid out: the film keeps the dark theme's colours in a
+      // light app, and so does anything drawn on top of it.
+      className="gl-on-dark"
       role={open ? "dialog" : undefined}
       aria-label={open ? "Draft intro" : undefined}
       aria-hidden={open ? undefined : true}

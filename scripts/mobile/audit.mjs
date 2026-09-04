@@ -64,6 +64,94 @@ const WIDTHS = [320, 390];
 /** Runs in the page. Everything it returns is a measurement, not a judgement. */
 function measure() {
   const doc = document.documentElement;
+
+  /**
+   * Text nobody can read, in whichever theme is on.
+   *
+   * The layout checks above would pass a page whose every word was the same
+   * colour as the card behind it, which is exactly the failure a second theme
+   * introduces: a token gets a light value that was fine on black and vanishes
+   * on white, and nothing anywhere says so.
+   *
+   * Three below is the floor, not four and a half. This app has a deliberate
+   * scale of quiet text — a bye week, a timestamp, the slot a player fills —
+   * and holding all of it to body-copy contrast would flag thirty things that
+   * are meant to be quiet and bury the one that is broken.
+   *
+   * Defined at the top level so both the full measurement and the second-theme
+   * pass can call it.
+   */
+  const worstContrast = () => {
+  const channel = (c) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  const luminance = ([r, g, b]) =>
+    0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+
+  const parse = (v) => {
+    const m = /rgba?\(([^)]+)\)/.exec(v || "");
+    if (!m) return null;
+    const p = m[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+    return { rgb: [p[0], p[1], p[2]], a: p.length > 3 ? p[3] : 1 };
+  };
+
+  const over = (top, bottom) =>
+    top.rgb.map((c, i) => c * top.a + bottom[i] * (1 - top.a));
+
+  // What is actually behind this text: every background between it and the
+  // page, composited in the order the browser paints them.
+  const groundOf = (el) => {
+    const stack = [];
+    for (let p = el; p; p = p.parentElement) {
+      const bg = parse(getComputedStyle(p).backgroundColor);
+      if (bg && bg.a > 0) stack.push(bg);
+    }
+    let ground = [255, 255, 255];
+    for (let i = stack.length - 1; i >= 0; i--) ground = over(stack[i], ground);
+    return ground;
+  };
+
+  let worst = null;
+  for (const el of document.querySelectorAll("*")) {
+    if (el.children.length) continue;
+    if (el.closest("[aria-hidden='true']")) continue;
+    // A disabled control is meant to look unavailable, and the guideline says
+    // so: contrast is not required of one. Without this the run is a list of
+    // buttons that are correctly greyed out.
+    if (el.closest("[disabled], [aria-disabled='true']")) continue;
+    const text = (el.textContent ?? "").trim();
+    if (text.length < 2) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+
+    const style = getComputedStyle(el);
+    if (style.visibility === "hidden" || style.opacity === "0") continue;
+    const tag = el.tagName ? el.tagName.toLowerCase() : "";
+    if (tag.startsWith("nextjs-")) continue;
+    if (el.closest("nextjs-portal, [id='__next-build-watcher']")) continue;
+
+    const fg = parse(style.color);
+    if (!fg) continue;
+    const ink = over(fg, groundOf(el));
+    const ground = groundOf(el);
+
+    const a = luminance(ink) + 0.05;
+    const b = luminance(ground) + 0.05;
+    const ratio = a > b ? a / b : b / a;
+
+    if (ratio < 3 && (!worst || ratio < worst.ratio)) {
+      worst = {
+        ratio: Math.round(ratio * 100) / 100,
+        text: text.slice(0, 24),
+        colour: style.color,
+      };
+    }
+  }
+  return worst;
+  };
+
+
   const limit = doc.clientWidth;
 
   // Anything that stops its children reaching the edge of the screen: a rail
@@ -159,6 +247,7 @@ function measure() {
   }
 
   return {
+    contrast: worstContrast(),
     overflow: doc.scrollWidth - doc.clientWidth,
     worst,
     small: [...new Set(small)].slice(0, 5),
@@ -198,7 +287,40 @@ for (const width of WIDTHS) {
     }
     await page.waitForTimeout(1100);
 
-    const report = await page.evaluate(measure);
+    // Both themes, each one asked for by name.
+    //
+    // Not left to the browser: Playwright's contexts are light by default, so
+    // the app resolved to light and the run measured the same theme twice and
+    // called one of them dark. The stylesheet reads one attribute, so setting
+    // it is the whole switch — and flipping in place rather than reloading
+    // keeps a second load per page off the run.
+    const inTheme = async (theme) => {
+      await page.evaluate((t) => {
+        // Both, and in that order. The attribute is what the stylesheet reads;
+        // the stored choice is what the script in the head reads, and that
+        // script runs again on its own schedule. Setting only the attribute
+        // gets it put back a few milliseconds later, which is how this pass
+        // first reported a page half in one theme and half in the other.
+        try {
+          localStorage.setItem("pylon:theme", t);
+        } catch {
+          // Then the attribute alone will have to do.
+        }
+        document.documentElement.dataset.theme = t;
+      }, theme);
+
+      // Let the colours arrive. Controls in this app carry a transition, so
+      // reading straight after the flip catches every one of them at the
+      // instant it is still the theme being left — which is how this pass
+      // first reported dark text on a white card and called it a contrast
+      // failure.
+      await page.waitForTimeout(400);
+      return page.evaluate(measure);
+    };
+
+    const report = await inTheme("dark");
+    report.lightContrast = (await inTheme("light")).contrast;
+
     findings.push([width, name, url, report, errors]);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${width}-${name}.png`, fullPage: true });
     await page.close();
@@ -390,7 +512,7 @@ for (const width of WIDTHS) {
 
 const bad = ([, , , r, errors]) =>
   r.overflow > 1 || r.worst || r.smallCount > 0 || r.tinyCount > 0 ||
-  r.squeezed.length > 0 || errors.length > 0;
+  r.squeezed.length > 0 || r.contrast || r.lightContrast || errors.length > 0;
 
 const failures = findings.filter(bad);
 
@@ -405,6 +527,11 @@ if (failures.length) {
     if (r.small.length) console.log(`  small taps (${r.smallCount}): ${r.small.join(", ")}`);
     if (r.tiny.length) console.log(`  tiny text (${r.tinyCount}): ${r.tiny.join(", ")}`);
     if (r.squeezed.length) console.log(`  squeezed: ${r.squeezed.join(", ")}`);
+    for (const [theme, c] of [["dark", r.contrast], ["light", r.lightContrast]]) {
+      if (c) {
+        console.log(`  ${theme}: ${c.ratio}:1 on "${c.text}" (${c.colour})`);
+      }
+    }
     if (errors.length) console.log(`  page errors: ${errors.join(" | ")}`);
   }
 }

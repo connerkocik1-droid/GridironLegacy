@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { setTheme, useTheme, type Choice } from "@/lib/use-theme";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useMe } from "@/lib/use-me";
@@ -175,6 +176,8 @@ export default function ProfileMenu() {
 
             <TeamSettings manager={manager} />
 
+            <ThemeChoice />
+
             {/* ------------------------------------------------- sign out --- */}
             <button
               onClick={() => void signOut()}
@@ -187,6 +190,73 @@ export default function ProfileMenu() {
           document.body,
         )
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Light, dark, or whatever the phone says.
+ *
+ * Here rather than in a settings page because it is a preference about this
+ * screen, not about this franchise — and because the profile menu is the one
+ * place in the app that is already about you rather than about the league.
+ *
+ * System is the default and comes first: a phone that goes dark at sunset
+ * should take the app with it, and most people never touch this at all. The
+ * other two exist for the manager who wants dark at noon.
+ */
+function ThemeChoice() {
+  const choice = useTheme();
+
+  const options: [Choice, string][] = [
+    ["system", "System"],
+    ["light", "Light"],
+    ["dark", "Dark"],
+  ];
+
+  return (
+    <div
+      style={{
+        padding: "12px 14px 13px",
+        borderTop: "1px solid rgb(var(--accent-rgb) / .16)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10,
+          letterSpacing: ".18em",
+          color: "var(--text-dim)",
+          marginBottom: 8,
+        }}
+      >
+        APPEARANCE
+      </div>
+      <div role="group" aria-label="Appearance" style={{ display: "flex", gap: 4 }}>
+        {options.map(([value, label]) => {
+          const on = choice === value;
+          return (
+            <button
+              key={value}
+              onClick={() => setTheme(value)}
+              aria-pressed={on}
+              style={{
+                flex: 1,
+                minHeight: 34,
+                padding: "6px 4px",
+                fontSize: 11,
+                border: `1px solid ${on ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+                background: on ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+                color: on ? "var(--text)" : "var(--text-muted)",
+                borderRadius: "var(--radius-sm)",
+                fontFamily: "inherit",
+                cursor: "pointer",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Inter } from "next/font/google";
 import AddToHomeScreen from "@/components/AddToHomeScreen";
 import LaunchScreen from "@/components/LaunchScreen";
@@ -90,7 +91,17 @@ const LAUNCH_SCREENS: [number, number, number][] = [
 ];
 
 export const viewport: Viewport = {
-  themeColor: "var(--bg)",
+  // The strip behind the status bar. A meta tag is read by the OS and cannot
+  // resolve a custom property — the colour migration turned this into
+  // var(--bg), which is a value nothing outside CSS can read — so it is
+  // written out, twice, and follows the phone's setting. A manual Light on a
+  // phone set to Dark keeps the dark strip: a meta tag cannot see
+  // localStorage, and getting the common case right is worth more than a bar
+  // that matches in every case.
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#161826" },
+    { media: "(prefers-color-scheme: light)", color: "#f1f0f7" },
+  ],
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -100,6 +111,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable}>
       <head>
+        {/*
+          Which theme, before the first pixel.
+
+          The stylesheet reads data-theme and nothing else, so this has to run
+          ahead of the paint: set it afterwards and the page draws dark and
+          then flips, which on a home-screen launch is the first thing anybody
+          sees. It is the same resolution use-theme.ts does — a stored choice
+          if there is one, the phone's setting if there is not — written twice
+          on purpose, because the alternative is a flash.
+
+          next/script rather than a bare <script>: React hoists and drops an
+          inline script written into the head of a layout, which is a silent
+          failure — the page renders, the theme simply never applies.
+        */}
+        <Script id="pylon-theme" strategy="beforeInteractive">
+          {'(function(){try{var c=localStorage.getItem("pylon:theme");' +
+            'document.documentElement.dataset.theme=(c==="light"||c==="dark")?c:' +
+            '(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");}' +
+            'catch(e){document.documentElement.dataset.theme="dark";}})()'}
+        </Script>
+
         {/* What iOS shows while a home-screen launch is starting.
             
             Not part of the Metadata API, which has no field for these, so they

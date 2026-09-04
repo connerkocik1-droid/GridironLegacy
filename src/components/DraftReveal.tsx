@@ -90,6 +90,9 @@ export default function DraftReveal({
       role="dialog"
       aria-live="polite"
       aria-label={`Pick ${pick.overall}: ${stage >= 5 ? pick.playerName : "revealing"}`}
+      // A cinema is lit the same way at noon as at midnight: the reveal keeps
+      // the dark theme's colours whatever the rest of the app is doing.
+      className="gl-on-dark"
       onClick={pick.mine ? onClose : undefined}
       style={{
         position: "fixed",
