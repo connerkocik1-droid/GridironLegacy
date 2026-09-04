@@ -256,6 +256,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
             mine={game.away.id === home.meId ? awayScore : homeScore}
             theirs={game.away.id === home.meId ? homeScore : awayScore}
             neutral={!game.mine}
+            final={done}
           />
         ) : null}
       </div>

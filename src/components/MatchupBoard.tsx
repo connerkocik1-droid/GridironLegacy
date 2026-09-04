@@ -300,7 +300,7 @@ export default function MatchupBoard() {
           worth more than either of them. */}
       {board.started ? (
         <div style={{ padding: "0 10px" }}>
-          <ScoreBar mine={board.home.total} theirs={board.away.total} />
+          <ScoreBar mine={board.home.total} theirs={board.away.total} final={board.final} />
         </div>
       ) : null}
 

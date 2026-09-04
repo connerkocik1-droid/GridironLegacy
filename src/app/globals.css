@@ -600,3 +600,11 @@ button[disabled]:active {
     animation: none;
   }
 }
+
+
+/* The office's jump menu lands each card below the sticky bar rather than
+   underneath it. Without this the heading somebody jumped to is the one thing
+   the navigation is covering. */
+[id^="office-"] {
+  scroll-margin-top: 76px;
+}

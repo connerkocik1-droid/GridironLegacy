@@ -445,6 +445,8 @@ export default function Commissioner() {
         </a>
       </div>
 
+      <OfficeMenu />
+
       {notice ? (
         <div style={{ fontSize: 12, color: "#7fd1a8", marginBottom: 14 }}>{notice}</div>
       ) : null}
@@ -452,7 +454,7 @@ export default function Commissioner() {
         <div style={{ fontSize: 12, color: "#e0b573", marginBottom: 14 }}>{error}</div>
       ) : null}
 
-      <div style={card}>
+      <div id="office-size" style={card}>
         <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>League size</h6>
         <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 14px" }}>
           {claimed} of {admin.managers.length} franchises claimed. Adding creates
@@ -502,7 +504,7 @@ export default function Commissioner() {
         </div>
       </div>
 
-      <div style={card}>
+      <div id="office-draft-day" style={card}>
         <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Draft day</h6>
         <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 14px" }}>
           What the countdown in the draft room counts to, in your own time zone.
@@ -542,7 +544,7 @@ export default function Commissioner() {
         </p>
       </div>
 
-      <div style={card}>
+      <div id="office-draft-settings" style={card}>
         <DraftSettings
           pickClock={readPickClock(admin.league?.settings)}
           cinematicRounds={admin.league?.settings?.cinematicRounds ?? 3}
@@ -555,12 +557,12 @@ export default function Commissioner() {
         />
       </div>
 
-      <div style={card}>
+      <div id="office-rosters" style={card}>
         <RosterFix />
       </div>
 
       {season ? (
-        <div style={card}>
+        <div id="office-next-season" style={card}>
           <NextSeason
             season={season.season}
             champion={season.champion}
@@ -570,7 +572,7 @@ export default function Commissioner() {
         </div>
       ) : null}
 
-      <div style={card}>
+      <div id="office-rules" style={card}>
         <SeasonRules
           tradeDeadlineWeek={
             admin.league?.settings?.tradeDeadlineWeek ??
@@ -583,14 +585,14 @@ export default function Commissioner() {
         />
       </div>
 
-      <div style={card}>
+      <div id="office-intro" style={card}>
         <IntroVideoSlot
           introVideo={admin.league?.settings?.introVideo ?? null}
           onSaved={() => void load()}
         />
       </div>
 
-      <div style={card}>
+      <div id="office-schedule" style={card}>
         <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Season schedule</h6>
         <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 10px" }}>
           Everyone plays everyone once, then divisional rivals meet a second
@@ -613,7 +615,7 @@ export default function Commissioner() {
         </button>
       </div>
 
-      <div style={card}>
+      <div id="office-franchises" style={card}>
         <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Franchises and divisions</h6>
         <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 10px" }}>
           {divisions.join(" and ")} — {perDivision.join(" and ")} franchises.
@@ -839,6 +841,64 @@ export default function Commissioner() {
           The rosters are saved to backups first.
         </p>
       </ConfirmDialog>
+    </div>
+  );
+}
+
+/**
+ * A way down the page that is not scrolling.
+ *
+ * The office is eight phone screens long, because it is nine unrelated jobs
+ * that happen to belong to the same person: the league's size, draft night,
+ * the rules, next season. Nobody arrives here wanting all nine — they arrive
+ * wanting one, and the way to it was a thumb and about four flicks.
+ *
+ * A row of chips rather than a fold on each card. Folding would hide the one
+ * thing a commissioner opened the page for behind a title they have to read
+ * first, and it changes what the page looks like for somebody who already
+ * knows their way around it. This adds a way in and takes nothing away.
+ */
+function OfficeMenu() {
+  const places: [string, string][] = [
+    ["office-size", "Size"],
+    ["office-draft-day", "Draft day"],
+    ["office-draft-settings", "Draft settings"],
+    ["office-rosters", "Rosters"],
+    ["office-schedule", "Schedule"],
+    ["office-franchises", "Franchises"],
+    ["office-rules", "Rules"],
+    ["office-intro", "Intro film"],
+    ["office-next-season", "Next season"],
+  ];
+
+  return (
+    <div
+      // A rail rather than a wrap: nine chips over three lines is a menu that
+      // costs half a screen to save four flicks of a thumb.
+      className="gl-scroll-x"
+      style={{ display: "flex", gap: 6, margin: "0 0 18px", paddingBottom: 2 }}
+    >
+      {places.map(([id, label]) => (
+        <a
+          key={id}
+          href={`#${id}`}
+          style={{
+            flex: "0 0 auto",
+            display: "inline-flex",
+            alignItems: "center",
+            minHeight: 34,
+            padding: "0 12px",
+            borderRadius: "var(--radius-sm)",
+            border: "1px solid rgba(145,132,217,.28)",
+            fontSize: 11.5,
+            color: "#b5abfc",
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {label}
+        </a>
+      ))}
     </div>
   );
 }

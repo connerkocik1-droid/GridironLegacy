@@ -32,11 +32,19 @@ export default function ScoreBar({
    * yours, so the margin is stated rather than taken personally.
    */
   neutral = false,
+  /**
+   * The week is over and this is the result rather than the state of play.
+   * "Up 6.4" and "won by 6.4" are the same arithmetic and not remotely the
+   * same sentence — one is a score, the other is the only thing anybody
+   * remembers about a week.
+   */
+  final = false,
 }: {
   mine: number;
   theirs: number;
   showMargin?: boolean;
   neutral?: boolean;
+  final?: boolean;
 }) {
   const total = mine + theirs;
 
@@ -111,10 +119,18 @@ export default function ScoreBar({
             }}
           >
             {level ? (
-              "LEVEL"
+              final ? "TIED" : "LEVEL"
             ) : (
               <>
-                {neutral ? "BY " : leading ? "UP " : "DOWN "}
+                {neutral
+                  ? "BY "
+                  : final
+                    ? leading
+                      ? "WON BY "
+                      : "LOST BY "
+                    : leading
+                      ? "UP "
+                      : "DOWN "}
                 <LiveNumber value={margin} style={{ letterSpacing: "normal" }} />
               </>
             )}
