@@ -109,7 +109,21 @@ a:hover {
   align-items: center;
 }
 
+/* The draft board is a grid on a desktop and a list on a phone; both are in
+   the page and this is what chooses. See DraftBoard for why it is done here
+   rather than with a media query in React. */
+.gl-board-list {
+  display: none;
+}
+
 @media (max-width: 720px) {
+  .gl-board-grid {
+    display: none;
+  }
+  .gl-board-list {
+    display: block;
+  }
+
   .gl-navlink {
     min-height: 40px;
     padding-top: 0;
