@@ -1,14 +1,16 @@
 import MatchupBoard from "@/components/MatchupBoard";
-import MyTeamBoard from "@/components/MyTeamBoard";
+import RosterBoard from "@/components/RosterBoard";
 import Nav from "@/components/Nav";
 
-export const metadata = { title: "My lineup · Gridiron Legacy" };
+export const metadata = { title: "My team · Gridiron Legacy" };
 
 /**
- * Setting the lineup and seeing what it is playing into, on one page.
+ * Your roster and what it is playing into, on one page.
  *
- * These were two tabs once, and the second question a manager has after
- * "who am I starting" is always "against what".
+ * These were two tabs once, and the second question a manager has after "who
+ * is scoring for me" is always "against what". Nobody sets a lineup in this
+ * league, so the first half is a roster rather than an editor — but the pair
+ * of questions is the same pair.
  */
 export default function LineupPage() {
   return (
@@ -20,7 +22,7 @@ export default function LineupPage() {
       }}
     >
       <Nav current="/lineup" />
-      <MyTeamBoard />
+      <RosterBoard />
 
       <div
         style={{

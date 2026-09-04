@@ -305,7 +305,6 @@ export function routes(page) {
   page.route("**/api/home", json({
     meId: "m0", league: { name: "Gridiron Legacy", season: 2026 }, week: 3,
     live: true, started: true, weekPhase: "live",
-    lineupProblems: 2,
     games: MANAGERS.filter((_, i) => i % 2 === 0).map((m, i) => ({
       final: i > 0, mine: i === 0,
       home: { ...m, total: 104.6 - i * 9 },
@@ -384,11 +383,6 @@ export function routes(page) {
     ],
   }));
 
-  page.route("**/api/lineup**", json({
-    week: 3, me: ME, settings: SETTINGS,
-    assignments: ROSTER.map(([playerName, slot]) => ({ playerName, slot })),
-    lockedPlayers: ["Jayden Daniels"],
-  }));
   // The longest line each position can produce, because a stat line that fits
   // is not the one that breaks a phone. A quarterback who also ran and also
   // threw a pick is six parts long and lands in a column half a screen wide.
@@ -401,6 +395,25 @@ export function routes(page) {
     "D/ST": "3.5 sack · 1 FR · 2 INT · 288 yds allowed · 1 KORTD · 1 PRTD",
   };
   const lineFor = (slot) => LINES[slot] ?? LINES.RB;
+
+  // Best ball: the roster, not a lineup. One man is stashed on injured
+  // reserve, because the reserve panel is the one part of this page with a
+  // control on it and an empty panel proves nothing about its layout.
+  const STASHED = ["Trey McBride"];
+  const SCORES = Object.fromEntries(
+    ROSTER.map(([n, slot], i) => [
+      n,
+      { points: 27.4 - i, statLine: lineFor(slot === "FLEX" || slot === "BENCH" ? "RB" : slot) },
+    ]),
+  );
+
+  page.route("**/api/lineup**", json({
+    week: 3, me: ME, settings: SETTINGS,
+    roster: ROSTER.map(([n]) => n).filter((n) => !STASHED.includes(n)),
+    injuredReserve: STASHED,
+    live: true, started: true, weekPhase: "live", final: false,
+    scores: SCORES,
+  }));
 
   page.route("**/api/scores", json({ week: 3, scores: Object.fromEntries(
     ROSTER.map(([n, slot], i) => [

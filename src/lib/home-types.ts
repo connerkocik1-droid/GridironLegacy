@@ -43,7 +43,6 @@ export interface PowerRow {
 export interface Home {
   meId: string;
   /** Empty starting slots and bye-week starters, this week, for this manager. */
-  lineupProblems: number;
   league: { name: string; season: number } | null;
   week: number | null;
   games: HomeGame[];

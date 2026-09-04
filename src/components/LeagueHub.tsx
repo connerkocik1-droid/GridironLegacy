@@ -33,7 +33,7 @@ const PLACES: Place[] = [
   {
     href: "/rules",
     name: "How this league works",
-    line: "The lineup you field, how points are scored, waivers, trades and the draft.",
+    line: "Why nobody sets a lineup, how points are scored, waivers, trades and the draft.",
   },
   // Second, under the rules. The conversation is the thing a league actually
   // turns up for in year four, and burying it under five read-only pages is

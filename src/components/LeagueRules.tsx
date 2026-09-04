@@ -9,7 +9,7 @@ import { describeClock, readPickClock } from "@/lib/draft-clock";
  * How this league works, for the eleven people who did not build it.
  *
  * Everything else in the app assumes you already know: what a flex slot
- * takes, when a lineup locks, how long a waiver sits, what a defence is worth
+ * takes, how the slots fill themselves, how long a waiver sits, what a defence is worth
  * for a shutout. A manager who knows fantasy football can work most of it out by
  * poking around, and a manager who does not is left guessing on the one night
  * of the year it matters.
@@ -179,10 +179,23 @@ export default function LeagueRules() {
       <div style={card}>
         <div style={eyebrow}>WHAT YOU FIELD EACH WEEK</div>
         <p style={body}>
-          {plural(startersTotal, "starter")}, {plural(Number(settings.bench ?? 0), "bench spot")}
-          {settings.ir ? `, and ${plural(Number(settings.ir), "injured-reserve spot")}` : ""}.
-          A player locks the moment his own game kicks off — you can change
-          anybody whose game has not started, right up to the whistle.
+          <strong style={{ color: "#d2cefd", fontWeight: 500 }}>
+            This is a best-ball league: there is no lineup to set.
+          </strong>{" "}
+          Everyone you own plays. When the games start, your highest scorers fill
+          the {plural(startersTotal, "starting slot")} below by themselves and swap
+          as the numbers move; wherever they land when the last game of the week
+          ends is what counts.
+        </p>
+        <p style={body}>
+          So there is nothing to forget, nothing to check on a Sunday morning, and
+          no week lost because you were on a plane at one o&rsquo;clock — and no
+          credit for guessing right either. You still own{" "}
+          {plural(Number(settings.bench ?? 0) + startersTotal, "player")}
+          {settings.ir
+            ? `, plus ${plural(Number(settings.ir), "injured-reserve spot")} for anybody ruled out`
+            : ""}
+          , and every one of them is eligible every week.
         </p>
         {lineup.map((slot) => (
           <Rule
@@ -322,7 +335,7 @@ export default function LeagueRules() {
           href="/lineup"
           style={{ color: "#b5abfc", textDecoration: "none", display: "inline-flex", alignItems: "center", minHeight: 34 }}
         >
-          Set your lineup →
+          Your roster →
         </Link>
       </div>
     </div>

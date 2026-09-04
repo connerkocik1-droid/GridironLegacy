@@ -691,10 +691,14 @@ export default function PlayersBoard() {
                   letterSpacing: ".12em",
                   width: 38,
                   flex: "0 0 auto",
-                  color: r.lineup_slot === "BENCH" || r.lineup_slot === "IR" ? "#5a5d6e" : "#b5abfc",
+                  color: r.lineup_slot === "IR" ? "#5a5d6e" : "#b5abfc",
                 }}
               >
-                {r.lineup_slot === "D/ST" ? "DST" : r.lineup_slot}
+                {r.lineup_slot === "IR"
+                  ? "IR"
+                  : player(r.player_name)?.p === "D/ST"
+                    ? "DST"
+                    : (player(r.player_name)?.p ?? "—")}
               </span>
               <span style={{ fontSize: 13, minWidth: 0, flex: 1 }}>
                 {r.player_name}

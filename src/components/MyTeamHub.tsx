@@ -26,23 +26,14 @@ interface Place {
 }
 
 interface Counts {
-  lineupProblems: number;
   watching: number;
 }
 
 const PLACES: Place[] = [
   {
     href: "/lineup",
-    name: "Lineup",
-    line: "Set your starters, and see what they are playing against this week.",
-    // Counted, not named. The number is enough to make somebody click, and
-    // the lineup page is where the problems are actually said.
-    badge: (c) =>
-      c.lineupProblems === 0
-        ? null
-        : c.lineupProblems === 1
-          ? "1 problem with this week's lineup."
-          : `${c.lineupProblems} problems with this week's lineup.`,
+    name: "My roster",
+    line: "Everyone you own, who is filling the slots this week, and what they are playing against.",
   },
   {
     href: "/matchups",
@@ -79,25 +70,16 @@ const PLACES: Place[] = [
 
 export default function MyTeamHub() {
   const me = useMe();
-  const [counts, setCounts] = useState<Counts>({ lineupProblems: 0, watching: 0 });
+  const [counts, setCounts] = useState<Counts>({ watching: 0 });
 
   useEffect(() => {
-    // Both counts, only to put a number on a button. A failure here costs a
-    // badge and nothing else, so neither request is allowed to break a page
-    // whose job is to be six links.
-    void Promise.all([
-      fetch("/api/home", { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-      fetch("/api/watchlist", { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-    ]).then(([home, watchlist]) =>
-      setCounts({
-        lineupProblems: Number(home?.lineupProblems ?? 0),
-        watching: (watchlist?.players ?? []).length,
-      }),
-    );
+    // Only to put a number on a button. A failure here costs a badge and
+    // nothing else, so it is not allowed to break a page whose job is to be
+    // six links.
+    void fetch("/api/watchlist", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then((watchlist) => setCounts({ watching: (watchlist?.players ?? []).length }));
   }, []);
 
   const manager = me.status === "signed-in" ? me.manager : null;

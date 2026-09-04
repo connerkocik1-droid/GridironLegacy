@@ -85,7 +85,7 @@ export default function HomeBoard() {
           week's fixtures, the recent moves — are behind the doors now, and a
           home page you can read without scrolling is the point of the whole
           rearrangement. */}
-      <MyTeamButton lineupProblems={home?.lineupProblems ?? 0} />
+      <MyTeamButton />
       <TheLeagueButton />
       <MiniGamesButton />
     </div>

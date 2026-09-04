@@ -293,8 +293,8 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
             The league already tells you things in the bell at the top of the
             page. Give an address and it will tell you by email as well &mdash;
             when you are on the clock, when somebody offers you a trade, when a
-            claim goes through, when Sunday arrives and your lineup has a hole
-            in it. Leave it blank and nothing is sent.
+            claim goes through, when a week is settled. Leave it blank and
+            nothing is sent.
           </p>
 
           <label htmlFor="ts-email" style={label}>

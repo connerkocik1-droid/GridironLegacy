@@ -1,7 +1,6 @@
-import { lineupProblems } from "@/lib/lineup";
 import { freshenWeek } from "@/lib/live-refresh";
 import { player, proj } from "@/lib/roster";
-import { setLineup, type Score } from "@/lib/matchup";
+import { bestLineup, type Score } from "@/lib/matchup";
 import { rank, type Team } from "@/lib/power";
 import { isConfigured, serverClient } from "@/lib/supabase";
 
@@ -94,12 +93,18 @@ export async function GET() {
   // Reading it also sets the next pull going, off the back of this response.
   const state = await freshenWeek(db, me.league_id, league?.season, week);
 
-  // What each franchise is putting on the field this week. A manager who has
-  // never set a lineup is fielded at their best legal one, the same fallback
-  // the matchup page uses, so no franchise shows a zero it did not earn.
+  // What each franchise is putting on the field this week — which nobody
+  // chooses, so it is the best arrangement of the whole roster. Projected
+  // until the slate starts and real from then on, the same rule the matchup
+  // page and the grader use.
+  const lineupBasis = state.started ? "points" : "projection";
   const totalFor = (managerId: string): number => {
-    const mine = held.filter((s) => s.manager_id === managerId);
-    const rows = setLineup(mine, settings, thisWeek);
+    const mine = held
+      // Injured reserve is out of the week entirely: he does not count against
+      // the roster, so he cannot score for it either.
+      .filter((s) => s.manager_id === managerId && s.lineup_slot !== "IR")
+      .map((s) => s.player_name);
+    const rows = bestLineup(mine, settings, thisWeek, lineupBasis);
     return Math.round(rows.reduce((sum, r) => sum + (r.entry?.points ?? 0), 0) * 10) / 10;
   };
 
@@ -227,26 +232,8 @@ export async function GET() {
     };
   });
 
-  // What is wrong with this manager's own lineup, counted rather than listed:
-  // the home page's job is to say "go and look", and the lineup page is where
-  // the problems are named. Only before the week is settled — telling somebody
-  // they started a bye player in a week already graded is a reproach, not help.
-  const mySlots = held
-    .filter((s) => s.manager_id === me.id)
-    .map((s) => ({ playerName: s.player_name, slot: s.lineup_slot }));
-
-  const settled = schedule.some((f) => f.week === week && f.final);
-  const myProblems =
-    week == null || settled
-      ? 0
-      : lineupProblems(mySlots, settings, week, (name) => {
-          const pl = player(name);
-          return pl ? { p: pl.p, bye: pl.bye, q: pl.q } : null;
-        }).filter((x) => x.kind !== "injured").length;
-
   return Response.json({
     meId: me.id,
-    lineupProblems: myProblems,
     league: league ? { name: league.name, season: league.season } : null,
     week,
     games,

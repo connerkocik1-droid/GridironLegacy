@@ -1,6 +1,7 @@
 import { freshenWeek } from "@/lib/live-refresh";
 import { pairLineups, totalOf, type Score } from "@/lib/matchup";
 import { isConfigured, serverClient } from "@/lib/supabase";
+import { weekFrom } from "@/lib/week";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +34,8 @@ export async function GET(req: Request) {
     .single();
 
   const url = new URL(req.url);
-  const weekParam = url.searchParams.get("week");
-  const week = weekParam ? Number(weekParam) : 1;
-  if (!Number.isInteger(week)) {
+  const week = await weekFrom(req, db, me.league_id);
+  if (week == null) {
     return Response.json({ error: "week must be an integer" }, { status: 400 });
   }
 
@@ -57,7 +57,7 @@ export async function GET(req: Request) {
   // is a genuine outcome in an odd league rather than an error.
   const { data: fixture } = await db
     .from("matchups")
-    .select("home_manager, away_manager, final, home_points, away_points")
+    .select("home_manager, away_manager, final, home_points, away_points, home_starters, away_starters")
     .eq("league_id", me.league_id)
     .eq("week", week)
     .or(`home_manager.eq.${me.id},away_manager.eq.${me.id}`)
@@ -95,8 +95,11 @@ export async function GET(req: Request) {
     .eq("league_id", me.league_id)
     .in("manager_id", [me.id, opponent.id]);
 
-  const mine = (slots ?? []).filter((s) => s.manager_id === me.id);
-  const theirs = (slots ?? []).filter((s) => s.manager_id === opponent.id);
+  // Injured reserve is out of the week entirely, on both sides: a stashed
+  // player does not count against a roster, so he cannot score for one.
+  const active = (slots ?? []).filter((s) => s.lineup_slot !== "IR");
+  const mine = active.filter((s) => s.manager_id === me.id);
+  const theirs = active.filter((s) => s.manager_id === opponent.id);
 
   const { data: scoreRows } = await db
     .from("player_scores")
@@ -112,9 +115,34 @@ export async function GET(req: Request) {
     ]),
   );
 
-  // The lineup each manager actually set. A manager who has never set one
-  // falls back to their best legal lineup, so a team is never fielded empty.
-  const rows = pairLineups(mine, theirs, league?.settings ?? null, scores);
+  // "home" on the fixture is whoever the schedule put there; "home" in this
+  // response is always the signed-in manager, so the snapshot is turned round
+  // to match before it is handed over.
+  const iAmHome = fixture?.home_manager === me.id;
+  const frozen =
+    fixture?.final && !oppParam
+      ? {
+          home: iAmHome ? fixture.home_starters : fixture.away_starters,
+          away: iAmHome ? fixture.away_starters : fixture.home_starters,
+        }
+      : null;
+
+  // Nobody sets a lineup here. Each side is the best arrangement its whole
+  // roster can make — projected until the slate starts, and from then on the
+  // real one, refilling on every read as the scores move. It is the same rule
+  // grade_week freezes when the last game ends, so what a manager watches all
+  // afternoon is what he is graded on.
+  const rows = pairLineups(
+    mine,
+    theirs,
+    league?.settings ?? null,
+    scores,
+    state.started ? "points" : "projection",
+    // Once the week is final the arrangement is not recomputed at all. What
+    // grade_week wrote down is what happened, and a trade in November must not
+    // be able to change who won in September.
+    frozen,
+  );
 
   return Response.json({
     week,

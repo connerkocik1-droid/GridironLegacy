@@ -1,4 +1,4 @@
-import { setLineup, type Score } from "@/lib/matchup";
+import { bestLineup, type Score } from "@/lib/matchup";
 import { isConfigured, serverClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -74,9 +74,16 @@ export async function GET() {
       ]),
     );
 
+    // Anything scored at all means the week is being played, so the lineup is
+    // arranged on real points; before that there is nothing to arrange it on
+    // and the projection stands in.
+    const basis = (scoreRows ?? []).length ? "points" : "projection";
+
     for (const m of roster) {
-      const mine = (slots ?? []).filter((s) => s.manager_id === m.id);
-      const rows = setLineup(mine, league?.settings ?? null, scores);
+      const mine = (slots ?? [])
+        .filter((s) => s.manager_id === m.id && s.lineup_slot !== "IR")
+        .map((s) => s.player_name);
+      const rows = bestLineup(mine, league?.settings ?? null, scores, basis);
       live.set(
         m.id,
         Math.round(rows.reduce((sum, r) => sum + (r.entry?.points ?? 0), 0) * 10) / 10,

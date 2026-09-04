@@ -9,7 +9,12 @@ export interface SideEntry {
   name: string;
   position: string;
   team: string;
-  /** Live points once the game has been played, else the projection. */
+  /**
+   * What this player is worth to the week right now. Before kickoff that is
+   * his projection; once the week is live it is what he has actually scored,
+   * and a man who has not played yet is worth nought — because that is what
+   * the lineup is being arranged and graded on.
+   */
   points: number;
   projected: number;
   live: boolean;
@@ -31,16 +36,37 @@ export interface Score {
 }
 
 /**
- * The best legal lineup for a roster, in the league's own slot order. Ported
- * from league-sim's startersOf: highest projection first, each slot taking the
- * best player it will accept that is not already placed.
+ * The lineup a roster is fielding — which in this league is not a choice.
+ *
+ * Best ball: every dedicated slot takes the highest scorer at its position and
+ * the flex takes the best of what is left, so there is exactly one right
+ * answer and it moves as the scores do. Greedy is provably correct for this
+ * shape, because only the flex is shared between positions — a slot that also
+ * took quarterbacks would break the reasoning, which is one more reason this
+ * league does not field one.
+ *
+ * The basis is the argument. Before a ball is kicked every real score is
+ * nought, so ordering by them would be ordering by nothing — the preview goes
+ * by projection, and says so. Once the week is live the only thing that counts
+ * is what has actually been scored, unplayed included at nought, because that
+ * is the arrangement being graded and a page showing a different one is
+ * lying about the rule.
+ *
+ * Ties break on name, which is the same tie-break best_ball_lineup uses in
+ * migration 0036. Two players level is common on a Sunday morning when
+ * everybody is on nought, and a slot that reshuffles itself between two
+ * refreshes for no reason looks broken.
  */
 export function bestLineup(
   roster: string[],
   league: LeagueShape | null,
   scores: Map<string, Score>,
+  basis: "points" | "projection" = "projection",
 ): { slot: string; entry: SideEntry | null }[] {
-  const ranked = [...roster].sort((a, b) => pointsFor(b, scores) - pointsFor(a, scores));
+  const value = (name: string) =>
+    basis === "points" ? (scores.get(name)?.points ?? 0) : pointsFor(name, scores);
+
+  const ranked = [...roster].sort((a, b) => value(b) - value(a) || a.localeCompare(b));
   const used = new Set<string>();
 
   return slotsOf(league ?? undefined).map((slot: string) => {
@@ -48,21 +74,34 @@ export function bestLineup(
 
     const pick = ranked.find((name) => {
       if (used.has(name)) return false;
-      const p = player(name);
-      return p ? accepts.includes(p.p) : false;
+      const p = positionOf(name, scores);
+      return p ? accepts.includes(p as Position) : false;
     });
 
     if (!pick) return { slot, entry: null };
     used.add(pick);
-    return { slot, entry: entryFor(pick, scores) };
+    return { slot, entry: entryFor(pick, scores, basis) };
   });
+}
+
+/**
+ * What somebody plays. The pool for anybody who was ever draftable, and for a
+ * pickup from outside it the position ESPN's own team sheet put on his stat
+ * line — never inferred from what he did on the field.
+ */
+function positionOf(name: string, scores: Map<string, Score>): string {
+  return player(name)?.p ?? scores.get(name)?.line?.position ?? "";
 }
 
 function pointsFor(name: string, scores: Map<string, Score>): number {
   return scores.get(name)?.points ?? proj(name);
 }
 
-function entryFor(name: string, scores: Map<string, Score>): SideEntry {
+function entryFor(
+  name: string,
+  scores: Map<string, Score>,
+  basis: "points" | "projection",
+): SideEntry {
   const p = player(name);
   const score = scores.get(name);
   // The roster is authoritative for anybody it knows. For anybody it does
@@ -79,7 +118,10 @@ function entryFor(name: string, scores: Map<string, Score>): SideEntry {
     name,
     position,
     team: p?.t ?? "",
-    points: score?.points ?? proj(name),
+    // Nought rather than a projection once the week is live: a total that
+    // quietly includes points nobody has scored is a total that goes down as
+    // the afternoon goes on, which is the one thing a live score must never do.
+    points: score?.points ?? (basis === "points" ? 0 : proj(name)),
     projected: proj(name),
     live: score != null,
     statLine: line || score?.statLine || "",
@@ -88,33 +130,57 @@ function entryFor(name: string, scores: Map<string, Score>): SideEntry {
 
 export interface RosterSlot {
   player_name: string;
-  lineup_slot?: string;
+}
+
+/** One row of the lineup a graded week wrote down. */
+export interface FrozenStarter {
+  name: string;
+  slot: string;
+  points: number;
 }
 
 /**
- * The lineup a manager actually set, laid into the league's slot order.
+ * The lineup a settled week was settled on, read back rather than recomputed.
  *
- * A manager who has never touched their lineup has every row on the bench;
- * rather than field an empty team, that falls back to the best legal lineup.
+ * A graded week is history. Working it out again from today's rosters would
+ * quietly rewrite it every time somebody made a trade — the man who won you
+ * week three would leave with him. grade_week photographs the arrangement when
+ * the last game ends, and this is that photograph, laid back into the league's
+ * slot order so it reads like every other week.
  */
-export function setLineup(
-  roster: RosterSlot[],
+export function frozenLineup(
+  starters: unknown,
   league: LeagueShape | null,
   scores: Map<string, Score>,
 ): { slot: string; entry: SideEntry | null }[] {
-  const names = roster.map((r) => r.player_name);
-  const chosen = roster.filter((r) => r.lineup_slot && r.lineup_slot !== "BENCH" && r.lineup_slot !== "IR");
+  const rows: FrozenStarter[] = Array.isArray(starters)
+    ? (starters as Record<string, unknown>[]).flatMap((r) =>
+        typeof r?.name === "string" && typeof r?.slot === "string"
+          ? [{ name: r.name, slot: r.slot, points: Number(r.points ?? 0) }]
+          : [],
+      )
+    : [];
 
-  if (!chosen.length) return bestLineup(names, league, scores);
-
-  const remaining = [...chosen];
-
-  return slotsOf(league ?? undefined).map((slot: string) => {
-    const at = remaining.findIndex((r) => r.lineup_slot === slot);
-    if (at === -1) return { slot, entry: null };
-    const [filled] = remaining.splice(at, 1);
-    return { slot, entry: entryFor(filled.player_name, scores) };
+  const remaining = [...rows];
+  // The points come from the snapshot, not from player_scores: a late stat
+  // correction must not change a result that has already been recorded.
+  const entry = (row: FrozenStarter) => ({
+    ...entryFor(row.name, scores, "points"),
+    points: row.points,
+    live: true,
   });
+
+  const laid = slotsOf(league ?? undefined).map((slot: string) => {
+    const at = remaining.findIndex((r) => r.slot === slot);
+    if (at === -1) return { slot, entry: null as SideEntry | null };
+    const [row] = remaining.splice(at, 1);
+    return { slot, entry: entry(row) };
+  });
+
+  // A slot the league has since stopped fielding still has to show: the sum of
+  // these rows is the score the week was decided by, and a row silently
+  // dropped is a total that no longer adds up.
+  return [...laid, ...remaining.map((row) => ({ slot: row.slot, entry: entry(row) }))];
 }
 
 /**
@@ -126,13 +192,27 @@ export function pairLineups(
   away: RosterSlot[],
   league: LeagueShape | null,
   scores: Map<string, Score>,
+  basis: "points" | "projection" = "projection",
+  frozen?: { home: unknown; away: unknown } | null,
 ): MatchupRow[] {
-  const homeLineup = setLineup(home, league, scores);
-  const awayLineup = setLineup(away, league, scores);
+  const names = (side: RosterSlot[]) => side.map((r) => r.player_name);
+  const side = (roster: RosterSlot[], snapshot: unknown) =>
+    snapshot != null && Array.isArray(snapshot) && snapshot.length
+      ? frozenLineup(snapshot, league, scores)
+      : bestLineup(names(roster), league, scores, basis);
 
-  return homeLineup.map((row, i) => ({
-    slot: row.slot,
-    home: row.entry,
+  const homeLineup = side(home, frozen?.home);
+  const awayLineup = side(away, frozen?.away);
+
+  // Both sides field the same slots in the same order, so this is normally
+  // just a zip. It is written to the longer of the two because a settled week
+  // reads its rows back from a snapshot, and a league whose starting lineup
+  // changed since could leave one side a row longer.
+  const rowCount = Math.max(homeLineup.length, awayLineup.length);
+
+  return Array.from({ length: rowCount }, (_, i) => ({
+    slot: homeLineup[i]?.slot ?? awayLineup[i]?.slot ?? "",
+    home: homeLineup[i]?.entry ?? null,
     away: awayLineup[i]?.entry ?? null,
   }));
 }

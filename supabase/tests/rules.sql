@@ -1392,10 +1392,12 @@ insert into managers (league_id, slot, name, franchise, is_commissioner, auth_us
 select signin(:'G1');
 select generate_schedule(:'G');
 
-insert into roster_slots (league_id, manager_id, player_name, lineup_slot) values
-  (:'G', (select id from managers where league_id = :'G' and slot = 'AAA'), 'Starter A', 'QB'),
-  (:'G', (select id from managers where league_id = :'G' and slot = 'AAA'), 'Bench A', 'BENCH'),
-  (:'G', (select id from managers where league_id = :'G' and slot = 'BBB'), 'Starter B', 'QB');
+-- Both of Alpha's are quarterbacks and the league starts one. Under best ball
+-- the higher score plays, so the one saved on the bench is the one who counts.
+insert into roster_slots (league_id, manager_id, player_name, position, lineup_slot) values
+  (:'G', (select id from managers where league_id = :'G' and slot = 'AAA'), 'Starter A', 'QB', 'QB'),
+  (:'G', (select id from managers where league_id = :'G' and slot = 'AAA'), 'Bench A', 'QB', 'BENCH'),
+  (:'G', (select id from managers where league_id = :'G' and slot = 'BBB'), 'Starter B', 'QB', 'QB');
 
 insert into player_scores (league_id, week, player_name, points) values
   (:'G', 1, 'Starter A', 20), (:'G', 1, 'Bench A', 99), (:'G', 1, 'Starter B', 15);
@@ -1407,9 +1409,12 @@ values ('g1', 2026, 1, 2, now(), 'SEA', 'SF', 'in', false);
 select grade_week(:'G', 1);
 \o
 
-select expect('only starters count — the bench is ignored',
+-- The rule best ball replaces. It used to be 20, because somebody had saved
+-- the 20-point player into the only quarterback slot and the 99 sat on a
+-- bench. Nobody saves anything now.
+select expect('the highest scorer plays, whatever anybody saved',
   lineup_points(:'G', (select id from managers where league_id = :'G' and slot = 'AAA'), 1),
-  20::numeric);
+  99::numeric);
 
 select expect('an unfinished week is not final',
   (select bool_or(final) from matchups where league_id = :'G' and week = 1), false);
@@ -1419,7 +1424,7 @@ select expect('an unfinished week has no winner',
 
 select expect('but it still carries live points',
   (select max(greatest(home_points, away_points)) from matchups where league_id = :'G' and week = 1),
-  20::numeric);
+  99::numeric);
 
 select expect('an unfinished week counts for nothing in the table',
   (select sum(wins + losses + ties)::int from standings(:'G')), 0);
@@ -1445,22 +1450,24 @@ select expect('the loser has a loss',
 
 select expect('points for and against are recorded',
   (select points_for::int || '/' || points_against::int from standings(:'G') where slot = 'AAA'),
-  '20/15');
+  '99/15');
 
 select expect('the starters are snapshotted',
   (select jsonb_array_length(home_starters) > 0 from matchups
     where league_id = :'G' and week = 1), true);
 
--- A later lineup change must not rewrite a finished week.
+-- A later roster change must not rewrite a finished week. Moving somebody to
+-- a bench proves nothing now — a bench does not mean anything — so this drops
+-- the player the result was built on, which under best ball would take the
+-- score from 99 back to 20 if a final week could be regraded.
 \o /dev/null
-update roster_slots set lineup_slot = 'BENCH'
- where league_id = :'G' and player_name = 'Starter A';
+delete from roster_slots where league_id = :'G' and player_name = 'Bench A';
 select grade_week(:'G', 1);
 \o
 
 select expect('a final week is not regraded',
   (select max(greatest(home_points, away_points)) from matchups where league_id = :'G' and week = 1),
-  20::numeric);
+  99::numeric);
 
 select expect('and the record still stands',
   (select wins from standings(:'G') where slot = 'AAA'), 1);
@@ -2703,9 +2710,11 @@ insert into managers (id, league_id, slot, name, franchise)
 values (:'M1', :'L', 'AA', 'Ann', 'Anvils'),
        (:'M2', :'L', 'BB', 'Ben', 'Bears');
 
-insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
-values (:'L', :'M1', 'Ann QB', 'QB'),
-       (:'L', :'M2', 'Ben QB', 'QB');
+-- Positions, because best ball places a player by what he is rather than by
+-- what a manager saved him as.
+insert into roster_slots (league_id, manager_id, player_name, position, lineup_slot)
+values (:'L', :'M1', 'Ann QB', 'QB', 'QB'),
+       (:'L', :'M2', 'Ben QB', 'QB', 'QB');
 
 insert into player_scores (league_id, week, player_name, points)
 values (:'L', 1, 'Ann QB', 20), (:'L', 1, 'Ben QB', 10);
@@ -3167,3 +3176,258 @@ select expect('nor hand notices back',
 
 select expect('but they can still read their own notices',
   (select has_table_privilege('authenticated', 'notices', 'select')), true);
+
+\echo ''
+\echo '--- best ball: the lineup picks itself ---'
+
+\set BB  '99999999-0000-0000-0000-0000000000b1'
+\set BB1 'bb100000-0000-0000-0000-000000000001'
+\set BB2 'bb100000-0000-0000-0000-000000000002'
+
+\o /dev/null
+insert into auth.users (id) values (:'BB1'), (:'BB2');
+insert into leagues (id, name, season, commissioner_slot, settings, draft_state)
+values (:'BB', 'Best Ball', 2035, 'AAA',
+  '{"rounds": 2, "starters": {"QB": 1, "RB": 2, "WR": 2, "TE": 1, "FLEX": 1, "K": 1, "D/ST": 1}}'::jsonb,
+  'complete');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'BB', 'AAA', 'One', 'Alpha', true,  :'BB1'),
+  (:'BB', 'BBB', 'Two', 'Bravo', false, :'BB2');
+
+-- A roster with a real decision in it: three backs, three receivers, and a
+-- bench player who outscores a starter at his own position.
+insert into roster_slots (league_id, manager_id, player_name, position, lineup_slot)
+select :'BB', m.id, x.name, x.pos, 'BENCH'
+  from managers m,
+       (values
+         ('Passer',      'QB'),
+         ('Backup QB',   'QB'),
+         ('Back One',    'RB'),
+         ('Back Two',    'RB'),
+         ('Back Three',  'RB'),
+         ('Wide One',    'WR'),
+         ('Wide Two',    'WR'),
+         ('Wide Three',  'WR'),
+         ('Tight One',   'TE'),
+         ('Kicker',      'K'),
+         ('The Defence', 'D/ST')
+       ) as x(name, pos)
+ where m.league_id = :'BB' and m.slot = 'AAA';
+
+-- Points that make the right answer non-obvious: the third back outscores the
+-- first two, and a receiver outscores every back for the flex.
+insert into player_scores (league_id, week, player_name, points) values
+  (:'BB', 1, 'Passer',      20),
+  (:'BB', 1, 'Backup QB',   30),
+  (:'BB', 1, 'Back One',     5),
+  (:'BB', 1, 'Back Two',    12),
+  (:'BB', 1, 'Back Three',  18),
+  (:'BB', 1, 'Wide One',     9),
+  (:'BB', 1, 'Wide Two',    14),
+  (:'BB', 1, 'Wide Three',  16),
+  (:'BB', 1, 'Tight One',    7),
+  (:'BB', 1, 'Kicker',       8),
+  (:'BB', 1, 'The Defence', 10);
+\o
+
+-- The optimum: Backup QB 30, Back Three 18 + Back Two 12, Wide Three 16 +
+-- Wide Two 14, Tight One 7, flex takes Wide One 9 (the best left over, ahead
+-- of Back One's 5), Kicker 8, Defence 10. Total 124.
+select expect('the best quarterback starts, whatever he is called',
+  (select slot from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where player_name = 'Backup QB'), 'QB');
+
+select expect('and the lower-scoring one does not',
+  (select count(*)::int from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where player_name = 'Passer'), 0);
+
+select expect('the two best backs fill the two back slots',
+  (select string_agg(player_name, ',' order by player_name)
+     from best_ball_lineup(:'BB',
+       (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where slot = 'RB'), 'Back Three,Back Two');
+
+select expect('the flex takes the best left over, whatever position he is',
+  (select player_name from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where slot = 'FLEX'), 'Wide One');
+
+select expect('every slot is filled and none twice',
+  (select count(*)::int from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)), 9);
+
+select expect('nobody is in the lineup twice',
+  (select count(distinct player_name)::int from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)), 9);
+
+select expect('and the week is worth the best arrangement, not the saved one',
+  lineup_points(:'BB', (select id from managers where league_id = :'BB' and slot = 'AAA'), 1),
+  124::numeric);
+
+-- The point of best ball: what lineup_slot says is now irrelevant. Every one
+-- of those players is on the bench, and the score is the same.
+select expect('every player is on the bench, and it changes nothing',
+  (select count(*)::int from roster_slots
+    where league_id = :'BB' and lineup_slot <> 'BENCH'), 0);
+
+-- A player who did not play is worth nought rather than being skipped over.
+\o /dev/null
+delete from player_scores where league_id = :'BB' and player_name = 'Backup QB';
+\o
+
+select expect('a player with no score at all counts as nought',
+  lineup_points(:'BB', (select id from managers where league_id = :'BB' and slot = 'AAA'), 1),
+  114::numeric);
+
+select expect('and the quarterback slot falls to the one who did play',
+  (select player_name from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where slot = 'QB'), 'Passer');
+
+-- The swap is live: raise a bench player above a starter and the lineup moves.
+\o /dev/null
+update player_scores set points = 40
+ where league_id = :'BB' and week = 1 and player_name = 'Back One';
+\o
+
+select expect('a player who overtakes a starter takes his place',
+  (select string_agg(player_name, ',' order by player_name)
+     from best_ball_lineup(:'BB',
+       (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where slot = 'RB'), 'Back One,Back Three');
+
+-- Without a position nobody can be placed, which is why the app keeps them in
+-- step. A missing one costs that player his slot rather than breaking a week.
+\o /dev/null
+update roster_slots set position = null
+ where league_id = :'BB' and player_name = 'The Defence';
+\o
+
+select expect('a player with no position is left out rather than guessed at',
+  (select count(*)::int from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where player_name = 'The Defence'), 0);
+
+select expect('and the rest of the lineup still stands',
+  (select count(*)::int from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)), 8);
+
+\o /dev/null
+select sync_roster_positions(:'BB', array['The Defence'], array['D/ST']);
+\o
+
+select expect('and the app putting it back puts him back',
+  (select slot from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where player_name = 'The Defence'), 'D/ST');
+
+select expect('positions are the service key''s to write, not a manager''s',
+  (select has_function_privilege('authenticated',
+     'sync_roster_positions(uuid, text[], text[])', 'execute')), false);
+
+select expect('but a manager may read what their lineup would be',
+  (select has_function_privilege('authenticated',
+     'best_ball_lineup(uuid, uuid, int)', 'execute')), true);
+
+-- The settings flag the migration backfills is not asserted here: this harness
+-- runs the migrations against an empty database, so no league exists at the
+-- moment of the backfill. It is read by the app, not by any of this — nothing
+-- in SQL consults it, because the scoring is best ball unconditionally. That
+-- is the safer arrangement: a result cannot depend on a settings key somebody
+-- could clear.
+select expect('scoring does not depend on a settings flag being present',
+  lineup_points(:'BB', (select id from managers where league_id = :'BB' and slot = 'BBB'), 1),
+  0::numeric);
+
+-- --- injured reserve: the one decision best ball leaves you ---
+--
+-- Everything else about a lineup is gone, but a dynasty roster still has to be
+-- able to carry a man who tore something in October without paying a roster
+-- spot for him until March. That is a different problem from choosing who
+-- starts, and it is the only reason lineup_slot still says anything.
+
+\o /dev/null
+update leagues
+   set settings = settings || '{"bench": 2, "ir": 1}'::jsonb
+ where id = :'BB';
+select signin(:'BB1');
+\o
+
+-- Where we start: Back One is the best back on the roster and is in a slot.
+select expect('the man about to be stashed is starting',
+  (select slot from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where player_name = 'Back One'), 'RB');
+
+select expect('and the week is worth what he is worth',
+  lineup_points(:'BB', (select id from managers where league_id = :'BB' and slot = 'AAA'), 1),
+  145::numeric);
+
+select expect('a manager may stash one of their own',
+  (select set_injured_reserve('Back One', true) ->> 'ok'), 'true');
+
+select expect('a stashed player cannot fill a slot',
+  (select count(*)::int from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where player_name = 'Back One'), 0);
+
+-- 145 less his 40, less the 12 the flex loses shuffling up, plus the 9 the
+-- flex now takes: the whole roster reorganises itself around the gap.
+select expect('so the week is worth less, and the slots close over him',
+  lineup_points(:'BB', (select id from managers where league_id = :'BB' and slot = 'AAA'), 1),
+  114::numeric);
+
+select expect('and he stops counting against the roster',
+  roster_count((select id from managers where league_id = :'BB' and slot = 'AAA')), 10);
+
+select expect('the reserve holds only what the settings say it holds',
+  (select refuses($$select set_injured_reserve('Passer', true)$$)),
+  'Injured reserve holds 1');
+
+select expect('and a player nobody holds cannot be stashed',
+  (select refuses($$select set_injured_reserve('Somebody Else', true)$$)),
+  'You do not hold Somebody Else');
+
+-- A man coming back needs a roster spot to come back to. Filling the one he
+-- vacated is exactly how a manager would get himself two extra players.
+\o /dev/null
+insert into roster_slots (league_id, manager_id, player_name, position, lineup_slot)
+select :'BB', m.id, 'The Replacement', 'RB', 'BENCH'
+  from managers m where m.league_id = :'BB' and m.slot = 'AAA';
+\o
+
+select expect('a full roster will not take him back',
+  (select refuses($$select set_injured_reserve('Back One', false)$$)),
+  'Your roster is full at 11 — drop someone first');
+
+select expect('and he is still on the reserve',
+  (select lineup_slot from roster_slots
+    where league_id = :'BB' and player_name = 'Back One'), 'IR');
+
+\o /dev/null
+delete from roster_slots where league_id = :'BB' and player_name = 'The Replacement';
+\o
+
+select expect('with room made, he comes back',
+  (select set_injured_reserve('Back One', false) ->> 'ok'), 'true');
+
+select expect('and takes his slot again',
+  (select slot from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where player_name = 'Back One'), 'RB');
+
+select expect('with the week worth what it was',
+  lineup_points(:'BB', (select id from managers where league_id = :'BB' and slot = 'AAA'), 1),
+  145::numeric);
+
+-- Asking for a player who is already active to be active is not an error
+-- somebody has to understand, and must not check for room he already has.
+select expect('activating somebody already active does nothing',
+  (select set_injured_reserve('Back One', false) ->> 'ok'), 'true');
+
+select expect('a manager may do this themselves',
+  (select has_function_privilege('authenticated',
+     'set_injured_reserve(text, boolean)', 'execute')), true);

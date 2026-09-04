@@ -5,7 +5,7 @@ import ProfileMenu from "./ProfileMenu";
 
 // Two doors and the draft room, and that is the whole bar.
 //
-// My Team is the lineup, the matchups, the watchlist, the trade builder. The
+// My Team is the roster, the matchups, the watchlist, the trade builder. The
 // League is the standings, the overview, the wire, the rankings, the free
 // agents. Mini-games are on the home page, in their own band. Nothing that
 // used to be a tab has gone anywhere — it is one press further in, and the

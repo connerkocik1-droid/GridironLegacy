@@ -6,6 +6,7 @@ import {
   type SeasonType,
 } from "./espn";
 import { NameIndex, defenseTeamName, isDefense } from "./player-names";
+import { positionsFor, syncRosterPositions } from "./roster-positions";
 import { scoreGameDetail, type ScoringFormat, type StatLine } from "./scoring";
 import type { serviceClient } from "./supabase";
 
@@ -253,6 +254,13 @@ export async function refreshScores(
   const rostered = (rosterRows ?? []).map((r) => r.player_name);
 
   const pulled = await pullWeek(rostered, format, { week: opts.week });
+
+  // Best ball fills the slots from the database, so the database has to know
+  // what everybody plays. Done here rather than on its own schedule because
+  // this is the one path that already holds both the roster and a box score,
+  // and it runs whenever anything could have changed a roster.
+  await syncRosterPositions(db, leagueId, positionsFor(rostered, pulled.scores));
+
   if (!pulled.games.length) return { ...NOT_REFRESHED, note: "no games" };
 
   await mirrorSchedule(db, pulled.games, league.season);

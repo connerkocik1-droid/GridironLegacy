@@ -143,7 +143,9 @@ export default function LeagueBoard() {
       >
         {ranked.map((f, i) => {
           const isOpen = open === f.id;
-          const starters = f.roster.filter((r) => r.slot !== "BENCH" && r.slot !== "IR");
+          // Nobody is benched in a best-ball league, so the only split worth
+          // making is who is available at all: a man on injured reserve is not.
+          const stashed = f.roster.filter((r) => r.slot === "IR").length;
 
           return (
             <div key={f.id}>
@@ -208,8 +210,8 @@ export default function LeagueBoard() {
                     ) : null}
                   </div>
                   <div style={{ fontSize: 11, color: "#75798c", marginTop: 3 }}>
-                    {f.claimed ? f.name : "Unclaimed"} · {f.roster.length} players ·{" "}
-                    {starters.length} starting
+                    {f.claimed ? f.name : "Unclaimed"} · {f.roster.length} players
+                    {stashed ? ` · ${stashed} on IR` : ""}
                   </div>
                 </div>
 
@@ -253,7 +255,7 @@ export default function LeagueBoard() {
                   ) : null}
                   {f.roster.map((r) => {
                     const p = player(r.name);
-                    const starting = r.slot !== "BENCH" && r.slot !== "IR";
+                    const available = r.slot !== "IR";
                     return (
                       <div
                         key={r.name}
@@ -271,10 +273,14 @@ export default function LeagueBoard() {
                             letterSpacing: ".12em",
                             width: 34,
                             flex: "0 0 auto",
-                            color: starting ? "#b5abfc" : "#5a5d6e",
+                            color: available ? "#b5abfc" : "#5a5d6e",
                           }}
                         >
-                          {r.slot === "D/ST" ? "DST" : r.slot}
+                          {available
+                            ? p?.p === "D/ST"
+                              ? "DST"
+                              : (p?.p ?? "—")
+                            : "IR"}
                         </span>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -293,7 +299,7 @@ export default function LeagueBoard() {
                         <span style={{ minWidth: 0, flex: 1 }}>
                           <PlayerName
                             name={r.name}
-                            style={{ fontSize: 13, color: starting ? "#e9e9ed" : "#9397ab" }}
+                            style={{ fontSize: 13, color: available ? "#e9e9ed" : "#9397ab" }}
                           />
                         </span>
                         {p?.t ? (

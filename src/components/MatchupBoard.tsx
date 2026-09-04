@@ -21,6 +21,8 @@ interface Board {
   live: boolean;
   /** Anything on the slate has kicked off, so these are results not guesses. */
   started: boolean;
+  /** The week is settled: this arrangement is the one that was recorded. */
+  final: boolean;
   managers: { id: string; slot: string; franchise: string }[];
 }
 
@@ -138,7 +140,7 @@ function PlayerCell({
             color: leading ? "#d2cefd" : "#b2b6ca",
           }}
         >
-          {entry.points.toFixed(1)}
+          {(entry.live ? entry.points : entry.projected).toFixed(1)}
         </div>
         {!entry.live ? (
           <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#5a5d6e" }}>PROJ</div>
@@ -274,6 +276,22 @@ export default function MatchupBoard() {
             {board.away.total.toFixed(1)}
           </div>
         </div>
+      </div>
+
+      <div
+        style={{
+          padding: "0 26px 10px",
+          fontSize: 11.5,
+          color: "#75798c",
+          lineHeight: 1.6,
+          maxWidth: "70ch",
+        }}
+      >
+        {board.final
+          ? "Best ball: these are the players who ended up in each slot when the last game finished. Neither manager chose them."
+          : board.started
+            ? "Best ball: nobody set these lineups. Each side's highest scorers are filling the slots and will keep swapping until the last game ends."
+            : "Best ball: nobody sets a lineup. When the games start, each side's highest scorers will fill these slots by themselves — until then this is a projection."}
       </div>
 
       {error ? (

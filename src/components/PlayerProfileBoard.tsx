@@ -195,7 +195,8 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
         <div style={{ ...card, padding: "11px 16px", fontSize: 12, color: "#9397ab", marginBottom: 16 }}>
           {owner.mine ? (
             <>
-              On <span style={{ color: "#7fd1a8" }}>your roster</span>, at {owner.lineupSlot}.
+              On <span style={{ color: "#7fd1a8" }}>your roster</span>
+              {owner.lineupSlot === "IR" ? ", on injured reserve" : ""}.
             </>
           ) : (
             <>

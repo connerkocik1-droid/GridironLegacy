@@ -2,6 +2,7 @@ import { freshenWeek } from "@/lib/live-refresh";
 import { player } from "@/lib/roster";
 import { formatStatLine } from "@/lib/scoring";
 import { isConfigured, serverClient } from "@/lib/supabase";
+import { weekFrom } from "@/lib/week";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +30,8 @@ export async function GET(req: Request) {
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
 
-  const weekParam = new URL(req.url).searchParams.get("week");
-  const week = weekParam ? Number(weekParam) : 1;
-  if (!Number.isInteger(week)) {
+  const week = await weekFrom(req, db, me.league_id);
+  if (week == null) {
     return Response.json({ error: "week must be an integer" }, { status: 400 });
   }
 

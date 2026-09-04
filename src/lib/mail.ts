@@ -53,7 +53,6 @@ export function subjectFor(mail: NoticeMail): string {
     trade_declined: "Your trade was declined",
     waiver_won: "You won a waiver claim",
     waiver_lost: "Your waiver claim did not go through",
-    lineup_hole: "Your lineup has a hole in it",
   };
 
   return `${headline[mail.kind] ?? "Something happened in your league"} — ${mail.franchise}`;
