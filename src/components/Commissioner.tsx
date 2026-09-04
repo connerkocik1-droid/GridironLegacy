@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
 import DraftSettings from "./DraftSettings";
 import { readPickClock, type ClockTier } from "@/lib/draft-clock";
+import { useNavHeight } from "@/lib/use-nav-height";
 import NextSeason from "./NextSeason";
 import RosterFix from "./RosterFix";
 import SeasonRules from "./SeasonRules";
@@ -864,25 +865,8 @@ export default function Commissioner() {
  * knows their way around it. This adds a way in and takes nothing away.
  */
 function OfficeMenu() {
-  // Where the nav bar ends, so the rail can sit directly under it. Measured
-  // rather than written down: the bar is 61px on a phone and 56px on a
-  // desktop today, and a number in a stylesheet would be wrong the first time
-  // anything in it changed — a gap, or a rail hidden behind the bar.
-  const [top, setTop] = useState(0);
-
-  useEffect(() => {
-    const nav = document.querySelector<HTMLElement>(".gl-nav");
-    if (!nav) return;
-
-    // Inside a frame, so this is not a synchronous set during the effect.
-    const measure = () =>
-      requestAnimationFrame(() => setTop(Math.round(nav.getBoundingClientRect().height)));
-
-    measure();
-    const watch = new ResizeObserver(measure);
-    watch.observe(nav);
-    return () => watch.disconnect();
-  }, []);
+  // Where the nav bar ends, so the rail can sit directly under it.
+  const top = useNavHeight();
 
   const places: [string, string][] = [
     ["office-size", "Size"],

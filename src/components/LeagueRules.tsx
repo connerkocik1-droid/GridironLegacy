@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { DEFENSE_RULES, POINTS_ALLOWED, SCORING_RULES } from "@/lib/scoring";
 import { describeClock, readPickClock } from "@/lib/draft-clock";
+import { useNavHeight } from "@/lib/use-nav-height";
 
 /**
  * How this league works, for the eleven people who did not build it.
@@ -175,8 +176,10 @@ export default function LeagueRules() {
         it changes here too.
       </p>
 
+      <RulesMenu />
+
       {/* ------------------------------------------------------- the lineup --- */}
-      <div style={card}>
+      <div id="rule-lineup" style={card}>
         <div style={eyebrow}>WHAT YOU FIELD EACH WEEK</div>
         <p style={body}>
           <strong style={{ color: "#d2cefd", fontWeight: 500 }}>
@@ -213,7 +216,7 @@ export default function LeagueRules() {
       </div>
 
       {/* ------------------------------------------------------ the scoring --- */}
-      <div style={card}>
+      <div id="rule-scoring" style={card}>
         <div style={eyebrow}>HOW POINTS ARE SCORED</div>
         <p style={body}>
           {ppr === 1
@@ -234,7 +237,7 @@ export default function LeagueRules() {
       </div>
 
       {/* ------------------------------------------------------ the kicker --- */}
-      <div style={card}>
+      <div id="rule-kickers" style={card}>
         <div style={eyebrow}>KICKERS</div>
         <p style={body}>
           A long field goal is worth more than a short one, and a miss costs
@@ -249,7 +252,7 @@ export default function LeagueRules() {
       </div>
 
       {/* ----------------------------------------------------- the defence --- */}
-      <div style={card}>
+      <div id="rule-defence" style={card}>
         <div style={eyebrow}>DEFENCE AND SPECIAL TEAMS</div>
         <p style={body}>
           You start a whole unit, not a player. Most of its score is what it
@@ -273,7 +276,7 @@ export default function LeagueRules() {
       </div>
 
       {/* ------------------------------------------------------ the season --- */}
-      <div style={card}>
+      <div id="rule-season" style={card}>
         <div style={eyebrow}>THE SEASON</div>
         <p style={body}>
           {plural(regularWeeks, "regular-season week")}, then the playoffs. Ties
@@ -292,7 +295,7 @@ export default function LeagueRules() {
       </div>
 
       {/* ------------------------------------------------------ the waiver --- */}
-      <div style={card}>
+      <div id="rule-waivers" style={card}>
         <div style={eyebrow}>WAIVERS AND FREE AGENTS</div>
         <p style={body}>
           A dropped player sits on the wire for {plural(waiverDays, "day")} before
@@ -308,7 +311,7 @@ export default function LeagueRules() {
       </div>
 
       {/* ------------------------------------------------------- the draft --- */}
-      <div style={card}>
+      <div id="rule-draft" style={card}>
         <div style={eyebrow}>THE DRAFT</div>
         <p style={body}>
           {plural(Number(settings.rounds ?? 0), "round")}, snaking — the manager
@@ -338,6 +341,69 @@ export default function LeagueRules() {
           Your roster →
         </Link>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The way to one rule without reading six.
+ *
+ * This page is three and a half screens on a phone and it is a reference: the
+ * manager who opens it a second time wants the waiver period, not the tour.
+ * The same rail the league office has, and sticky for the same reason — a menu
+ * that exists only at the top of a long page is a menu you scroll back up to
+ * use.
+ */
+function RulesMenu() {
+  const top = useNavHeight();
+
+  const places: [string, string][] = [
+    ["rule-lineup", "Lineup"],
+    ["rule-scoring", "Scoring"],
+    ["rule-kickers", "Kickers"],
+    ["rule-defence", "Defence"],
+    ["rule-season", "Season"],
+    ["rule-waivers", "Waivers"],
+    ["rule-draft", "Draft"],
+  ];
+
+  return (
+    <div
+      className="gl-scroll-x"
+      style={{
+        display: "flex",
+        gap: 6,
+        margin: "0 0 18px",
+        padding: "8px 0 10px",
+        position: "sticky",
+        top,
+        zIndex: 15,
+        background: "rgba(22,24,38,.94)",
+        backdropFilter: "blur(10px)",
+        borderBottom: "1px solid rgba(145,132,217,.18)",
+      }}
+    >
+      {places.map(([id, label]) => (
+        <a
+          key={id}
+          href={`#${id}`}
+          style={{
+            flex: "0 0 auto",
+            display: "inline-flex",
+            alignItems: "center",
+            minHeight: 34,
+            padding: "0 12px",
+            borderRadius: "var(--radius-sm)",
+            border: "1px solid rgba(145,132,217,.28)",
+            fontSize: 11.5,
+            color: "#b5abfc",
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {label}
+        </a>
+      ))}
     </div>
   );
 }

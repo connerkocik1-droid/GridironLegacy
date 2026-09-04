@@ -653,7 +653,8 @@ button[disabled]:active {
    own height, with a little air. Generous rather than exact, because landing a
    heading slightly low reads as deliberate and landing it slightly high hides
    it. */
-[id^="office-"] {
+[id^="office-"],
+[id^="rule-"] {
   scroll-margin-top: 124px;
 }
 
