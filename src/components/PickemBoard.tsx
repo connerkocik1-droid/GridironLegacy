@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRefreshable } from "@/lib/use-refresh";
 import TeamMark from "./TeamMark";
 
 interface Game {
@@ -122,6 +123,9 @@ export default function PickemBoard() {
       setError("Could not load this week's games.");
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // The board is fetched on mount rather than server-rendered. `load` only

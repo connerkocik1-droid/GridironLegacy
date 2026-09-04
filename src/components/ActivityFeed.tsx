@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Skeleton from "./Skeleton";
 import Link from "next/link";
 import TeamCrest from "@/components/TeamCrest";
+import { useRefreshable } from "@/lib/use-refresh";
 import { useLogos } from "@/lib/use-logos";
 
 interface Entry {
@@ -148,6 +149,9 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
       setError("Could not read the league's moves.");
     }
   }, [page, kind, manager, limit]);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.

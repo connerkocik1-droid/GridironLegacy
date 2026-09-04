@@ -17,7 +17,8 @@
     "audit:mobile": "./scripts/audit-mobile.sh",
     "test:all": "npm run test && npm run test:db",
     "verify-scoring": "tsx scripts/verify-scoring.mts",
-    "audit:console": "./scripts/audit-mobile.sh --console"
+    "audit:console": "./scripts/audit-mobile.sh --console",
+    "audit:pull": "./scripts/audit-mobile.sh --pull"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

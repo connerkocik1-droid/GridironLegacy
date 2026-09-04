@@ -5,6 +5,7 @@ import Skeleton from "./Skeleton";
 import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import TeamMark from "./TeamMark";
+import { useRefreshable } from "@/lib/use-refresh";
 import { flagColor, flagsFor, player, proj } from "@/lib/roster";
 
 const BLANK =
@@ -137,6 +138,9 @@ export default function PlayersBoard() {
       // A star nobody can draw is a star nobody has set. The page works.
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.

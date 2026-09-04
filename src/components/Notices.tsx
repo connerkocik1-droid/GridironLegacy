@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRefreshable } from "@/lib/use-refresh";
 import { useMe } from "@/lib/use-me";
 
 interface Notice {
@@ -52,6 +53,9 @@ export default function Notices() {
       // the same thing the page shows anyway.
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.

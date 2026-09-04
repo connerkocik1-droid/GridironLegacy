@@ -826,3 +826,26 @@ button[disabled]:active {
     animation: none;
   }
 }
+
+
+/* ------------------------------------------------------- pull to refresh ---
+   The arc turns while the boards are answering. See
+   src/components/PullToRefresh.tsx for why the gesture exists at all. */
+
+@keyframes gl-pull-busy {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.gl-pull-busy {
+  animation: gl-pull-busy 900ms linear infinite;
+}
+
+/* Still says it is working, without turning. The arc is a third of a circle
+   either way, so "busy" is legible standing still. */
+@media (prefers-reduced-motion: reduce) {
+  .gl-pull-busy {
+    animation: none;
+  }
+}

@@ -7,6 +7,7 @@ import LiveNumber from "./LiveNumber";
 import ScoreBar from "./ScoreBar";
 import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
+import { useRefreshable } from "@/lib/use-refresh";
 import type { MatchupRow, SideEntry } from "@/lib/matchup";
 
 interface Side {
@@ -216,6 +217,9 @@ export default function MatchupBoard() {
       setError("Could not load this week's matchup.");
     }
   }, [opponent]);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.

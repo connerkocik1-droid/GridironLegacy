@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Skeleton from "./Skeleton";
 import Bracket from "./Bracket";
 import TeamCrest from "./TeamCrest";
+import { useRefreshable } from "@/lib/use-refresh";
 import { useLogos } from "@/lib/use-logos";
 
 /**
@@ -87,6 +88,9 @@ export default function Standings() {
       setError("Could not read the league.");
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.

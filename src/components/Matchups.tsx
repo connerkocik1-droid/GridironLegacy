@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ScoreBar from "./ScoreBar";
 import Skeleton from "./Skeleton";
 import TeamCrest from "./TeamCrest";
+import { useRefreshable } from "@/lib/use-refresh";
 import { useLogos } from "@/lib/use-logos";
 
 /**
@@ -212,6 +213,9 @@ export default function Matchups() {
       setError("Could not read the schedule.");
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.

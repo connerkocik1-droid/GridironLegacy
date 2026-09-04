@@ -28,6 +28,7 @@ PORT=${AUDIT_PORT:-3123}
 STUB_PORT=${STUB_PORT:-54399}
 SHOTS=""
 CONSOLE=""
+PULL=""
 
 # --console is the other lens on the same app. The audit answers /api/* in the
 # browser from a fixture, which is right for measuring layout and means it
@@ -43,6 +44,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --shots) SHOTS="$ROOT/.mobile-audit"; shift ;;
     --console) CONSOLE="1"; shift ;;
+    --pull) PULL="1"; shift ;;
     --) shift; break ;;
     -*) echo "unknown option: $1" >&2; exit 2 ;;
     *) break ;;
@@ -122,7 +124,10 @@ if ! curl -fsS -o /dev/null "http://localhost:$PORT/" 2>/dev/null; then
   exit 1
 fi
 
-if [ -n "$CONSOLE" ]; then
+if [ -n "$PULL" ]; then
+  AUDIT_BASE="http://localhost:$PORT" \
+    node "$ROOT/scripts/mobile/pull-check.mjs"
+elif [ -n "$CONSOLE" ]; then
   AUDIT_BASE="http://localhost:$PORT" AUDIT_SHOTS="$SHOTS" \
     node "$ROOT/scripts/mobile/console-check.mjs" "$@"
 else

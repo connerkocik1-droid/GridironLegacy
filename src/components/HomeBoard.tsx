@@ -9,6 +9,7 @@ import TradeAsks from "./TradeAsks";
 import TheLeagueButton from "./TheLeagueButton";
 import MiniGamesButton from "./MiniGamesButton";
 import ScoreTicker from "./ScoreTicker";
+import { useRefreshable } from "@/lib/use-refresh";
 import type { Home } from "@/lib/home-types";
 
 /**
@@ -38,6 +39,9 @@ export default function HomeBoard() {
       setError("Could not read the league.");
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.

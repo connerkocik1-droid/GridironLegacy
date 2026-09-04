@@ -8,6 +8,7 @@ import PlayerName from "./PlayerName";
 import LiveNumber from "./LiveNumber";
 import TeamCrest from "./TeamCrest";
 import TeamMark from "./TeamMark";
+import { useRefreshable } from "@/lib/use-refresh";
 import { bestLineup, bubbleGaps, type Score } from "@/lib/matchup";
 import { flagColor, flagsFor, player, proj, type LeagueShape } from "@/lib/roster";
 import { useLogos } from "@/lib/use-logos";
@@ -72,6 +73,9 @@ export default function RosterBoard() {
       setError("Could not load your roster.");
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.

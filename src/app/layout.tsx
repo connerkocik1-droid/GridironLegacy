@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Inter } from "next/font/google";
 import AddToHomeScreen from "@/components/AddToHomeScreen";
 import LaunchScreen from "@/components/LaunchScreen";
+import PullToRefresh from "@/components/PullToRefresh";
 import TabBar from "@/components/TabBar";
 import "./nocturne.css";
 // The palette, before anything that names it.
@@ -165,6 +166,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* First in the body, so it is the first thing painted and there is no
             frame of empty page between the OS splash and this. */}
         <LaunchScreen />
+        {/* Above the page rather than inside it, because the gesture belongs
+            to the app and not to whichever board happens to be on screen.
+            Renders nothing on a pointer that cannot touch. */}
+        <PullToRefresh />
         {children}
         {/* The four places, within a thumb's reach. Phones only — a desktop
             has the same links across the top of the page, and two navigations

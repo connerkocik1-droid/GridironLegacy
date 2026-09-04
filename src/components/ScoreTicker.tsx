@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRefreshable } from "@/lib/use-refresh";
 import type { Game } from "@/lib/espn";
 
 /**
@@ -130,6 +131,9 @@ export default function ScoreTicker() {
       // it was already showing rather than blanking mid-Sunday.
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.

@@ -5,6 +5,7 @@ import TeamMark from "./TeamMark";
 import Skeleton from "./Skeleton";
 import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
+import { useRefreshable } from "@/lib/use-refresh";
 import { player } from "@/lib/roster";
 import LeagueOverview from "./LeagueOverview";
 import type { Home } from "@/lib/home-types";
@@ -53,6 +54,9 @@ export default function LeagueBoard() {
       setError("Could not load the league.");
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.

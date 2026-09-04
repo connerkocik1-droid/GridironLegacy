@@ -13,6 +13,7 @@ import DraftLottery from "./DraftLottery";
 import PickClock from "./PickClock";
 import ResetDraft from "./ResetDraft";
 import TeamCrest from "./TeamCrest";
+import { useRefreshable } from "@/lib/use-refresh";
 import { useLogos } from "@/lib/use-logos";
 import { setPickAnimations, usePickAnimations } from "@/lib/use-pick-animations";
 import { describeClock, pickSecondsFor, type ClockTier } from "@/lib/draft-clock";
@@ -245,6 +246,9 @@ export default function DraftRoom() {
       setError("Could not load the draft board.");
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.
