@@ -1,0 +1,47 @@
+<!--
+  The home-screen icon.
+
+  Drawn rather than photographed, because it is read at sixty pixels on a phone
+  among thirty others: a wordmark would be a smudge and a stadium photograph
+  would be a grey square. What survives at that size is one shape and two
+  colours, so it is the uprights, on the league's own background, in the
+  league's own accent.
+
+  The mark sits well inside the middle on purpose. iOS rounds the corners
+  itself and Android may crop a circle out of it, so anything within about a
+  tenth of the edge is at risk; the safe area is the centre eighty per cent.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#252244"/>
+      <stop offset="1" stop-color="#161826"/>
+    </linearGradient>
+    <!--
+      In user space, not the default object bounding box. A goalpost upright is
+      a vertical line, so its bounding box is zero pixels wide, and a gradient
+      measured against that box collapses to nothing — the stroke simply does
+      not paint. The first render of this icon was an empty purple square with
+      a small bar at the bottom, which is the one part of the drawing that is
+      not a straight line.
+    -->
+    <linearGradient id="post" gradientUnits="userSpaceOnUse" x1="256" y1="110" x2="256" y2="322">
+      <stop offset="0" stop-color="#d2cefd"/>
+      <stop offset="1" stop-color="#9184d9"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#sky)"/>
+
+  <!--
+    Everything that is not the background, in one group, so the maskable
+    variant can shrink the mark without shrinking the ground under it.
+  -->
+  <g id="mark" stroke="url(#post)" stroke-width="30" stroke-linecap="round" fill="none">
+    <path d="M256 322 V 236"/>
+    <path d="M150 236 H 362"/>
+    <path d="M150 236 V 110"/>
+    <path d="M362 236 V 110"/>
+    <path d="M196 339 H 316" stroke="#423a6a" stroke-width="18"/>
+  </g>
+</svg>

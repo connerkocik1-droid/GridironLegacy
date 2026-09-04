@@ -237,6 +237,47 @@ for (const width of WIDTHS) {
   await ctx.close();
 }
 
+// The add-to-home-screen hint is the one piece of interface that renders for
+// nobody in this browser: it shows only in mobile Safari, to somebody who has
+// not already installed the app. Without pretending to be an iPhone, the audit
+// would report a clean home page while the widest thing on it went unmeasured.
+const IOS_SAFARI =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 " +
+  "(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+
+for (const width of WIDTHS) {
+  const ctx = await browser.newContext({
+    viewport: { width, height: 844 },
+    userAgent: IOS_SAFARI,
+    hasTouch: true,
+    isMobile: true,
+  });
+  await ctx.addCookies([sessionCookie()]);
+  const page = await ctx.newPage();
+  routes(page);
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e).slice(0, 120)));
+  try {
+    await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded", timeout: 20000 });
+  } catch {
+    // As above: measure what rendered.
+  }
+  await page.waitForTimeout(1200);
+
+  const shown = await page.getByText("Put this on your home screen").count();
+  findings.push([
+    width,
+    "a2hs-hint",
+    "/ (iOS Safari)",
+    await page.evaluate(measure),
+    // A hint that has stopped appearing is a silent regression: the app would
+    // simply never get onto anybody's home screen again, and every page would
+    // still measure clean.
+    shown ? errors : [...errors, "the add-to-home-screen hint did not appear in mobile Safari"],
+  ]);
+  await ctx.close();
+}
+
 for (const width of WIDTHS) {
   console.log(`\n════ ${width}px ════`);
   console.log("page            scroll  worst overflow                    taps  tiny");

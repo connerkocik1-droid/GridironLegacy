@@ -331,3 +331,42 @@ a:hover {
     text-align: right !important;
   }
 }
+
+
+/* ------------------------------------------------------------ the notch ---
+   Launched from a home screen the app draws edge to edge, under the status
+   bar at the top and the home indicator at the bottom. That is what makes it
+   look like an app rather than a page in a smaller box — and it is only safe
+   because of the four rules below, which put back exactly what the hardware
+   takes.
+
+   env(safe-area-inset-*) is nought on every desktop browser and on a phone in
+   a browser tab, so these are inert everywhere except the case they are for.
+   They carry !important because the elements they reach are styled inline. */
+
+/* The nav is sticky at the top, so without this it sits under the clock. */
+.gl-nav {
+  padding-top: calc(10px + env(safe-area-inset-top)) !important;
+  padding-left: calc(22px + env(safe-area-inset-left)) !important;
+  padding-right: calc(22px + env(safe-area-inset-right)) !important;
+}
+
+/* And the last row of any page clears the home indicator rather than sitting
+   under the bar somebody swipes to leave. */
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+  /* Landscape on a notched phone insets one side. Applied to the body rather
+     than to each page, because every page has a different container. */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* A standalone app has no address bar to pull down and no back gesture from
+   the browser, so an accidental rubber-band drag at the top of a long page
+   reads as the app coming apart. Only in standalone: in a tab, overscroll is
+   how you reach the address bar. */
+@media (display-mode: standalone) {
+  html {
+    overscroll-behavior-y: none;
+  }
+}
