@@ -27,6 +27,12 @@ interface Place {
 
 interface Counts {
   watching: number;
+  /** Offers waiting on an answer from this manager. */
+  trades: number;
+  /** "12-0", once the league has graded something. */
+  record: string | null;
+  /** What this roster has scored this week, once the slate has started. */
+  scored: number | null;
 }
 
 const PLACES: Place[] = [
@@ -34,11 +40,13 @@ const PLACES: Place[] = [
     href: "/lineup",
     name: "My roster",
     line: "Everyone you own, who is filling the slots this week, and what they are playing against.",
+    badge: (c) => (c.scored == null ? null : `${c.scored.toFixed(1)} so far this week.`),
   },
   {
     href: "/matchups",
     name: "Matchups",
     line: "Your season, week by week, with the score of every one. Or the whole league's.",
+    badge: (c) => (c.record ? `${c.record} this season.` : null),
   },
   {
     href: "/news?view=players",
@@ -60,6 +68,14 @@ const PLACES: Place[] = [
     href: "/trade-builder",
     name: "Trade builder",
     line: "Put an offer together, and see what it does to both sides.",
+    // The one badge on this page that is somebody waiting on you rather than
+    // a number about you. It is the reason to open the card at all.
+    badge: (c) =>
+      c.trades === 0
+        ? null
+        : c.trades === 1
+          ? "1 offer waiting on you."
+          : `${c.trades} offers waiting on you.`,
   },
   {
     href: "/my-team/edit",
@@ -70,16 +86,44 @@ const PLACES: Place[] = [
 
 export default function MyTeamHub() {
   const me = useMe();
-  const [counts, setCounts] = useState<Counts>({ watching: 0 });
+  const [counts, setCounts] = useState<Counts>({
+    watching: 0,
+    trades: 0,
+    record: null,
+    scored: null,
+  });
 
   useEffect(() => {
-    // Only to put a number on a button. A failure here costs a badge and
-    // nothing else, so it is not allowed to break a page whose job is to be
-    // six links.
-    void fetch("/api/watchlist", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null)
-      .then((watchlist) => setCounts({ watching: (watchlist?.players ?? []).length }));
+    // Only to put numbers on buttons. A failure here costs a badge and nothing
+    // else, so it is not allowed to break a page whose job is to be six links
+    // — which is why both of these swallow everything and why the state is
+    // written once, from whatever came back.
+    void Promise.all([
+      fetch("/api/watchlist", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch("/api/home", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ]).then(([watchlist, home]) => {
+      const mine = home?.games?.find((g: { mine?: boolean }) => g.mine);
+      const side =
+        mine && home ? [mine.home, mine.away].find((x: { id: string }) => x.id === home.meId) : null;
+      const power = home?.played
+        ? home.power?.find((r: { mine?: boolean }) => r.mine)
+        : null;
+
+      setCounts({
+        watching: (watchlist?.players ?? []).length,
+        trades: (home?.trades ?? []).length,
+        record: power
+          ? `${power.wins}-${power.losses}${power.ties ? `-${power.ties}` : ""}`
+          : null,
+        // A nought before kickoff is not a score, it is a week that has not
+        // happened; the roster card says nothing rather than nothing-nil.
+        scored: home?.started && side ? side.total : null,
+      });
+    });
   }, []);
 
   const manager = me.status === "signed-in" ? me.manager : null;
