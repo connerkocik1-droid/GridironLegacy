@@ -31,6 +31,7 @@ function Side({
   score,
   winning,
   mine,
+  record,
 }: {
   side: HomeSide;
   logo: string | null;
@@ -38,6 +39,8 @@ function Side({
   score: number | null;
   winning: boolean;
   mine: boolean;
+  /** "12-0", or absent before the league has graded anything. */
+  record?: string;
 }) {
   return (
     <div
@@ -64,9 +67,15 @@ function Side({
         >
           {side.franchise}
         </div>
+        {/* The record belongs on a scoreboard. Without it a fixture is two
+            names and two numbers, and the one thing that makes the second
+            number mean anything — whether this is the league's best team or
+            its worst — was two pages away. It matters most on the games that
+            are not yours, which is most of what the arrows step through. */}
         <div style={{ fontSize: 11.5, color: "#75798c", marginTop: 2 }}>
           {firstName(side.name)}
           {mine ? <span style={{ color: "#b5abfc" }}> · you</span> : null}
+          {record ? ` · ${record}` : null}
         </div>
       </div>
       {score != null ? (
@@ -125,6 +134,16 @@ export default function MatchupBand({ home }: { home: Home | null }) {
 
   if (!home) {
     return <Skeleton rows={2} title={false} style={{ padding: 0 }} />;
+  }
+
+  // Every franchise's record, from the power table the feed already carries.
+  // Absent before anything has been graded, where "0-0" beside both names is
+  // noise rather than information.
+  const records = new Map<string, string>();
+  if (home.played) {
+    for (const row of home.power) {
+      records.set(row.id, `${row.wins}-${row.losses}${row.ties ? `-${row.ties}` : ""}`);
+    }
   }
 
   const count = home.games.length;
@@ -312,6 +331,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
           score={homeScore}
           winning={homeScore != null && awayScore != null && homeScore >= awayScore}
           mine={game.home.id === home.meId}
+          record={records.get(game.home.id)}
         />
         <Side
           key={game.away.id}
@@ -320,6 +340,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
           score={awayScore}
           winning={homeScore != null && awayScore != null && awayScore >= homeScore}
           mine={game.away.id === home.meId}
+          record={records.get(game.away.id)}
         />
 
         {/* Only once there is a game. Before kickoff the two scores are
