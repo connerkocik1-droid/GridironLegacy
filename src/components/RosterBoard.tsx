@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Skeleton from "./Skeleton";
 import { headshot, logo, statLine } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import LiveNumber from "./LiveNumber";
@@ -151,7 +152,7 @@ export default function RosterBoard() {
     return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
   }
   if (!feed) {
-    return <div style={{ padding: "24px 26px", color: "#75798c" }}>Reading your roster…</div>;
+    return <Skeleton rows={6} />;
   }
 
   const stashLimit = Number(feed.settings?.ir ?? 0);

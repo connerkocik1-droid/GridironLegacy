@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Skeleton from "./Skeleton";
 import Link from "next/link";
 import TeamCrest from "@/components/TeamCrest";
 import { useLogos } from "@/lib/use-logos";
@@ -158,7 +159,7 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
     return <div style={{ fontSize: 12, color: "#e0b573", padding: compact ? 0 : "0 0 20px" }}>{error}</div>;
   }
   if (!feed) {
-    return <div style={{ fontSize: 12, color: "#75798c" }}>Reading the league…</div>;
+    return <Skeleton rows={4} title={false} style={{ padding: 0 }} />;
   }
 
   if (feed.entries.length === 0) {

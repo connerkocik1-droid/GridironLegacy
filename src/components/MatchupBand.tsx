@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Skeleton from "./Skeleton";
 import Link from "next/link";
 import TeamCrest from "./TeamCrest";
 import LiveNumber from "./LiveNumber";
@@ -111,7 +112,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
   const [step, setStep] = useState(0);
 
   if (!home) {
-    return <div style={{ fontSize: 12, color: "#75798c" }}>Reading the league…</div>;
+    return <Skeleton rows={2} title={false} style={{ padding: 0 }} />;
   }
 
   const count = home.games.length;

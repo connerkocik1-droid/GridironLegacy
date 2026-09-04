@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Skeleton from "./Skeleton";
 import { headshot, logo } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import { player } from "@/lib/roster";
@@ -72,7 +73,7 @@ export default function LeagueBoard() {
     return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
   }
   if (!feed) {
-    return <div style={{ padding: "24px 26px", color: "#75798c" }}>Reading the league…</div>;
+    return <Skeleton rows={6} />;
   }
 
   // Once weeks have been graded the table is the standings: wins first, then

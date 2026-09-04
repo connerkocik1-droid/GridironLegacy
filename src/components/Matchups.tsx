@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Skeleton from "./Skeleton";
 import TeamCrest from "./TeamCrest";
 import { useLogos } from "@/lib/use-logos";
 
@@ -222,7 +223,7 @@ export default function Matchups() {
     return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
   }
   if (!board) {
-    return <div style={{ padding: "24px 26px", color: "#75798c" }}>Reading the schedule…</div>;
+    return <Skeleton rows={4} />;
   }
 
   return (

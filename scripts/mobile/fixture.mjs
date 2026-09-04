@@ -357,6 +357,9 @@ export function routes(page, over = {}) {
       pointsFor: 340 - i * 12,
       record: { wins: 12 - i, losses: i, ties: 0, divWins: 4, divLosses: 1,
         pointsFor: 340 - i * 12, pointsAgainst: 250 + i * 8 },
+      // Every shape the strip can take, including a tie and a short run: a
+      // franchise with two results must not be drawn as one with five.
+      form: ["W", "L", "W", "T", "W"].slice(0, Math.max(2, 5 - (i % 4))),
       roster: ROSTER.map(([n, s]) => ({ name: n, slot: s, acquired: "draft" })),
     })),
   }));

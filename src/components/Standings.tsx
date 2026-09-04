@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Skeleton from "./Skeleton";
 import Bracket from "./Bracket";
 import TeamCrest from "./TeamCrest";
 import { useLogos } from "@/lib/use-logos";
@@ -32,6 +33,8 @@ interface Franchise {
   claimed: boolean;
   pointsFor: number;
   record: Record_ | null;
+  /** The last few settled weeks, oldest first. Absent before any are played. */
+  form?: ("W" | "L" | "T")[];
 }
 
 interface Board {
@@ -124,7 +127,7 @@ export default function Standings() {
     return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
   }
   if (!board) {
-    return <div style={{ padding: "24px 26px", color: "#75798c" }}>Reading the league…</div>;
+    return <Skeleton rows={6} />;
   }
 
   return (
@@ -248,6 +251,7 @@ export default function Standings() {
                             <div style={{ fontSize: 10, color: "#75798c", whiteSpace: "nowrap" }}>
                               {f.slot} · {f.claimed ? f.name : "open"}
                             </div>
+                            <Form results={f.form ?? []} />
                           </div>
                         </div>
                       </td>
@@ -268,6 +272,55 @@ export default function Standings() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The last few weeks, won and lost.
+ *
+ * The line everybody reads first in any standings table anywhere, and this one
+ * did not have it: "6-4" and "6-4 and falling apart" are the same cell. Five
+ * results is about as many as anybody takes in at a glance, and it spans a bad
+ * month without spanning a season.
+ *
+ * Under the name rather than in a column of its own. The table already scrolls
+ * sideways on a phone with five columns of numbers; a sixth would cost width
+ * this layout does not have, and vertical space is the cheap kind.
+ */
+function Form({ results }: { results: ("W" | "L" | "T")[] }) {
+  if (!results.length) return null;
+
+  const colour: Record<string, string> = {
+    W: "#7fd1a8",
+    L: "#e0908f",
+    T: "#75798c",
+  };
+
+  return (
+    <div
+      // Read out as a sentence rather than as five letters, because "W L W W L"
+      // out loud is not the shape a sighted reader is getting from this.
+      title={`Last ${results.length}: ${results.join(" ")}`}
+      aria-label={`Form, oldest first: ${results.join(", ")}`}
+      style={{ display: "flex", gap: 3, marginTop: 4 }}
+    >
+      {results.map((r, i) => (
+        <span
+          key={i}
+          aria-hidden
+          style={{
+            width: 13,
+            height: 4,
+            borderRadius: 2,
+            flex: "0 0 auto",
+            background: colour[r],
+            // The most recent result is the one being asked about; the older
+            // ones are context and fade back accordingly.
+            opacity: 0.4 + (0.6 * (i + 1)) / results.length,
+          }}
+        />
+      ))}
     </div>
   );
 }

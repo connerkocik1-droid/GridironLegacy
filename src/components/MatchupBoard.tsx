@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Skeleton from "./Skeleton";
 import LiveNumber from "./LiveNumber";
 import ScoreBar from "./ScoreBar";
 import { headshot, logo } from "@/data/league-data";
@@ -200,7 +201,7 @@ export default function MatchupBoard() {
     return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
   }
   if (!board) {
-    return <div style={{ padding: "24px 26px", color: "#75798c" }}>Reading the rosters…</div>;
+    return <Skeleton rows={5} />;
   }
 
   const homeLeads = board.home.total > board.away.total;

@@ -499,3 +499,37 @@ button[disabled]:active {
     100% { color: inherit; }
   }
 }
+
+
+/* ----------------------------------------------------------- the skeleton ---
+   The shape of a screen while it loads. Slow and low-contrast on purpose: a
+   bright fast sweep is a spinner in costume, and the job here is to say
+   "nearly there" rather than "look at me". */
+
+@keyframes gl-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.gl-skeleton {
+  background-image: linear-gradient(
+    90deg,
+    rgba(145, 132, 217, 0.09) 0%,
+    rgba(145, 132, 217, 0.09) 35%,
+    rgba(181, 171, 252, 0.19) 50%,
+    rgba(145, 132, 217, 0.09) 65%,
+    rgba(145, 132, 217, 0.09) 100%
+  );
+  background-size: 200% 100%;
+  animation: gl-shimmer 1900ms linear infinite;
+}
+
+/* Still a placeholder, just a still one. The reserved space is the useful
+   half of this and it costs no motion at all. */
+@media (prefers-reduced-motion: reduce) {
+  .gl-skeleton {
+    animation: none;
+    background-image: none;
+    background-color: rgba(145, 132, 217, 0.12);
+  }
+}
