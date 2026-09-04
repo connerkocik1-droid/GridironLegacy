@@ -708,3 +708,62 @@ button[disabled]:active {
     animation: none;
   }
 }
+
+/* --------------------------------------------------------- the launch ---
+   The screen between the icon being tapped and the app being there. See
+   LaunchScreen for why both halves of it exist.
+
+   Absent everywhere but a home-screen launch: in a browser tab you can watch
+   a page load, and covering that is a splash screen on a website. */
+
+#gl-launch {
+  display: none;
+}
+
+@keyframes gl-launch-timeout {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@media (display-mode: standalone) {
+  #gl-launch {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    /* The same ground as the launch image and as the app, so the three of
+       them are one picture rather than three. */
+    background:
+      radial-gradient(120% 80% at 50% -10%, rgba(66, 58, 106, 0.4), transparent 60%),
+      #161826;
+    /* Slightly above centre, where the launch image puts it. */
+    padding-bottom: 12vh;
+
+    /* Fails safe. If the script never runs — an old build, a chunk that did
+       not load, JavaScript off — this still clears the screen rather than
+       leaving the app behind a pylon forever. */
+    animation: gl-launch-timeout 320ms ease 4s forwards;
+  }
+
+  /* The app said it is ready. */
+  html[data-launched] #gl-launch {
+    opacity: 0;
+    visibility: hidden;
+    /* Out of the way of a thumb the instant it starts fading, rather than
+       when it finishes. */
+    pointer-events: none;
+    transition:
+      opacity 320ms ease,
+      visibility 0s linear 320ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-launched] #gl-launch {
+    transition: none;
+  }
+}
