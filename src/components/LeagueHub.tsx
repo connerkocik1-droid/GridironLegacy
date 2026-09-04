@@ -25,6 +25,10 @@ interface Counts {
   season: number | null;
   week: number | null;
   played: boolean;
+  /** Whoever is top of the league, and whether that is you. */
+  leader: { franchise: string; mine: boolean } | null;
+  /** Trades, claims and drops in the last day. */
+  movesToday: number;
 }
 
 const PLACES: Place[] = [
@@ -48,7 +52,14 @@ const PLACES: Place[] = [
     href: "/standings",
     name: "Standings",
     line: "The table, by division, once weeks start being graded.",
-    badge: (c) => (c.played ? null : "Nothing graded yet."),
+    badge: (c) =>
+      !c.played
+        ? "Nothing graded yet."
+        : c.leader
+          ? c.leader.mine
+            ? "You are top of the league."
+            : `${c.leader.franchise} are top of the league.`
+          : null,
   },
   {
     href: "/league",
@@ -59,6 +70,14 @@ const PLACES: Place[] = [
     href: "/activity",
     name: "Recent moves",
     line: "Every trade, claim and drop the league has made, newest first.",
+    // What happened while you were not looking, which is the only reason
+    // anybody opens this page rather than waiting to be told.
+    badge: (c) =>
+      c.movesToday === 0
+        ? null
+        : c.movesToday === 1
+          ? "1 move in the last day."
+          : `${c.movesToday} moves in the last day.`,
   },
   {
     href: "/news",
@@ -80,24 +99,45 @@ const PLACES: Place[] = [
 export default function LeagueHub() {
   // The tab bar can only say "something"; here there is room for how much.
   const unread = useChatUnread();
-  const [counts, setCounts] = useState<Counts>({ season: null, week: null, played: false });
+  const [counts, setCounts] = useState<Counts>({
+    season: null,
+    week: null,
+    played: false,
+    leader: null,
+    movesToday: 0,
+  });
   const [name, setName] = useState<string | null>(null);
 
   useEffect(() => {
-    // Only for the heading and one badge. A failure costs both and nothing
-    // else, so it is not allowed to break a page whose job is to be links.
-    void fetch("/api/home", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((home) => {
-        if (!home) return;
-        setName(home.league?.name ?? null);
-        setCounts({
-          season: home.league?.season ?? null,
-          week: home.week ?? null,
-          played: Boolean(home.played),
-        });
-      })
-      .catch(() => {});
+    // Only for the heading and three badges. A failure costs them and nothing
+    // else, so neither of these is allowed to break a page whose job is to be
+    // links — which is why both swallow everything and the state is written
+    // once, from whatever came back.
+    const DAY = 24 * 60 * 60 * 1000;
+
+    void Promise.all([
+      fetch("/api/home", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch("/api/activity", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ]).then(([home, activity]) => {
+      if (home) setName(home.league?.name ?? null);
+
+      const top = home?.played ? home.power?.[0] : null;
+      const since = Date.now() - DAY;
+
+      setCounts({
+        season: home?.league?.season ?? null,
+        week: home?.week ?? null,
+        played: Boolean(home?.played),
+        leader: top ? { franchise: top.franchise, mine: Boolean(top.mine) } : null,
+        movesToday: (activity?.entries ?? []).filter(
+          (e: { at?: string }) => e.at && Date.parse(e.at) >= since,
+        ).length,
+      });
+    });
   }, []);
 
   return (
@@ -180,8 +220,12 @@ export default function LeagueHub() {
               <div style={{ fontSize: 11.5, color: "#9397ab", lineHeight: 1.55, marginTop: 6 }}>
                 {p.line}
               </div>
+              {/* The same amber as the My Team hub's. These two pages are
+                  siblings and a manager moves between them; a live number that
+                  is a different colour on each reads as two different kinds of
+                  thing rather than the same one twice. */}
               {badge ? (
-                <div style={{ fontSize: 11.5, color: "#75798c", marginTop: 8 }}>{badge}</div>
+                <div style={{ fontSize: 11.5, color: "#e0b573", marginTop: 8 }}>{badge}</div>
               ) : null}
             </Link>
           );

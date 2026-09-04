@@ -195,18 +195,22 @@ export default function WatchlistBoard() {
               const where = standing(w);
 
               return (
+                // One line, never wrapped. Three items of wildly different
+                // widths in a wrapping row broke differently on every player —
+                // the status beside the name here, under it there, the button
+                // on a line of its own below — and a list where no two rows are
+                // the same shape is a list nobody can scan.
                 <div
                   key={w.name}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: 12,
-                    padding: "12px 16px",
+                    padding: "11px 16px",
                     borderTop: "1px solid rgba(145,132,217,.14)",
-                    flexWrap: "wrap",
                   }}
                 >
-                  <div style={{ minWidth: 0, flex: "1 1 180px" }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ minWidth: 0 }}>
                       <PlayerName
                         name={w.name}
@@ -217,41 +221,49 @@ export default function WatchlistBoard() {
                         }}
                       />
                     </div>
-                    <div style={{ fontSize: 11, color: "#75798c", marginTop: 2 }}>
+                    {/* Where he stands belongs with the rest of his
+                        particulars rather than in a column of its own: "on
+                        waivers until Friday 8:13 PM" is wider than the name
+                        beside it, and it was the reason every row broke
+                        somewhere different. */}
+                    <div style={{ fontSize: 11, color: "#75798c", marginTop: 2, lineHeight: 1.5 }}>
                       {p ? `${p.p} · ${p.t}` : "Not in the pool"}
                       {p?.bye ? ` · bye ${p.bye}` : ""}
+                      {where.text ? (
+                        <>
+                          {" · "}
+                          <span style={{ color: where.colour }}>{where.text}</span>
+                        </>
+                      ) : null}
                     </div>
                   </div>
 
-                  <div
-                    style={{
-                      fontSize: 11.5,
-                      color: where.colour,
-                      flex: "0 1 auto",
-                      textAlign: "right",
-                    }}
-                  >
-                    {where.text}
-                  </div>
-
+                  {/* A mark rather than a sentence. "Stop watching" was the
+                      widest thing on the row and it is the least of what the
+                      row says; the words live on the button for anything that
+                      reads them out. */}
                   <button
                     onClick={() => void stopWatching(w.name)}
                     disabled={busy === w.name}
                     aria-label={`Stop watching ${w.name}`}
+                    title={`Stop watching ${w.name}`}
                     style={{
+                      minWidth: 34,
                       minHeight: 34,
-                      padding: "6px 11px",
+                      padding: 0,
                       border: "1px solid rgba(145,132,217,.3)",
                       background: "transparent",
                       color: "#9397ab",
                       borderRadius: "var(--radius-sm)",
-                      font: "inherit",
-                      fontSize: 11,
+                      fontFamily: "inherit",
+                      fontSize: 14,
+                      lineHeight: 1,
                       cursor: busy === w.name ? "default" : "pointer",
                       flex: "0 0 auto",
+                      opacity: busy === w.name ? 0.5 : 1,
                     }}
                   >
-                    Stop watching
+                    ×
                   </button>
                 </div>
               );
