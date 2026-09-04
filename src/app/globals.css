@@ -630,9 +630,13 @@ button[disabled]:active {
 
 /* The office's jump menu lands each card below the sticky bar rather than
    underneath it. Without this the heading somebody jumped to is the one thing
-   the navigation is covering. */
+   the navigation is covering — and the menu itself is sticky now too, so the
+   room to clear is both of them: the nav bar's 61px on a phone plus the rail's
+   own height, with a little air. Generous rather than exact, because landing a
+   heading slightly low reads as deliberate and landing it slightly high hides
+   it. */
 [id^="office-"] {
-  scroll-margin-top: 76px;
+  scroll-margin-top: 124px;
 }
 
 /* ------------------------------------------------ stepping through a week ---

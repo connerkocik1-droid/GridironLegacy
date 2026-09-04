@@ -864,6 +864,26 @@ export default function Commissioner() {
  * knows their way around it. This adds a way in and takes nothing away.
  */
 function OfficeMenu() {
+  // Where the nav bar ends, so the rail can sit directly under it. Measured
+  // rather than written down: the bar is 61px on a phone and 56px on a
+  // desktop today, and a number in a stylesheet would be wrong the first time
+  // anything in it changed — a gap, or a rail hidden behind the bar.
+  const [top, setTop] = useState(0);
+
+  useEffect(() => {
+    const nav = document.querySelector<HTMLElement>(".gl-nav");
+    if (!nav) return;
+
+    // Inside a frame, so this is not a synchronous set during the effect.
+    const measure = () =>
+      requestAnimationFrame(() => setTop(Math.round(nav.getBoundingClientRect().height)));
+
+    measure();
+    const watch = new ResizeObserver(measure);
+    watch.observe(nav);
+    return () => watch.disconnect();
+  }, []);
+
   const places: [string, string][] = [
     ["office-size", "Size"],
     ["office-draft-day", "Draft day"],
@@ -880,8 +900,23 @@ function OfficeMenu() {
     <div
       // A rail rather than a wrap: nine chips over three lines is a menu that
       // costs half a screen to save four flicks of a thumb.
+      //
+      // And it follows. This page is eight screens tall, and a menu that only
+      // exists at the top of it is a menu you scroll back up to use — which is
+      // most of what it was meant to save.
       className="gl-scroll-x"
-      style={{ display: "flex", gap: 6, margin: "0 0 18px", paddingBottom: 2 }}
+      style={{
+        display: "flex",
+        gap: 6,
+        margin: "0 0 18px",
+        padding: "8px 0 10px",
+        position: "sticky",
+        top,
+        zIndex: 15,
+        background: "rgba(22,24,38,.94)",
+        backdropFilter: "blur(10px)",
+        borderBottom: "1px solid rgba(145,132,217,.18)",
+      }}
     >
       {places.map(([id, label]) => (
         <a
