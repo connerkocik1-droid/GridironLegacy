@@ -449,6 +449,43 @@ export function routes(page) {
       status: "open", from_accepted: true, to_accepted: false, thread: [],
       created_at: ago(60), incoming: false, awaitingMe: false, canRescind: true }],
   }));
+  // The chat, with state, so the room can actually be talked in: a route that
+  // always answers the same thing would show a message appear and then vanish
+  // on the next poll.
+  let chat = [
+    { id: "c1", managerId: "m3", body: "That trade was daylight robbery.",
+      at: ago(42), mine: false },
+    { id: "c2", managerId: "m0", body: "You accepted it.", at: ago(38), mine: true },
+  ];
+
+  page.route("**/api/chat**", (r) => {
+    const method = r.request().method();
+
+    if (method === "POST") {
+      const body = JSON.parse(r.request().postData() ?? "{}");
+      const message = {
+        id: `c${chat.length + 1}`, managerId: "m0", body: body.body,
+        at: new Date().toISOString(), mine: true,
+      };
+      chat = [...chat, message];
+      return r.fulfill({ json: { ok: true, message } });
+    }
+
+    if (method === "DELETE") {
+      const id = new URL(r.request().url()).searchParams.get("id");
+      chat = chat.filter((m) => m.id !== id);
+      return r.fulfill({ json: { ok: true } });
+    }
+
+    // The incremental poll asks for what it has not seen; the fixture answers
+    // with everything, and the component de-duplicates on id.
+    return r.fulfill({ json: {
+      me: { id: "m0", isCommissioner: true },
+      managers: MANAGERS,
+      messages: chat,
+    } });
+  });
+
   page.route("**/api/rosters**", json({ players: ROSTER.map(([n]) => n) }));
 
   const PICKS = MANAGERS.map((m, i) => ({

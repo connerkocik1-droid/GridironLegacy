@@ -35,6 +35,14 @@ const PLACES: Place[] = [
     name: "How this league works",
     line: "The lineup you field, how points are scored, waivers, trades and the draft.",
   },
+  // Second, under the rules. The conversation is the thing a league actually
+  // turns up for in year four, and burying it under five read-only pages is
+  // how it ends up happening in a group text instead.
+  {
+    href: "/chat",
+    name: "League chat",
+    line: "Trash talk, trade bait and complaints about the schedule.",
+  },
   {
     href: "/standings",
     name: "Standings",

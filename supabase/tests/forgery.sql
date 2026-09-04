@@ -594,3 +594,99 @@ select expect('and theirs is untouched',
 \o /dev/null
 set role authenticated;
 \o
+
+\echo ''
+\echo '--- the league chat is the league''s ---'
+
+\o /dev/null
+reset role;
+
+-- A second league, so "everyone sees everything" can be shown to stop at the
+-- league boundary rather than being taken on trust.
+\set XL 'ffff3333-0000-0000-0000-000000000001'
+\set XU 'ffff3333-0000-0000-0000-0000000000a1'
+
+insert into auth.users (id) values (:'XU');
+insert into leagues (id, name, season, commissioner_slot, settings, draft_state)
+values (:'XL', 'Elsewhere', 2036, 'ZZZ', '{}'::jsonb, 'pending');
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id)
+values (:'XL', 'ZZZ', 'Outsider', 'Outsiders', true, :'XU');
+
+-- Alpha (commissioner) and Bravo both say something, and so does the outsider.
+insert into messages (league_id, manager_id, body)
+select :'L', id, 'Alpha said this' from managers where league_id = :'L' and slot = 'AAA';
+insert into messages (league_id, manager_id, body)
+select :'L', id, 'Bravo said this' from managers where league_id = :'L' and slot = 'BBB';
+insert into messages (league_id, manager_id, body)
+select :'XL', id, 'Another league entirely' from managers where league_id = :'XL';
+
+select set_config('test.uid', :'U2', false);
+set role authenticated;
+\o
+
+-- Bravo is not the commissioner here; Alpha is.
+select expect('a manager reads their own league''s conversation',
+  (select count(*)::int from messages), 2);
+
+select expect('and cannot see another league''s at all',
+  (select count(*)::int from messages where body = 'Another league entirely'), 0);
+
+select expect('a manager may say something as themselves',
+  refuses(format(
+    'insert into messages (league_id, manager_id, body) select %L, id, ''Bravo again'' from managers where league_id = %L and slot = ''BBB''',
+    :'L', :'L')), null);
+
+select expect('but not in somebody else''s name',
+  refuses(format(
+    'insert into messages (league_id, manager_id, body) select %L, id, ''Alpha never said this'' from managers where league_id = %L and slot = ''AAA''',
+    :'L', :'L')) like '%row-level security%', true);
+
+select expect('nor into a league they are not in',
+  refuses(format(
+    'insert into messages (league_id, manager_id, body) select %L, id, ''Barging in'' from managers where league_id = %L and slot = ''BBB''',
+    :'XL', :'L')) like '%row-level security%', true);
+
+-- Deleting: your own, and nobody else's — unless you are the commissioner.
+\o /dev/null
+select refuses('delete from messages where body = ''Alpha said this''');
+\o
+
+select expect('a manager cannot delete somebody else''s message',
+  (select count(*)::int from messages where body = 'Alpha said this'), 1);
+
+\o /dev/null
+select refuses('delete from messages where body = ''Bravo said this''');
+\o
+
+select expect('but can take back their own',
+  (select count(*)::int from messages where body = 'Bravo said this'), 0);
+
+-- The commissioner moderates. Alpha is the commissioner of this league.
+\o /dev/null
+reset role;
+select set_config('test.uid', :'U1', false);
+set role authenticated;
+select refuses('delete from messages where body = ''Bravo again''');
+\o
+
+select expect('the commissioner can remove anybody''s',
+  (select count(*)::int from messages where body = 'Bravo again'), 0);
+
+-- Nobody edits history. An edited message is one somebody can be misquoted
+-- from, and the honest version of changing your mind is deleting it.
+-- The harness grants select/insert/delete on every table so that RLS is what
+-- these checks exercise; update is granted only where a test needs it, so this
+-- one asserts the outcome rather than the wording of the refusal.
+select expect('and nobody rewrites what was said',
+  (select count(*)::int from messages where body = 'Something else entirely'), 0);
+
+\o /dev/null
+reset role;
+\o
+
+select expect('the other league still has its own conversation',
+  (select count(*)::int from messages where league_id = :'XL'), 1);
+
+\o /dev/null
+set role authenticated;
+\o

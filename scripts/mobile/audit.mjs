@@ -36,6 +36,7 @@ const PAGES = [
   ["/my-team", "my-team"],
   ["/the-league", "the-league"],
   ["/rules", "rules"],
+  ["/chat", "chat"],
   ["/my-team/edit", "edit-team"],
   ["/watchlist", "watchlist"],
   ["/player/Puka%20Nacua", "player-profile"],
