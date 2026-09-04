@@ -26,14 +26,21 @@
  * route behaving correctly. It is not special-cased — a 502 that stops being
  * that one is worth seeing.
  *
+ * With AUDIT_SHOTS set it also keeps a picture of each page. The stub holds
+ * an empty league — no rosters, no schedule, nothing drafted — which is not
+ * an edge case: it is the state every manager is in on the day they first
+ * sign in, and the one state the fixture-driven audit never shows.
+ *
  *   ./scripts/audit-mobile.sh --console            # every page
  *   ./scripts/audit-mobile.sh --console /lineup    # or just one
  */
+import { mkdirSync } from "node:fs";
 import { chromium } from "playwright";
 import { PAGES } from "./pages.mjs";
 import { sessionCookie } from "./session.mjs";
 
 const BASE = process.env.AUDIT_BASE ?? "http://localhost:3123";
+const SHOTS = process.env.AUDIT_SHOTS || "";
 const asked = process.argv.slice(2);
 const PATHS = asked.length ? asked : PAGES.map(([url]) => url);
 
@@ -47,6 +54,7 @@ const ctx = await browser.newContext({
   hasTouch: true,
 });
 await ctx.addCookies([sessionCookie()]);
+if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
 const page = await ctx.newPage();
 
@@ -80,6 +88,11 @@ page.on("pageerror", (e) => note("uncaught", e.stack ?? String(e)));
 // a team mark, and the sandbox the audit runs in has no route to it.
 page.on("requestfailed", (r) => {
   if (!ours(r.url())) return external++;
+  // An abort is the app cancelling its own request, not a request that
+  // failed — it is what an AbortController in a cleanup is for, and React
+  // runs every effect twice in development, so the correct code produces one
+  // of these on every mount. Counting it called the draft rehearsal broken.
+  if (r.failure()?.errorText === "net::ERR_ABORTED") return;
   note("failed", `${r.failure()?.errorText ?? "request failed"} — ${r.url()}`);
 });
 
@@ -105,6 +118,11 @@ for (const path of PATHS) {
 
   // De-duplicated: one bad element repeated down a list is one bug, and sixty
   // identical lines is how a real second finding gets scrolled off the screen.
+  if (SHOTS) {
+    const name = path.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "home";
+    await page.screenshot({ path: `${SHOTS}/empty-${name}.png`, fullPage: true });
+  }
+
   const unique = [...new Set(found)];
   const label = `${path}${external ? `  (${external} external request${external === 1 ? "" : "s"} unreachable)` : ""}`;
 

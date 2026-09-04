@@ -124,8 +124,12 @@ export default function LeagueBoard() {
               marginBottom: 12,
             }}
           >
+            {/* Just the two words. The qualifier that used to hang off this
+                — "nothing graded yet, ranked on points alone" — wrapped the
+                eyebrow onto two shouting lines on a phone, and said nothing
+                the paragraph above it and the POINTS ONLY note on the card
+                below it were not already saying, in lower case, twice. */}
             WHERE YOU STAND
-            {home.played ? "" : " · NOTHING GRADED YET, RANKED ON POINTS ALONE"}
           </div>
           <LeagueOverview home={home} />
         </div>

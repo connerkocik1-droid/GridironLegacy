@@ -412,6 +412,14 @@ export default function TradeDesk() {
                 ))}
               </div>
               <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                {/* Said on this side too, so the column is not simply blank
+                    before the draft. Players only — any picks this manager
+                    holds are listed below and are tradeable from day one. */}
+                {myRoster.length === 0 ? (
+                  <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
+                    No players until you have drafted.
+                  </div>
+                ) : null}
                 {myRoster.map((n) => (
                   <button
                     key={n}

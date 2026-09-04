@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import Skeleton from "./Skeleton";
 import { headshot, statLine } from "@/data/league-data";
 import PlayerName from "./PlayerName";
@@ -176,6 +177,11 @@ export default function RosterBoard() {
   const settled = feed.final || feed.weekPhase === "final";
   const totalLabel = settled ? "FINAL" : feed.started ? "LIVE TOTAL" : "PROJECTED";
 
+  // Nobody owns anybody until the draft has run, so an empty roster is not an
+  // empty state to apologise for — it is the state the whole league is in on
+  // the day everybody signs up.
+  const undrafted = feed.roster.length === 0 && feed.injuredReserve.length === 0;
+
   return (
     <>
       <div
@@ -248,11 +254,13 @@ export default function RosterBoard() {
             third of the screen above the thing they were explaining — every
             week, to a manager who read them the first Sunday and has known it
             ever since. */}
-        {settled
-          ? "Settled. Your best possible lineup is the one that counted."
-          : feed.started
-            ? "Your whole roster is playing; the highest scorers fill the slots and swap as the numbers move."
-            : "No lineup to set — everyone you own is in, and the best scorers take the slots once the games start. Until then this is a projection."}
+        {undrafted
+          ? "Nothing to show yet, because nothing has been drafted. Every player you take on the night arrives here."
+          : settled
+            ? "Settled. Your best possible lineup is the one that counted."
+            : feed.started
+              ? "Your whole roster is playing; the highest scorers fill the slots and swap as the numbers move."
+              : "No lineup to set — everyone you own is in, and the best scorers take the slots once the games start. Until then this is a projection."}
       </div>
 
       {error ? (
@@ -268,6 +276,51 @@ export default function RosterBoard() {
             overflow: "hidden",
           }}
         >
+          {/* Before the draft this card was ten rows of "Nobody on the roster
+              plays here" and a line saying nought players — which is
+              accurate, is the first thing every manager in a new league sees
+              on this page, and reads as a broken screen rather than as a
+              season that has not started. One panel says it once, and points
+              at the only thing there is to do about it. */}
+          {undrafted ? (
+            <div style={{ padding: "22px 18px 24px" }}>
+              <div style={{ fontFamily: "var(--font-heading)", fontSize: 19, marginBottom: 7 }}>
+                Your roster is empty
+              </div>
+              <p
+                style={{
+                  fontSize: 12.5,
+                  color: "var(--text-muted)",
+                  lineHeight: 1.65,
+                  margin: "0 0 16px",
+                  maxWidth: "52ch",
+                }}
+              >
+                Draft night fills it. Everybody you take lands on this page, and after that there
+                is no lineup to set for the rest of the season — the slots above fill themselves
+                from whoever is scoring.
+              </p>
+              <Link
+                href="/draft"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  minHeight: 38,
+                  padding: "9px 16px",
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 13,
+                  textDecoration: "none",
+                  color: "var(--text)",
+                  background: "rgb(var(--accent-rgb) / .26)",
+                  border: "1px solid rgb(var(--accent-bright-rgb) / .5)",
+                  borderRadius: "var(--radius-sm)",
+                }}
+              >
+                The draft room
+              </Link>
+            </div>
+          ) : (
+            <>
           <SectionHeader
             title={settled ? "How it finished" : feed.started ? "Filling the slots" : "Projected to start"}
             note={`WEEK ${feed.week}`}
@@ -320,9 +373,11 @@ export default function RosterBoard() {
               );
             })
           )}
+            </>
+          )}
         </div>
 
-        {stashLimit > 0 ? (
+        {stashLimit > 0 && !undrafted ? (
           <div
             style={{
               border: "1px solid rgb(var(--accent-rgb) / .22)",
@@ -376,7 +431,10 @@ export default function RosterBoard() {
         ) : null}
 
         {/* Said once, at the bottom, where somebody who has scrolled the whole
-            roster and is wondering where the bench went will find it. */}
+            roster and is wondering where the bench went will find it — and not
+            at all before the draft, when there are no slots and nobody below
+            them for it to be about. */}
+        {undrafted ? null : (
         <div
           style={{
             marginTop: 12,
@@ -390,6 +448,7 @@ export default function RosterBoard() {
           one — a player who outscores a starter takes his place while the games
           are on.
         </div>
+        )}
       </div>
     </>
   );

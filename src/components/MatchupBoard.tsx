@@ -19,7 +19,6 @@ interface Side {
 /** A week this manager sits out. There is no fixture, so there is no board. */
 interface Bye {
   week: number;
-  message: string;
   managers: { id: string; slot: string; franchise: string }[];
 }
 
@@ -197,8 +196,12 @@ export default function MatchupBoard() {
       if (!body?.home || !body?.away) {
         setBye({
           week: body?.week ?? 0,
-          message: body?.error ?? "There is no fixture for you this week.",
-          managers: body?.managers ?? [],
+          // Everybody but you. The route sends the whole roster, and the
+          // first version of this offered a manager their own franchise as
+          // somebody else's game to watch.
+          managers: (body?.managers ?? []).filter(
+            (m: { id: string }) => m.id !== body?.me?.id,
+          ),
         });
         setBoard(null);
         setError(null);
@@ -441,8 +444,8 @@ function ByeWeek({ bye, onCompare }: { bye: Bye; onCompare: (id: string) => void
         You have a bye
       </h1>
       <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 20px", lineHeight: 1.6, maxWidth: "60ch" }}>
-        {bye.message} Nothing you do this week changes your record — but the rest of the league is
-        playing, and any two of them can be put side by side here.
+        Nothing you do this week changes your record — but the rest of the league is playing, and
+        any one of their games can be put on this screen instead.
       </p>
 
       {bye.managers.length ? (
