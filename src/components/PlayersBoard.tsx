@@ -268,7 +268,7 @@ export default function PlayersBoard() {
       <h1
         style={{
           fontFamily: "var(--font-heading)",
-          fontSize: 40,
+          fontSize: "clamp(30px, 8.4vw, 40px)",
           letterSpacing: "-.035em",
           margin: "8px 0 6px",
           fontWeight: 500,
@@ -276,16 +276,40 @@ export default function PlayersBoard() {
       >
         Free agents
       </h1>
-      <p style={{ fontSize: 12, color: "#9397ab", margin: "0 0 18px", maxWidth: "72ch", lineHeight: 1.6 }}>
+      {/* The rule, and then the two numbers. This was one paragraph carrying
+          five different facts, six lines deep on a phone, above the list it
+          was explaining — and the two things in it a manager actually comes
+          back to check, their waiver priority and how full their roster is,
+          were buried in the middle of a sentence. The prose says the rule
+          once; the numbers are numbers. The star's own tooltip explains the
+          star, so the line about it has gone. */}
+      <p style={{ fontSize: 12, color: "#9397ab", margin: "0 0 12px", maxWidth: "72ch", lineHeight: 1.6 }}>
         {feed.mode === "open"
           ? "Adds land immediately — first come, first served, and a dropped player goes straight back into this list."
           : feed.mode === "all"
-            ? `Every pickup here is a claim, settled on the next waiver run, best priority first. You are number ${feed.me.waiver_priority}; winning a claim sends you to the back.`
-            : `Anybody on this list is yours on the spot. A player somebody dropped goes on waivers for ${feed.waiverDays === 1 ? "a day" : `${feed.waiverDays} days`} first, and can only be claimed — the run settles those in priority order. You are number ${feed.me.waiver_priority}; winning a claim sends you to the back.`}{" "}
-        Your roster holds {feed.held} of {feed.capacity}
-        {full ? " — you must drop someone to add anyone." : "."}{" "}
-        Star anyone you are deciding about and his news joins yours on the home page.
+            ? "Every pickup here is a claim, settled on the next waiver run, best priority first."
+            : `Anybody on this list is yours on the spot; a player somebody dropped goes on waivers for ${feed.waiverDays === 1 ? "a day" : `${feed.waiverDays} days`} first and can only be claimed.`}
       </p>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 18px" }}>
+        {feed.mode === "open" ? null : (
+          <Fact
+            label="WAIVER PRIORITY"
+            value={`#${feed.me.waiver_priority}`}
+            title="Claims settle best priority first. Winning one sends you to the back."
+          />
+        )}
+        <Fact
+          label="ROSTER"
+          value={`${feed.held} / ${feed.capacity}`}
+          warn={full}
+          title={
+            full
+              ? "Full — you must drop somebody to add anybody"
+              : `${feed.capacity - feed.held} more before you have to drop somebody`
+          }
+        />
+      </div>
 
       {notice ? (
         <div style={{ fontSize: 12, color: "#7fd1a8", marginBottom: 12 }}>{notice}</div>
@@ -716,5 +740,54 @@ export default function PlayersBoard() {
         })}
       </div>
     </div>
+  );
+}
+
+/**
+ * One number worth checking, said as a number.
+ *
+ * Waiver priority and roster space are the two facts on this page that change
+ * week to week and that a manager opens it to look up. Inside a paragraph they
+ * are a sentence to read; as a pair of chips they are answered at a glance,
+ * and the roster one goes amber the moment it means "you cannot add anybody".
+ */
+function Fact({
+  label,
+  value,
+  title,
+  warn,
+}: {
+  label: string;
+  value: string;
+  title: string;
+  warn?: boolean;
+}) {
+  return (
+    <span
+      title={title}
+      style={{
+        display: "inline-flex",
+        alignItems: "baseline",
+        gap: 7,
+        padding: "6px 10px",
+        borderRadius: "var(--radius-sm)",
+        border: `1px solid ${warn ? "rgba(224,181,115,.5)" : "rgba(145,132,217,.24)"}`,
+        background: warn ? "rgba(224,181,115,.08)" : "rgba(26,28,43,.55)",
+      }}
+    >
+      <span style={{ fontSize: 10, letterSpacing: ".14em", color: warn ? "#e0b573" : "#75798c" }}>
+        {label}
+      </span>
+      <span
+        style={{
+          fontFamily: "var(--font-heading)",
+          fontSize: 13,
+          color: warn ? "#e0b573" : "#e9e9ed",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {value}
+      </span>
+    </span>
   );
 }
