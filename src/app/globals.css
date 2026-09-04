@@ -666,3 +666,23 @@ button[disabled]:active {
     to   { opacity: 1; }
   }
 }
+
+/* ------------------------------------------------------------- live dot ---
+   Beside the label on the matchup card while a game on the slate is being
+   played. Slow and shallow: a scoreboard that throbs for three hours is a
+   scoreboard nobody can read, and this only has to say "now" once a second. */
+
+@keyframes gl-live-dot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .35; }
+}
+
+.gl-live-dot {
+  animation: gl-live-dot 1900ms ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-live-dot {
+    animation: none;
+  }
+}

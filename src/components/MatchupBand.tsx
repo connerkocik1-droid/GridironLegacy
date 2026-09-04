@@ -143,6 +143,23 @@ export default function MatchupBand({ home }: { home: Home | null }) {
     );
   }
 
+  // The best score in the league this week, which is the question straight
+  // after "am I winning" and was two pages away. Only once something has been
+  // scored: before kickoff the highest of twelve noughts is a nought, and
+  // naming a franchise as its owner is a joke at their expense.
+  const high = (() => {
+    if (!home.started) return null;
+    let best: { franchise: string; total: number; mine: boolean } | null = null;
+    for (const g of home.games) {
+      for (const side of [g.home, g.away]) {
+        if (!best || side.total > best.total) {
+          best = { franchise: side.franchise, total: side.total, mine: side.id === home.meId };
+        }
+      }
+    }
+    return best && best.total > 0 ? best : null;
+  })();
+
   // `started` is about the slate, not this fixture: a franchise whose players
   // are all on Monday night is still in a week that has begun, and showing it
   // a dash rather than a zero would be the wrong kind of honest.
@@ -200,6 +217,24 @@ export default function MatchupBand({ home }: { home: Home | null }) {
             minHeight: 34,
           }}
         >
+          {/* A dot while a game on the slate is actually being played. The
+              scores already move on their own, but only if you happen to be
+              looking when one does — this is the difference between a page
+              that is live and a page that looks the same as it did on
+              Thursday. */}
+          {home.live && !done ? (
+            <span
+              className="gl-live-dot"
+              aria-hidden
+              style={{
+                flex: "0 0 auto",
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: "#7fd1a8",
+              }}
+            />
+          ) : null}
           <span
             style={{
               fontSize: 10,
@@ -304,7 +339,38 @@ export default function MatchupBand({ home }: { home: Home | null }) {
           lineup screen is built around you against an opponent, so there is no
           honest place to send somebody looking at two other franchises — the
           season page is where those are read in full. */}
-      <div style={{ marginTop: 10, fontSize: 11, display: "flex", gap: 16, flexWrap: "wrap" }}>
+      {/* The high score and the way in, on one line where there is room and
+          stacked tight where there is not. */}
+      <div
+        style={{
+          marginTop: 8,
+          fontSize: 11,
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          rowGap: 0,
+          flexWrap: "wrap",
+        }}
+      >
+        {high ? (
+          <span
+            style={{
+              fontSize: 11,
+              color: "#75798c",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              minHeight: 34,
+            }}
+          >
+            <span style={{ letterSpacing: ".14em", fontSize: 10 }}>HIGH THIS WEEK</span>
+            <span style={{ color: high.mine ? "#b5abfc" : "#b2b6ca" }}>
+              {high.franchise} {high.total.toFixed(1)}
+              {high.mine ? " · you" : ""}
+            </span>
+          </span>
+        ) : null}
+
         <Link
           href={game.mine ? "/lineup" : "/matchups"}
           style={{
