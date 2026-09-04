@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { markChatRead } from "@/lib/use-chat-unread";
 import Link from "next/link";
 import TeamCrest from "./TeamCrest";
 import { useLogos } from "@/lib/use-logos";
@@ -88,7 +89,13 @@ export default function LeagueChat() {
       });
 
       const last = body.messages[body.messages.length - 1];
-      if (last) newest.current = last.at;
+      if (last) {
+        newest.current = last.at;
+        // Reading the conversation is what makes it read. Done here rather
+        // than on mount so a message that arrives while this page is open
+        // clears its own badge instead of leaving one behind.
+        markChatRead(last.at);
+      }
     } catch {
       setError("Could not read the conversation.");
     }

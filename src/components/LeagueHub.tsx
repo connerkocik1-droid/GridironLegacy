@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useChatUnread } from "@/lib/use-chat-unread";
 
 /**
  * Everything that belongs to the twelve of them rather than to any one.
@@ -77,6 +78,8 @@ const PLACES: Place[] = [
 ];
 
 export default function LeagueHub() {
+  // The tab bar can only say "something"; here there is room for how much.
+  const unread = useChatUnread();
   const [counts, setCounts] = useState<Counts>({ season: null, week: null, played: false });
   const [name, setName] = useState<string | null>(null);
 
@@ -145,13 +148,34 @@ export default function LeagueHub() {
             >
               <div
                 style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
                   fontFamily: "var(--font-heading)",
                   fontSize: 21,
                   letterSpacing: "-.02em",
                   color: "#e9e9ed",
                 }}
               >
-                {p.name}
+                <span style={{ minWidth: 0 }}>{p.name}</span>
+                {p.href === "/chat" && unread > 0 ? (
+                  <span
+                    style={{
+                      flex: "0 0 auto",
+                      fontFamily: "var(--font-body)",
+                      fontSize: 10,
+                      letterSpacing: ".12em",
+                      padding: "3px 7px",
+                      borderRadius: 999,
+                      background: "rgba(145,132,217,.3)",
+                      border: "1px solid rgba(181,171,252,.55)",
+                      color: "#d2cefd",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {unread > 99 ? "99+" : unread} NEW
+                  </span>
+                ) : null}
               </div>
               <div style={{ fontSize: 11.5, color: "#9397ab", lineHeight: 1.55, marginTop: 6 }}>
                 {p.line}

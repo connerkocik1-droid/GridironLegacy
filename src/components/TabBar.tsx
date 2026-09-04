@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import CommissionerOnly from "./CommissionerOnly";
 import { useMe } from "@/lib/use-me";
+import { useChatUnread } from "@/lib/use-chat-unread";
 
 /**
  * The four places, where a thumb can reach them.
@@ -134,6 +135,12 @@ export default function TabBar() {
   const me = useMe();
   const pathname = usePathname() ?? "/";
 
+  // A dot on League when somebody has said something. Not a number: at this
+  // size a count is unreadable, and "there is something" is the whole of what
+  // a tab bar has room to say. The count itself is on the chat card, one press
+  // in, where there is room for it.
+  const unread = useChatUnread(me.status === "signed-in");
+
   // Nothing for a signed-out visitor. The home page turns into the sign-in
   // screen and deliberately shows no navigation, because every destination
   // behind it would only ask them to sign in — a bar of four such links across
@@ -181,7 +188,12 @@ export default function TabBar() {
       }}
     >
       {TABS.map((tab) => (
-        <TabLink key={tab.href} tab={tab} active={active === tab.href} />
+        <TabLink
+          key={tab.href}
+          tab={tab}
+          active={active === tab.href}
+          dot={tab.href === "/the-league" && unread > 0 && !pathname.startsWith("/chat")}
+        />
       ))}
       <CommissionerOnly>
         <TabLink tab={OFFICE} active={active === OFFICE.href} />
@@ -190,11 +202,14 @@ export default function TabBar() {
   );
 }
 
-function TabLink({ tab, active }: { tab: Tab; active: boolean }) {
+function TabLink({ tab, active, dot }: { tab: Tab; active: boolean; dot?: boolean }) {
   return (
     <Link
       href={tab.href}
       aria-current={active ? "page" : undefined}
+      // The dot is decoration and carries no text, so the link says what it
+      // means instead. Without this a screen reader gets "League" either way.
+      aria-label={dot ? `${tab.label} — new messages` : undefined}
       style={{
         flex: 1,
         minWidth: 0,
@@ -211,7 +226,26 @@ function TabLink({ tab, active }: { tab: Tab; active: boolean }) {
         color: active ? "#d2cefd" : "#7d8195",
       }}
     >
-      {tab.icon}
+      <span style={{ position: "relative", display: "inline-flex", flex: "0 0 auto" }}>
+        {tab.icon}
+        {dot ? (
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: -1,
+              right: -2,
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: "#b5abfc",
+              // Against the bar rather than against the icon, so it reads as a
+              // mark on the tab and not as part of the glyph.
+              boxShadow: "0 0 0 2px rgba(20,22,35,.94)",
+            }}
+          />
+        ) : null}
+      </span>
       <span
         style={{
           fontSize: 10,

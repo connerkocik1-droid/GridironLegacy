@@ -512,12 +512,18 @@ export function routes(page, over = {}) {
       return r.fulfill({ json: { ok: true } });
     }
 
-    // The incremental poll asks for what it has not seen; the fixture answers
-    // with everything, and the component de-duplicates on id.
+    // `since` is honoured the way the real route honours it, because the
+    // unread badge is built on it: a fixture that answers "everything" to a
+    // question of "anything new?" makes an empty conversation look busy.
+    const since = new URL(r.request().url()).searchParams.get("since");
+    const messages = since
+      ? chat.filter((m) => Date.parse(m.at) > Date.parse(since))
+      : chat;
+
     return r.fulfill({ json: {
       me: { id: "m0", isCommissioner: true },
       managers: MANAGERS,
-      messages: chat,
+      messages,
     } });
   });
 
