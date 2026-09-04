@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], display
 
 export const metadata: Metadata = {
   title: "Gridiron Legacy",
-  description: "A twelve-team dynasty superflex league.",
+  description: "A dynasty fantasy football league.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

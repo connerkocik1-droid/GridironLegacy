@@ -227,7 +227,7 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
   const heading = (
     <>
       <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>
-        DYNASTY · {slots.length} TEAM · SUPERFLEX
+        DYNASTY · {slots.length} TEAM
       </div>
       <h1
         style={{

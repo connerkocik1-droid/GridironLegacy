@@ -178,7 +178,7 @@ export default function LineupEditor({ scores }: { scores: Map<string, Score> })
       >
         <div>
           <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>
-            DYNASTY · SUPERFLEX
+            DYNASTY
           </div>
           <div
             style={{

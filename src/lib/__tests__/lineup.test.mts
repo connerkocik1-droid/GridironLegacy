@@ -174,5 +174,38 @@ eq("and a player nobody knows about is not invented into a problem",
   lineupProblems([{ playerName: "Nobody At All", slot: "QB" }], SMALL, 7, look)
     .filter((x) => x.kind !== "empty").length, 0);
 
+// --- this is not a superflex league ----------------------------------------
+//
+// The app advertised itself as SUPERFLEX in three places while a flex slot
+// only ever accepted a running back, receiver or tight end. The branding was
+// what was wrong, and it was wrong on the first screen anybody saw — so this
+// checks both halves: that the rule is what the league decided, and that
+// nothing claims otherwise.
+
+console.log("\n--- the flex slot ---");
+
+ok("a flex takes a running back", slotAccepts("FLEX", "RB"));
+ok("a receiver", slotAccepts("FLEX", "WR"));
+ok("and a tight end", slotAccepts("FLEX", "TE"));
+ok("but not a quarterback — that would be a superflex", !slotAccepts("FLEX", "QB"));
+ok("nor a kicker", !slotAccepts("FLEX", "K"));
+ok("nor a defence", !slotAccepts("FLEX", "D/ST"));
+
+// A claim in the interface is as much a rule as a line of code, and this one
+// contradicted the code for the whole life of the project.
+const { readdirSync, readFileSync, statSync } = await import("node:fs");
+const { join } = await import("node:path");
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((entry) => {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) return sourceFiles(path);
+    return /\.(ts|tsx)$/.test(entry) && !path.includes("__tests__") ? [path] : [];
+  });
+}
+
+const claiming = sourceFiles("src").filter((f) => /superflex/i.test(readFileSync(f, "utf8")));
+eq("and nothing in the app says it is one", claiming, []);
+
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 if (failed) process.exitCode = 1;

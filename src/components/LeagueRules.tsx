@@ -8,9 +8,9 @@ import { describeClock, readPickClock } from "@/lib/draft-clock";
 /**
  * How this league works, for the eleven people who did not build it.
  *
- * Everything else in the app assumes you already know: what a superflex takes,
- * when a lineup locks, how long a waiver sits, what a defence is worth for a
- * shutout. A manager who knows fantasy football can work most of it out by
+ * Everything else in the app assumes you already know: what a flex slot
+ * takes, when a lineup locks, how long a waiver sits, what a defence is worth
+ * for a shutout. A manager who knows fantasy football can work most of it out by
  * poking around, and a manager who does not is left guessing on the one night
  * of the year it matters.
  *
