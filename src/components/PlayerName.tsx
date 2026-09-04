@@ -75,7 +75,20 @@ export default function PlayerName({
   );
 
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+    // Wraps, so a narrow column drops the badge below the name rather than
+    // squeezing the name. The badge is flex: 0 0 auto and the name is the only
+    // thing that can give, so without this a suspended player on a 320px
+    // screen reads one letter per line — which measures as fitting.
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 6,
+        rowGap: 2,
+        minWidth: 0,
+      }}
+    >
       {plain ? (
         label
       ) : (

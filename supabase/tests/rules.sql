@@ -3431,3 +3431,50 @@ select expect('activating somebody already active does nothing',
 select expect('a manager may do this themselves',
   (select has_function_privilege('authenticated',
      'set_injured_reserve(text, boolean)', 'execute')), true);
+
+-- --- the roster cap ---
+--
+-- The cap is not stored: it is the starting slots plus the bench, so changing
+-- the bench is the whole of changing it. What has to hold is that the number
+-- the settings imply is the number place_player enforces, and that the draft
+-- fills a roster exactly rather than overrunning it.
+
+select expect('ten on the field and eight behind them is eighteen',
+  roster_capacity('{"starters": {"QB": 1, "RB": 2, "WR": 2, "TE": 1, "FLEX": 2, "D/ST": 1, "K": 1}, "bench": 8}'::jsonb),
+  18);
+
+-- That the draft rounds match it is asserted where the settings are written
+-- rather than here: this harness has no league of its own to read defaults
+-- from. See settings.test.mts.
+
+-- The one that would bite: a full roster refuses another player rather than
+-- quietly carrying nineteen.
+\o /dev/null
+update leagues
+   set settings = settings || '{"bench": 0, "ir": 1}'::jsonb
+ where id = :'BB';
+\o
+
+-- Alpha holds eleven against a capacity of nine starters plus no bench.
+select expect('a roster over its cap takes nobody else',
+  (select refuses(format($$select place_player(%L, %L, 'Somebody New')$$,
+     :'BB', (select id from managers where league_id = :'BB' and slot = 'AAA')))),
+  'Your roster is full at 9 — drop someone first');
+
+\o /dev/null
+update leagues
+   set settings = settings || '{"bench": 8, "ir": 1}'::jsonb
+ where id = :'BB';
+\o
+
+-- Nine starters plus eight is seventeen, and Alpha holds eleven, so there is
+-- room again. The rule is arithmetic on the settings, not a stored number
+-- somebody has to remember to change.
+select expect('and raising the bench makes room without touching anybody',
+  (select place_player(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'),
+     'Somebody New') ->> 'ok'), 'true');
+
+select expect('the new man is on the roster',
+  (select count(*)::int from roster_slots
+    where league_id = :'BB' and player_name = 'Somebody New'), 1);

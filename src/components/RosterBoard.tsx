@@ -404,8 +404,8 @@ function PlayerRow({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 12,
-        padding: starter ? "12px 18px" : "11px 18px",
+        gap: 9,
+        padding: starter ? "12px 14px" : "11px 14px",
         borderTop: "1px solid rgba(145,132,217,.12)",
       }}
     >
@@ -414,7 +414,7 @@ function PlayerRow({
           fontFamily: "var(--font-heading)",
           fontSize: 10,
           letterSpacing: ".14em",
-          width: 38,
+          width: 32,
           flex: "0 0 auto",
           color: starter ? "#b5abfc" : "#75798c",
         }}
@@ -440,17 +440,13 @@ function PlayerRow({
           />
 
           <div style={{ minWidth: 0, flex: 1 }}>
-            {/* Wraps, so the badges drop to their own line rather than
-                squeezing the name down to an initial. */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 7,
-                rowGap: 4,
-                flexWrap: "wrap",
-              }}
-            >
+            {/* The name owns its line. Badges are flex: 0 0 auto, so sharing a
+                line with them means the name is the only thing that can
+                shrink — and on a 320px screen it shrank to twelve pixels, one
+                letter per line, which measures as fitting and reads as broken.
+                A player carrying a bye and a suspension is exactly the row
+                that does it. */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               <PlayerName
                 name={name}
                 style={{ fontFamily: "var(--font-heading)", fontSize: starter ? 15 : 14 }}
@@ -465,23 +461,37 @@ function PlayerRow({
                   style={{ objectFit: "contain", opacity: 0.85, flex: "0 0 auto" }}
                 />
               ) : null}
-              {flags.map((f) => (
-                <span
-                  key={f.label}
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: ".12em",
-                    padding: "2px 5px",
-                    borderRadius: 2,
-                    flex: "0 0 auto",
-                    border: `1px solid ${flagColor(f.kind)}66`,
-                    color: flagColor(f.kind),
-                  }}
-                >
-                  {f.label}
-                </span>
-              ))}
             </div>
+
+            {flags.length ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  rowGap: 4,
+                  flexWrap: "wrap",
+                  marginTop: 3,
+                }}
+              >
+                {flags.map((f) => (
+                  <span
+                    key={f.label}
+                    style={{
+                      fontSize: 10,
+                      letterSpacing: ".12em",
+                      padding: "2px 5px",
+                      borderRadius: 2,
+                      flex: "0 0 auto",
+                      border: `1px solid ${flagColor(f.kind)}66`,
+                      color: flagColor(f.kind),
+                    }}
+                  >
+                    {f.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
             <div
               style={{
                 fontSize: 11,
@@ -517,8 +527,9 @@ function PlayerRow({
               title={action.title}
               aria-label={action.title}
               style={{
+                minWidth: 34,
                 minHeight: 34,
-                padding: "6px 10px",
+                padding: "6px 7px",
                 border: "1px solid rgba(145,132,217,.35)",
                 borderRadius: "var(--radius-sm)",
                 background: "transparent",
