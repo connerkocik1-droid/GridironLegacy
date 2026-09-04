@@ -300,6 +300,29 @@ for (const width of WIDTHS) {
   }
 }
 
+// The home page before the league has drafted. Every other case here is a
+// league in mid-season, and this one is what the other eleven managers see on
+// the day they first sign in: no schedule, no scores, and draft night still to
+// come. It is a different page and it was never measured.
+for (const width of WIDTHS) {
+  const ctx = await browser.newContext({
+    viewport: { width, height: 844 }, hasTouch: true, isMobile: true,
+  });
+  await ctx.addCookies([sessionCookie()]);
+  const page = await ctx.newPage();
+  routes(page, { preseason: true });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e).slice(0, 120)));
+  try {
+    await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded", timeout: 20000 });
+  } catch {
+    // As above: measure what rendered.
+  }
+  await page.waitForTimeout(1200);
+  findings.push([width, "home-preseason", "/ (before the draft)", await page.evaluate(measure), errors]);
+  await ctx.close();
+}
+
 // The add-to-home-screen hint is the one piece of interface that renders for
 // nobody in this browser: it shows only in mobile Safari, to somebody who has
 // not already installed the app. Without pretending to be an iPhone, the audit

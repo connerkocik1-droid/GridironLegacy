@@ -310,8 +310,32 @@ export function routes(page, over = {}) {
     ],
   }));
 
-  page.route("**/api/home", json({
-    meId: "m0", league: { name: "Pylon Fantasy", season: 2026 }, week: 3,
+  // A league that has not drafted yet: no schedule, no scores, nothing graded,
+  // and draft night still to come. It is the state every league is in on the
+  // day the other eleven managers first sign in, and the home page looks
+  // completely different in it.
+  const preseasonHome = {
+    meId: "m0",
+    league: {
+      name: "Pylon Fantasy", season: 2026,
+      draftAt: new Date(Date.now() + 3 * 86_400_000).toISOString(),
+      draftState: "pending",
+    },
+    week: null, games: [], byes: [], trades: [],
+    live: false, started: false, weekPhase: "upcoming",
+    leaders: [], leaderBasis: "projected", power: [], played: false,
+  };
+
+  page.route("**/api/home", over.preseason ? json(preseasonHome) : json({
+    meId: "m0",
+    // draftState "complete" is the ordinary case for a league playing a week,
+    // and it is what keeps the draft band off the home page here. The band's
+    // own states are driven from a copy of this feed in its own check.
+    league: {
+      name: "Pylon Fantasy", season: 2026,
+      draftAt: "2026-08-22T23:00:00Z", draftState: "complete",
+    },
+    week: 3,
     live: true, started: true, weekPhase: "live",
     games: MANAGERS.filter((_, i) => i % 2 === 0).map((m, i) => ({
       final: i > 0, mine: i === 0,

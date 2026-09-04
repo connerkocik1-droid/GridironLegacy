@@ -91,10 +91,17 @@ export default function PlayerNewsFilter({
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 12px", flexWrap: "wrap" }}>
-        <p style={{ fontSize: 12, color: "#9397ab", margin: 0 }}>
-          {mine.length} of {stories.length} stories mention your players or the ones
-          you are watching.
-        </p>
+        {/* Nothing at all when there is nothing to count. "0 of 0 stories
+            mention your players" is a sentence about an empty wire that reads
+            as a fault in the page, and the card below already says the wire is
+            quiet in words a person would use. */}
+        {stories.length > 0 ? (
+          <p style={{ fontSize: 12, color: "#9397ab", margin: 0 }}>
+            {mine.length} of {stories.length}{" "}
+            {stories.length === 1 ? "story mentions" : "stories mention"} your
+            players or the ones you are watching.
+          </p>
+        ) : null}
         <div style={{ display: "flex", gap: 4 }}>
           {[
             { label: "Everything", on: false },
