@@ -318,6 +318,11 @@ export default function RosterBoard() {
                     key={name}
                     slot={p?.p === "D/ST" ? "DST" : (p?.p ?? "—")}
                     name={name}
+                    // No score beside a man on the reserve. He is out of the
+                    // week entirely, so a projection there reads as points
+                    // coming — and it is the widest thing in a row that also
+                    // has to hold a button.
+                    showValue={false}
                     action={{
                       label: "ACTIVATE",
                       title: `Bring ${name} back onto the roster`,
@@ -388,12 +393,14 @@ function PlayerRow({
   score,
   starter,
   action,
+  showValue = true,
 }: {
   slot: string;
   name: string | null;
   score?: { points: number; statLine: string };
   starter?: boolean;
   action?: RowAction;
+  showValue?: boolean;
 }) {
   const p = name ? player(name) : null;
   const flags = name ? flagsFor(name) : [];
@@ -505,20 +512,22 @@ function PlayerRow({
             </div>
           </div>
 
-          <div style={{ textAlign: "right", flex: "0 0 auto" }}>
-            <div
-              style={{
-                fontFamily: "var(--font-heading)",
-                fontSize: starter ? 17 : 15,
-                color: live ? "#d2cefd" : "#b2b6ca",
-              }}
-            >
-              {(live ? score.points : proj(name)).toFixed(1)}
+          {showValue ? (
+            <div style={{ textAlign: "right", flex: "0 0 auto" }}>
+              <div
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  fontSize: starter ? 17 : 15,
+                  color: live ? "#d2cefd" : "#b2b6ca",
+                }}
+              >
+                {(live ? score.points : proj(name)).toFixed(1)}
+              </div>
+              <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c" }}>
+                {live ? "LIVE" : "PROJ"}
+              </div>
             </div>
-            <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c" }}>
-              {live ? "LIVE" : "PROJ"}
-            </div>
-          </div>
+          ) : null}
 
           {action ? (
             <button
