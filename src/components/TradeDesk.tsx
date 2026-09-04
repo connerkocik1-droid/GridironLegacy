@@ -345,7 +345,7 @@ export default function TradeDesk() {
         <div
           style={{
             fontFamily: "var(--font-heading)",
-            fontSize: 44,
+            fontSize: "clamp(28px, 7.6vw, 44px)",
             lineHeight: 1.04,
             letterSpacing: "-.035em",
             margin: "8px 0 0",
@@ -475,27 +475,45 @@ export default function TradeDesk() {
             </div>
           </div>
 
-          <button
-            onClick={send}
-            disabled={busy || !partner || empty}
-            className="btn btn-primary"
+          {/* A row rather than a button with a sentence flowing round it. On a
+              phone the caption wrapped past the button and left "— judge the
+              deal yourself." stranded on a line of its own underneath, which
+              reads as a fragment somebody forgot to delete. */}
+          <div
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              rowGap: 8,
+              flexWrap: "wrap",
               marginTop: 16,
-              padding: "9px 16px",
-              border: "1px solid rgba(181,171,252,.6)",
-              background: "transparent",
-              color: "#d2cefd",
-              borderRadius: "var(--radius-sm)",
-              font: "inherit",
-              cursor: busy ? "default" : "pointer",
-              opacity: !partner || empty ? 0.45 : 1,
             }}
           >
-            Send offer
-          </button>
-          <span style={{ marginLeft: 12, fontSize: 11, color: "#75798c" }}>
-            Projected points, not a valuation — judge the deal yourself.
-          </span>
+            <button
+              onClick={send}
+              disabled={busy || !partner || empty}
+              className="btn btn-primary"
+              style={{
+                flex: "0 0 auto",
+                padding: "9px 16px",
+                border: "1px solid rgba(181,171,252,.6)",
+                background: "transparent",
+                color: "#d2cefd",
+                borderRadius: "var(--radius-sm)",
+                // The shorthand, deliberately: this button sets no size of its
+                // own, so inheriting the body's is exactly what it wants. The
+                // shorthand is only wrong where it lands under a fontSize.
+                font: "inherit",
+                cursor: busy ? "default" : "pointer",
+                opacity: !partner || empty ? 0.45 : 1,
+              }}
+            >
+              Send offer
+            </button>
+            <span style={{ flex: "1 1 200px", fontSize: 11, color: "#75798c" }}>
+              Projected points, not a valuation — judge the deal yourself.
+            </span>
+          </div>
         </div>
 
         <div style={{ ...card, padding: "16px 18px" }}>
