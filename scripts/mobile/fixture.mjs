@@ -551,13 +551,19 @@ export function routes(page, over = {}) {
   // asked for by name, because they are screens the audit would otherwise
   // never see and they are the two with the most on them.
   const draftState = over.draftState ?? process.env.AUDIT_DRAFT_STATE ?? "running";
+  // How far into the pick the clock is, so the three states it can be in —
+  // calm, amber, and the last five seconds — can each be looked at. A clock
+  // only ever seen at ninety seconds is a clock whose urgent state is
+  // never measured.
+  const secondsGone = Number(over.secondsGone ?? process.env.AUDIT_SECONDS_GONE ?? 0);
   const lotteryAt =
     over.lotteryAt ?? process.env.AUDIT_LOTTERY_AT ?? new Date().toISOString();
 
   page.route("**/api/draft", (r) =>
     r.fulfill({ json: {
       me: { ...ME, is_commissioner: true, ready: true, autodraft },
-      league: { state: draftState, currentPick: 3, pickStartedAt: new Date().toISOString(),
+      league: { state: draftState, currentPick: 3,
+        pickStartedAt: new Date(Date.now() - secondsGone * 1000).toISOString(),
         pickSeconds: 90, pickClock: PICK_CLOCK, serverNow: new Date().toISOString(),
         draftAt: null, cinematicRounds: 3, introVideo: null,
         lotteryOrder: MANAGERS.map((m) => m.slot), lotteryAt },

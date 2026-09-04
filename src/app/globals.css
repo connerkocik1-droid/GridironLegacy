@@ -574,3 +574,29 @@ button[disabled]:active {
     bottom: calc(70px + env(safe-area-inset-bottom)) !important;
   }
 }
+
+
+/* ------------------------------------------------------------- the clock ---
+   The last five seconds of a pick. A heartbeat rather than a fade: it has to
+   be noticeable from the corner of an eye that is reading a player list.
+
+   Only in those five seconds. A clock that throbs for the whole ninety is a
+   clock nobody looks at by round three. */
+
+@keyframes gl-clock-urgent {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.055); opacity: 0.82; }
+}
+
+.gl-clock-urgent {
+  animation: gl-clock-urgent 900ms ease-in-out infinite;
+  transform-origin: right center;
+}
+
+/* The colour has already said it. Somebody who has asked for less motion does
+   not need the room to move as well. */
+@media (prefers-reduced-motion: reduce) {
+  .gl-clock-urgent {
+    animation: none;
+  }
+}

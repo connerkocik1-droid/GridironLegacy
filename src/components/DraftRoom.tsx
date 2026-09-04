@@ -9,6 +9,7 @@ import DraftReveal, { type RevealPick } from "./DraftReveal";
 import DraftTicker from "./DraftTicker";
 import IntroVideo, { type IntroHandle } from "./IntroVideo";
 import DraftLottery from "./DraftLottery";
+import PickClock from "./PickClock";
 import ResetDraft from "./ResetDraft";
 import TeamCrest from "./TeamCrest";
 import { useLogos } from "@/lib/use-logos";
@@ -578,7 +579,6 @@ export default function DraftRoom() {
     (board.myTurn || (board.me.is_commissioner && Boolean(board.onTheClock?.manager_id)));
   const pickingForSomeoneElse = canPick && !board.myTurn;
   const picksMade = board.picks.filter((p) => p.player_name).length;
-  const urgent = remaining <= 15 && board.league.state === "running";
 
   // The film, in one tree position for the life of the room. Moving it — or
   // letting it be unmounted when the draft opens — destroys the element the
@@ -941,21 +941,11 @@ export default function DraftRoom() {
         </div>
 
         {board.league.state === "running" ? (
-          <div style={{ textAlign: "right" }}>
-            <div
-              style={{
-                fontFamily: "var(--font-heading)",
-                fontSize: 44,
-                color: urgent ? "#e0b573" : "#d2cefd",
-                animation: urgent ? "mt-pulse 1s ease infinite" : undefined,
-              }}
-            >
-              {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
-            </div>
-            <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c" }}>
-              {board.myTurn ? "YOUR PICK" : "REMAINING"}
-            </div>
-          </div>
+          <PickClock
+            remaining={remaining}
+            total={board.league.pickSeconds}
+            mine={board.myTurn}
+          />
         ) : null}
       </div>
 
