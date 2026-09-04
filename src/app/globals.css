@@ -135,57 +135,42 @@ a:hover {
     flex: 0 0 auto !important;
   }
 
-  /* The two totals and the opponent picker face each other across a
-     three-column header. There is no width for that on a phone, so each side
-     becomes one line with its score at the end of it. */
+  /* A matchup is two teams facing each other, and it stays that way on a
+     phone. This used to stack the two sides into a list, which reads as two
+     unrelated scores rather than a game — the whole point of the screen is the
+     gap between the numbers, and you cannot see a gap down a column.
+
+     So the header keeps its three columns and gives up width instead: the
+     franchise names are the only part that can shrink, and they truncate. */
   .gl-matchup-head {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
     gap: 8px !important;
+    align-items: start !important;
   }
-  .gl-matchup-head > :nth-child(2) {
-    order: -1;
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    text-align: left !important;
-  }
-  .gl-matchup-head > :nth-child(1),
-  .gl-matchup-head > :nth-child(3) {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 10px;
-    text-align: left !important;
-  }
-  .gl-matchup-head > :nth-child(1),
-  .gl-matchup-head > :nth-child(3),
-  .gl-matchup-head > :nth-child(1) > *,
-  .gl-matchup-head > :nth-child(3) > * {
+  .gl-matchup-head > *,
+  .gl-matchup-head > * > * {
     min-width: 0;
   }
-  /* The franchise name is the only part that can give, so it is the part that
-     gives — the label and the score both have to stay whole. */
-  .gl-matchup-head > :nth-child(1) > :first-child,
-  .gl-matchup-head > :nth-child(3) > :first-child {
-    flex: 0 0 auto;
-  }
+  /* One line each, cut off with an ellipsis rather than wrapping to four rows
+     or pushing the score off the screen. */
   .gl-matchup-head > :nth-child(1) > :nth-child(2),
-  .gl-matchup-head > :nth-child(3) > :nth-child(2) {
-    flex: 1 1 auto;
+  .gl-matchup-head > :nth-child(3) > :nth-child(2),
+  .gl-matchup-head select {
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 15px !important;
   }
+  /* The scores are what the screen is for, so they keep their weight while
+     everything around them gives. */
   .gl-matchup-head > :nth-child(1) > :last-child,
   .gl-matchup-head > :nth-child(3) > :last-child {
-    flex: 0 0 auto;
-    font-size: 26px !important;
-    margin-top: 0 !important;
+    font-size: 30px !important;
   }
   .gl-matchup-head select {
-    text-align: left !important;
-    text-align-last: left !important;
     padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 
   /* A layout of two or three columns with a fixed minimum width each. There
@@ -298,37 +283,41 @@ a:hover {
     min-height: 40px;
   }
 
-  /* Two rosters facing each other needs two columns of room. A phone has one,
-     and squeezing both in turns every name into an initial. So each slot
-     becomes three lines instead: which slot, your player, theirs. */
+  /* And the rows keep facing each other too: your player, the slot, theirs.
+     Two hundred and forty pixels split two ways is not much, so the cell drops
+     everything that is not the answer — the headshot and the club badge go,
+     and the name, the score and the stat line stay. A face you cannot
+     recognise at thirty-two pixels is not worth the forty it costs the name
+     beside it. */
   .gl-matchup-row {
-    grid-template-columns: 1fr !important;
-    gap: 6px !important;
-    padding: 12px 14px !important;
+    gap: 5px !important;
+    padding: 10px 8px !important;
+    /* The slot chip in the middle only has to hold "FLEX" and "DST". */
+    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr) !important;
   }
   .gl-matchup-row > :nth-child(2) {
-    order: -1;
-    justify-self: start;
-    padding: 4px 10px !important;
+    font-size: 10px !important;
+    letter-spacing: .02em !important;
+    padding: 5px 2px !important;
   }
-  /* The away side is mirrored so the two columns face each other. Stacked,
-     there is nothing to face, and reading right to left is just harder. */
-  .gl-matchup-row > :last-child {
-    flex-direction: row !important;
-    justify-content: flex-start !important;
-    text-align: left !important;
+  .gl-mcell {
+    gap: 5px !important;
+    padding: 0 !important;
   }
-  /* Every part of the away cell reads left to right like the home one; only
-     its score keeps to the right edge, so the two columns of numbers line up
-     down the card. */
-  .gl-matchup-row > :last-child,
-  .gl-matchup-row > :last-child * {
-    text-align: left !important;
+  .gl-mcell-face,
+  .gl-mcell-team {
+    display: none !important;
   }
-  .gl-matchup-row > :last-child > :last-child,
-  .gl-matchup-row > :last-child > :last-child * {
-    margin-left: auto;
-    text-align: right !important;
+  /* The score sizes itself rather than holding forty-six pixels open in a
+     column that has about ninety. */
+  .gl-mcell-pts {
+    width: auto !important;
+  }
+  .gl-mcell-pts > :first-child {
+    font-size: 15px !important;
+  }
+  .gl-mcell-name > span {
+    flex: 1 1 auto;
   }
 }
 

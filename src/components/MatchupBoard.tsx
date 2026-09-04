@@ -64,10 +64,17 @@ function PlayerCell({
 
   return (
     <div
+      className="gl-mcell"
       style={{
         display: "flex",
         flexDirection: reverse ? "row-reverse" : "row",
         alignItems: "center",
+        // The stat line claims a whole line of its own below (flexBasis 100%),
+        // so the name and the score share the first one. A quarterback's line
+        // is six parts long and these columns are half a phone wide; sitting it
+        // beside the name would leave the name about two letters.
+        flexWrap: "wrap",
+        rowGap: 2,
         gap: 10,
         minWidth: 0,
         padding: "0 4px",
@@ -75,6 +82,7 @@ function PlayerCell({
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
+        className="gl-mcell-face"
         src={headshot(entry.name) || BLANK}
         alt=""
         width={32}
@@ -88,51 +96,40 @@ function PlayerCell({
         }}
       />
 
-      <div style={{ minWidth: 0, flex: 1, textAlign: align }}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: reverse ? "row-reverse" : "row",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <span
-            style={{ minWidth: 0 }}
-          >
-            <PlayerName
-              name={entry.name}
-              style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}
-            />
-          </span>
-          {entry.team ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logo(entry.team)}
-              alt=""
-              width={14}
-              height={14}
-              style={{ objectFit: "contain", opacity: 0.85, flex: "0 0 auto" }}
-            />
-          ) : null}
-        </div>
-        {/* Wraps rather than clips. These columns are narrow and a
-            quarterback's line is five parts long, so an ellipsis would hide
-            exactly the touchdowns somebody opened the page to see. */}
-        <div
-          style={{
-            fontSize: 10,
-            color: "#75798c",
-            marginTop: 2,
-            lineHeight: 1.45,
-            overflowWrap: "anywhere",
-          }}
-        >
-          {entry.statLine || `${entry.position}${entry.team ? ` · ${entry.team}` : ""}`}
-        </div>
+      <div
+        className="gl-mcell-name"
+        style={{
+          minWidth: 0,
+          flex: 1,
+          display: "flex",
+          flexDirection: reverse ? "row-reverse" : "row",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        <span style={{ minWidth: 0 }}>
+          <PlayerName
+            name={entry.name}
+            style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}
+          />
+        </span>
+        {entry.team ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            className="gl-mcell-team"
+            src={logo(entry.team)}
+            alt=""
+            width={14}
+            height={14}
+            style={{ objectFit: "contain", opacity: 0.85, flex: "0 0 auto" }}
+          />
+        ) : null}
       </div>
 
-      <div style={{ flex: "0 0 auto", textAlign: align === "left" ? "right" : "left", width: 46 }}>
+      <div
+        className="gl-mcell-pts"
+        style={{ flex: "0 0 auto", textAlign: align === "left" ? "right" : "left", width: 46 }}
+      >
         <div
           style={{
             fontFamily: "var(--font-heading)",
@@ -145,6 +142,23 @@ function PlayerCell({
         {!entry.live ? (
           <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#5a5d6e" }}>PROJ</div>
         ) : null}
+      </div>
+
+      {/* Wraps rather than clips. These columns are narrow and a quarterback's
+          line is five parts long, so an ellipsis would hide exactly the
+          touchdowns somebody opened the page to see. */}
+      <div
+        className="gl-mcell-line"
+        style={{
+          flexBasis: "100%",
+          fontSize: 10,
+          color: "#75798c",
+          lineHeight: 1.45,
+          overflowWrap: "anywhere",
+          textAlign: align,
+        }}
+      >
+        {entry.statLine || `${entry.position}${entry.team ? ` · ${entry.team}` : ""}`}
       </div>
     </div>
   );
