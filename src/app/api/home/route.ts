@@ -1,6 +1,6 @@
-import { lineupProblems } from "@/lib/lineup";
+import { freshenWeek } from "@/lib/live-refresh";
 import { player, proj } from "@/lib/roster";
-import { setLineup, type Score } from "@/lib/matchup";
+import { bestLineup, type Score } from "@/lib/matchup";
 import { rank, type Team } from "@/lib/power";
 import { isConfigured, serverClient } from "@/lib/supabase";
 
@@ -59,6 +59,16 @@ export async function GET() {
       db.rpc("standings", { p_league_id: me.league_id }),
     ]);
 
+  // Trades waiting on this manager's answer. Read here rather than on its own
+  // schedule because an offer nobody knows about is an offer nobody answers —
+  // the trade desk has always held these, and nothing has ever said so.
+  const { data: offers } = await db
+    .from("trades")
+    .select("id, from_manager, to_manager, offer, status, from_accepted, to_accepted, created_at")
+    .or(`from_manager.eq.${me.id},to_manager.eq.${me.id}`)
+    .in("status", ["open", "countered"])
+    .order("created_at", { ascending: false });
+
   const roster = managers ?? [];
   const held = slots ?? [];
   const schedule = (fixtures ?? []) as Fixture[];
@@ -84,12 +94,27 @@ export async function GET() {
 
   const settings = league?.settings ?? null;
 
-  // What each franchise is putting on the field this week. A manager who has
-  // never set a lineup is fielded at their best legal one, the same fallback
-  // the matchup page uses, so no franchise shows a zero it did not earn.
+  // Whether this week's games are actually being played, which is a question
+  // about the NFL and not about us. The old answer — "do we hold any score
+  // rows for this week" — went true the moment the first game kicked off and
+  // stayed true through the following Saturday, so a Wednesday read as a live
+  // Sunday.
+  //
+  // Reading it also sets the next pull going, off the back of this response.
+  const state = await freshenWeek(db, me.league_id, league?.season, week);
+
+  // What each franchise is putting on the field this week — which nobody
+  // chooses, so it is the best arrangement of the whole roster. Projected
+  // until the slate starts and real from then on, the same rule the matchup
+  // page and the grader use.
+  const lineupBasis = state.started ? "points" : "projection";
   const totalFor = (managerId: string): number => {
-    const mine = held.filter((s) => s.manager_id === managerId);
-    const rows = setLineup(mine, settings, thisWeek);
+    const mine = held
+      // Injured reserve is out of the week entirely: he does not count against
+      // the roster, so he cannot score for it either.
+      .filter((s) => s.manager_id === managerId && s.lineup_slot !== "IR")
+      .map((s) => s.player_name);
+    const rows = bestLineup(mine, settings, thisWeek, lineupBasis);
     return Math.round(rows.reduce((sum, r) => sum + (r.entry?.points ?? 0), 0) * 10) / 10;
   };
 
@@ -217,31 +242,55 @@ export async function GET() {
     };
   });
 
-  // What is wrong with this manager's own lineup, counted rather than listed:
-  // the home page's job is to say "go and look", and the lineup page is where
-  // the problems are named. Only before the week is settled — telling somebody
-  // they started a bye player in a week already graded is a reproach, not help.
-  const mySlots = held
-    .filter((s) => s.manager_id === me.id)
-    .map((s) => ({ playerName: s.player_name, slot: s.lineup_slot }));
+  // Only the ones it is this manager's turn to answer. A counter coming back
+  // is as much a question as the original offer, which is why this is about
+  // whose acceptance is missing rather than about who sent it.
+  const asked = (offers ?? []).filter((t) =>
+    t.to_manager === me.id ? !t.to_accepted : !t.from_accepted,
+  );
 
-  const settled = schedule.some((f) => f.week === week && f.final);
-  const myProblems =
-    week == null || settled
-      ? 0
-      : lineupProblems(mySlots, settings, week, (name) => {
-          const pl = player(name);
-          return pl ? { p: pl.p, bye: pl.bye, q: pl.q } : null;
-        }).filter((x) => x.kind !== "injured").length;
+  const franchiseOf = new Map(roster.map((m) => [m.id, m.franchise]));
+
+  const trades = asked.map((t) => {
+    const incoming = t.to_manager === me.id;
+    const offer = (t.offer ?? {}) as {
+      give?: string[];
+      get?: string[];
+      givePicks?: string[];
+      getPicks?: string[];
+    };
+
+    // `give` leaves the proposer and `get` leaves the receiver, so which of
+    // them is coming to this manager depends on which end of it they are.
+    const coming = (incoming ? offer.give : offer.get) ?? [];
+    const going = (incoming ? offer.get : offer.give) ?? [];
+    const comingPicks = ((incoming ? offer.givePicks : offer.getPicks) ?? []).length;
+    const goingPicks = ((incoming ? offer.getPicks : offer.givePicks) ?? []).length;
+
+    return {
+      id: t.id as string,
+      from: franchiseOf.get(incoming ? t.from_manager : t.to_manager) ?? "Somebody",
+      countered: t.status === "countered",
+      get: coming,
+      give: going,
+      getPicks: comingPicks,
+      givePicks: goingPicks,
+    };
+  });
 
   return Response.json({
     meId: me.id,
-    lineupProblems: myProblems,
+    trades,
     league: league ? { name: league.name, season: league.season } : null,
     week,
     games,
     byes,
-    live: thisWeek.size > 0,
+    // `live` is a game in progress this second; `started` is anything on the
+    // slate having kicked off. The matchup band needs both: one decides
+    // whether to show a score at all, the other whether to call it current.
+    live: state.live,
+    started: state.started,
+    weekPhase: state.phase,
     leaders,
     leaderBasis: basis,
     power,

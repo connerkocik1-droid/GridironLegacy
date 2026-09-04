@@ -2,7 +2,7 @@ import Nav from "@/components/Nav";
 import CommissionerOnly from "@/components/CommissionerOnly";
 import DraftRehearsal from "@/components/DraftRehearsal";
 
-export const metadata = { title: "Draft rehearsal · Gridiron Legacy" };
+export const metadata = { title: "Draft rehearsal · Pylon Fantasy" };
 
 export default function DraftRehearsalPage() {
   return (

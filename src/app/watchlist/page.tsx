@@ -1,0 +1,19 @@
+import Nav from "@/components/Nav";
+import WatchlistBoard from "@/components/WatchlistBoard";
+
+export const metadata = { title: "Watchlist · Pylon Fantasy" };
+
+export default function WatchlistPage() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background:
+          "radial-gradient(120% 80% at 50% -10%,rgba(66,58,106,.4),transparent 60%),#161826",
+      }}
+    >
+      <Nav current="/my-team" />
+      <WatchlistBoard />
+    </div>
+  );
+}

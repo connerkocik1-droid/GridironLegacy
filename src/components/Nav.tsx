@@ -3,11 +3,17 @@ import CommissionerOnly from "./CommissionerOnly";
 import Notices from "./Notices";
 import ProfileMenu from "./ProfileMenu";
 
-// Lineup, Matchups, Standings and Rankings are not here on purpose: the home
-// page is the way to all four, and listing them twice made a nav bar with
-// thirteen tabs in it.
+// Two doors and the draft room, and that is the whole bar.
+//
+// My Team is the roster, the matchups, the watchlist, the trade builder. The
+// League is the standings, the overview, the wire, the rankings, the free
+// agents. Mini-games are on the home page, in their own band. Nothing that
+// used to be a tab has gone anywhere — it is one press further in, and the
+// bar is legible on a phone for the first time.
 const PRIMARY = [
   { href: "/", label: "Home" },
+  { href: "/my-team", label: "My Team" },
+  { href: "/the-league", label: "The League" },
   { href: "/draft", label: "Draft" },
 ];
 
@@ -17,15 +23,6 @@ const PRIMARY = [
 const OFFICE = [
   { href: "/draft/rehearsal", label: "Rehearsal" },
   { href: "/commissioner", label: "Commissioner" },
-];
-
-// Where a manager goes to change their roster, plus the reading matter.
-const SECONDARY = [
-  { href: "/free-agents", label: "Free Agents" },
-  { href: "/trade-builder", label: "Trade Builder" },
-  { href: "/league", label: "League" },
-  { href: "/news", label: "News" },
-  { href: "/minigames", label: "Mini-games" },
 ];
 
 const bar: React.CSSProperties = {
@@ -60,32 +57,24 @@ const primaryLink = (active: boolean): React.CSSProperties => ({
   textDecoration: "none",
 });
 
-const secondaryLink = (active: boolean): React.CSSProperties => ({
-  background: active ? "rgba(145,132,217,.2)" : undefined,
-  border: active ? "1px solid rgba(181,171,252,.45)" : undefined,
-  borderRadius: active ? "var(--radius-sm)" : undefined,
-  color: active ? "#e9e9ed" : "#75798c",
-  fontSize: 10,
-  letterSpacing: ".16em",
-  textTransform: "uppercase",
-  padding: "6px 11px",
-  whiteSpace: "nowrap",
-  flex: "0 0 auto",
-  textDecoration: "none",
-});
-
 export default function Nav({ current, note }: { current: string; note?: string }) {
   return (
     <div className="gl-nav" style={bar}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" }}>
-        <div
-          style={{
-            width: 8,
-            height: 17,
-            background: "linear-gradient(180deg,#b5abfc,#5d5294)",
-            boxShadow: "0 0 14px #9184d9",
-          }}
-        />
+        {/* The mark, and the same one as the home-screen icon: a pylon, in the
+            pylon's own colour. It was an abstract purple slab, which was fine
+            when the app was called something else and is a missed opportunity
+            now that it is named after this object. */}
+        <svg
+          width="11"
+          height="18"
+          viewBox="0 0 11 18"
+          aria-hidden
+          style={{ flex: "0 0 auto", filter: "drop-shadow(0 0 9px rgba(226,102,42,.55))" }}
+        >
+          <path d="M2.6 0 h4.2 l2.6 18 h-9.4 z" fill="#f0913f" />
+          <path d="M6.8 0 h1.6 l2.2 18 h-1.6 z" fill="#b8511f" />
+        </svg>
         <span
           style={{
             fontFamily: "var(--font-heading)",
@@ -95,11 +84,17 @@ export default function Nav({ current, note }: { current: string; note?: string 
             whiteSpace: "nowrap",
           }}
         >
-          Gridiron<span style={{ color: "#b5abfc" }}> Legacy</span>
+          Pylon<span style={{ color: "#b5abfc" }}> Fantasy</span>
         </span>
       </div>
 
-      <div style={{ display: "flex", gap: 2, marginLeft: 6, flexWrap: "wrap", rowGap: 4 }}>
+      {/* Hidden on a phone, where the same four sit in a bar at the bottom
+          within a thumb's reach. Rendered either way rather than swapped, so
+          there is one list of destinations in this app and not two. */}
+      <div
+        className="gl-navlinks"
+        style={{ display: "flex", gap: 2, marginLeft: 6, flexWrap: "wrap", rowGap: 4 }}
+      >
         {PRIMARY.map((item) => (
           <Link
             key={item.href}
@@ -123,29 +118,6 @@ export default function Nav({ current, note }: { current: string; note?: string 
             </Link>
           ))}
         </CommissionerOnly>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          gap: 2,
-          marginLeft: 12,
-          paddingLeft: 12,
-          borderLeft: "1px solid rgba(145,132,217,.22)",
-          flexWrap: "wrap",
-          rowGap: 4,
-        }}
-      >
-        {SECONDARY.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="gl-navlink"
-            style={secondaryLink(item.href === current)}
-          >
-            {item.label}
-          </Link>
-        ))}
       </div>
 
       <div

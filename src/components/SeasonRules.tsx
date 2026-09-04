@@ -103,7 +103,7 @@ export default function SeasonRules({
             background: "transparent",
             color: valid && changed && !busy ? "#d2cefd" : "#5a5d6e",
             borderRadius: "var(--radius-sm)",
-            font: "inherit",
+            fontFamily: "inherit",
             cursor: valid && changed && !busy ? "pointer" : "default",
           }}
         >

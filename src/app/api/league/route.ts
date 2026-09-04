@@ -42,9 +42,40 @@ export async function GET() {
       db.rpc("standings", { p_league_id: me.league_id }),
     ]);
 
+  // Every settled week, so the table can show form as well as a record.
+  // Won-lost-won is the line a manager reads first in any standings anywhere:
+  // it is the difference between "6-4" and "6-4 and falling apart".
+  const { data: settled } = await db
+    .from("matchups")
+    .select("week, home_manager, away_manager, winner, is_tie")
+    .eq("league_id", me.league_id)
+    .eq("final", true)
+    .order("week");
+
   // Records come from graded weeks; a league that has not played yet has none,
   // and the page says so rather than showing a table of zeroes as if it were
   // standings.
+  /**
+   * The last few results for each franchise, oldest first.
+   *
+   * Five, because that is about as many as anybody reads at a glance and it
+   * spans a bad month without spanning a season. A bye week is simply not in
+   * the list — a week nobody played is not a result, and drawing it as a gap
+   * would suggest something happened.
+   */
+  const FORM = 5;
+  const form = new Map<string, ("W" | "L" | "T")[]>();
+
+  for (const m of settled ?? []) {
+    for (const side of [m.home_manager, m.away_manager]) {
+      if (!side) continue;
+      const outcome = m.is_tie ? "T" : m.winner === side ? "W" : "L";
+      const run = form.get(side) ?? [];
+      run.push(outcome);
+      form.set(side, run.slice(-FORM));
+    }
+  }
+
   const record = new Map(
     (table ?? []).map((r: { manager_id: string; wins: number; losses: number; ties: number; div_wins: number; div_losses: number; points_for: number; points_against: number }) => [
       r.manager_id,
@@ -93,6 +124,7 @@ export async function GET() {
       isCommissioner: m.is_commissioner,
       pointsFor: Math.round((pointsFor.get(m.id) ?? 0) * 10) / 10,
       record: record.get(m.id) ?? null,
+      form: form.get(m.id) ?? [],
       roster: (slots ?? [])
         .filter((s) => s.manager_id === m.id)
         .map((s) => ({ name: s.player_name, slot: s.lineup_slot, acquired: s.acquired })),

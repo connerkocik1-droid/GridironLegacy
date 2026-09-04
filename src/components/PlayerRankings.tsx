@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { headshot } from "@/data/league-data";
+import PlayerName from "./PlayerName";
 import {
   COLUMNS,
   filter,
@@ -37,6 +38,8 @@ const TINT: Record<string, string> = {
 const PAGE = 50;
 
 const tab = (active: boolean): React.CSSProperties => ({
+  flex: "0 0 auto",
+  whiteSpace: "nowrap",
   border: `1px solid ${active ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
   background: active ? "rgba(145,132,217,.24)" : "transparent",
   color: active ? "#e9e9ed" : "#8f94a8",
@@ -140,7 +143,12 @@ export default function PlayerRankings() {
         game on the calendar.
       </p>
 
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+      {/* One rail rather than two rows. Seven positions is more than fits a
+          phone, and wrapped they pushed the table itself below the fold. */}
+      <div
+        className="gl-scroll-x"
+        style={{ display: "flex", gap: 6, flexWrap: "nowrap", marginBottom: 12, paddingBottom: 2 }}
+      >
         {ORDER.map((g) => (
           <button
             key={g}
@@ -276,16 +284,8 @@ function PlayerRow({
             }}
           />
           <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 13,
-                color: "#e9e9ed",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {row.name}
+            <div style={{ fontSize: 13, color: "#e9e9ed", minWidth: 0 }}>
+              <PlayerName name={row.name} />
             </div>
             <div style={{ fontSize: 10, color: "#75798c", whiteSpace: "nowrap" }}>
               <span style={{ color: TINT[row.position] ?? "#75798c" }}>{row.position}</span>

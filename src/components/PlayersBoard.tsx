@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Skeleton from "./Skeleton";
 import { headshot, logo } from "@/data/league-data";
+import PlayerName from "./PlayerName";
 import { flagColor, flagsFor, player, proj } from "@/lib/roster";
 
 const BLANK =
@@ -87,7 +89,7 @@ const button = (enabled: boolean): React.CSSProperties => ({
   background: "transparent",
   color: enabled ? "#d2cefd" : "#5a5d6e",
   borderRadius: "var(--radius-sm)",
-  font: "inherit",
+  fontFamily: "inherit",
   cursor: enabled ? "pointer" : "default",
   flex: "0 0 auto",
 });
@@ -102,6 +104,10 @@ export default function PlayersBoard() {
   const [busy, setBusy] = useState(false);
   // The player being added, while we ask which one to drop for him.
   const [pendingAdd, setPendingAdd] = useState<string | null>(null);
+  // Players this manager is keeping an eye on. Kept apart from the feed
+  // because it changes on its own clock — a star does not need the whole pool
+  // re-read behind it.
+  const [watching, setWatching] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     try {
@@ -120,11 +126,62 @@ export default function PlayersBoard() {
     }
   }, [filter, search, page]);
 
+  const loadWatchlist = useCallback(async () => {
+    try {
+      const res = await fetch("/api/watchlist", { cache: "no-store" });
+      if (!res.ok) return;
+      const body = await res.json();
+      setWatching(new Set<string>(body.players ?? []));
+    } catch {
+      // A star nobody can draw is a star nobody has set. The page works.
+    }
+  }, []);
+
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadWatchlist();
+  }, [loadWatchlist]);
+
+  /**
+   * Starts or stops watching a player.
+   *
+   * The star flips before the request lands and flips back if it fails. A
+   * watchlist is a note to yourself; waiting on a round trip to see it change
+   * is more ceremony than the thing deserves.
+   */
+  async function watch(name: string, on: boolean) {
+    setWatching((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(name);
+      else next.delete(name);
+      return next;
+    });
+
+    try {
+      const res = on
+        ? await fetch("/api/watchlist", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ player: name }),
+          })
+        : await fetch(`/api/watchlist?player=${encodeURIComponent(name)}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(String(res.status));
+    } catch {
+      setWatching((prev) => {
+        const next = new Set(prev);
+        if (on) next.delete(name);
+        else next.add(name);
+        return next;
+      });
+      setError("Could not change your watchlist.");
+    }
+  }
 
   const full = feed != null && feed.held >= feed.capacity;
 
@@ -197,7 +254,7 @@ export default function PlayersBoard() {
     return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
   }
   if (!feed) {
-    return <div style={{ padding: "24px 26px", color: "#75798c" }}>Reading the pool…</div>;
+    return <Skeleton rows={6} />;
   }
 
   const pending = feed.claims.filter((c) => c.status === "pending");
@@ -211,7 +268,7 @@ export default function PlayersBoard() {
       <h1
         style={{
           fontFamily: "var(--font-heading)",
-          fontSize: 40,
+          fontSize: "clamp(30px, 8.4vw, 40px)",
           letterSpacing: "-.035em",
           margin: "8px 0 6px",
           fontWeight: 500,
@@ -219,15 +276,40 @@ export default function PlayersBoard() {
       >
         Free agents
       </h1>
-      <p style={{ fontSize: 12, color: "#9397ab", margin: "0 0 18px", maxWidth: "72ch", lineHeight: 1.6 }}>
+      {/* The rule, and then the two numbers. This was one paragraph carrying
+          five different facts, six lines deep on a phone, above the list it
+          was explaining — and the two things in it a manager actually comes
+          back to check, their waiver priority and how full their roster is,
+          were buried in the middle of a sentence. The prose says the rule
+          once; the numbers are numbers. The star's own tooltip explains the
+          star, so the line about it has gone. */}
+      <p style={{ fontSize: 12, color: "#9397ab", margin: "0 0 12px", maxWidth: "72ch", lineHeight: 1.6 }}>
         {feed.mode === "open"
           ? "Adds land immediately — first come, first served, and a dropped player goes straight back into this list."
           : feed.mode === "all"
-            ? `Every pickup here is a claim, settled on the next waiver run, best priority first. You are number ${feed.me.waiver_priority}; winning a claim sends you to the back.`
-            : `Anybody on this list is yours on the spot. A player somebody dropped goes on waivers for ${feed.waiverDays === 1 ? "a day" : `${feed.waiverDays} days`} first, and can only be claimed — the run settles those in priority order. You are number ${feed.me.waiver_priority}; winning a claim sends you to the back.`}{" "}
-        Your roster holds {feed.held} of {feed.capacity}
-        {full ? " — you must drop someone to add anyone." : "."}
+            ? "Every pickup here is a claim, settled on the next waiver run, best priority first."
+            : `Anybody on this list is yours on the spot; a player somebody dropped goes on waivers for ${feed.waiverDays === 1 ? "a day" : `${feed.waiverDays} days`} first and can only be claimed.`}
       </p>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 18px" }}>
+        {feed.mode === "open" ? null : (
+          <Fact
+            label="WAIVER PRIORITY"
+            value={`#${feed.me.waiver_priority}`}
+            title="Claims settle best priority first. Winning one sends you to the back."
+          />
+        )}
+        <Fact
+          label="ROSTER"
+          value={`${feed.held} / ${feed.capacity}`}
+          warn={full}
+          title={
+            full
+              ? "Full — you must drop somebody to add anybody"
+              : `${feed.capacity - feed.held} more before you have to drop somebody`
+          }
+        />
+      </div>
 
       {notice ? (
         <div style={{ fontSize: 12, color: "#7fd1a8", marginBottom: 12 }}>{notice}</div>
@@ -449,7 +531,7 @@ export default function PlayersBoard() {
                   background: filter === pos ? "rgba(145,132,217,.26)" : "transparent",
                   color: filter === pos ? "#e9e9ed" : "#9397ab",
                   borderRadius: "var(--radius-sm)",
-                  font: "inherit",
+                  fontFamily: "inherit",
                   cursor: "pointer",
                 }}
               >
@@ -498,7 +580,7 @@ export default function PlayersBoard() {
               />
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                  <span style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}>{p.name}</span>
+                  <PlayerName name={p.name} style={{ fontFamily: "var(--font-heading)", fontSize: 14 }} />
                   {p.team ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -532,6 +614,36 @@ export default function PlayersBoard() {
                   ) : null}
                 </div>
               </div>
+
+              {/* A star rather than a word: it sits beside the button that
+                  actually costs something, and confusing the two would be
+                  expensive. */}
+              <button
+                onClick={() => void watch(p.name, !watching.has(p.name))}
+                aria-pressed={watching.has(p.name)}
+                aria-label={
+                  watching.has(p.name) ? `Stop watching ${p.name}` : `Watch ${p.name}`
+                }
+                title={
+                  watching.has(p.name)
+                    ? "You are watching him — his news shows on your home page"
+                    : "Watch him, and his news shows on your home page"
+                }
+                style={{
+                  padding: "6px 9px",
+                  fontSize: 13,
+                  lineHeight: 1,
+                  border: `1px solid ${watching.has(p.name) ? "rgba(224,181,115,.55)" : "rgba(145,132,217,.22)"}`,
+                  background: "transparent",
+                  color: watching.has(p.name) ? "#e0b573" : "#5a5d6e",
+                  borderRadius: "var(--radius-sm)",
+                  fontFamily: "inherit",
+                  cursor: "pointer",
+                  flex: "0 0 auto",
+                }}
+              >
+                {watching.has(p.name) ? "★" : "☆"}
+              </button>
 
               <button
                 onClick={() => (full ? setPendingAdd(p.name) : add(p.name, null))}
@@ -604,10 +716,14 @@ export default function PlayersBoard() {
                   letterSpacing: ".12em",
                   width: 38,
                   flex: "0 0 auto",
-                  color: r.lineup_slot === "BENCH" || r.lineup_slot === "IR" ? "#5a5d6e" : "#b5abfc",
+                  color: r.lineup_slot === "IR" ? "#5a5d6e" : "#b5abfc",
                 }}
               >
-                {r.lineup_slot === "D/ST" ? "DST" : r.lineup_slot}
+                {r.lineup_slot === "IR"
+                  ? "IR"
+                  : player(r.player_name)?.p === "D/ST"
+                    ? "DST"
+                    : (player(r.player_name)?.p ?? "—")}
               </span>
               <span style={{ fontSize: 13, minWidth: 0, flex: 1 }}>
                 {r.player_name}
@@ -624,5 +740,54 @@ export default function PlayersBoard() {
         })}
       </div>
     </div>
+  );
+}
+
+/**
+ * One number worth checking, said as a number.
+ *
+ * Waiver priority and roster space are the two facts on this page that change
+ * week to week and that a manager opens it to look up. Inside a paragraph they
+ * are a sentence to read; as a pair of chips they are answered at a glance,
+ * and the roster one goes amber the moment it means "you cannot add anybody".
+ */
+function Fact({
+  label,
+  value,
+  title,
+  warn,
+}: {
+  label: string;
+  value: string;
+  title: string;
+  warn?: boolean;
+}) {
+  return (
+    <span
+      title={title}
+      style={{
+        display: "inline-flex",
+        alignItems: "baseline",
+        gap: 7,
+        padding: "6px 10px",
+        borderRadius: "var(--radius-sm)",
+        border: `1px solid ${warn ? "rgba(224,181,115,.5)" : "rgba(145,132,217,.24)"}`,
+        background: warn ? "rgba(224,181,115,.08)" : "rgba(26,28,43,.55)",
+      }}
+    >
+      <span style={{ fontSize: 10, letterSpacing: ".14em", color: warn ? "#e0b573" : "#75798c" }}>
+        {label}
+      </span>
+      <span
+        style={{
+          fontFamily: "var(--font-heading)",
+          fontSize: 13,
+          color: warn ? "#e0b573" : "#e9e9ed",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {value}
+      </span>
+    </span>
   );
 }

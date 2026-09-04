@@ -35,13 +35,13 @@ const SEED_FRANCHISES = [
 ];
 
 const DEFAULT_SETTINGS = {
-  rounds: 24,
+  rounds: 18,
   pickSeconds: 90,
   cinematicRounds: 3,
   lottery: true,
-  scoring: "half",
+  scoring: "ppr",
   starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, "D/ST": 1, K: 1 },
-  bench: 14,
+  bench: 8,
   ir: 2,
   regularWeeks: 13,
   playoffWeeks: 4,
@@ -81,7 +81,7 @@ if (!Number.isInteger(teams) || teams < 2 || teams > 16) {
   process.exit(1);
 }
 
-const leagueName = arg("--name", "Gridiron Legacy");
+const leagueName = arg("--name", "Pylon Fantasy");
 const commissionerSlot = arg("--commissioner", SEED_FRANCHISES[0][0]).toUpperCase();
 const season = Number(arg("--season", "2026"));
 

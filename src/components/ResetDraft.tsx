@@ -47,7 +47,7 @@ export default function ResetDraft({
           background: "transparent",
           color: "#c98f8f",
           borderRadius: "var(--radius-sm)",
-          font: "inherit",
+          fontFamily: "inherit",
           cursor: busy ? "default" : "pointer",
           opacity: busy ? 0.5 : 1,
         }}

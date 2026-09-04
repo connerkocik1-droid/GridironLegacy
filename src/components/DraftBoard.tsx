@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { player } from "@/lib/roster";
 import TeamCrest from "./TeamCrest";
-import { useLogos } from "@/lib/use-logos";
+import { useLogos, type Logos } from "@/lib/use-logos";
 
 /**
  * The board: franchises across, rounds down, every pick in its cell.
@@ -12,6 +12,14 @@ import { useLogos } from "@/lib/use-logos";
  * down. The snake shows itself in the pick numbers, which run left to right on
  * odd rounds and right to left on even ones — the same seat keeps the same
  * column either way, which is what makes a board readable at a glance.
+ *
+ * On a phone it is not a board at all. Twelve columns across a 390px screen is
+ * two and a half franchises and a horizontal drag for the rest, which answers
+ * "who has gone" about as badly as it can be answered — so the same picks are
+ * drawn as a list, newest first, which is the order the question is asked in.
+ * Both are rendered and CSS picks; the alternative is a media query in React,
+ * which means the server draws one of them and the browser sometimes redraws
+ * the other on the most time-critical screen in the app.
  */
 
 interface Pick {
@@ -116,7 +124,7 @@ export default function DraftBoard({
       </div>
 
       {/* The board scrolls inside itself; the page never scrolls sideways. */}
-      <div style={{ overflowX: "auto" }}>
+      <div className="gl-board-grid" style={{ overflowX: "auto" }}>
         <table
           style={{
             borderCollapse: "collapse",
@@ -254,14 +262,17 @@ export default function DraftBoard({
                         <div
                           style={{
                             color: onClock ? "#d2cefd" : "#464a5e",
-                            fontSize: onClock ? 9 : 10,
-                            letterSpacing: onClock ? ".12em" : 0,
+                            // Ten, not the nine this used to be to make "ON
+                            // THE CLOCK" fit: below ten it stops being
+                            // readable on a phone, so the label gave instead.
+                            fontSize: 10,
+                            letterSpacing: onClock ? ".1em" : 0,
                             fontVariantNumeric: "tabular-nums",
                             padding: "3px 0",
                           }}
                         >
                           {onClock
-                            ? "ON THE CLOCK"
+                            ? "ON CLOCK"
                             : p
                               ? `${p.round}.${String(p.overall).padStart(2, "0")}`
                               : ""}
@@ -275,6 +286,180 @@ export default function DraftBoard({
           </tbody>
         </table>
       </div>
+
+      <BoardList
+        picks={picks}
+        managers={managers}
+        meId={meId}
+        currentPick={currentPick}
+        logos={logos}
+      />
+    </div>
+  );
+}
+
+/**
+ * The same picks on a phone: most recent first, and whoever is on the clock at
+ * the top of it.
+ *
+ * Newest first because during a draft the question is "what just went", and
+ * afterwards the board tab is not where anybody reads a whole draft anyway —
+ * that is what a franchise's roster is for.
+ */
+function BoardList({
+  picks,
+  managers,
+  meId,
+  currentPick,
+  logos,
+}: {
+  picks: Pick[];
+  managers: Manager[];
+  meId: string;
+  currentPick: number;
+  logos: Logos;
+}) {
+  const byId = useMemo(
+    () => new Map(managers.map((m) => [m.id, m])),
+    [managers],
+  );
+
+  const made = useMemo(
+    () => picks.filter((p) => p.player_name).sort((a, b) => b.overall - a.overall),
+    [picks],
+  );
+
+  const onClock = picks.find((p) => p.overall === currentPick && !p.player_name);
+
+  return (
+    <div className="gl-board-list">
+      {onClock ? (
+        <Row
+          pick={onClock}
+          manager={onClock.manager_id ? byId.get(onClock.manager_id) : undefined}
+          logos={logos}
+          meId={meId}
+          onClock
+        />
+      ) : null}
+
+      {made.length === 0 && !onClock ? (
+        <div style={{ padding: "14px 18px", fontSize: 12, color: "#75798c" }}>
+          Nobody has picked yet.
+        </div>
+      ) : null}
+
+      {made.map((p) => (
+        <Row
+          key={p.overall}
+          pick={p}
+          manager={p.manager_id ? byId.get(p.manager_id) : undefined}
+          logos={logos}
+          meId={meId}
+        />
+      ))}
+    </div>
+  );
+}
+
+function Row({
+  pick,
+  manager,
+  logos,
+  meId,
+  onClock,
+}: {
+  pick: Pick;
+  manager: Manager | undefined;
+  logos: Logos;
+  meId: string;
+  onClock?: boolean;
+}) {
+  const pl = pick.player_name ? player(pick.player_name) : null;
+  const tint = pl ? POSITION_TINT[pl.p] : null;
+  const mine = manager?.id === meId;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "9px 16px",
+        borderTop: "1px solid rgba(145,132,217,.1)",
+        background: onClock
+          ? "rgba(145,132,217,.22)"
+          : mine
+            ? "rgba(145,132,217,.08)"
+            : undefined,
+      }}
+    >
+      <span
+        style={{
+          flex: "0 0 auto",
+          width: 34,
+          fontSize: 11,
+          color: "#75798c",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {pick.round}.{String(pick.overall).padStart(2, "0")}
+      </span>
+
+      {/* The tint is the only thing carrying position on this row, so it is a
+          chip rather than a wash across the whole line — at a phone's width a
+          background tint behind a name is a colour nobody can name. */}
+      <span
+        style={{
+          flex: "0 0 auto",
+          minWidth: 32,
+          textAlign: "center",
+          fontSize: 10,
+          letterSpacing: ".08em",
+          padding: "2px 5px",
+          borderRadius: 2,
+          background: tint?.bg ?? "rgba(145,132,217,.1)",
+          color: tint?.fg ?? "#75798c",
+        }}
+      >
+        {pl ? (pl.p === "D/ST" ? "DST" : pl.p) : "—"}
+      </span>
+
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div
+          style={{
+            fontSize: 13,
+            color: onClock ? "#d2cefd" : "#e9e9ed",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {pick.player_name ?? "On the clock"}
+        </div>
+        <div
+          style={{
+            fontSize: 10,
+            color: "#75798c",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {manager?.franchise ?? "—"}
+          {mine ? <span style={{ color: "#b5abfc" }}> · you</span> : null}
+        </div>
+      </div>
+
+      {manager ? (
+        <TeamCrest
+          franchise={manager.franchise}
+          logo={logos[manager.id] ?? null}
+          size={24}
+          shape="box"
+          fallback="empty"
+        />
+      ) : null}
     </div>
   );
 }

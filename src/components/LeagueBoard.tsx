@@ -1,8 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Skeleton from "./Skeleton";
 import { headshot, logo } from "@/data/league-data";
+import PlayerName from "./PlayerName";
 import { player } from "@/lib/roster";
+import LeagueOverview from "./LeagueOverview";
+import type { Home } from "@/lib/home-types";
 
 const BLANK =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -29,6 +33,7 @@ interface Feed {
 
 export default function LeagueBoard() {
   const [feed, setFeed] = useState<Feed | null>(null);
+  const [home, setHome] = useState<Home | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
 
@@ -54,11 +59,21 @@ export default function LeagueBoard() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    // The leaders and the power rankings, which moved here off the home page.
+    // Fetched separately because the franchise list below does not need it and
+    // should not wait for it — if this never arrives the page is still a page.
+    void fetch("/api/home", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setHome)
+      .catch(() => {});
+  }, []);
+
   if (error && !feed) {
     return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
   }
   if (!feed) {
-    return <div style={{ padding: "24px 26px", color: "#75798c" }}>Reading the league…</div>;
+    return <Skeleton rows={6} />;
   }
 
   // Once weeks have been graded the table is the standings: wins first, then
@@ -96,6 +111,29 @@ export default function LeagueBoard() {
             : "Nothing has been played yet. Once the schedule is built and games are graded, this becomes the standings."}
       </p>
 
+      {/* Who is scoring and who is any good, above the franchise-by-franchise
+          list — it is the summary the list below is the detail of. */}
+      {home ? (
+        <div style={{ marginBottom: 26 }}>
+          <div
+            style={{
+              fontSize: 10,
+              letterSpacing: ".28em",
+              color: "#75798c",
+              marginBottom: 12,
+            }}
+          >
+            WHERE YOU STAND
+            {home.played ? "" : " · NOTHING GRADED YET, RANKED ON POINTS ALONE"}
+          </div>
+          <LeagueOverview home={home} />
+        </div>
+      ) : null}
+
+      <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c", marginBottom: 12 }}>
+        EVERY FRANCHISE
+      </div>
+
       <div
         style={{
           border: "1px solid rgba(145,132,217,.22)",
@@ -106,7 +144,9 @@ export default function LeagueBoard() {
       >
         {ranked.map((f, i) => {
           const isOpen = open === f.id;
-          const starters = f.roster.filter((r) => r.slot !== "BENCH" && r.slot !== "IR");
+          // Nobody is benched in a best-ball league, so the only split worth
+          // making is who is available at all: a man on injured reserve is not.
+          const stashed = f.roster.filter((r) => r.slot === "IR").length;
 
           return (
             <div key={f.id}>
@@ -120,6 +160,7 @@ export default function LeagueBoard() {
                     setOpen(isOpen ? null : f.id);
                   }
                 }}
+                className="gl-league-row"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -170,8 +211,8 @@ export default function LeagueBoard() {
                     ) : null}
                   </div>
                   <div style={{ fontSize: 11, color: "#75798c", marginTop: 3 }}>
-                    {f.claimed ? f.name : "Unclaimed"} · {f.roster.length} players ·{" "}
-                    {starters.length} starting
+                    {f.claimed ? f.name : "Unclaimed"} · {f.roster.length} players
+                    {stashed ? ` · ${stashed} on IR` : ""}
                   </div>
                 </div>
 
@@ -215,7 +256,7 @@ export default function LeagueBoard() {
                   ) : null}
                   {f.roster.map((r) => {
                     const p = player(r.name);
-                    const starting = r.slot !== "BENCH" && r.slot !== "IR";
+                    const available = r.slot !== "IR";
                     return (
                       <div
                         key={r.name}
@@ -233,10 +274,14 @@ export default function LeagueBoard() {
                             letterSpacing: ".12em",
                             width: 34,
                             flex: "0 0 auto",
-                            color: starting ? "#b5abfc" : "#5a5d6e",
+                            color: available ? "#b5abfc" : "#5a5d6e",
                           }}
                         >
-                          {r.slot === "D/ST" ? "DST" : r.slot}
+                          {available
+                            ? p?.p === "D/ST"
+                              ? "DST"
+                              : (p?.p ?? "—")
+                            : "IR"}
                         </span>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -252,15 +297,11 @@ export default function LeagueBoard() {
                             flex: "0 0 auto",
                           }}
                         />
-                        <span
-                          style={{
-                            fontSize: 13,
-                            color: starting ? "#e9e9ed" : "#9397ab",
-                            minWidth: 0,
-                            flex: 1,
-                          }}
-                        >
-                          {r.name}
+                        <span style={{ minWidth: 0, flex: 1 }}>
+                          <PlayerName
+                            name={r.name}
+                            style={{ fontSize: 13, color: available ? "#e9e9ed" : "#9397ab" }}
+                          />
                         </span>
                         {p?.t ? (
                           // eslint-disable-next-line @next/next/no-img-element

@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import ActivityFeed from "./ActivityFeed";
-import HomeButtons from "./HomeButtons";
-import LeagueOverview from "./LeagueOverview";
-import MiniGamesStrip from "./MiniGamesStrip";
-import ScoreTicker from "./ScoreTicker";
+import MatchupBand from "./MatchupBand";
 import Section from "./Section";
-import WeekScoreboard from "./WeekScoreboard";
+import MyTeamButton from "./MyTeamButton";
+import TradeAsks from "./TradeAsks";
+import TheLeagueButton from "./TheLeagueButton";
+import MiniGamesButton from "./MiniGamesButton";
+import ScoreTicker from "./ScoreTicker";
 import type { Home } from "@/lib/home-types";
 
 /**
@@ -42,11 +42,24 @@ export default function HomeBoard() {
     // Sets state only once the request resolves, not synchronously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-    // The same minute the lineup and matchup panels use, so the three never
-    // drift into showing different points for the same player.
-    const timer = setInterval(() => void load(), 60_000);
-    return () => clearInterval(timer);
   }, [load]);
+
+  // How hard to chase the score, decided by whether there is a score to chase.
+  // Half a minute while the ball is in the air; five minutes in February, when
+  // asking more often would only wake the server up to tell it nothing has
+  // happened since 1997.
+  const phase = home?.weekPhase ?? "upcoming";
+  const every = phase === "live" ? 30_000 : phase === "final" ? 120_000 : 300_000;
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      // A phone left on this page overnight should not spend the night
+      // pulling box scores nobody is reading.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void load();
+    }, every);
+    return () => clearInterval(timer);
+  }, [load, every]);
 
   return (
     <div style={{ paddingBottom: 44 }}>
@@ -54,52 +67,44 @@ export default function HomeBoard() {
           about the actual football rather than the league. */}
       <ScoreTicker />
 
-      <Section eyebrow="THE LEAGUE" title="Where to" collapseId="home.where">
-        <HomeButtons lineupProblems={home?.lineupProblems ?? 0} />
-      </Section>
-
-      <Section
-        eyebrow="RIGHT NOW"
-        title="This week"
-        collapseId="home.week"
-        aside={
-          home?.week != null
-            ? `Week ${home.week}${home.live ? " · live" : " · projected"}`
-            : undefined
-        }
-      >
+      {/* First of all, because on a Sunday it is the only question anybody
+          has. Not collapsible: a band you can fold away is a band somebody
+          folds away once and then wonders where their score went. */}
+      <Section eyebrow="YOUR GAME" title="This matchup">
         {error && !home ? (
           <div style={{ fontSize: 12.5, color: "#e0b573" }}>{error}</div>
-        ) : !home ? (
-          <div style={{ fontSize: 12.5, color: "#75798c" }}>Reading the league…</div>
         ) : (
-          <WeekScoreboard games={home.games} byes={home.byes} live={home.live} />
+          <MatchupBand home={home} />
         )}
+
+        {/* Directly under the score, because a trade is the other thing that
+            changes what that score will be — and because an offer nobody is
+            told about is an offer nobody answers. */}
+        <TradeAsks trades={home?.trades ?? []} />
       </Section>
 
-      {/* Between the week and the standings, because it is the answer to the
-          question the standings make you ask: how did that roster get like
-          that. Five rows here; the rest is a page. */}
-      <Section eyebrow="COMINGS AND GOINGS" title="Recent moves" collapseId="home.moves">
-        <ActivityFeed limit={5} />
-      </Section>
+      {/* Three doors, directly under the score, because the score is what
+          raises every question any of them answers. Yours first: on a Sunday
+          what a manager wants is almost always their own.
 
-      <Section eyebrow="ON THE SIDE" title="Mini-games" collapseId="home.games">
-        <MiniGamesStrip />
-      </Section>
+          Nothing below them any more. The bands that used to be here — this
+          week's fixtures, the recent moves — are behind the doors now, and a
+          home page you can read without scrolling is the point of the whole
+          rearrangement.
 
-      <Section
-        eyebrow="WHERE YOU STAND"
-        title="League overview"
-        collapseId="home.standing"
-        aside={home?.played ? undefined : "Nothing graded yet — ranked on points alone."}
-      >
-        {home ? (
-          <LeagueOverview home={home} />
-        ) : (
-          <div style={{ fontSize: 12.5, color: "#75798c" }}>Reading the league…</div>
-        )}
-      </Section>
+          Two of them are hidden on a phone. Since the tab bar arrived, My Team
+          and The League are a thumb's reach away on every screen in the app,
+          and repeating them here cost three hundred and fifty pixels — most of
+          a phone screen — of the page a manager opens more than any other, to
+          say something the bottom of that same screen was already saying. They
+          stay on a desktop, where the room exists and the top bar's links are
+          small. Mini-games is in neither bar, so its door is the only way in
+          and it keeps it. */}
+      <div className="gl-home-doors">
+        <MyTeamButton />
+        <TheLeagueButton />
+      </div>
+      <MiniGamesButton />
     </div>
   );
 }

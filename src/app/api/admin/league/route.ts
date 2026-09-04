@@ -1,3 +1,4 @@
+import { MAX_SECONDS, MIN_SECONDS } from "@/lib/draft-clock";
 import { isConfigured, serverClient } from "@/lib/supabase";
 import { checkVideoSrc } from "@/lib/video-src";
 
@@ -89,6 +90,7 @@ export async function PATCH(req: Request) {
     draftAt?: unknown;
     introVideo?: unknown;
     pickSeconds?: unknown;
+    pickClock?: unknown;
     cinematicRounds?: unknown;
     tradeDeadlineWeek?: unknown;
     waiverDays?: unknown;
@@ -164,6 +166,79 @@ export async function PATCH(req: Request) {
       .eq("id", me.league_id);
 
     if (error) return Response.json({ error: `Could not save ${key}` }, { status: 400 });
+  }
+
+  /**
+   * The pick clock, as tiers rather than a number.
+   *
+   * Ninety seconds is right for the first round and absurd for the
+   * fourteenth, so the league sets a ladder: each tier says which round it
+   * runs through and how long a pick gets, and the last tier — the one with
+   * no throughRound — covers everything after. The database reads the same
+   * array in pick_seconds_for(), so what the room counts down from is what
+   * the autodraft acts on.
+   *
+   * Checked here rather than trusted: the rounds have to climb, or a tier
+   * further down the list would cover rounds an earlier one already claimed
+   * and never be reached.
+   */
+  if (body.pickClock !== undefined) {
+    if (!me.is_commissioner) {
+      return Response.json({ error: "Only the commissioner can change this" }, { status: 403 });
+    }
+
+    if (!Array.isArray(body.pickClock) || body.pickClock.length === 0) {
+      return Response.json({ error: "The pick clock needs at least one tier" }, { status: 400 });
+    }
+    if (body.pickClock.length > 8) {
+      return Response.json({ error: "Eight tiers is more clock than any draft needs" }, { status: 400 });
+    }
+
+    const tiers: { throughRound: number | null; seconds: number }[] = [];
+    let previous = 0;
+
+    for (const [i, entry] of body.pickClock.entries()) {
+      const last = i === body.pickClock.length - 1;
+      const tier = (entry ?? {}) as { throughRound?: unknown; seconds?: unknown };
+
+      const seconds = Number(tier.seconds);
+      if (!Number.isInteger(seconds) || seconds < MIN_SECONDS || seconds > MAX_SECONDS) {
+        return Response.json(
+          { error: `A pick gets from ${MIN_SECONDS} to ${MAX_SECONDS} seconds` },
+          { status: 400 },
+        );
+      }
+
+      // Only the last tier may be open-ended, and it must be: otherwise a
+      // draft that runs past the final stated round has no clock at all.
+      if (last) {
+        tiers.push({ throughRound: null, seconds });
+        continue;
+      }
+
+      const through = Number(tier.throughRound);
+      if (!Number.isInteger(through) || through <= previous || through > 40) {
+        return Response.json(
+          { error: "Each tier must end on a later round than the one before it" },
+          { status: 400 },
+        );
+      }
+      previous = through;
+      tiers.push({ throughRound: through, seconds });
+    }
+
+    const { data: league } = await db
+      .from("leagues")
+      .select("settings")
+      .eq("id", me.league_id)
+      .single();
+
+    const { error } = await db
+      .from("leagues")
+      .update({ settings: { ...(league?.settings ?? {}), pickClock: tiers } })
+      .eq("id", me.league_id);
+
+    if (error) return Response.json({ error: "Could not save the pick clock" }, { status: 400 });
   }
 
   // The film that plays when the countdown runs out. Only its address is kept

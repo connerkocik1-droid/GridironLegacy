@@ -1392,10 +1392,12 @@ insert into managers (league_id, slot, name, franchise, is_commissioner, auth_us
 select signin(:'G1');
 select generate_schedule(:'G');
 
-insert into roster_slots (league_id, manager_id, player_name, lineup_slot) values
-  (:'G', (select id from managers where league_id = :'G' and slot = 'AAA'), 'Starter A', 'QB'),
-  (:'G', (select id from managers where league_id = :'G' and slot = 'AAA'), 'Bench A', 'BENCH'),
-  (:'G', (select id from managers where league_id = :'G' and slot = 'BBB'), 'Starter B', 'QB');
+-- Both of Alpha's are quarterbacks and the league starts one. Under best ball
+-- the higher score plays, so the one saved on the bench is the one who counts.
+insert into roster_slots (league_id, manager_id, player_name, position, lineup_slot) values
+  (:'G', (select id from managers where league_id = :'G' and slot = 'AAA'), 'Starter A', 'QB', 'QB'),
+  (:'G', (select id from managers where league_id = :'G' and slot = 'AAA'), 'Bench A', 'QB', 'BENCH'),
+  (:'G', (select id from managers where league_id = :'G' and slot = 'BBB'), 'Starter B', 'QB', 'QB');
 
 insert into player_scores (league_id, week, player_name, points) values
   (:'G', 1, 'Starter A', 20), (:'G', 1, 'Bench A', 99), (:'G', 1, 'Starter B', 15);
@@ -1407,9 +1409,12 @@ values ('g1', 2026, 1, 2, now(), 'SEA', 'SF', 'in', false);
 select grade_week(:'G', 1);
 \o
 
-select expect('only starters count — the bench is ignored',
+-- The rule best ball replaces. It used to be 20, because somebody had saved
+-- the 20-point player into the only quarterback slot and the 99 sat on a
+-- bench. Nobody saves anything now.
+select expect('the highest scorer plays, whatever anybody saved',
   lineup_points(:'G', (select id from managers where league_id = :'G' and slot = 'AAA'), 1),
-  20::numeric);
+  99::numeric);
 
 select expect('an unfinished week is not final',
   (select bool_or(final) from matchups where league_id = :'G' and week = 1), false);
@@ -1419,7 +1424,7 @@ select expect('an unfinished week has no winner',
 
 select expect('but it still carries live points',
   (select max(greatest(home_points, away_points)) from matchups where league_id = :'G' and week = 1),
-  20::numeric);
+  99::numeric);
 
 select expect('an unfinished week counts for nothing in the table',
   (select sum(wins + losses + ties)::int from standings(:'G')), 0);
@@ -1445,22 +1450,24 @@ select expect('the loser has a loss',
 
 select expect('points for and against are recorded',
   (select points_for::int || '/' || points_against::int from standings(:'G') where slot = 'AAA'),
-  '20/15');
+  '99/15');
 
 select expect('the starters are snapshotted',
   (select jsonb_array_length(home_starters) > 0 from matchups
     where league_id = :'G' and week = 1), true);
 
--- A later lineup change must not rewrite a finished week.
+-- A later roster change must not rewrite a finished week. Moving somebody to
+-- a bench proves nothing now — a bench does not mean anything — so this drops
+-- the player the result was built on, which under best ball would take the
+-- score from 99 back to 20 if a final week could be regraded.
 \o /dev/null
-update roster_slots set lineup_slot = 'BENCH'
- where league_id = :'G' and player_name = 'Starter A';
+delete from roster_slots where league_id = :'G' and player_name = 'Bench A';
 select grade_week(:'G', 1);
 \o
 
 select expect('a final week is not regraded',
   (select max(greatest(home_points, away_points)) from matchups where league_id = :'G' and week = 1),
-  20::numeric);
+  99::numeric);
 
 select expect('and the record still stands',
   (select wins from standings(:'G') where slot = 'AAA'), 1);
@@ -2683,3 +2690,945 @@ select signin(:'U1');
 select expect('somebody from another league cannot reach in and clear it',
   refuses(format('select claim_intro_video_cleanup(%L)', :'V')),
   'Not your league');
+
+-- ---------------------------------------------------------------------------
+-- Live scoring: the refresh throttle, and what "this week is over" means
+-- ---------------------------------------------------------------------------
+
+\o /dev/null
+\set L '99999999-0000-0000-0000-000000000023'
+\set M1 '99999999-0000-0000-0000-000000000024'
+\set M2 '99999999-0000-0000-0000-000000000025'
+
+insert into leagues (id, name, season, commissioner_slot, settings, draft_state, current_pick)
+values (:'L', 'Live Scoring', 2031, 'AA',
+        jsonb_build_object('rounds', 1, 'regularWeeks', 3, 'tradeDeadlineWeek', 0,
+                           'starters', jsonb_build_object('QB', 1)),
+        'complete', 1);
+
+insert into managers (id, league_id, slot, name, franchise)
+values (:'M1', :'L', 'AA', 'Ann', 'Anvils'),
+       (:'M2', :'L', 'BB', 'Ben', 'Bears');
+
+-- Positions, because best ball places a player by what he is rather than by
+-- what a manager saved him as.
+insert into roster_slots (league_id, manager_id, player_name, position, lineup_slot)
+values (:'L', :'M1', 'Ann QB', 'QB', 'QB'),
+       (:'L', :'M2', 'Ben QB', 'QB', 'QB');
+
+insert into player_scores (league_id, week, player_name, points)
+values (:'L', 1, 'Ann QB', 20), (:'L', 1, 'Ben QB', 10);
+
+insert into matchups (league_id, week, home_manager, away_manager)
+values (:'L', 1, :'M1', :'M2');
+\o
+
+-- The throttle. One yes per window, however many instances ask.
+
+select expect('the first look claims the refresh',
+  (select claim_score_refresh(:'L', 1, 60)), true);
+
+select expect('the second, a moment later, is turned away',
+  (select claim_score_refresh(:'L', 1, 60)), false);
+
+select expect('and so is the third',
+  (select claim_score_refresh(:'L', 1, 60)), false);
+
+\o /dev/null
+-- Wind the clock back to just past the window rather than waiting for it.
+update score_refresh set refreshed_at = now() - interval '61 seconds'
+ where league_id = :'L' and week = 1;
+\o
+
+select expect('once the window has passed, the next caller claims it',
+  (select claim_score_refresh(:'L', 1, 60)), true);
+
+select expect('a different week is throttled separately',
+  (select claim_score_refresh(:'L', 2, 60)), true);
+
+\o /dev/null
+update score_refresh set refreshed_at = now() - interval '5 seconds'
+ where league_id = :'L' and week = 1;
+\o
+
+-- A caller asking for a one-second window would be a way to use us to hammer
+-- ESPN. The floor is enforced in the database, not in the code that calls it.
+select expect('a window below the floor is raised to it',
+  (select claim_score_refresh(:'L', 1, 1)), false);
+
+-- Grading: a week is over when *this* league's season says so.
+
+\o /dev/null
+-- An earlier season's week 1, complete for ever. Other blocks in this file
+-- have left week-1 rows of their own in other seasons, some finished and some
+-- not, which is exactly the noise the season filter has to see through.
+insert into nfl_games (id, season, week, season_type, starts_at, home_team, away_team,
+                       home_score, away_score, state, completed)
+values ('old-1', 2030, 1, 2, now() - interval '1 year', 'KC', 'BUF', 24, 15, 'post', true);
+\o
+
+select expect('a week with no games of its own cannot be closed',
+  (select grade_week(:'L', 1) ->> 'final'), 'false');
+
+\o /dev/null
+-- This season's week 1, still being played.
+insert into nfl_games (id, season, week, season_type, starts_at, home_team, away_team,
+                       home_score, away_score, state, completed)
+values ('new-1', 2031, 1, 2, now(), 'KC', 'BUF', 7, 3, 'in', false);
+\o
+
+select expect('another season''s completed games do not close this one',
+  (select grade_week(:'L', 1) ->> 'final'), 'false');
+
+select expect('but the points are live while it is open',
+  (select home_points from matchups where league_id = :'L' and week = 1), 20::numeric);
+
+select expect('and no winner is declared yet',
+  (select winner from matchups where league_id = :'L' and week = 1), null);
+
+\o /dev/null
+-- A preseason fixture is not a fantasy week and must not hold one open.
+insert into nfl_games (id, season, week, season_type, starts_at, home_team, away_team,
+                       home_score, away_score, state, completed)
+values ('pre-1', 2031, 1, 1, now(), 'KC', 'BUF', 0, 0, 'pre', false);
+update nfl_games set state = 'post', completed = true where id = 'new-1';
+\o
+
+select expect('a preseason game does not hold the week open',
+  (select grade_week(:'L', 1) ->> 'final'), 'true');
+
+select expect('the winner is the one who scored more',
+  (select winner from matchups where league_id = :'L' and week = 1), :'M1');
+
+select expect('and the week is final',
+  (select final from matchups where league_id = :'L' and week = 1), true);
+
+-- A reset takes the throttle's memory with it, or next season's week one
+-- would sit behind a timestamp set by last season's.
+\o /dev/null
+select purge_league_season(:'L');
+\o
+
+select expect('a reset clears the refresh record',
+  (select count(*)::int from score_refresh where league_id = :'L'), 0);
+
+select expect('so the first look at the new season claims immediately',
+  (select claim_score_refresh(:'L', 1, 3600)), true);
+
+\echo ''
+\echo '--- the pick clock, the queue and the autodraft ---'
+
+-- A league deep enough to reach the third rung of the clock: twelve rounds of
+-- two franchises, which is round eleven at pick twenty-one.
+--
+-- The clock is set here rather than left to the migration's backfill, because
+-- this harness runs the migrations against an empty database — there is no
+-- league in existence at the moment the backfill runs, so what it does to an
+-- existing one cannot be observed from in here. The fallback path a league
+-- without a pickClock takes is checked below instead.
+\set CK  '99999999-0000-0000-0000-0000000000c1'
+\set CK1 'c10c0000-0000-0000-0000-000000000001'
+\set CK2 'c10c0000-0000-0000-0000-000000000002'
+
+\o /dev/null
+insert into auth.users (id) values (:'CK1'), (:'CK2');
+insert into leagues (id, name, season, commissioner_slot, settings, draft_state)
+values (:'CK', 'Clock', 2033, 'AAA',
+  '{"rounds": 12, "pickClock": [{"throughRound": 4, "seconds": 90},
+                                {"throughRound": 10, "seconds": 75},
+                                {"throughRound": null, "seconds": 60}]}'::jsonb,
+  'pending');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'CK', 'AAA', 'One', 'Alpha', true,  :'CK1'),
+  (:'CK', 'BBB', 'Two', 'Bravo', false, :'CK2');
+
+select signin(:'CK1');
+select rebuild_draft_board(:'CK');
+\o
+
+-- --------------------------------------------------------------- the clock --
+
+select expect('the board is twelve rounds deep',
+  (select count(*)::int from draft_picks where league_id = :'CK'), 24);
+
+select expect('round 1 gets ninety seconds',
+  pick_seconds_for((select settings from leagues where id = :'CK'), 1), 90);
+
+select expect('and so does round 4',
+  pick_seconds_for((select settings from leagues where id = :'CK'), 4), 90);
+
+select expect('round 5 drops to seventy-five',
+  pick_seconds_for((select settings from leagues where id = :'CK'), 5), 75);
+
+select expect('and holds through round 10',
+  pick_seconds_for((select settings from leagues where id = :'CK'), 10), 75);
+
+select expect('round 11 drops to sixty',
+  pick_seconds_for((select settings from leagues where id = :'CK'), 11), 60);
+
+select expect('and stays there however deep the draft runs',
+  pick_seconds_for((select settings from leagues where id = :'CK'), 40), 60);
+
+-- The database and the app read the same array, so a settings blob nobody
+-- validated must not be able to stop a draft from either side.
+select expect('a league still on the old single number keeps it',
+  pick_seconds_for('{"pickSeconds": 45}'::jsonb, 9), 45);
+
+select expect('a pickClock that is not a list falls back to that number',
+  pick_seconds_for('{"pickClock": "90", "pickSeconds": 45}'::jsonb, 3), 45);
+
+select expect('a tier with nonsense in it is skipped, not raised on',
+  pick_seconds_for(
+    '{"pickClock": [{"throughRound": "soon", "seconds": 20}, {"seconds": 55}]}'::jsonb, 2), 55);
+
+select expect('and a settings blob with nothing usable still has a clock',
+  pick_seconds_for('{}'::jsonb, 7), 90);
+
+select expect('nothing at all is still a clock',
+  pick_seconds_for(null, 1), 90);
+
+-- A nought is a typo, not a clock. draft-clock.ts skips such a tier too, and
+-- the two implementations have to agree: one draws the countdown, the other
+-- decides when the pick is taken.
+select expect('a nought-second tier is skipped, not honoured',
+  pick_seconds_for('{"pickClock": [{"seconds": 0}]}'::jsonb, 1), 90);
+
+select expect('and the tier under it is used instead',
+  pick_seconds_for('{"pickClock": [{"seconds": 0}, {"seconds": 40}]}'::jsonb, 1), 40);
+
+select expect('a one-second tier is clamped up to five',
+  pick_seconds_for('{"pickClock": [{"seconds": 1}]}'::jsonb, 1), 5);
+
+select expect('and an absurdly long one down to ten minutes',
+  pick_seconds_for('{"pickClock": [{"seconds": 99999}]}'::jsonb, 1), 600);
+
+-- --------------------------------------------------------------- the queue --
+
+\o /dev/null
+select signin(:'CK2');
+select set_draft_queue(:'CK', array['Bravo Two', 'Bravo Three', 'Bravo One']);
+\o
+
+select expect('a queue is kept in the order it was given',
+  (select string_agg(player_name, ',' order by rank) from draft_queue
+    where league_id = :'CK'), 'Bravo Two,Bravo Three,Bravo One');
+
+\o /dev/null
+select set_draft_queue(:'CK', array['Bravo One', 'Bravo Two']);
+\o
+
+select expect('setting it again replaces it rather than adding to it',
+  (select string_agg(player_name, ',' order by rank) from draft_queue
+    where league_id = :'CK'), 'Bravo One,Bravo Two');
+
+\o /dev/null
+select set_draft_queue(:'CK', array['Bravo One', 'Bravo One', '', 'Bravo Three']);
+\o
+
+select expect('a name twice is one place, and a blank is nobody',
+  (select string_agg(player_name, ',' order by rank) from draft_queue
+    where league_id = :'CK'), 'Bravo One,Bravo Three');
+
+select expect('an empty list empties the queue',
+  (select set_draft_queue(:'CK', array[]::text[]) ->> 'count'), '0');
+
+select expect('a queue has a limit',
+  refuses(format('select set_draft_queue(%L, (select array_agg(''P'' || g) from generate_series(1, 151) g))', :'CK')),
+  'A queue holds at most 150 players, not 151');
+
+select expect('and it is nobody else''s league to queue in',
+  refuses(format('select set_draft_queue(%L, array[''Alpha One''])', :'L')),
+  'Not your league');
+
+select expect('the refused attempts left nothing behind',
+  (select count(*)::int from draft_queue where league_id = :'CK'), 0);
+
+-- ----------------------------------------------------------- the autodraft --
+
+\o /dev/null
+select set_draft_queue(:'CK', array['Bravo One', 'Bravo Two']);
+select signin(:'CK1');
+update leagues set draft_state = 'running', pick_started_at = now() where id = :'CK';
+\o
+
+select expect('nothing happens while somebody is on the clock',
+  (select autodraft_expired(:'CK') ->> 'reason'), 'on the clock');
+
+-- Alpha is on pick one. Seventy seconds is past the sixty a late round gets
+-- and short of the ninety round one gets, which is the whole point of the
+-- ladder: the round decides, not the league.
+\o /dev/null
+update leagues set pick_started_at = now() - interval '70 seconds' where id = :'CK';
+\o
+
+select expect('seventy seconds is not yet late in round one',
+  (select autodraft_expired(:'CK') ->> 'reason'), 'on the clock');
+
+\o /dev/null
+update leagues set pick_started_at = now() - interval '95 seconds' where id = :'CK';
+\o
+
+select expect('but ninety-five is, and the fallback is taken',
+  (select autodraft_expired(:'CK', 'Alpha One') ->> 'player_name'), 'Alpha One');
+
+select expect('and it is recorded as the clock running out',
+  (select detail ->> 'reason' from admin_log
+    where league_id = :'CK' and action = 'autodraft'), 'clock');
+
+select expect('the board moved on',
+  (select current_pick from leagues where id = :'CK'), 2);
+
+-- Bravo is on the clock now, and has a queue. The queue wins over any
+-- fallback, which is the whole reason the queue exists.
+\o /dev/null
+update leagues set pick_started_at = now() - interval '95 seconds' where id = :'CK';
+\o
+
+select expect('a manager''s own queue is taken before the fallback',
+  (select autodraft_expired(:'CK', 'Somebody Else') ->> 'player_name'), 'Bravo One');
+
+select expect('and the record says the queue is where it came from',
+  (select detail ->> 'reason' from admin_log
+    where league_id = :'CK' and action = 'autodraft'
+    order by created_at desc limit 1), 'clock_queue');
+
+select expect('a drafted player leaves every queue, not just the picker''s',
+  (select count(*)::int from draft_queue
+    where league_id = :'CK' and player_name = 'Bravo One'), 0);
+
+-- A manager who says they will not be here does not wait for a clock at all.
+-- The flag goes on whoever actually holds the pick rather than on a franchise
+-- named here, so the check does not quietly depend on reading the snake right.
+\o /dev/null
+update leagues set pick_started_at = now() where id = :'CK';
+update managers set autodraft = true
+ where id = (select manager_id from draft_picks
+              where league_id = :'CK'
+                and overall = (select current_pick from leagues where id = :'CK'));
+\o
+
+select expect('autodraft picks the moment the turn comes round, clock or no clock',
+  (select autodraft_expired(:'CK', 'Wanted Nobody') ->> 'reason'), 'autodraft_queue');
+
+select expect('and it is still the queue it picks from, not the fallback',
+  (select player_name from draft_picks where league_id = :'CK' and overall = 3),
+  'Bravo Two');
+
+-- With nothing queued, the same switch falls through to the fallback the
+-- caller worked out — which is the ADP-and-need pick, not best available.
+\o /dev/null
+delete from draft_queue where league_id = :'CK';
+update leagues set pick_started_at = now() where id = :'CK';
+update managers set autodraft = false where league_id = :'CK';
+update managers set autodraft = true
+ where id = (select manager_id from draft_picks
+              where league_id = :'CK'
+                and overall = (select current_pick from leagues where id = :'CK'));
+\o
+
+select expect('an empty queue falls through to the fallback',
+  (select autodraft_expired(:'CK', 'Wanted Nobody') ->> 'reason'), 'autodraft');
+
+select expect('and that is who was drafted',
+  (select player_name from draft_picks where league_id = :'CK' and overall = 4),
+  'Wanted Nobody');
+
+\o /dev/null
+update leagues set pick_started_at = now() where id = :'CK';
+update managers set autodraft = false where league_id = :'CK';
+\o
+
+select expect('a manager who has not said so still gets their clock',
+  (select autodraft_expired(:'CK', 'Bravo Three') ->> 'reason'), 'on the clock');
+
+-- The fallback is worked out before the league row is locked, so it can name
+-- somebody who has since been taken. That is a "call me again", not a crash.
+\o /dev/null
+update leagues set pick_started_at = now() - interval '200 seconds' where id = :'CK';
+\o
+
+select expect('a fallback who is already rostered is refused cleanly',
+  (select autodraft_expired(:'CK', 'Alpha One') ->> 'reason'), 'already rostered');
+
+select expect('and nothing was drafted twice',
+  (select count(*)::int from roster_slots
+    where league_id = :'CK' and player_name = 'Alpha One'), 1);
+
+-- The commissioner's clock nudge works against the round's limit too, not a
+-- league-wide one.
+\o /dev/null
+update leagues set pick_started_at = now(), current_pick = 21 where id = :'CK';
+select signin(:'CK1');
+\o
+
+select expect('pick twenty-one is in round eleven',
+  (select round from draft_picks where league_id = :'CK' and overall = 21), 11);
+
+select expect('so the clock it is nudged against is sixty seconds, not ninety',
+  (select (nudge_clock(:'CK', 0) ->> 'remaining')::int between 55 and 61), true);
+
+\echo ''
+\echo '--- email: a delivery channel for notices that already exist ---'
+
+\set ML  '99999999-0000-0000-0000-0000000000f1'
+\set ML1 'e1a00000-0000-0000-0000-000000000001'
+\set ML2 'e1a00000-0000-0000-0000-000000000002'
+
+\o /dev/null
+insert into auth.users (id) values (:'ML1'), (:'ML2');
+insert into leagues (id, name, season, commissioner_slot, settings, draft_state)
+values (:'ML', 'Mail', 2034, 'AAA', '{"rounds": 2}'::jsonb, 'pending');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'ML', 'AAA', 'One', 'Alpha', true,  :'ML1'),
+  (:'ML', 'BBB', 'Two', 'Bravo', false, :'ML2');
+
+select signin(:'ML1');
+\o
+
+-- A manager owns their own address, the same way they own their team name.
+select expect('an address starts empty',
+  (select email from managers where league_id = :'ML' and slot = 'AAA'), null::text);
+
+\o /dev/null
+update managers set email = 'alpha@example.com'
+ where league_id = :'ML' and slot = 'AAA';
+\o
+
+select expect('and can be set',
+  (select email from managers where league_id = :'ML' and slot = 'AAA'), 'alpha@example.com');
+
+select expect('wanting the emails is the default',
+  (select email_notices from managers where league_id = :'ML' and slot = 'AAA'), true);
+
+-- ------------------------------------------------------------- the queue ---
+
+\o /dev/null
+select notify_manager(:'ML', (select id from managers where league_id = :'ML' and slot = 'AAA'),
+  'draft_turn', 'You are on the clock.', '/draft');
+select notify_manager(:'ML', (select id from managers where league_id = :'ML' and slot = 'BBB'),
+  'trade_offer', 'Alpha offered you a trade.', '/trade-builder');
+\o
+
+select expect('two notices were raised',
+  (select count(*)::int from notices where league_id = :'ML'), 2);
+
+-- Only the manager with an address is eligible, and the row carries everything
+-- an email needs. Bravo gets the in-app notice and nothing else, which is the
+-- whole point of the address being optional.
+select expect('only the manager with an address is claimed, and it carries the email',
+  (select email || '|' || kind || '|' || href || '|' || franchise
+     from claim_notice_mail(25)),
+  'alpha@example.com|draft_turn|/draft|Alpha');
+
+-- Claim-then-send: a second run finds nothing, which is what stops two
+-- overlapping crons posting the same notice twice.
+select expect('claiming again finds nothing to send',
+  (select count(*)::int from claim_notice_mail(25)), 0);
+
+select expect('the claimed notice is marked, the other is not',
+  (select count(*)::int from notices where league_id = :'ML' and emailed_at is not null), 1);
+
+-- A send that fails hands the notice back, and the next run picks it up.
+\o /dev/null
+select release_notice_mail(array(
+  select id from notices where league_id = :'ML' and emailed_at is not null));
+\o
+
+select expect('a released notice is unmarked',
+  (select count(*)::int from notices where league_id = :'ML' and emailed_at is not null), 0);
+
+select expect('and is claimed again on the next run',
+  (select count(*)::int from claim_notice_mail(25)), 1);
+
+-- Switching the emails off stops them without losing the address.
+\o /dev/null
+update managers set email_notices = false
+ where league_id = :'ML' and slot = 'AAA';
+select release_notice_mail(array(select id from notices where league_id = :'ML'));
+\o
+
+select expect('a manager who turned them off is not claimed',
+  (select count(*)::int from claim_notice_mail(25)), 0);
+
+select expect('but their address is still theirs',
+  (select email from managers where league_id = :'ML' and slot = 'AAA'), 'alpha@example.com');
+
+-- An old notice is not delivered late. A cron down for a week should resume,
+-- not post the week.
+\o /dev/null
+update managers set email_notices = true where league_id = :'ML' and slot = 'AAA';
+update notices set created_at = now() - interval '3 days', emailed_at = null
+ where league_id = :'ML';
+\o
+
+select expect('a notice older than a day is left alone',
+  (select count(*)::int from claim_notice_mail(25)), 0);
+
+-- Nobody but the service key may touch the queue. A session that could claim
+-- mail could mark somebody else's notices delivered and silently stop them.
+select expect('a manager cannot claim the mail queue',
+  (select has_function_privilege('authenticated', 'claim_notice_mail(int)', 'execute')), false);
+
+select expect('nor hand notices back',
+  (select has_function_privilege('authenticated', 'release_notice_mail(uuid[])', 'execute')), false);
+
+select expect('but they can still read their own notices',
+  (select has_table_privilege('authenticated', 'notices', 'select')), true);
+
+\echo ''
+\echo '--- best ball: the lineup picks itself ---'
+
+\set BB  '99999999-0000-0000-0000-0000000000b1'
+\set BB1 'bb100000-0000-0000-0000-000000000001'
+\set BB2 'bb100000-0000-0000-0000-000000000002'
+
+\o /dev/null
+insert into auth.users (id) values (:'BB1'), (:'BB2');
+insert into leagues (id, name, season, commissioner_slot, settings, draft_state)
+values (:'BB', 'Best Ball', 2035, 'AAA',
+  '{"rounds": 2, "starters": {"QB": 1, "RB": 2, "WR": 2, "TE": 1, "FLEX": 1, "K": 1, "D/ST": 1}}'::jsonb,
+  'complete');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'BB', 'AAA', 'One', 'Alpha', true,  :'BB1'),
+  (:'BB', 'BBB', 'Two', 'Bravo', false, :'BB2');
+
+-- A roster with a real decision in it: three backs, three receivers, and a
+-- bench player who outscores a starter at his own position.
+insert into roster_slots (league_id, manager_id, player_name, position, lineup_slot)
+select :'BB', m.id, x.name, x.pos, 'BENCH'
+  from managers m,
+       (values
+         ('Passer',      'QB'),
+         ('Backup QB',   'QB'),
+         ('Back One',    'RB'),
+         ('Back Two',    'RB'),
+         ('Back Three',  'RB'),
+         ('Wide One',    'WR'),
+         ('Wide Two',    'WR'),
+         ('Wide Three',  'WR'),
+         ('Tight One',   'TE'),
+         ('Kicker',      'K'),
+         ('The Defence', 'D/ST')
+       ) as x(name, pos)
+ where m.league_id = :'BB' and m.slot = 'AAA';
+
+-- Points that make the right answer non-obvious: the third back outscores the
+-- first two, and a receiver outscores every back for the flex.
+insert into player_scores (league_id, week, player_name, points) values
+  (:'BB', 1, 'Passer',      20),
+  (:'BB', 1, 'Backup QB',   30),
+  (:'BB', 1, 'Back One',     5),
+  (:'BB', 1, 'Back Two',    12),
+  (:'BB', 1, 'Back Three',  18),
+  (:'BB', 1, 'Wide One',     9),
+  (:'BB', 1, 'Wide Two',    14),
+  (:'BB', 1, 'Wide Three',  16),
+  (:'BB', 1, 'Tight One',    7),
+  (:'BB', 1, 'Kicker',       8),
+  (:'BB', 1, 'The Defence', 10);
+\o
+
+-- The optimum: Backup QB 30, Back Three 18 + Back Two 12, Wide Three 16 +
+-- Wide Two 14, Tight One 7, flex takes Wide One 9 (the best left over, ahead
+-- of Back One's 5), Kicker 8, Defence 10. Total 124.
+select expect('the best quarterback starts, whatever he is called',
+  (select slot from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where player_name = 'Backup QB'), 'QB');
+
+select expect('and the lower-scoring one does not',
+  (select count(*)::int from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where player_name = 'Passer'), 0);
+
+select expect('the two best backs fill the two back slots',
+  (select string_agg(player_name, ',' order by player_name)
+     from best_ball_lineup(:'BB',
+       (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where slot = 'RB'), 'Back Three,Back Two');
+
+select expect('the flex takes the best left over, whatever position he is',
+  (select player_name from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where slot = 'FLEX'), 'Wide One');
+
+select expect('every slot is filled and none twice',
+  (select count(*)::int from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)), 9);
+
+select expect('nobody is in the lineup twice',
+  (select count(distinct player_name)::int from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)), 9);
+
+select expect('and the week is worth the best arrangement, not the saved one',
+  lineup_points(:'BB', (select id from managers where league_id = :'BB' and slot = 'AAA'), 1),
+  124::numeric);
+
+-- The point of best ball: what lineup_slot says is now irrelevant. Every one
+-- of those players is on the bench, and the score is the same.
+select expect('every player is on the bench, and it changes nothing',
+  (select count(*)::int from roster_slots
+    where league_id = :'BB' and lineup_slot <> 'BENCH'), 0);
+
+-- A player who did not play is worth nought rather than being skipped over.
+\o /dev/null
+delete from player_scores where league_id = :'BB' and player_name = 'Backup QB';
+\o
+
+select expect('a player with no score at all counts as nought',
+  lineup_points(:'BB', (select id from managers where league_id = :'BB' and slot = 'AAA'), 1),
+  114::numeric);
+
+select expect('and the quarterback slot falls to the one who did play',
+  (select player_name from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where slot = 'QB'), 'Passer');
+
+-- The swap is live: raise a bench player above a starter and the lineup moves.
+\o /dev/null
+update player_scores set points = 40
+ where league_id = :'BB' and week = 1 and player_name = 'Back One';
+\o
+
+select expect('a player who overtakes a starter takes his place',
+  (select string_agg(player_name, ',' order by player_name)
+     from best_ball_lineup(:'BB',
+       (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where slot = 'RB'), 'Back One,Back Three');
+
+-- Without a position nobody can be placed, which is why the app keeps them in
+-- step. A missing one costs that player his slot rather than breaking a week.
+\o /dev/null
+update roster_slots set position = null
+ where league_id = :'BB' and player_name = 'The Defence';
+\o
+
+select expect('a player with no position is left out rather than guessed at',
+  (select count(*)::int from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where player_name = 'The Defence'), 0);
+
+select expect('and the rest of the lineup still stands',
+  (select count(*)::int from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)), 8);
+
+\o /dev/null
+select sync_roster_positions(:'BB', array['The Defence'], array['D/ST']);
+\o
+
+select expect('and the app putting it back puts him back',
+  (select slot from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where player_name = 'The Defence'), 'D/ST');
+
+select expect('positions are the service key''s to write, not a manager''s',
+  (select has_function_privilege('authenticated',
+     'sync_roster_positions(uuid, text[], text[])', 'execute')), false);
+
+select expect('but a manager may read what their lineup would be',
+  (select has_function_privilege('authenticated',
+     'best_ball_lineup(uuid, uuid, int)', 'execute')), true);
+
+-- The settings flag the migration backfills is not asserted here: this harness
+-- runs the migrations against an empty database, so no league exists at the
+-- moment of the backfill. It is read by the app, not by any of this — nothing
+-- in SQL consults it, because the scoring is best ball unconditionally. That
+-- is the safer arrangement: a result cannot depend on a settings key somebody
+-- could clear.
+select expect('scoring does not depend on a settings flag being present',
+  lineup_points(:'BB', (select id from managers where league_id = :'BB' and slot = 'BBB'), 1),
+  0::numeric);
+
+-- --- injured reserve: the one decision best ball leaves you ---
+--
+-- Everything else about a lineup is gone, but a dynasty roster still has to be
+-- able to carry a man who tore something in October without paying a roster
+-- spot for him until March. That is a different problem from choosing who
+-- starts, and it is the only reason lineup_slot still says anything.
+
+\o /dev/null
+update leagues
+   set settings = settings || '{"bench": 2, "ir": 1}'::jsonb
+ where id = :'BB';
+select signin(:'BB1');
+\o
+
+-- Where we start: Back One is the best back on the roster and is in a slot.
+select expect('the man about to be stashed is starting',
+  (select slot from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where player_name = 'Back One'), 'RB');
+
+select expect('and the week is worth what he is worth',
+  lineup_points(:'BB', (select id from managers where league_id = :'BB' and slot = 'AAA'), 1),
+  145::numeric);
+
+select expect('a manager may stash one of their own',
+  (select set_injured_reserve('Back One', true) ->> 'ok'), 'true');
+
+select expect('a stashed player cannot fill a slot',
+  (select count(*)::int from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where player_name = 'Back One'), 0);
+
+-- 145 less his 40, less the 12 the flex loses shuffling up, plus the 9 the
+-- flex now takes: the whole roster reorganises itself around the gap.
+select expect('so the week is worth less, and the slots close over him',
+  lineup_points(:'BB', (select id from managers where league_id = :'BB' and slot = 'AAA'), 1),
+  114::numeric);
+
+select expect('and he stops counting against the roster',
+  roster_count((select id from managers where league_id = :'BB' and slot = 'AAA')), 10);
+
+select expect('the reserve holds only what the settings say it holds',
+  (select refuses($$select set_injured_reserve('Passer', true)$$)),
+  'Injured reserve holds 1');
+
+select expect('and a player nobody holds cannot be stashed',
+  (select refuses($$select set_injured_reserve('Somebody Else', true)$$)),
+  'You do not hold Somebody Else');
+
+-- A man coming back needs a roster spot to come back to. Filling the one he
+-- vacated is exactly how a manager would get himself two extra players.
+\o /dev/null
+insert into roster_slots (league_id, manager_id, player_name, position, lineup_slot)
+select :'BB', m.id, 'The Replacement', 'RB', 'BENCH'
+  from managers m where m.league_id = :'BB' and m.slot = 'AAA';
+\o
+
+select expect('a full roster will not take him back',
+  (select refuses($$select set_injured_reserve('Back One', false)$$)),
+  'Your roster is full at 11 — drop someone first');
+
+select expect('and he is still on the reserve',
+  (select lineup_slot from roster_slots
+    where league_id = :'BB' and player_name = 'Back One'), 'IR');
+
+\o /dev/null
+delete from roster_slots where league_id = :'BB' and player_name = 'The Replacement';
+\o
+
+select expect('with room made, he comes back',
+  (select set_injured_reserve('Back One', false) ->> 'ok'), 'true');
+
+select expect('and takes his slot again',
+  (select slot from best_ball_lineup(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
+    where player_name = 'Back One'), 'RB');
+
+select expect('with the week worth what it was',
+  lineup_points(:'BB', (select id from managers where league_id = :'BB' and slot = 'AAA'), 1),
+  145::numeric);
+
+-- Asking for a player who is already active to be active is not an error
+-- somebody has to understand, and must not check for room he already has.
+select expect('activating somebody already active does nothing',
+  (select set_injured_reserve('Back One', false) ->> 'ok'), 'true');
+
+select expect('a manager may do this themselves',
+  (select has_function_privilege('authenticated',
+     'set_injured_reserve(text, boolean)', 'execute')), true);
+
+-- --- the roster cap ---
+--
+-- The cap is not stored: it is the starting slots plus the bench, so changing
+-- the bench is the whole of changing it. What has to hold is that the number
+-- the settings imply is the number place_player enforces, and that the draft
+-- fills a roster exactly rather than overrunning it.
+
+select expect('ten on the field and eight behind them is eighteen',
+  roster_capacity('{"starters": {"QB": 1, "RB": 2, "WR": 2, "TE": 1, "FLEX": 2, "D/ST": 1, "K": 1}, "bench": 8}'::jsonb),
+  18);
+
+-- That the draft rounds match it is asserted where the settings are written
+-- rather than here: this harness has no league of its own to read defaults
+-- from. See settings.test.mts.
+
+-- The one that would bite: a full roster refuses another player rather than
+-- quietly carrying nineteen.
+\o /dev/null
+update leagues
+   set settings = settings || '{"bench": 0, "ir": 1}'::jsonb
+ where id = :'BB';
+\o
+
+-- Alpha holds eleven against a capacity of nine starters plus no bench.
+select expect('a roster over its cap takes nobody else',
+  (select refuses(format($$select place_player(%L, %L, 'Somebody New')$$,
+     :'BB', (select id from managers where league_id = :'BB' and slot = 'AAA')))),
+  'Your roster is full at 9 — drop someone first');
+
+\o /dev/null
+update leagues
+   set settings = settings || '{"bench": 8, "ir": 1}'::jsonb
+ where id = :'BB';
+\o
+
+-- Nine starters plus eight is seventeen, and Alpha holds eleven, so there is
+-- room again. The rule is arithmetic on the settings, not a stored number
+-- somebody has to remember to change.
+select expect('and raising the bench makes room without touching anybody',
+  (select place_player(:'BB',
+     (select id from managers where league_id = :'BB' and slot = 'AAA'),
+     'Somebody New') ->> 'ok'), 'true');
+
+select expect('the new man is on the roster',
+  (select count(*)::int from roster_slots
+    where league_id = :'BB' and player_name = 'Somebody New'), 1);
+
+\echo ''
+\echo '--- draft night runs in order, and only round one has a clock ---'
+--
+-- The bug: opening the room set the state to 'running', which both told the
+-- browsers to play the intro film and started the pick clock. By the time the
+-- film ended the first manager's ninety seconds were gone. What follows is the
+-- rule that makes that impossible — a clock exists in exactly one state.
+
+\set DN  '99999999-0000-0000-0000-0000000000d1'
+\set DN1 'dd100000-0000-0000-0000-000000000001'
+\set DN2 'dd100000-0000-0000-0000-000000000002'
+
+\o /dev/null
+insert into auth.users (id) values (:'DN1'), (:'DN2');
+insert into leagues (id, name, season, commissioner_slot, settings, draft_state)
+values (:'DN', 'Draft Night', 2035, 'AAA', '{"rounds": 2}'::jsonb, 'pending');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'DN', 'AAA', 'One', 'Alpha', true,  :'DN1'),
+  (:'DN', 'BBB', 'Two', 'Bravo', false, :'DN2');
+
+select signin(:'DN1');
+select rebuild_draft_board(:'DN');
+\o
+
+select expect('opening the room does not start a clock',
+  (select set_draft_state(:'DN', 'lobby') ->> 'state'), 'lobby');
+
+select expect('— there is none to expire',
+  (select pick_started_at is null from leagues where id = :'DN'), true);
+
+-- The whole point. autodraft_expired is what took the first pick, and it
+-- refuses outright without a clock to have expired.
+select expect('so nothing can be autodrafted out from under anybody',
+  (select autodraft_expired(:'DN') ->> 'ok'), 'false');
+
+select expect('nor can a pick be made from the lobby',
+  (select refuses(format($$select make_pick(%L, 'Anybody')$$, :'DN')) is not null), true);
+
+\echo ''
+\echo '  the lottery'
+
+select expect('the commissioner draws it',
+  (select start_lottery(:'DN') ->> 'ok'), 'true');
+
+select expect('which puts the league in the lottery',
+  (select draft_state from leagues where id = :'DN'), 'lottery');
+
+select expect('every franchise is in the order, exactly once',
+  (select count(distinct s)::int from unnest(
+     (select lottery_order from leagues where id = :'DN')) as s), 2);
+
+select expect('and the order is as long as the league',
+  (select array_length(lottery_order, 1) from leagues where id = :'DN'), 2);
+
+-- The starting gun every browser animates from. Without it the twelve screens
+-- would each begin their spin when their own page happened to load.
+select expect('the moment it began is written down',
+  (select lottery_at is not null from leagues where id = :'DN'), true);
+
+select expect('still no clock during the reveal',
+  (select pick_started_at is null from leagues where id = :'DN'), true);
+
+select expect('and still nothing to autodraft',
+  (select autodraft_expired(:'DN') ->> 'ok'), 'false');
+
+select expect('drawing it again before the draft is allowed, and redraws it',
+  (select start_lottery(:'DN') ->> 'ok'), 'true');
+
+select expect('a manager cannot draw it',
+  (select has_function_privilege('authenticated', 'start_lottery(uuid)', 'execute')), true);
+
+\o /dev/null
+select signin(:'DN2');
+\o
+
+select expect('— only the commissioner, whatever the grant says',
+  (select refuses(format($$select start_lottery(%L)$$, :'DN'))),
+  'Only the commissioner can draw the lottery');
+
+select expect('and only the commissioner opens the room',
+  (select refuses(format($$select set_draft_state(%L, 'lobby')$$, :'DN'))),
+  'Only the commissioner can control the draft');
+
+\echo ''
+\echo '  and then, and only then, round one'
+
+\o /dev/null
+select signin(:'DN1');
+\o
+
+select expect('the commissioner starts the draft',
+  (select set_draft_state(:'DN', 'running') ->> 'state'), 'running');
+
+select expect('and now there is a clock',
+  (select pick_started_at is not null from leagues where id = :'DN'), true);
+
+select expect('which starts at the first pick',
+  (select current_pick from leagues where id = :'DN'), 1);
+
+-- Once it is running, redrawing the order is off the table even before a pick
+-- is made: the room is live and the board is on screen.
+select expect('the lottery cannot be redrawn once the draft is running',
+  (select refuses(format($$select start_lottery(%L)$$, :'DN'))),
+  'The lottery is drawn before the draft, not during it');
+
+-- Pausing has always cleared the clock. The new states clear it too, which is
+-- the same rule stated once instead of case by case.
+select expect('pausing clears the clock',
+  (select set_draft_state(:'DN', 'paused') ->> 'state'), 'paused');
+select expect('— as it always did',
+  (select pick_started_at is null from leagues where id = :'DN'), true);
+
+select expect('and a state nobody has heard of is refused',
+  (select refuses(format($$select set_draft_state(%L, 'halftime')$$, :'DN'))),
+  'Unknown draft state halftime');
+
+-- The column itself now says what it may hold, rather than trusting every
+-- caller to have gone through the function.
+select expect('the states are written down on the table, not only in the code',
+  (select count(*)::int from pg_constraint
+    where conname = 'leagues_draft_state_check'), 1);
+
+\echo ''
+\echo '--- the rename reaches the league row, and stops there ---'
+--
+-- seed_league named the league after the app, so a league nobody has renamed
+-- is still called by the old name and says so on three screens. The rename
+-- has to reach it — and has to leave alone a name somebody actually chose.
+
+\o /dev/null
+insert into leagues (id, name, season, commissioner_slot)
+values ('7e5710a0-0000-0000-0000-000000000001', 'Gridiron Legacy', 2035, 'AAA'),
+       ('7e5710a0-0000-0000-0000-000000000002', 'The Sunday Club', 2035, 'AAA');
+
+update leagues set name = 'Pylon Fantasy'
+ where name = 'Gridiron Legacy'
+   and id = '7e5710a0-0000-0000-0000-000000000001';
+\o
+
+select expect('a league still carrying the old app name is renamed',
+  (select name from leagues where id = '7e5710a0-0000-0000-0000-000000000001'),
+  'Pylon Fantasy');
+
+select expect('and a name the commissioner chose is left alone',
+  (select name from leagues where id = '7e5710a0-0000-0000-0000-000000000002'),
+  'The Sunday Club');
+
+-- The other string the rebrand must not touch is the synthetic sign-in
+-- address, which is not asserted here: this harness stands auth.users up as a
+-- bare table of ids, so there is no email column to check. It is pinned in
+-- src/lib/__tests__/auth.test.mts instead, where the function that builds it
+-- actually lives.

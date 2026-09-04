@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 import Commissioner from "@/components/Commissioner";
 
-export const metadata = { title: "Commissioner · Gridiron Legacy" };
+export const metadata = { title: "Commissioner · Pylon Fantasy" };
 
 export default function CommissionerPage() {
   return (

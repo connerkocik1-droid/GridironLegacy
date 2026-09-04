@@ -33,7 +33,7 @@ const button = (enabled: boolean): React.CSSProperties => ({
   background: "transparent",
   color: enabled ? "#d2cefd" : "#5a5d6e",
   borderRadius: "var(--radius-sm)",
-  font: "inherit",
+  fontFamily: "inherit",
   cursor: enabled ? "pointer" : "default",
 });
 

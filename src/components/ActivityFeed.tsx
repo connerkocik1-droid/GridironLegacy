@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Skeleton from "./Skeleton";
 import Link from "next/link";
 import TeamCrest from "@/components/TeamCrest";
 import { useLogos } from "@/lib/use-logos";
@@ -158,7 +159,7 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
     return <div style={{ fontSize: 12, color: "#e0b573", padding: compact ? 0 : "0 0 20px" }}>{error}</div>;
   }
   if (!feed) {
-    return <div style={{ fontSize: 12, color: "#75798c" }}>Reading the league…</div>;
+    return <Skeleton rows={4} title={false} style={{ padding: 0 }} />;
   }
 
   if (feed.entries.length === 0) {
@@ -186,7 +187,18 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
       <>
         {rows}
         <div style={{ marginTop: 10, fontSize: 11 }}>
-          <Link href="/activity" style={{ color: "#b5abfc", textDecoration: "none" }}>
+          <Link
+            href="/activity"
+            style={{
+              color: "#b5abfc",
+              textDecoration: "none",
+              // The only way through to the whole record, so it is a target
+              // rather than a line of text somebody has to hit exactly.
+              display: "inline-flex",
+              alignItems: "center",
+              minHeight: 34,
+            }}
+          >
             Every move the league has made →
           </Link>
         </div>
@@ -205,7 +217,12 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
           marginBottom: 12,
         }}
       >
-        <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+        {/* Five of them, which is two rows on a phone. One rail instead, in
+            the order they are asked for. */}
+        <div
+          className="gl-scroll-x"
+          style={{ display: "flex", gap: 3, flexWrap: "nowrap", minWidth: 0, paddingBottom: 2 }}
+        >
           {FILTERS.map(([value, label]) => (
             <button
               key={value}
@@ -214,6 +231,8 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
                 setPage(0);
               }}
               style={{
+                flex: "0 0 auto",
+                whiteSpace: "nowrap",
                 padding: "5px 9px",
                 fontSize: 10,
                 letterSpacing: ".1em",
@@ -222,7 +241,7 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
                 background: kind === value ? "rgba(145,132,217,.26)" : "transparent",
                 color: kind === value ? "#e9e9ed" : "#9397ab",
                 borderRadius: "var(--radius-sm)",
-                font: "inherit",
+                fontFamily: "inherit",
                 cursor: "pointer",
               }}
             >
@@ -239,14 +258,20 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
           }}
           aria-label="Franchise"
           style={{
+            // Fills the line it wraps onto rather than hugging the right edge
+            // of it, where on a phone it read as a stray control belonging to
+            // nothing. On a desktop there is room for it beside the filters
+            // and the margin still pushes it there.
             marginLeft: "auto",
+            flex: "1 1 180px",
+            maxWidth: "100%",
             padding: "5px 8px",
             fontSize: 11,
             background: "rgba(20,22,35,.8)",
             border: "1px solid rgba(145,132,217,.28)",
             borderRadius: "var(--radius-sm)",
             color: "#e9e9ed",
-            font: "inherit",
+            fontFamily: "inherit",
           }}
         >
           <option value="all">Every franchise</option>
@@ -304,6 +329,6 @@ const pager = (enabled: boolean): React.CSSProperties => ({
   background: "transparent",
   color: enabled ? "#d2cefd" : "#5a5d6e",
   borderRadius: "var(--radius-sm)",
-  font: "inherit",
+  fontFamily: "inherit",
   cursor: enabled ? "pointer" : "default",
 });

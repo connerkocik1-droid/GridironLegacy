@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 import Matchups from "@/components/Matchups";
 
-export const metadata = { title: "Matchups · Gridiron Legacy" };
+export const metadata = { title: "Matchups · Pylon Fantasy" };
 
 export default function MatchupsPage() {
   return (

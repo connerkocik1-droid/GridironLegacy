@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 import TradeDesk from "@/components/TradeDesk";
 
-export const metadata = { title: "Trade builder · Gridiron Legacy" };
+export const metadata = { title: "Trade builder · Pylon Fantasy" };
 
 export default function TradeBuilderPage() {
   return (

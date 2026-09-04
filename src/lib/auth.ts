@@ -27,6 +27,13 @@ export function derivedPassword(managerId: string): string {
 /**
  * The synthetic address the auth user is keyed on. Managers sign in with a
  * franchise slot and a PIN; nobody collects their real email.
+ *
+ * The domain is deliberately still gridiron.invalid, and must stay that way.
+ * It is not branding — it is the primary key of every existing auth user.
+ * Signing in looks the address up, so changing a single character of it would
+ * find nothing and lock all twelve managers out of the league permanently,
+ * exactly as changing AUTH_SECRET would. A rename is not worth that, and this
+ * string is never shown to anybody.
  */
 export function slotEmail(leagueId: string, slot: string): string {
   return `${slot.toLowerCase()}.${leagueId}@gridiron.invalid`;

@@ -94,7 +94,7 @@ export default function NextSeason({
               background: "transparent",
               color: armed && !busy ? "#e0b573" : "#5a5d6e",
               borderRadius: "var(--radius-sm)",
-              font: "inherit",
+              fontFamily: "inherit",
               cursor: armed && !busy ? "pointer" : "default",
             }}
           >

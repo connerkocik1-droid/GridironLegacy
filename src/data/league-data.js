@@ -1,4 +1,4 @@
-// Shared league data for the Gridiron Legacy pages. Every figure here comes
+// Shared league data for the Pylon Fantasy pages. Every figure here comes
 // from the uploaded 2025 exports — consensus ADP (FantasyPros), ESPN team
 // rosters for age and experience, and the season stat files for production.
 // The draft room carries its own copy; these are the same tables, extracted so

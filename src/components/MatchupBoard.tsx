@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Skeleton from "./Skeleton";
+import LiveNumber from "./LiveNumber";
+import ScoreBar from "./ScoreBar";
 import { headshot, logo } from "@/data/league-data";
+import PlayerName from "./PlayerName";
 import type { MatchupRow, SideEntry } from "@/lib/matchup";
 
 interface Side {
@@ -16,7 +20,12 @@ interface Board {
   home: Side;
   away: Side;
   rows: MatchupRow[];
+  /** A game on the slate is in progress this second. */
   live: boolean;
+  /** Anything on the slate has kicked off, so these are results not guesses. */
+  started: boolean;
+  /** The week is settled: this arrangement is the one that was recorded. */
+  final: boolean;
   managers: { id: string; slot: string; franchise: string }[];
 }
 
@@ -58,10 +67,17 @@ function PlayerCell({
 
   return (
     <div
+      className="gl-mcell"
       style={{
         display: "flex",
         flexDirection: reverse ? "row-reverse" : "row",
         alignItems: "center",
+        // The stat line claims a whole line of its own below (flexBasis 100%),
+        // so the name and the score share the first one. A quarterback's line
+        // is six parts long and these columns are half a phone wide; sitting it
+        // beside the name would leave the name about two letters.
+        flexWrap: "wrap",
+        rowGap: 2,
         gap: 10,
         minWidth: 0,
         padding: "0 4px",
@@ -69,6 +85,7 @@ function PlayerCell({
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
+        className="gl-mcell-face"
         src={headshot(entry.name) || BLANK}
         alt=""
         width={32}
@@ -82,53 +99,40 @@ function PlayerCell({
         }}
       />
 
-      <div style={{ minWidth: 0, flex: 1, textAlign: align }}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: reverse ? "row-reverse" : "row",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <span
-            style={{
-              fontFamily: "var(--font-heading)",
-              fontSize: 14,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              minWidth: 0,
-            }}
-          >
-            {entry.name}
-          </span>
-          {entry.team ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logo(entry.team)}
-              alt=""
-              width={14}
-              height={14}
-              style={{ objectFit: "contain", opacity: 0.85, flex: "0 0 auto" }}
-            />
-          ) : null}
-        </div>
-        <div
-          style={{
-            fontSize: 10,
-            color: "#75798c",
-            marginTop: 2,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {entry.statLine || `${entry.position}${entry.team ? ` · ${entry.team}` : ""}`}
-        </div>
+      <div
+        className="gl-mcell-name"
+        style={{
+          minWidth: 0,
+          flex: 1,
+          display: "flex",
+          flexDirection: reverse ? "row-reverse" : "row",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        <span style={{ minWidth: 0 }}>
+          <PlayerName
+            name={entry.name}
+            style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}
+          />
+        </span>
+        {entry.team ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            className="gl-mcell-team"
+            src={logo(entry.team)}
+            alt=""
+            width={14}
+            height={14}
+            style={{ objectFit: "contain", opacity: 0.85, flex: "0 0 auto" }}
+          />
+        ) : null}
       </div>
 
-      <div style={{ flex: "0 0 auto", textAlign: align === "left" ? "right" : "left", width: 46 }}>
+      <div
+        className="gl-mcell-pts"
+        style={{ flex: "0 0 auto", textAlign: align === "left" ? "right" : "left", width: 46 }}
+      >
         <div
           style={{
             fontFamily: "var(--font-heading)",
@@ -136,11 +140,28 @@ function PlayerCell({
             color: leading ? "#d2cefd" : "#b2b6ca",
           }}
         >
-          {entry.points.toFixed(1)}
+          <LiveNumber key={entry.name} value={entry.live ? entry.points : entry.projected} />
         </div>
         {!entry.live ? (
           <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#5a5d6e" }}>PROJ</div>
         ) : null}
+      </div>
+
+      {/* Wraps rather than clips. These columns are narrow and a quarterback's
+          line is five parts long, so an ellipsis would hide exactly the
+          touchdowns somebody opened the page to see. */}
+      <div
+        className="gl-mcell-line"
+        style={{
+          flexBasis: "100%",
+          fontSize: 10,
+          color: "#75798c",
+          lineHeight: 1.45,
+          overflowWrap: "anywhere",
+          textAlign: align,
+        }}
+      >
+        {entry.statLine || `${entry.position}${entry.team ? ` · ${entry.team}` : ""}`}
       </div>
     </div>
   );
@@ -180,7 +201,7 @@ export default function MatchupBoard() {
     return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
   }
   if (!board) {
-    return <div style={{ padding: "24px 26px", color: "#75798c" }}>Reading the rosters…</div>;
+    return <Skeleton rows={5} />;
   }
 
   const homeLeads = board.home.total > board.away.total;
@@ -213,7 +234,7 @@ export default function MatchupBoard() {
               marginTop: 2,
             }}
           >
-            {board.home.total.toFixed(1)}
+            <LiveNumber key={board.home.id} value={board.home.total} />
           </div>
         </div>
 
@@ -225,7 +246,7 @@ export default function MatchupBoard() {
             VS
           </div>
           <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#75798c" }}>
-            {board.live ? "LIVE" : "PROJECTED"}
+            {board.live ? "LIVE" : board.started ? "SCORED" : "PROJECTED"}
           </div>
         </div>
 
@@ -269,9 +290,34 @@ export default function MatchupBoard() {
               marginTop: 2,
             }}
           >
-            {board.away.total.toFixed(1)}
+            <LiveNumber key={board.away.id} value={board.away.total} />
           </div>
         </div>
+      </div>
+
+      {/* The gap, drawn. This is the screen a manager sits on during a game,
+          so it is the screen where the distance between the two numbers is
+          worth more than either of them. */}
+      {board.started ? (
+        <div style={{ padding: "0 10px" }}>
+          <ScoreBar mine={board.home.total} theirs={board.away.total} final={board.final} />
+        </div>
+      ) : null}
+
+      <div
+        style={{
+          padding: "0 26px 10px",
+          fontSize: 11.5,
+          color: "#75798c",
+          lineHeight: 1.6,
+          maxWidth: "70ch",
+        }}
+      >
+        {board.final
+          ? "Best ball: these are the players who ended up in each slot when the last game finished. Neither manager chose them."
+          : board.started
+            ? "Best ball: nobody set these lineups. Each side's highest scorers are filling the slots and will keep swapping until the last game ends."
+            : "Best ball: nobody sets a lineup. When the games start, each side's highest scorers will fill these slots by themselves — until then this is a projection."}
       </div>
 
       {error ? (

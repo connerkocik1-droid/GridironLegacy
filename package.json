@@ -1,5 +1,5 @@
 {
-  "name": "gridiron-legacy",
+  "name": "pylon-fantasy",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,10 +11,12 @@
     "typecheck": "tsc --noEmit",
     "extract-images": "node scripts/extract-images.mjs",
     "seed": "node scripts/seed.mjs",
-    "test": "tsx src/lib/__tests__/scoring.test.mts && tsx src/lib/__tests__/lineup.test.mts && tsx src/lib/__tests__/news.test.mts && tsx src/lib/__tests__/mock-draft.test.mts && tsx src/lib/__tests__/twenty-zero.test.mts && tsx src/lib/__tests__/power.test.mts && tsx src/lib/__tests__/rankings.test.mts",
+    "test": "tsx src/lib/__tests__/scoring.test.mts && tsx src/lib/__tests__/live-scoring.test.mts && tsx src/lib/__tests__/player-names.test.mts && tsx src/lib/__tests__/preseason.test.mts && tsx src/lib/__tests__/espn-roster.test.mts && tsx src/lib/__tests__/espn-plays.test.mts && tsx src/lib/__tests__/draft-clock.test.mts && tsx src/lib/__tests__/autodraft.test.mts && tsx src/lib/__tests__/stat-line.test.mts && tsx src/lib/__tests__/player-profile.test.mts && tsx src/lib/__tests__/health.test.mts && tsx src/lib/__tests__/mail.test.mts && tsx src/lib/__tests__/lineup.test.mts && tsx src/lib/__tests__/week.test.mts && tsx src/lib/__tests__/settings.test.mts && tsx src/lib/__tests__/auth.test.mts && tsx src/lib/__tests__/news.test.mts && tsx src/lib/__tests__/draft-pool.test.mts && tsx src/lib/__tests__/mock-draft.test.mts && tsx src/lib/__tests__/twenty-zero.test.mts && tsx src/lib/__tests__/power.test.mts && tsx src/lib/__tests__/rankings.test.mts",
     "verify-espn": "node scripts/verify-espn.mjs",
     "test:db": "./scripts/test-db.sh",
-    "test:all": "npm run test && npm run test:db"
+    "audit:mobile": "./scripts/audit-mobile.sh",
+    "test:all": "npm run test && npm run test:db",
+    "verify-scoring": "tsx scripts/verify-scoring.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -31,6 +33,7 @@
     "@types/react-dom": "^19.2.5",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.3",
+    "playwright": "^1.62.1",
     "tsx": "^4.23.12",
     "typescript": "^5.6.3"
   }

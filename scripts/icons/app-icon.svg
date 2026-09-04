@@ -1,0 +1,56 @@
+<!--
+  The home-screen icon.
+
+  A pylon: the marker at the corner of the end zone, and the only object in
+  the sport that means "this is where it counts". The app is named after it.
+
+  Drawn rather than photographed, because it is read at sixty pixels on a
+  phone among thirty others. What survives at that size is one shape and two
+  colours — and a pylon is a very good shape: a tapered slab, unmistakable in
+  silhouette, unlike anything else on a home screen.
+
+  Orange on the app's own dark ground. The interface is purple throughout and
+  a purple pylon would be a pylon in name only; this is the one place the real
+  colour of the thing is worth more than consistency with the buttons.
+
+  The mark sits well inside the middle on purpose. iOS rounds the corners
+  itself and Android may crop a circle out of it, so anything within about a
+  tenth of the edge is at risk; the safe area is the centre eighty per cent.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#252244"/>
+      <stop offset="1" stop-color="#161826"/>
+    </linearGradient>
+    <!--
+      In user space, not the default object bounding box. A bounding-box
+      gradient measured against a shape with no width in one axis collapses to
+      nothing and the fill never paints — which is how the first version of
+      this icon came out as an empty square.
+    -->
+    <linearGradient id="face" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="0" y2="400">
+      <stop offset="0" stop-color="#ffb066"/>
+      <stop offset="1" stop-color="#e2662a"/>
+    </linearGradient>
+    <linearGradient id="side" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="0" y2="400">
+      <stop offset="0" stop-color="#d97b3c"/>
+      <stop offset="1" stop-color="#a8431a"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#sky)"/>
+
+  <!--
+    Everything that is not the background, in one group, so the maskable
+    variant can shrink the mark without shrinking the ground under it.
+  -->
+  <g id="mark">
+    <!-- The lit face, and one shaded side, which is the whole of the depth. A
+         pylon drawn flat reads as a trapezium; two tones and it is an object. -->
+    <path d="M196 128 h84 l28 264 h-140 z" fill="url(#face)"/>
+    <path d="M280 128 h36 l24 264 h-32 z" fill="url(#side)"/>
+    <!-- The base it stands on, so it is planted rather than floating. -->
+    <rect x="150" y="392" width="212" height="22" rx="11" fill="#2b2741"/>
+  </g>
+</svg>

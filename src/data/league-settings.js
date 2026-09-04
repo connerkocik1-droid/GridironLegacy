@@ -19,14 +19,14 @@ export const DEFAULTS = {
   commissionerSlot: "HELX", // the slot that holds the league office
   ready: {},                // slot -> true, once a manager says they are set
   draftAt: "",              // ISO local datetime, e.g. 2026-09-01T20:00
-  rounds: 24,
+  rounds: 18,
   pickSeconds: 90,
   cinematicRounds: 3,
   lottery: true,
   lotteryOrder: null,       // set once the lottery has been drawn
-  scoring: "half",          // half | ppr | standard
+  scoring: "ppr",           // half | ppr | standard
   starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, "D/ST": 1, K: 1 },
-  bench: 14,
+  bench: 8,
   ir: 2,
   regularWeeks: 13,
   playoffWeeks: 4,          // weeks 14-17; week 18 is not played

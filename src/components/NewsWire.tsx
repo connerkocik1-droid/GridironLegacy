@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { headshot } from "@/data/league-data";
 import { timeAgo, type Story } from "@/lib/news";
 
@@ -75,7 +76,16 @@ export default function NewsWire({
                       href={story.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: "inherit", textDecoration: "none" }}
+                      style={{
+                        color: "inherit",
+                        textDecoration: "none",
+                        // A one-line headline is nineteen pixels of link, which
+                        // on a phone is a target you miss. Padding rather than
+                        // a min-height, so a headline that wraps to two lines
+                        // still reads as one block of text.
+                        display: "inline-block",
+                        padding: "6px 0",
+                      }}
                     >
                       {story.headline}
                     </a>
@@ -112,19 +122,26 @@ export default function NewsWire({
               {mine.length ? (
                 <div style={{ marginTop: 7, display: "flex", gap: 5, flexWrap: "wrap" }}>
                   {mine.map((name) => (
-                    <span
+                    <Link
                       key={name}
+                      href={`/player/${encodeURIComponent(name)}`}
                       style={{
                         fontSize: 10,
                         letterSpacing: ".1em",
-                        padding: "2px 6px",
+                        padding: "0 9px",
                         borderRadius: 2,
                         border: "1px solid rgba(181,171,252,.45)",
                         color: "#b5abfc",
+                        textDecoration: "none",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        // A chip is now a link to the player, so it has to be
+                        // big enough to press with a thumb.
+                        minHeight: 34,
                       }}
                     >
                       {name.toUpperCase()}
-                    </span>
+                    </Link>
                   ))}
                 </div>
               ) : null}
