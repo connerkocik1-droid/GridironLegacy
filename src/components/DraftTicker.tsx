@@ -25,12 +25,12 @@ interface Available {
 
 // The same tints the board uses, so a position means the same colour in both.
 const TINT: Record<string, string> = {
-  QB: "#e5a3a3",
-  RB: "#8fd3b0",
-  WR: "#a8b8e8",
-  TE: "#e0bb84",
-  K: "#b0a8cc",
-  "D/ST": "#a8a8bb",
+  QB: "var(--pos-qb)",
+  RB: "var(--pos-rb)",
+  WR: "var(--pos-wr)",
+  TE: "var(--pos-te)",
+  K: "var(--pos-k)",
+  "D/ST": "var(--pos-dst)",
 };
 
 /**
@@ -57,8 +57,8 @@ export default function DraftTicker({ available }: { available: Available[] }) {
       style={{
         display: "flex",
         alignItems: "stretch",
-        borderBottom: "1px solid rgba(145,132,217,.18)",
-        background: "rgba(20,22,35,.5)",
+        borderBottom: "1px solid rgb(var(--accent-rgb) / .18)",
+        background: "rgb(var(--sunken-rgb) / .5)",
       }}
     >
       <div
@@ -68,8 +68,8 @@ export default function DraftTicker({ available }: { available: Available[] }) {
           gap: 7,
           padding: "0 13px",
           flex: "0 0 auto",
-          borderRight: "1px solid rgba(145,132,217,.18)",
-          background: "rgba(26,28,43,.9)",
+          borderRight: "1px solid rgb(var(--accent-rgb) / .18)",
+          background: "rgb(var(--surface-rgb) / .9)",
           zIndex: 1,
         }}
       >
@@ -79,18 +79,18 @@ export default function DraftTicker({ available }: { available: Available[] }) {
             width: 5,
             height: 5,
             borderRadius: "50%",
-            background: "#7fd1a8",
+            background: "var(--good)",
             animation: "mt-pulse 1.6s ease infinite",
           }}
         />
-        <span style={{ fontSize: 10, letterSpacing: ".18em", color: "#9397ab", whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: 10, letterSpacing: ".18em", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
           BEST AVAILABLE
         </span>
         <span
           style={{
             fontSize: 10,
             letterSpacing: ".12em",
-            color: "#75798c",
+            color: "var(--text-dim)",
             whiteSpace: "nowrap",
             fontVariantNumeric: "tabular-nums",
           }}
@@ -125,23 +125,23 @@ export default function DraftTicker({ available }: { available: Available[] }) {
                     padding: "7px 15px",
                     whiteSpace: "nowrap",
                     fontSize: 11,
-                    borderRight: "1px solid rgba(145,132,217,.08)",
+                    borderRight: "1px solid rgb(var(--accent-rgb) / .08)",
                   }}
                 >
                   <span
                     style={{
                       fontSize: 10,
-                      color: "#5d6070",
+                      color: "var(--text-faint)",
                       fontVariantNumeric: "tabular-nums",
                     }}
                   >
                     {i + 1}
                   </span>
-                  <span style={{ color: i === 0 ? "#e9e9ed" : "#c9cbd8" }}>{p.name}</span>
-                  <span style={{ fontSize: 10, letterSpacing: ".08em", color: TINT[p.position] ?? "#9397ab" }}>
+                  <span style={{ color: i === 0 ? "var(--text)" : "var(--text-2)" }}>{p.name}</span>
+                  <span style={{ fontSize: 10, letterSpacing: ".08em", color: TINT[p.position] ?? "var(--text-muted)" }}>
                     {p.posRank || (p.position === "D/ST" ? "DST" : p.position)}
                   </span>
-                  <span style={{ fontSize: 10, letterSpacing: ".08em", color: "#5d6070" }}>
+                  <span style={{ fontSize: 10, letterSpacing: ".08em", color: "var(--text-faint)" }}>
                     {p.team}
                     {p.bye ? ` · BYE ${p.bye}` : ""}
                   </span>

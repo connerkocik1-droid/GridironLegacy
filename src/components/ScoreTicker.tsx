@@ -63,7 +63,7 @@ function GameCell({ game }: { game: Game }) {
 
   const team = (abbrev: string, score: number, winning: boolean) => (
     <>
-      <span style={{ color: winning ? "#e9e9ed" : "#9397ab", letterSpacing: ".06em" }}>
+      <span style={{ color: winning ? "var(--text)" : "var(--text-muted)", letterSpacing: ".06em" }}>
         {abbrev}
       </span>
       {started ? (
@@ -71,7 +71,7 @@ function GameCell({ game }: { game: Game }) {
           style={{
             fontFamily: "var(--font-heading)",
             fontSize: 12.5,
-            color: winning ? "#d2cefd" : "#8f94a8",
+            color: winning ? "var(--accent-text)" : "var(--text-quiet)",
             fontVariantNumeric: "tabular-nums",
           }}
         >
@@ -90,20 +90,20 @@ function GameCell({ game }: { game: Game }) {
         alignItems: "center",
         gap: 6,
         padding: "0 15px",
-        borderRight: "1px solid rgba(145,132,217,.12)",
+        borderRight: "1px solid rgb(var(--accent-rgb) / .12)",
         whiteSpace: "nowrap",
         fontSize: 10.5,
       }}
     >
       {team(away.abbrev, away.score, awayWon)}
-      <span aria-hidden style={{ color: "#5a5d6e" }}>@</span>
+      <span aria-hidden style={{ color: "var(--text-faint)" }}>@</span>
       {team(home.abbrev, home.score, homeWon)}
 
       <span
         style={{
           fontSize: 10,
           letterSpacing: ".12em",
-          color: state === "in" ? "#7fd1a8" : "#75798c",
+          color: state === "in" ? "var(--good)" : "var(--text-dim)",
           marginLeft: 2,
         }}
       >
@@ -154,8 +154,8 @@ export default function ScoreTicker() {
       style={{
         display: "flex",
         alignItems: "stretch",
-        borderBottom: "1px solid rgba(145,132,217,.18)",
-        background: "rgba(20,22,35,.5)",
+        borderBottom: "1px solid rgb(var(--accent-rgb) / .18)",
+        background: "rgb(var(--sunken-rgb) / .5)",
         height: 34,
       }}
     >
@@ -166,8 +166,8 @@ export default function ScoreTicker() {
           gap: 7,
           padding: "0 13px",
           flex: "0 0 auto",
-          borderRight: "1px solid rgba(145,132,217,.18)",
-          background: "rgba(26,28,43,.9)",
+          borderRight: "1px solid rgb(var(--accent-rgb) / .18)",
+          background: "rgb(var(--surface-rgb) / .9)",
           zIndex: 1,
         }}
       >
@@ -177,18 +177,18 @@ export default function ScoreTicker() {
             width: 5,
             height: 5,
             borderRadius: "50%",
-            background: live ? "#7fd1a8" : "#5a5d6e",
+            background: live ? "var(--good)" : "var(--text-faint)",
             animation: live ? "mt-pulse 1.6s ease infinite" : undefined,
           }}
         />
         <span
-          style={{ fontSize: 10, letterSpacing: ".18em", color: "#9397ab", whiteSpace: "nowrap" }}
+          style={{ fontSize: 10, letterSpacing: ".18em", color: "var(--text-muted)", whiteSpace: "nowrap" }}
         >
           {season}
           {week}
         </span>
         <span
-          style={{ fontSize: 10, letterSpacing: ".12em", color: "#75798c", whiteSpace: "nowrap" }}
+          style={{ fontSize: 10, letterSpacing: ".12em", color: "var(--text-dim)", whiteSpace: "nowrap" }}
         >
           {live
             ? `${live} LIVE`

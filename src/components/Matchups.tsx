@@ -45,9 +45,9 @@ interface Board {
 }
 
 const tab = (active: boolean): React.CSSProperties => ({
-  border: `1px solid ${active ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
-  background: active ? "rgba(145,132,217,.24)" : "transparent",
-  color: active ? "#e9e9ed" : "#8f94a8",
+  border: `1px solid ${active ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+  background: active ? "rgb(var(--accent-rgb) / .24)" : "transparent",
+  color: active ? "var(--text)" : "var(--text-quiet)",
   borderRadius: "var(--radius-sm)",
   font: "inherit",
   fontSize: 10.5,
@@ -75,7 +75,7 @@ function Score({
           style={{
             fontFamily: "var(--font-heading)",
             fontSize: 14,
-            color: lost ? "#8f94a8" : "#e9e9ed",
+            color: lost ? "var(--text-quiet)" : "var(--text)",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -89,7 +89,7 @@ function Score({
           style={{
             fontSize: 10,
             letterSpacing: ".14em",
-            color: side.claimed ? "#75798c" : "#5a5d6e",
+            color: side.claimed ? "var(--text-dim)" : "var(--text-faint)",
             marginTop: 2,
           }}
         >
@@ -100,7 +100,7 @@ function Score({
         style={{
           fontFamily: "var(--font-heading)",
           fontSize: 19,
-          color: won ? "#d2cefd" : lost ? "#8f94a8" : "#b2b6ca",
+          color: won ? "var(--accent-text)" : lost ? "var(--text-quiet)" : "var(--text-3)",
           fontVariantNumeric: "tabular-nums",
         }}
       >
@@ -129,9 +129,9 @@ function GameCard({
       role="group"
       aria-label={`Week ${game.week}: ${away.franchise} at ${home.franchise}`}
       style={{
-        border: `1px solid ${highlight ? "rgba(181,171,252,.5)" : "rgba(145,132,217,.2)"}`,
+        border: `1px solid ${highlight ? "rgb(var(--accent-bright-rgb) / .5)" : "rgb(var(--accent-rgb) / .2)"}`,
         borderRadius: "var(--radius-md)",
-        background: highlight ? "rgba(145,132,217,.1)" : "rgba(26,28,43,.55)",
+        background: highlight ? "rgb(var(--accent-rgb) / .1)" : "rgb(var(--surface-rgb) / .55)",
         padding: "12px 14px 13px",
       }}
     >
@@ -142,13 +142,13 @@ function GameCard({
           gap: 8,
           fontSize: 10,
           letterSpacing: ".18em",
-          color: "#75798c",
+          color: "var(--text-dim)",
           marginBottom: 9,
         }}
       >
         WEEK {game.week}
-        {game.divisional ? <span style={{ color: "#b5abfc" }}>· DIVISION</span> : null}
-        <span style={{ marginLeft: "auto", color: game.live ? "#7fd1a8" : "#75798c" }}>
+        {game.divisional ? <span style={{ color: "var(--accent-link)" }}>· DIVISION</span> : null}
+        <span style={{ marginLeft: "auto", color: game.live ? "var(--good)" : "var(--text-dim)" }}>
           {game.final ? "FINAL" : game.live ? "LIVE" : "TO COME"}
         </span>
       </div>
@@ -220,7 +220,7 @@ export default function Matchups() {
   }, [board]);
 
   if (error && !board) {
-    return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
   }
   if (!board) {
     return <Skeleton rows={4} />;
@@ -228,7 +228,7 @@ export default function Matchups() {
 
   return (
     <div style={{ padding: "24px 26px 40px" }}>
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>THE SEASON</div>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>THE SEASON</div>
       <h1
         style={{
           fontFamily: "var(--font-heading)",
@@ -242,13 +242,13 @@ export default function Matchups() {
       </h1>
 
       {record && record.played ? (
-        <p style={{ fontSize: 12.5, color: "#9397ab", margin: "0 0 16px" }}>
+        <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 16px" }}>
           You are {record.w}-{record.l}
           {record.t ? `-${record.t}` : ""} through {record.played}{" "}
           {record.played === 1 ? "week" : "weeks"}.
         </p>
       ) : (
-        <p style={{ fontSize: 12.5, color: "#9397ab", margin: "0 0 16px" }}>
+        <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 16px" }}>
           Nothing has been settled yet.
         </p>
       )}
@@ -279,10 +279,10 @@ export default function Matchups() {
             style={{
               marginLeft: 6,
               padding: "7px 10px",
-              background: "rgba(20,22,35,.8)",
-              border: "1px solid rgba(145,132,217,.3)",
+              background: "rgb(var(--sunken-rgb) / .8)",
+              border: "1px solid rgb(var(--accent-rgb) / .3)",
               borderRadius: "var(--radius-sm)",
-              color: "#e9e9ed",
+              color: "var(--text)",
               font: "inherit",
               fontSize: 12,
               cursor: "pointer",
@@ -299,7 +299,7 @@ export default function Matchups() {
       </div>
 
       {!shown.length ? (
-        <div style={{ fontSize: 12.5, color: "#9397ab", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.6 }}>
           {board.weeks.length
             ? "Nothing scheduled here."
             : "No schedule yet. The commissioner builds it once every franchise is claimed."}

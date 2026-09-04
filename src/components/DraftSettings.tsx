@@ -38,26 +38,26 @@ const label: React.CSSProperties = {
   display: "block",
   fontSize: 10,
   letterSpacing: ".2em",
-  color: "#75798c",
+  color: "var(--text-dim)",
   marginBottom: 6,
 };
 
 const field: React.CSSProperties = {
   width: 78,
   padding: "8px 10px",
-  background: "rgba(20,22,35,.8)",
-  border: "1px solid rgba(145,132,217,.3)",
+  background: "rgb(var(--sunken-rgb) / .8)",
+  border: "1px solid rgb(var(--accent-rgb) / .3)",
   borderRadius: "var(--radius-sm)",
-  color: "#e9e9ed",
+  color: "var(--text)",
   font: "inherit",
   fontSize: 14,
 };
 
 const action = (enabled: boolean): React.CSSProperties => ({
   padding: "8px 14px",
-  border: "1px solid rgba(181,171,252,.6)",
+  border: "1px solid rgb(var(--accent-bright-rgb) / .6)",
   background: "transparent",
-  color: "#d2cefd",
+  color: "var(--accent-text)",
   borderRadius: "var(--radius-sm)",
   font: "inherit",
   fontSize: 12,
@@ -183,8 +183,8 @@ export default function DraftSettings({
 
   return (
     <>
-      <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Draft settings</h6>
-      <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 14px" }}>
+      <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>Draft settings</h6>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 14px" }}>
         How long each pick has, how many rounds get the full-screen reveal, and
         who picks when. All three are fixed once the first pick is made — the
         board is drawn from them, and renumbering it under picks that already
@@ -204,14 +204,14 @@ export default function DraftSettings({
                 alignItems: "center",
                 gap: 10,
                 padding: "8px 0",
-                borderTop: "1px solid rgba(145,132,217,.12)",
+                borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
                 flexWrap: "wrap",
               }}
             >
               <span
                 style={{
                   fontSize: 11.5,
-                  color: "#9397ab",
+                  color: "var(--text-muted)",
                   minWidth: 108,
                   flex: "0 0 auto",
                 }}
@@ -220,14 +220,14 @@ export default function DraftSettings({
               </span>
 
               {last ? (
-                <span style={{ fontSize: 11, color: "#75798c", width: 92, flex: "0 0 auto" }}>
+                <span style={{ fontSize: 11, color: "var(--text-dim)", width: 92, flex: "0 0 auto" }}>
                   to the end
                 </span>
               ) : (
                 <label
                   style={{ display: "inline-flex", alignItems: "center", gap: 6, flex: "0 0 auto" }}
                 >
-                  <span style={{ fontSize: 11, color: "#75798c" }}>through round</span>
+                  <span style={{ fontSize: 11, color: "var(--text-dim)" }}>through round</span>
                   <input
                     value={row.through}
                     onChange={(e) =>
@@ -252,7 +252,7 @@ export default function DraftSettings({
                   aria-label={`Tier ${i + 1} seconds a pick`}
                   style={{ ...field, width: 62 }}
                 />
-                <span style={{ fontSize: 11, color: "#75798c" }}>seconds</span>
+                <span style={{ fontSize: 11, color: "var(--text-dim)" }}>seconds</span>
               </label>
 
               {tiers.length > 1 ? (
@@ -309,13 +309,13 @@ export default function DraftSettings({
       </div>
 
       {parsed == null ? (
-        <p style={{ fontSize: 11.5, color: "#e0b573", lineHeight: 1.6, margin: "0 0 12px" }}>
+        <p style={{ fontSize: 11.5, color: "var(--warn)", lineHeight: 1.6, margin: "0 0 12px" }}>
           Each tier needs {MIN_SECONDS}–{MAX_SECONDS} seconds, and each one has to
           end on a later round than the one above it.
         </p>
       ) : null}
 
-      <p style={{ fontSize: 11.5, color: "#75798c", lineHeight: 1.6, margin: "0 0 18px" }}>
+      <p style={{ fontSize: 11.5, color: "var(--text-dim)", lineHeight: 1.6, margin: "0 0 18px" }}>
         A pick left to run out is drafted for the manager from their queue, and
         from ADP and what their roster still needs when the queue is empty — so
         the clock is what keeps the night moving rather than a punishment. Past
@@ -323,7 +323,7 @@ export default function DraftSettings({
         being a thrill by round four.
       </p>
 
-      <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c", marginBottom: 8 }}>
+      <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)", marginBottom: 8 }}>
         PICK ORDER
       </div>
 
@@ -348,7 +348,7 @@ export default function DraftSettings({
           </button>
         </div>
       ) : (
-        <p style={{ fontSize: 12, color: "#e0b573", lineHeight: 1.6, margin: "0 0 12px" }}>
+        <p style={{ fontSize: 12, color: "var(--warn)", lineHeight: 1.6, margin: "0 0 12px" }}>
           The draft has started, so the order is fixed. Resetting the draft
           opens it again.
         </p>
@@ -363,20 +363,20 @@ export default function DraftSettings({
               alignItems: "center",
               gap: 10,
               padding: "7px 0",
-              borderTop: "1px solid rgba(145,132,217,.12)",
+              borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
             }}
           >
             <span
               style={{
                 fontSize: 11,
-                color: "#75798c",
+                color: "var(--text-dim)",
                 width: 22,
                 fontVariantNumeric: "tabular-nums",
               }}
             >
               {i + 1}
             </span>
-            <span style={{ fontSize: 10, color: "#75798c", width: 44 }}>{slot}</span>
+            <span style={{ fontSize: 10, color: "var(--text-dim)", width: 44 }}>{slot}</span>
             <span style={{ fontFamily: "var(--font-heading)", fontSize: 14, flex: 1, minWidth: 0 }}>
               {bySlot.get(slot)?.franchise ?? slot}
             </span>

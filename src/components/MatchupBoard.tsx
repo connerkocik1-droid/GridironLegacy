@@ -55,7 +55,7 @@ function PlayerCell({
           alignItems: "center",
           justifyContent: reverse ? "flex-end" : "flex-start",
           minWidth: 0,
-          color: "#5a5d6e",
+          color: "var(--text-faint)",
           fontSize: 12,
           padding: "0 4px",
         }}
@@ -93,8 +93,8 @@ function PlayerCell({
         style={{
           borderRadius: "50%",
           objectFit: "contain",
-          border: "1px solid rgba(145,132,217,.3)",
-          background: "rgba(35,37,50,.7)",
+          border: "1px solid rgb(var(--accent-rgb) / .3)",
+          background: "rgb(var(--raised-rgb) / .7)",
           flex: "0 0 auto",
         }}
       />
@@ -137,13 +137,13 @@ function PlayerCell({
           style={{
             fontFamily: "var(--font-heading)",
             fontSize: 16,
-            color: leading ? "#d2cefd" : "#b2b6ca",
+            color: leading ? "var(--accent-text)" : "var(--text-3)",
           }}
         >
           <LiveNumber key={entry.name} value={entry.live ? entry.points : entry.projected} />
         </div>
         {!entry.live ? (
-          <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#5a5d6e" }}>PROJ</div>
+          <div style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--text-faint)" }}>PROJ</div>
         ) : null}
       </div>
 
@@ -155,7 +155,7 @@ function PlayerCell({
         style={{
           flexBasis: "100%",
           fontSize: 10,
-          color: "#75798c",
+          color: "var(--text-dim)",
           lineHeight: 1.45,
           overflowWrap: "anywhere",
           textAlign: align,
@@ -198,7 +198,7 @@ export default function MatchupBoard() {
   }, [load]);
 
   if (error && !board) {
-    return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
   }
   if (!board) {
     return <Skeleton rows={5} />;
@@ -222,7 +222,7 @@ export default function MatchupBoard() {
         }}
       >
         <div>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>YOU</div>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>YOU</div>
           <div style={{ fontFamily: "var(--font-heading)", fontSize: 22, marginTop: 4 }}>
             {board.home.franchise}
           </div>
@@ -230,7 +230,7 @@ export default function MatchupBoard() {
             style={{
               fontFamily: "var(--font-heading)",
               fontSize: 40,
-              color: homeLeads ? "#d2cefd" : "#e9e9ed",
+              color: homeLeads ? "var(--accent-text)" : "var(--text)",
               marginTop: 2,
             }}
           >
@@ -239,19 +239,19 @@ export default function MatchupBoard() {
         </div>
 
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>
             WEEK {board.week}
           </div>
-          <div style={{ fontFamily: "var(--font-heading)", fontSize: 13, color: "#b5abfc", margin: "6px 0" }}>
+          <div style={{ fontFamily: "var(--font-heading)", fontSize: 13, color: "var(--accent-link)", margin: "6px 0" }}>
             VS
           </div>
-          <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#75798c" }}>
+          <div style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--text-dim)" }}>
             {board.live ? "LIVE" : board.started ? "SCORED" : "PROJECTED"}
           </div>
         </div>
 
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>OPPONENT</div>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>OPPONENT</div>
           <select
             value={opponent}
             aria-label="Opponent"
@@ -262,7 +262,7 @@ export default function MatchupBoard() {
               marginTop: 4,
               padding: "2px 6px",
               background: "transparent",
-              color: "#e9e9ed",
+              color: "var(--text)",
               border: "1px solid transparent",
               borderRadius: "var(--radius-sm)",
               // The native arrow anchors to the control's own right edge, which
@@ -286,7 +286,7 @@ export default function MatchupBoard() {
             style={{
               fontFamily: "var(--font-heading)",
               fontSize: 40,
-              color: awayLeads ? "#d2cefd" : "#e9e9ed",
+              color: awayLeads ? "var(--accent-text)" : "var(--text)",
               marginTop: 2,
             }}
           >
@@ -308,7 +308,7 @@ export default function MatchupBoard() {
         style={{
           padding: "0 26px 10px",
           fontSize: 11.5,
-          color: "#75798c",
+          color: "var(--text-dim)",
           lineHeight: 1.6,
           maxWidth: "70ch",
         }}
@@ -321,15 +321,15 @@ export default function MatchupBoard() {
       </div>
 
       {error ? (
-        <div style={{ padding: "0 26px 8px", fontSize: 12, color: "#e0b573" }}>{error}</div>
+        <div style={{ padding: "0 26px 8px", fontSize: 12, color: "var(--warn)" }}>{error}</div>
       ) : null}
 
       <div style={{ padding: "0 26px 40px" }}>
         <div
           style={{
-            border: "1px solid rgba(145,132,217,.22)",
+            border: "1px solid rgb(var(--accent-rgb) / .22)",
             borderRadius: "var(--radius-lg)",
-            background: "rgba(26,28,43,.55)",
+            background: "rgb(var(--surface-rgb) / .55)",
             overflow: "hidden",
           }}
         >
@@ -348,7 +348,7 @@ export default function MatchupBoard() {
                   alignItems: "center",
                   gap: 8,
                   padding: "11px 14px",
-                  borderTop: i === 0 ? "none" : "1px solid rgba(145,132,217,.12)",
+                  borderTop: i === 0 ? "none" : "1px solid rgb(var(--accent-rgb) / .12)",
                 }}
               >
                 <PlayerCell entry={row.home} align="left" leading={homePoints > awayPoints} />
@@ -359,8 +359,8 @@ export default function MatchupBoard() {
                     fontFamily: "var(--font-heading)",
                     fontSize: 10,
                     letterSpacing: ".14em",
-                    color: "#b5abfc",
-                    background: "rgba(145,132,217,.12)",
+                    color: "var(--accent-link)",
+                    background: "rgb(var(--accent-rgb) / .12)",
                     borderRadius: "var(--radius-sm)",
                     padding: "5px 0",
                   }}

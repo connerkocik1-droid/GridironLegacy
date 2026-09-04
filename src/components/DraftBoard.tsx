@@ -39,12 +39,12 @@ interface Manager {
 // Low-chroma tints rather than the loud primaries other sites use: the ground
 // here is dark and desaturated, and twelve columns of bright colour is noise.
 const POSITION_TINT: Record<string, { bg: string; fg: string }> = {
-  QB: { bg: "rgba(224,131,131,.16)", fg: "#e5a3a3" },
-  RB: { bg: "rgba(127,209,168,.15)", fg: "#8fd3b0" },
-  WR: { bg: "rgba(145,164,217,.17)", fg: "#a8b8e8" },
-  TE: { bg: "rgba(224,181,115,.15)", fg: "#e0bb84" },
-  K: { bg: "rgba(160,150,190,.14)", fg: "#b0a8cc" },
-  "D/ST": { bg: "rgba(140,140,155,.14)", fg: "#a8a8bb" },
+  QB: { bg: "rgb(var(--pos-qb-rgb) / .16)", fg: "var(--pos-qb)" },
+  RB: { bg: "rgb(var(--pos-rb-rgb) / .15)", fg: "var(--pos-rb)" },
+  WR: { bg: "rgb(var(--pos-wr-rgb) / .17)", fg: "var(--pos-wr)" },
+  TE: { bg: "rgb(var(--pos-te-rgb) / .15)", fg: "var(--pos-te)" },
+  K: { bg: "rgb(var(--pos-k-rgb) / .14)", fg: "var(--pos-k)" },
+  "D/ST": { bg: "rgb(var(--pos-dst-rgb) / .14)", fg: "var(--pos-dst)" },
 };
 
 export default function DraftBoard({
@@ -87,7 +87,7 @@ export default function DraftBoard({
 
   if (!columns.length || !rounds) {
     return (
-      <div style={{ padding: "18px 20px", fontSize: 13, color: "#75798c" }}>
+      <div style={{ padding: "18px 20px", fontSize: 13, color: "var(--text-dim)" }}>
         No board yet. The commissioner builds it from the league office.
       </div>
     );
@@ -103,12 +103,12 @@ export default function DraftBoard({
           alignItems: "baseline",
           gap: 12,
           padding: "13px 18px",
-          borderBottom: "1px solid rgba(145,132,217,.18)",
+          borderBottom: "1px solid rgb(var(--accent-rgb) / .18)",
           flexWrap: "wrap",
         }}
       >
-        <h6 style={{ margin: 0, color: "#d2cefd" }}>The board</h6>
-        <span style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c" }}>
+        <h6 style={{ margin: 0, color: "var(--accent-text)" }}>The board</h6>
+        <span style={{ fontSize: 10, letterSpacing: ".16em", color: "var(--text-dim)" }}>
           {made} OF {picks.length} PICKS MADE
         </span>
         <div style={{ display: "flex", gap: 10, marginLeft: "auto", flexWrap: "wrap" }}>
@@ -142,11 +142,11 @@ export default function DraftBoard({
                   zIndex: 2,
                   width: 46,
                   padding: "8px 6px",
-                  background: "#1b1d2c",
-                  borderBottom: "1px solid rgba(145,132,217,.22)",
+                  background: "var(--board-solid)",
+                  borderBottom: "1px solid rgb(var(--accent-rgb) / .22)",
                   fontSize: 10,
                   letterSpacing: ".16em",
-                  color: "#75798c",
+                  color: "var(--text-dim)",
                   fontWeight: 400,
                 }}
               >
@@ -158,12 +158,12 @@ export default function DraftBoard({
                   title={m.franchise}
                   style={{
                     padding: "8px 8px",
-                    borderBottom: "1px solid rgba(145,132,217,.22)",
-                    borderLeft: "1px solid rgba(145,132,217,.1)",
-                    background: m.id === meId ? "rgba(66,58,106,.4)" : "transparent",
+                    borderBottom: "1px solid rgb(var(--accent-rgb) / .22)",
+                    borderLeft: "1px solid rgb(var(--accent-rgb) / .1)",
+                    background: m.id === meId ? "rgb(var(--glow-rgb) / .4)" : "transparent",
                     fontSize: 10,
                     letterSpacing: ".12em",
-                    color: m.id === meId ? "#d2cefd" : "#9397ab",
+                    color: m.id === meId ? "var(--accent-text)" : "var(--text-muted)",
                     fontWeight: 400,
                     whiteSpace: "nowrap",
                     textAlign: "left",
@@ -193,10 +193,10 @@ export default function DraftBoard({
                     left: 0,
                     zIndex: 1,
                     padding: "6px",
-                    background: "#1b1d2c",
-                    borderTop: "1px solid rgba(145,132,217,.1)",
+                    background: "var(--board-solid)",
+                    borderTop: "1px solid rgb(var(--accent-rgb) / .1)",
                     fontSize: 10,
-                    color: "#75798c",
+                    color: "var(--text-dim)",
                     textAlign: "center",
                     fontVariantNumeric: "tabular-nums",
                   }}
@@ -215,12 +215,12 @@ export default function DraftBoard({
                       key={m.id}
                       style={{
                         padding: "5px 7px",
-                        borderTop: "1px solid rgba(145,132,217,.1)",
-                        borderLeft: "1px solid rgba(145,132,217,.1)",
+                        borderTop: "1px solid rgb(var(--accent-rgb) / .1)",
+                        borderLeft: "1px solid rgb(var(--accent-rgb) / .1)",
                         background: onClock
-                          ? "rgba(145,132,217,.3)"
+                          ? "rgb(var(--accent-rgb) / .3)"
                           : (tint?.bg ?? "transparent"),
-                        boxShadow: onClock ? "inset 0 0 0 1px rgba(181,171,252,.7)" : undefined,
+                        boxShadow: onClock ? "inset 0 0 0 1px rgb(var(--accent-bright-rgb) / .7)" : undefined,
                         verticalAlign: "top",
                         minWidth: 116,
                       }}
@@ -232,7 +232,7 @@ export default function DraftBoard({
                               display: "flex",
                               alignItems: "baseline",
                               gap: 5,
-                              color: "#75798c",
+                              color: "var(--text-dim)",
                               fontSize: 10,
                               letterSpacing: ".08em",
                               fontVariantNumeric: "tabular-nums",
@@ -249,7 +249,7 @@ export default function DraftBoard({
                           </div>
                           <div
                             style={{
-                              color: "#e9e9ed",
+                              color: "var(--text)",
                               fontSize: 11,
                               lineHeight: 1.25,
                               marginTop: 1,
@@ -261,7 +261,7 @@ export default function DraftBoard({
                       ) : (
                         <div
                           style={{
-                            color: onClock ? "#d2cefd" : "#464a5e",
+                            color: onClock ? "var(--accent-text)" : "var(--text-off)",
                             // Ten, not the nine this used to be to make "ON
                             // THE CLOCK" fit: below ten it stops being
                             // readable on a phone, so the label gave instead.
@@ -344,7 +344,7 @@ function BoardList({
       ) : null}
 
       {made.length === 0 && !onClock ? (
-        <div style={{ padding: "14px 18px", fontSize: 12, color: "#75798c" }}>
+        <div style={{ padding: "14px 18px", fontSize: 12, color: "var(--text-dim)" }}>
           Nobody has picked yet.
         </div>
       ) : null}
@@ -386,11 +386,11 @@ function Row({
         alignItems: "center",
         gap: 10,
         padding: "9px 16px",
-        borderTop: "1px solid rgba(145,132,217,.1)",
+        borderTop: "1px solid rgb(var(--accent-rgb) / .1)",
         background: onClock
-          ? "rgba(145,132,217,.22)"
+          ? "rgb(var(--accent-rgb) / .22)"
           : mine
-            ? "rgba(145,132,217,.08)"
+            ? "rgb(var(--accent-rgb) / .08)"
             : undefined,
       }}
     >
@@ -399,7 +399,7 @@ function Row({
           flex: "0 0 auto",
           width: 34,
           fontSize: 11,
-          color: "#75798c",
+          color: "var(--text-dim)",
           fontVariantNumeric: "tabular-nums",
         }}
       >
@@ -418,8 +418,8 @@ function Row({
           letterSpacing: ".08em",
           padding: "2px 5px",
           borderRadius: 2,
-          background: tint?.bg ?? "rgba(145,132,217,.1)",
-          color: tint?.fg ?? "#75798c",
+          background: tint?.bg ?? "rgb(var(--accent-rgb) / .1)",
+          color: tint?.fg ?? "var(--text-dim)",
         }}
       >
         {pl ? (pl.p === "D/ST" ? "DST" : pl.p) : "—"}
@@ -429,7 +429,7 @@ function Row({
         <div
           style={{
             fontSize: 13,
-            color: onClock ? "#d2cefd" : "#e9e9ed",
+            color: onClock ? "var(--accent-text)" : "var(--text)",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -440,14 +440,14 @@ function Row({
         <div
           style={{
             fontSize: 10,
-            color: "#75798c",
+            color: "var(--text-dim)",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
           }}
         >
           {manager?.franchise ?? "—"}
-          {mine ? <span style={{ color: "#b5abfc" }}> · you</span> : null}
+          {mine ? <span style={{ color: "var(--accent-link)" }}> · you</span> : null}
         </div>
       </div>
 

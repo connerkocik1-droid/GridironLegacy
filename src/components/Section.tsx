@@ -33,7 +33,7 @@ export default function Section({
 
   const heading = (
     <>
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>{eyebrow}</div>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>{eyebrow}</div>
       <h2
         style={{
           fontFamily: "var(--font-heading)",
@@ -83,7 +83,7 @@ export default function Section({
               aria-hidden
               style={{
                 marginTop: 14,
-                color: "#75798c",
+                color: "var(--text-dim)",
                 fontSize: 10,
                 lineHeight: 1,
                 transition: "transform 140ms ease",
@@ -99,7 +99,7 @@ export default function Section({
         )}
 
         {aside && open ? (
-          <div style={{ marginLeft: "auto", fontSize: 11, color: "#75798c" }}>{aside}</div>
+          <div style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-dim)" }}>{aside}</div>
         ) : null}
       </div>
 

@@ -96,25 +96,25 @@ export default function AddToHomeScreen() {
         gap: 10,
         padding: "12px 12px 12px 14px",
         borderRadius: "var(--radius-lg)",
-        border: "1px solid rgba(181,171,252,.45)",
-        background: "rgba(30,32,50,.96)",
+        border: "1px solid rgb(var(--accent-bright-rgb) / .45)",
+        background: "rgb(var(--raised-rgb) / .96)",
         backdropFilter: "blur(10px)",
-        boxShadow: "0 10px 30px rgba(0,0,0,.45)",
+        boxShadow: "0 10px 30px rgb(var(--shadow-rgb) / .45)",
       }}
     >
-      <div style={{ minWidth: 0, flex: 1, fontSize: 12.5, color: "#c8ccdc", lineHeight: 1.6 }}>
+      <div style={{ minWidth: 0, flex: 1, fontSize: 12.5, color: "var(--text-2)", lineHeight: 1.6 }}>
         <div
           style={{
             fontFamily: "var(--font-heading)",
             fontSize: 13.5,
-            color: "#e9e9ed",
+            color: "var(--text)",
             marginBottom: 3,
           }}
         >
           Put this on your home screen
         </div>
         Tap <ShareGlyph /> below, then{" "}
-        <span style={{ color: "#d2cefd" }}>Add to Home Screen</span>. It opens
+        <span style={{ color: "var(--accent-text)" }}>Add to Home Screen</span>. It opens
         full screen, without the address bar.
       </div>
 
@@ -135,7 +135,7 @@ export default function AddToHomeScreen() {
           flex: "0 0 auto",
           border: 0,
           background: "transparent",
-          color: "#75798c",
+          color: "var(--text-dim)",
           font: "inherit",
           fontSize: 15,
           cursor: "pointer",
@@ -164,7 +164,7 @@ function ShareGlyph() {
       role="img"
       style={{ verticalAlign: "-2px", margin: "0 1px" }}
       fill="none"
-      stroke="#d2cefd"
+      stroke="var(--accent-text)"
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"

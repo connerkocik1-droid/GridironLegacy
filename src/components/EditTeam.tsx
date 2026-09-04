@@ -17,7 +17,7 @@ export default function EditTeam() {
 
   if (me.status === "checking") {
     return (
-      <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 18px", fontSize: 12.5, color: "#75798c" }}>
+      <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 18px", fontSize: 12.5, color: "var(--text-dim)" }}>
         Reading your franchise…
       </div>
     );
@@ -31,7 +31,7 @@ export default function EditTeam() {
           margin: "60px auto",
           padding: "0 18px",
           fontSize: 13,
-          color: "#9397ab",
+          color: "var(--text-muted)",
           lineHeight: 1.7,
         }}
       >
@@ -52,7 +52,7 @@ export default function EditTeam() {
             alignItems: "center",
             minHeight: 34,
             fontSize: 11.5,
-            color: "#b5abfc",
+            color: "var(--accent-link)",
             textDecoration: "none",
           }}
         >
@@ -63,7 +63,7 @@ export default function EditTeam() {
       <div style={{ display: "flex", alignItems: "center", gap: 13, marginBottom: 18 }}>
         <TeamCrest franchise={manager.franchise} logo={manager.logo} size={48} shape="box" />
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>EDIT TEAM</div>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>EDIT TEAM</div>
           <h1
             style={{
               fontFamily: "var(--font-heading)",
@@ -71,7 +71,7 @@ export default function EditTeam() {
               letterSpacing: "-.02em",
               margin: "6px 0 0",
               fontWeight: 500,
-              color: "#e9e9ed",
+              color: "var(--text)",
               overflowWrap: "anywhere",
             }}
           >
@@ -80,16 +80,16 @@ export default function EditTeam() {
         </div>
       </div>
 
-      <p style={{ fontSize: 12.5, color: "#9397ab", lineHeight: 1.65, margin: "0 0 16px" }}>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.65, margin: "0 0 16px" }}>
         Your franchise&rsquo;s name and picture are what the rest of the league sees
         beside your score. Your PIN is only yours.
       </p>
 
       <div
         style={{
-          border: "1px solid rgba(145,132,217,.22)",
+          border: "1px solid rgb(var(--accent-rgb) / .22)",
           borderRadius: "var(--radius-lg)",
-          background: "rgba(26,28,43,.55)",
+          background: "rgb(var(--surface-rgb) / .55)",
           overflow: "hidden",
           paddingTop: 2,
         }}

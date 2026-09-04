@@ -17,9 +17,9 @@ import type { Home } from "@/lib/home-types";
 const BLANK = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 const panel: React.CSSProperties = {
-  border: "1px solid rgba(145,132,217,.22)",
+  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgba(26,28,43,.55)",
+  background: "rgb(var(--surface-rgb) / .55)",
   overflow: "hidden",
 };
 
@@ -28,10 +28,10 @@ const panelHead: React.CSSProperties = {
   alignItems: "baseline",
   gap: 8,
   padding: "12px 15px 10px",
-  borderBottom: "1px solid rgba(145,132,217,.14)",
+  borderBottom: "1px solid rgb(var(--accent-rgb) / .14)",
   fontSize: 10,
   letterSpacing: ".2em",
-  color: "#b5abfc",
+  color: "var(--accent-link)",
 };
 
 export default function LeagueOverview({ home }: { home: Home }) {
@@ -50,13 +50,13 @@ export default function LeagueOverview({ home }: { home: Home }) {
       <div style={panel}>
         <div style={panelHead}>
           TOP OF EACH POSITION
-          <span style={{ marginLeft: "auto", letterSpacing: ".14em", color: "#75798c" }}>
+          <span style={{ marginLeft: "auto", letterSpacing: ".14em", color: "var(--text-dim)" }}>
             {leaderBasis === "scored" ? "SEASON POINTS" : "PROJECTED"}
           </span>
         </div>
 
         {leaders.every((l) => !l.player) ? (
-          <div style={{ padding: "16px 15px", fontSize: 12.5, color: "#9397ab", lineHeight: 1.6 }}>
+          <div style={{ padding: "16px 15px", fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.6 }}>
             Nobody holds a player yet. This fills in once the draft has run.
           </div>
         ) : (
@@ -68,7 +68,7 @@ export default function LeagueOverview({ home }: { home: Home }) {
                 alignItems: "center",
                 gap: 11,
                 padding: "9px 15px",
-                borderTop: i === 0 ? "none" : "1px solid rgba(145,132,217,.1)",
+                borderTop: i === 0 ? "none" : "1px solid rgb(var(--accent-rgb) / .1)",
               }}
             >
               <div
@@ -79,8 +79,8 @@ export default function LeagueOverview({ home }: { home: Home }) {
                   fontFamily: "var(--font-heading)",
                   fontSize: 10,
                   letterSpacing: ".1em",
-                  color: "#b5abfc",
-                  background: "rgba(145,132,217,.12)",
+                  color: "var(--accent-link)",
+                  background: "rgb(var(--accent-rgb) / .12)",
                   borderRadius: "var(--radius-sm)",
                   padding: "5px 0",
                 }}
@@ -100,18 +100,18 @@ export default function LeagueOverview({ home }: { home: Home }) {
                       flex: "0 0 auto",
                       borderRadius: "50%",
                       objectFit: "contain",
-                      border: "1px solid rgba(145,132,217,.3)",
-                      background: "rgba(35,37,50,.7)",
+                      border: "1px solid rgb(var(--accent-rgb) / .3)",
+                      background: "rgb(var(--raised-rgb) / .7)",
                     }}
                   />
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 13, color: "#e9e9ed", minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: "var(--text)", minWidth: 0 }}>
                       <PlayerName name={l.player.name} />
                     </div>
                     <div
                       style={{
                         fontSize: 10,
-                        color: "#75798c",
+                        color: "var(--text-dim)",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -126,14 +126,14 @@ export default function LeagueOverview({ home }: { home: Home }) {
                       flex: "0 0 auto",
                       fontFamily: "var(--font-heading)",
                       fontSize: 16,
-                      color: "#d2cefd",
+                      color: "var(--accent-text)",
                     }}
                   >
                     {l.player.points.toFixed(1)}
                   </div>
                 </>
               ) : (
-                <div style={{ fontSize: 12, color: "#5a5d6e" }}>Nobody holds one</div>
+                <div style={{ fontSize: 12, color: "var(--text-faint)" }}>Nobody holds one</div>
               )}
             </div>
           ))
@@ -144,7 +144,7 @@ export default function LeagueOverview({ home }: { home: Home }) {
       <div style={panel}>
         <div style={panelHead}>
           POWER RANKINGS
-          <span style={{ marginLeft: "auto", letterSpacing: ".14em", color: "#75798c" }}>
+          <span style={{ marginLeft: "auto", letterSpacing: ".14em", color: "var(--text-dim)" }}>
             {played ? "RECORD + POINTS" : "POINTS ONLY"}
           </span>
         </div>
@@ -157,8 +157,8 @@ export default function LeagueOverview({ home }: { home: Home }) {
               alignItems: "center",
               gap: 11,
               padding: "9px 15px",
-              borderTop: i === 0 ? "none" : "1px solid rgba(145,132,217,.1)",
-              background: t.mine ? "rgba(145,132,217,.1)" : undefined,
+              borderTop: i === 0 ? "none" : "1px solid rgb(var(--accent-rgb) / .1)",
+              background: t.mine ? "rgb(var(--accent-rgb) / .1)" : undefined,
             }}
           >
             <div
@@ -167,7 +167,7 @@ export default function LeagueOverview({ home }: { home: Home }) {
                 width: 22,
                 fontFamily: "var(--font-heading)",
                 fontSize: 15,
-                color: t.rank <= 3 ? "#d2cefd" : "#75798c",
+                color: t.rank <= 3 ? "var(--accent-text)" : "var(--text-dim)",
               }}
             >
               {t.rank}
@@ -177,16 +177,16 @@ export default function LeagueOverview({ home }: { home: Home }) {
               <div
                 style={{
                   fontSize: 13,
-                  color: "#e9e9ed",
+                  color: "var(--text)",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                 }}
               >
                 {t.franchise}
-                {t.mine ? <span style={{ color: "#b5abfc", fontSize: 10 }}> · YOU</span> : null}
+                {t.mine ? <span style={{ color: "var(--accent-link)", fontSize: 10 }}> · YOU</span> : null}
               </div>
-              <div style={{ fontSize: 10, color: "#75798c" }}>
+              <div style={{ fontSize: 10, color: "var(--text-dim)" }}>
                 {played ? `${t.wins}-${t.losses}${t.ties ? `-${t.ties}` : ""} · ` : ""}
                 {t.pointsFor.toFixed(1)} PF
               </div>
@@ -199,7 +199,7 @@ export default function LeagueOverview({ home }: { home: Home }) {
                 style={{
                   height: 5,
                   borderRadius: 3,
-                  background: "rgba(145,132,217,.16)",
+                  background: "rgb(var(--accent-rgb) / .16)",
                   overflow: "hidden",
                 }}
               >
@@ -207,11 +207,11 @@ export default function LeagueOverview({ home }: { home: Home }) {
                   style={{
                     width: `${Math.max(2, t.rating)}%`,
                     height: "100%",
-                    background: "linear-gradient(90deg,#5d5294,#b5abfc)",
+                    background: "linear-gradient(90deg,var(--accent-deep),var(--accent-link))",
                   }}
                 />
               </div>
-              <div style={{ fontSize: 10, color: "#75798c", textAlign: "right", marginTop: 3 }}>
+              <div style={{ fontSize: 10, color: "var(--text-dim)", textAlign: "right", marginTop: 3 }}>
                 {t.rating.toFixed(1)}
               </div>
             </div>

@@ -106,9 +106,9 @@ export function flagsFor(name: string): Flag[] {
 }
 
 export function flagColor(kind: FlagKind): string {
-  if (kind === "inj") return "#e0b573";
-  if (kind === "cond") return "#b5abfc";
-  return "#75798c";
+  if (kind === "inj") return "var(--warn)";
+  if (kind === "cond") return "var(--accent-link)";
+  return "var(--text-dim)";
 }
 
 /**

@@ -43,9 +43,9 @@ interface Feed {
 }
 
 const card: React.CSSProperties = {
-  border: "1px solid rgba(145,132,217,.22)",
+  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgba(26,28,43,.55)",
+  background: "rgb(var(--surface-rgb) / .55)",
   padding: "16px 18px",
   marginBottom: 14,
 };
@@ -53,13 +53,13 @@ const card: React.CSSProperties = {
 const eyebrow: React.CSSProperties = {
   fontSize: 10,
   letterSpacing: ".2em",
-  color: "#75798c",
+  color: "var(--text-dim)",
   marginBottom: 10,
 };
 
 const body: React.CSSProperties = {
   fontSize: 12.5,
-  color: "#9397ab",
+  color: "var(--text-muted)",
   lineHeight: 1.7,
   margin: "0 0 10px",
 };
@@ -74,14 +74,14 @@ function Rule({ what, worth }: { what: string; worth: string }) {
         justifyContent: "space-between",
         gap: 12,
         padding: "6px 0",
-        borderTop: "1px solid rgba(145,132,217,.12)",
+        borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
         fontSize: 12.5,
       }}
     >
-      <span style={{ color: "#c8ccdc", minWidth: 0 }}>{what}</span>
+      <span style={{ color: "var(--text-2)", minWidth: 0 }}>{what}</span>
       <span
         style={{
-          color: "#e9e9ed",
+          color: "var(--text)",
           fontVariantNumeric: "tabular-nums",
           flex: "0 0 auto",
           fontFamily: "var(--font-heading)",
@@ -123,14 +123,14 @@ export default function LeagueRules() {
 
   if (error) {
     return (
-      <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 18px", fontSize: 12.5, color: "#e0b573" }}>
+      <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 18px", fontSize: 12.5, color: "var(--warn)" }}>
         {error}
       </div>
     );
   }
   if (!feed) {
     return (
-      <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 18px", fontSize: 12.5, color: "#75798c" }}>
+      <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 18px", fontSize: 12.5, color: "var(--text-dim)" }}>
         Reading the rules…
       </div>
     );
@@ -164,7 +164,7 @@ export default function LeagueRules() {
           letterSpacing: "-.025em",
           margin: "0 0 10px",
           fontWeight: 500,
-          color: "#e9e9ed",
+          color: "var(--text)",
         }}
       >
         {feed.league?.name ?? "The league"}
@@ -182,7 +182,7 @@ export default function LeagueRules() {
       <div id="rule-lineup" style={card}>
         <div style={eyebrow}>WHAT YOU FIELD EACH WEEK</div>
         <p style={body}>
-          <strong style={{ color: "#d2cefd", fontWeight: 500 }}>
+          <strong style={{ color: "var(--accent-text)", fontWeight: 500 }}>
             This is a best-ball league: there is no lineup to set.
           </strong>{" "}
           Everyone you own plays. When the games start, your highest scorers fill
@@ -330,13 +330,13 @@ export default function LeagueRules() {
       <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 18, fontSize: 11.5 }}>
         <Link
           href="/the-league"
-          style={{ color: "#b5abfc", textDecoration: "none", display: "inline-flex", alignItems: "center", minHeight: 34 }}
+          style={{ color: "var(--accent-link)", textDecoration: "none", display: "inline-flex", alignItems: "center", minHeight: 34 }}
         >
           ← The league
         </Link>
         <Link
           href="/lineup"
-          style={{ color: "#b5abfc", textDecoration: "none", display: "inline-flex", alignItems: "center", minHeight: 34 }}
+          style={{ color: "var(--accent-link)", textDecoration: "none", display: "inline-flex", alignItems: "center", minHeight: 34 }}
         >
           Your roster →
         </Link>
@@ -378,9 +378,9 @@ function RulesMenu() {
         position: "sticky",
         top,
         zIndex: 15,
-        background: "rgba(22,24,38,.94)",
+        background: "rgb(var(--bg-rgb) / .94)",
         backdropFilter: "blur(10px)",
-        borderBottom: "1px solid rgba(145,132,217,.18)",
+        borderBottom: "1px solid rgb(var(--accent-rgb) / .18)",
       }}
     >
       {places.map(([id, label]) => (
@@ -394,9 +394,9 @@ function RulesMenu() {
             minHeight: 34,
             padding: "0 12px",
             borderRadius: "var(--radius-sm)",
-            border: "1px solid rgba(145,132,217,.28)",
+            border: "1px solid rgb(var(--accent-rgb) / .28)",
             fontSize: 11.5,
-            color: "#b5abfc",
+            color: "var(--accent-link)",
             textDecoration: "none",
             whiteSpace: "nowrap",
           }}

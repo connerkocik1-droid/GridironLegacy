@@ -9,12 +9,12 @@ export default function ActivityPage() {
       style={{
         minHeight: "100vh",
         background:
-          "radial-gradient(120% 80% at 50% -10%,rgba(66,58,106,.4),transparent 60%),#161826",
+          "radial-gradient(120% 80% at 50% -10%,rgb(var(--glow-rgb) / .4),transparent 60%),var(--bg)",
       }}
     >
       <Nav current="/activity" />
       <div style={{ padding: "24px 26px 40px" }}>
-        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>THE RECORD</div>
+        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>THE RECORD</div>
         <h1
           style={{
             fontFamily: "var(--font-heading)",
@@ -29,7 +29,7 @@ export default function ActivityPage() {
         <p
           style={{
             fontSize: 12,
-            color: "#9397ab",
+            color: "var(--text-muted)",
             margin: "0 0 18px",
             maxWidth: "72ch",
             lineHeight: 1.6,

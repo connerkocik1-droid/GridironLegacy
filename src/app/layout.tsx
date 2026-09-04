@@ -4,6 +4,8 @@ import AddToHomeScreen from "@/components/AddToHomeScreen";
 import LaunchScreen from "@/components/LaunchScreen";
 import TabBar from "@/components/TabBar";
 import "./nocturne.css";
+// The palette, before anything that names it.
+import "./theme.css";
 import "./globals.css";
 
 /**
@@ -88,7 +90,7 @@ const LAUNCH_SCREENS: [number, number, number][] = [
 ];
 
 export const viewport: Viewport = {
-  themeColor: "#161826",
+  themeColor: "var(--bg)",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

@@ -27,7 +27,7 @@ function Row({ side, leading, align }: { side: HomeSide; leading: boolean; align
           style={{
             fontFamily: "var(--font-heading)",
             fontSize: 14,
-            color: leading ? "#e9e9ed" : "#9397ab",
+            color: leading ? "var(--text)" : "var(--text-muted)",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -35,7 +35,7 @@ function Row({ side, leading, align }: { side: HomeSide; leading: boolean; align
         >
           {side.franchise}
         </div>
-        <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#75798c", marginTop: 2 }}>
+        <div style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--text-dim)", marginTop: 2 }}>
           {side.slot}
         </div>
       </div>
@@ -45,7 +45,7 @@ function Row({ side, leading, align }: { side: HomeSide; leading: boolean; align
           marginRight: right ? "auto" : 0,
           fontFamily: "var(--font-heading)",
           fontSize: 19,
-          color: leading ? "#d2cefd" : "#b2b6ca",
+          color: leading ? "var(--accent-text)" : "var(--text-3)",
         }}
       >
         {side.total.toFixed(1)}
@@ -67,12 +67,12 @@ export default function WeekScoreboard({
     return (
       <div
         style={{
-          border: "1px solid rgba(145,132,217,.22)",
+          border: "1px solid rgb(var(--accent-rgb) / .22)",
           borderRadius: "var(--radius-lg)",
-          background: "rgba(26,28,43,.55)",
+          background: "rgb(var(--surface-rgb) / .55)",
           padding: "18px 20px",
           fontSize: 12.5,
-          color: "#9397ab",
+          color: "var(--text-muted)",
           lineHeight: 1.6,
         }}
       >
@@ -97,9 +97,9 @@ export default function WeekScoreboard({
             role="group"
             aria-label={`${g.home.franchise} versus ${g.away.franchise}${g.mine ? ", your game" : ""}`}
             style={{
-              border: `1px solid ${g.mine ? "rgba(181,171,252,.55)" : "rgba(145,132,217,.2)"}`,
+              border: `1px solid ${g.mine ? "rgb(var(--accent-bright-rgb) / .55)" : "rgb(var(--accent-rgb) / .2)"}`,
               borderRadius: "var(--radius-md)",
-              background: g.mine ? "rgba(145,132,217,.12)" : "rgba(26,28,43,.55)",
+              background: g.mine ? "rgb(var(--accent-rgb) / .12)" : "rgb(var(--surface-rgb) / .55)",
               padding: "12px 14px 13px",
             }}
           >
@@ -110,12 +110,12 @@ export default function WeekScoreboard({
                 gap: 8,
                 fontSize: 10,
                 letterSpacing: ".18em",
-                color: g.mine ? "#b5abfc" : "#75798c",
+                color: g.mine ? "var(--accent-link)" : "var(--text-dim)",
                 marginBottom: 9,
               }}
             >
               {g.mine ? "YOUR GAME" : "FIXTURE"}
-              <span style={{ marginLeft: "auto", color: "#75798c" }}>
+              <span style={{ marginLeft: "auto", color: "var(--text-dim)" }}>
                 {g.final ? "FINAL" : live ? "LIVE" : "PROJECTED"}
               </span>
             </div>
@@ -129,7 +129,7 @@ export default function WeekScoreboard({
       </div>
 
       {byes.length ? (
-        <div style={{ fontSize: 11, color: "#75798c", marginTop: 10 }}>
+        <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 10 }}>
           Bye this week: {byes.map((b) => b.franchise).join(", ")}
         </div>
       ) : null}

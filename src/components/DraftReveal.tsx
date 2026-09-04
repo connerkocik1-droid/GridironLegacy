@@ -98,7 +98,7 @@ export default function DraftReveal({
         display: "grid",
         placeItems: "center",
         background:
-          "radial-gradient(900px 520px at 50% 38%,rgba(46,40,78,.96),rgba(10,11,19,.985))",
+          "radial-gradient(900px 520px at 50% 38%,rgb(var(--reveal-rgb) / .96),rgb(var(--scrim-rgb) / .985))",
         backdropFilter: "blur(6px)",
         cursor: pick.mine ? "pointer" : "default",
         animation: "gl-fade 240ms ease",
@@ -112,7 +112,7 @@ export default function DraftReveal({
           inset: 0,
           pointerEvents: "none",
           backgroundImage:
-            "repeating-linear-gradient(0deg,rgba(181,171,252,.055) 0 1px,transparent 1px 3px)",
+            "repeating-linear-gradient(0deg,rgb(var(--accent-bright-rgb) / .055) 0 1px,transparent 1px 3px)",
           opacity: 0.5,
         }}
       />
@@ -122,7 +122,7 @@ export default function DraftReveal({
           style={{
             fontSize: 10,
             letterSpacing: ".42em",
-            color: "#75798c",
+            color: "var(--text-dim)",
             marginBottom: 6,
           }}
         >
@@ -135,7 +135,7 @@ export default function DraftReveal({
             fontFamily: "var(--font-heading)",
             fontSize: 30,
             letterSpacing: "-.02em",
-            color: "#d2cefd",
+            color: "var(--accent-text)",
             minHeight: 40,
             opacity: stage >= 1 ? 1 : 0,
             transform: stage >= 1 ? "translateY(0)" : "translateY(8px)",
@@ -153,14 +153,14 @@ export default function DraftReveal({
             lineHeight: 1,
             letterSpacing: "-.04em",
             margin: "14px 0",
-            color: "#e9e9ed",
+            color: "var(--text)",
             minHeight: 100,
             display: "grid",
             placeItems: "center",
             opacity: stage >= 2 ? 1 : 0,
             transform: stage >= 2 ? "scale(1)" : "scale(.82)",
             transition: "opacity .45s ease, transform .55s cubic-bezier(.2,.9,.25,1), font-size .55s ease",
-            textShadow: "0 0 46px rgba(145,132,217,.5)",
+            textShadow: "0 0 46px rgb(var(--accent-rgb) / .5)",
           }}
         >
           {stage >= 2 ? (p?.p === "D/ST" ? "DST" : (p?.p ?? "—")) : ""}
@@ -170,7 +170,7 @@ export default function DraftReveal({
         <div
           style={{
             fontSize: 13,
-            color: "#9397ab",
+            color: "var(--text-muted)",
             minHeight: 22,
             maxWidth: "60ch",
             margin: "0 auto",
@@ -190,9 +190,9 @@ export default function DraftReveal({
             borderRadius: "50%",
             display: "grid",
             placeItems: "center",
-            border: "1px solid rgba(145,132,217,.4)",
-            background: "rgba(28,30,46,.85)",
-            boxShadow: stage >= 5 ? "0 0 70px rgba(145,132,217,.42)" : "none",
+            border: "1px solid rgb(var(--accent-rgb) / .4)",
+            background: "rgb(var(--raised-rgb) / .85)",
+            boxShadow: stage >= 5 ? "0 0 70px rgb(var(--accent-rgb) / .42)" : "none",
             overflow: "hidden",
             opacity: stage >= 4 ? 1 : 0,
             transform: stage >= 4 ? "scale(1)" : "scale(.9)",
@@ -215,7 +215,7 @@ export default function DraftReveal({
               }}
             />
           ) : (
-            <span style={{ fontSize: 44, color: "#5a5d6e" }}>?</span>
+            <span style={{ fontSize: 44, color: "var(--text-faint)" }}>?</span>
           )}
         </div>
 
@@ -251,7 +251,7 @@ export default function DraftReveal({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={mark} alt="" width={20} height={20} style={{ objectFit: "contain" }} />
           ) : null}
-          <span style={{ fontSize: 11, letterSpacing: ".2em", color: "#9397ab" }}>
+          <span style={{ fontSize: 11, letterSpacing: ".2em", color: "var(--text-muted)" }}>
             {stage >= 5 && p ? `${p.p} · ${p.t} · BYE ${p.bye}` : ""}
           </span>
         </div>
@@ -260,7 +260,7 @@ export default function DraftReveal({
           style={{
             fontSize: 10,
             letterSpacing: ".34em",
-            color: "#75798c",
+            color: "var(--text-dim)",
             marginTop: 26,
             minHeight: 14,
           }}
@@ -269,7 +269,7 @@ export default function DraftReveal({
         </div>
 
         {pick.mine && stage >= 5 ? (
-          <div style={{ fontSize: 11, color: "#75798c", marginTop: 12 }}>
+          <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 12 }}>
             Tap anywhere to close
           </div>
         ) : null}

@@ -182,8 +182,8 @@ export default function TabBar() {
         // the top links at once, which is the one thing it must not do.
         // Above the home indicator, not under the bar somebody swipes to leave.
         paddingBottom: "env(safe-area-inset-bottom)",
-        borderTop: "1px solid rgba(145,132,217,.22)",
-        background: "rgba(20,22,35,.94)",
+        borderTop: "1px solid rgb(var(--accent-rgb) / .22)",
+        background: "rgb(var(--sunken-rgb) / .94)",
         backdropFilter: "blur(14px)",
       }}
     >
@@ -223,7 +223,7 @@ function TabLink({ tab, active, dot }: { tab: Tab; active: boolean; dot?: boolea
         minHeight: 52,
         padding: "7px 2px 8px",
         textDecoration: "none",
-        color: active ? "#d2cefd" : "#7d8195",
+        color: active ? "var(--accent-text)" : "var(--text-quiet)",
       }}
     >
       <span style={{ position: "relative", display: "inline-flex", flex: "0 0 auto" }}>
@@ -238,10 +238,10 @@ function TabLink({ tab, active, dot }: { tab: Tab; active: boolean; dot?: boolea
               width: 7,
               height: 7,
               borderRadius: "50%",
-              background: "#b5abfc",
+              background: "var(--accent-link)",
               // Against the bar rather than against the icon, so it reads as a
               // mark on the tab and not as part of the glyph.
-              boxShadow: "0 0 0 2px rgba(20,22,35,.94)",
+              boxShadow: "0 0 0 2px rgb(var(--sunken-rgb) / .94)",
             }}
           />
         ) : null}

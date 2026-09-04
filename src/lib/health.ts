@@ -41,11 +41,11 @@ export const HEALTH_SHORT: Record<Health, string> = {
 };
 
 export const HEALTH_COLOUR: Record<Health, string> = {
-  active: "#7fd1a8",
-  questionable: "#e0b573",
-  out: "#e0908f",
-  ir: "#c98f8f",
-  suspended: "#c98fd0",
+  active: "var(--good)",
+  questionable: "var(--warn)",
+  out: "var(--bad-soft)",
+  ir: "var(--bad)",
+  suspended: "var(--suspended)",
 };
 
 /**

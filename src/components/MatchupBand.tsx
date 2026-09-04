@@ -11,9 +11,9 @@ import { useLogos } from "@/lib/use-logos";
 import type { Home, HomeSide } from "@/lib/home-types";
 
 const card: React.CSSProperties = {
-  border: "1px solid rgba(181,171,252,.4)",
+  border: "1px solid rgb(var(--accent-bright-rgb) / .4)",
   borderRadius: "var(--radius-lg)",
-  background: "rgba(145,132,217,.1)",
+  background: "rgb(var(--accent-rgb) / .1)",
   overflow: "hidden",
 };
 
@@ -41,7 +41,7 @@ function Side({
         alignItems: "center",
         gap: 12,
         padding: "12px 16px",
-        borderTop: "1px solid rgba(145,132,217,.14)",
+        borderTop: "1px solid rgb(var(--accent-rgb) / .14)",
       }}
     >
       <TeamCrest franchise={side.franchise} logo={logo} size={38} shape="box" fallback="initials" />
@@ -51,7 +51,7 @@ function Side({
             fontFamily: "var(--font-heading)",
             fontSize: 16,
             letterSpacing: "-.01em",
-            color: mine ? "#d2cefd" : "#e9e9ed",
+            color: mine ? "var(--accent-text)" : "var(--text)",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -64,9 +64,9 @@ function Side({
             number mean anything — whether this is the league's best team or
             its worst — was two pages away. It matters most on the games that
             are not yours, which is most of what the arrows step through. */}
-        <div style={{ fontSize: 11.5, color: "#75798c", marginTop: 2 }}>
+        <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginTop: 2 }}>
           {firstName(side.name)}
-          {mine ? <span style={{ color: "#b5abfc" }}> · you</span> : null}
+          {mine ? <span style={{ color: "var(--accent-link)" }}> · you</span> : null}
           {record ? ` · ${record}` : null}
         </div>
       </div>
@@ -76,7 +76,7 @@ function Side({
           style={{
             fontFamily: "var(--font-heading)",
             fontSize: 26,
-            color: winning ? "#e9e9ed" : "#9397ab",
+            color: winning ? "var(--text)" : "var(--text-muted)",
             flex: "0 0 auto",
           }}
         />
@@ -146,7 +146,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
   if (!game) {
     const onBye = home.week != null && home.games.length > 0;
     return (
-      <div style={{ ...card, padding: "14px 16px", fontSize: 12.5, color: "#9397ab" }}>
+      <div style={{ ...card, padding: "14px 16px", fontSize: 12.5, color: "var(--text-muted)" }}>
         {onBye
           ? "No fixture this week — you have a bye."
           : "No fixtures yet. The commissioner builds the schedule once every franchise is claimed."}
@@ -242,7 +242,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
                 width: 7,
                 height: 7,
                 borderRadius: "50%",
-                background: "#7fd1a8",
+                background: "var(--good)",
               }}
             />
           ) : null}
@@ -250,7 +250,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
             style={{
               fontSize: 10,
               letterSpacing: ".18em",
-              color: done ? "#75798c" : started ? "#7fd1a8" : "#b5abfc",
+              color: done ? "var(--text-dim)" : started ? "var(--good)" : "var(--accent-link)",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -260,7 +260,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
             {label}
           </span>
           {home.week != null ? (
-            <span style={{ fontSize: 11, color: "#75798c", flex: "0 0 auto" }}>
+            <span style={{ fontSize: 11, color: "var(--text-dim)", flex: "0 0 auto" }}>
               Week {home.week}
             </span>
           ) : null}
@@ -296,7 +296,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
                   fontSize: 10.5,
                   letterSpacing: ".1em",
                   fontVariantNumeric: "tabular-nums",
-                  color: step === 0 ? "#75798c" : "#b5abfc",
+                  color: step === 0 ? "var(--text-dim)" : "var(--accent-link)",
                   cursor: step === 0 ? "default" : "pointer",
                 }}
               >
@@ -369,7 +369,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
           <span
             style={{
               fontSize: 11,
-              color: "#75798c",
+              color: "var(--text-dim)",
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
@@ -377,7 +377,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
             }}
           >
             <span style={{ letterSpacing: ".14em", fontSize: 10 }}>HIGH THIS WEEK</span>
-            <span style={{ color: high.mine ? "#b5abfc" : "#b2b6ca" }}>
+            <span style={{ color: high.mine ? "var(--accent-link)" : "var(--text-3)" }}>
               {high.franchise} {high.total.toFixed(1)}
               {high.mine ? " · you" : ""}
             </span>
@@ -387,7 +387,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
         <Link
           href={game.mine ? "/lineup" : "/matchups"}
           style={{
-            color: "#b5abfc",
+            color: "var(--accent-link)",
             textDecoration: "none",
             display: "inline-flex",
             alignItems: "center",
@@ -418,10 +418,10 @@ function Arrow({
       style={{
         minWidth: 34,
         minHeight: 34,
-        border: "1px solid rgba(145,132,217,.3)",
+        border: "1px solid rgb(var(--accent-rgb) / .3)",
         borderRadius: "var(--radius-sm)",
         background: "transparent",
-        color: "#b5abfc",
+        color: "var(--accent-link)",
         font: "inherit",
         fontSize: 16,
         lineHeight: 1,

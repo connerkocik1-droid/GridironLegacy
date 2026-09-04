@@ -147,7 +147,7 @@ export default function IntroVideo({
               zIndex: 400,
               display: "grid",
               placeItems: "center",
-              background: "#07080e",
+              background: "var(--well)",
               animation: "gl-fade 240ms ease",
             }
           : {
@@ -191,7 +191,7 @@ export default function IntroVideo({
                 width: "100%",
                 height: "100%",
                 objectFit: "contain",
-                background: "#07080e",
+                background: "var(--well)",
               }
             : { width: 1, height: 1 }
         }
@@ -215,7 +215,7 @@ export default function IntroVideo({
                   style={{
                     fontSize: 10,
                     letterSpacing: ".3em",
-                    color: "#e0b573",
+                    color: "var(--warn)",
                   }}
                 >
                   THE INTRO WOULD NOT PLAY
@@ -223,7 +223,7 @@ export default function IntroVideo({
                 <p
                   style={{
                     fontSize: 13,
-                    color: "#9397ab",
+                    color: "var(--text-muted)",
                     lineHeight: 1.7,
                     maxWidth: "44ch",
                     margin: "12px auto 20px",
@@ -258,7 +258,7 @@ export default function IntroVideo({
                   alignSelf: "center",
                   fontSize: 10,
                   letterSpacing: ".26em",
-                  color: "#75798c",
+                  color: "var(--text-dim)",
                   marginRight: 6,
                 }}
               >
@@ -271,8 +271,8 @@ export default function IntroVideo({
                 onClick={unmute}
                 style={{
                   ...skip,
-                  borderColor: "rgba(181,171,252,.7)",
-                  color: "#d2cefd",
+                  borderColor: "rgb(var(--accent-bright-rgb) / .7)",
+                  color: "var(--accent-text)",
                 }}
               >
                 Turn the sound on
@@ -293,9 +293,9 @@ export default function IntroVideo({
 
 const skip: React.CSSProperties = {
   padding: "9px 18px",
-  border: "1px solid rgba(145,132,217,.45)",
-  background: "rgba(16,17,27,.72)",
-  color: "#9397ab",
+  border: "1px solid rgb(var(--accent-rgb) / .45)",
+  background: "rgb(var(--scrim-rgb) / .72)",
+  color: "var(--text-muted)",
   borderRadius: "var(--radius-sm)",
   font: "inherit",
   fontSize: 11,

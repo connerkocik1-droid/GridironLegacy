@@ -32,24 +32,24 @@ const FORMAT_LABEL: Record<string, string> = {
 };
 
 const card: React.CSSProperties = {
-  border: "1px solid rgba(145,132,217,.22)",
+  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgba(26,28,43,.55)",
+  background: "rgb(var(--surface-rgb) / .55)",
   overflow: "hidden",
 };
 
 const label: React.CSSProperties = {
   fontSize: 10,
   letterSpacing: ".18em",
-  color: "#75798c",
+  color: "var(--text-dim)",
 };
 
 const chip = (on: boolean): React.CSSProperties => ({
   padding: "6px 12px",
   fontSize: 11,
-  border: `1px solid ${on ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
-  background: on ? "rgba(145,132,217,.26)" : "transparent",
-  color: on ? "#e9e9ed" : "#9397ab",
+  border: `1px solid ${on ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+  background: on ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+  color: on ? "var(--text)" : "var(--text-muted)",
   borderRadius: "var(--radius-sm)",
   fontFamily: "inherit",
   cursor: "pointer",
@@ -69,7 +69,7 @@ function num(n: number): string {
  */
 function Working({ player }: { player: PreseasonPlayer }) {
   return (
-    <div style={{ padding: "12px 16px", borderTop: "1px solid rgba(145,132,217,.14)" }}>
+    <div style={{ padding: "12px 16px", borderTop: "1px solid rgb(var(--accent-rgb) / .14)" }}>
       <div style={{ ...label, marginBottom: 8 }}>HOW THAT WAS WORKED OUT</div>
 
       {player.terms.length ? (
@@ -79,14 +79,14 @@ function Working({ player }: { player: PreseasonPlayer }) {
               key={i}
               style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}
             >
-              <span style={{ color: "#c8ccdc", minWidth: 0 }}>{t.stat}</span>
-              <span style={{ color: "#75798c", fontSize: 11.5 }}>{t.rule}</span>
+              <span style={{ color: "var(--text-2)", minWidth: 0 }}>{t.stat}</span>
+              <span style={{ color: "var(--text-dim)", fontSize: 11.5 }}>{t.rule}</span>
               <span
                 style={{
                   marginLeft: "auto",
                   fontFamily: "var(--font-heading)",
                   fontVariantNumeric: "tabular-nums",
-                  color: t.points < 0 ? "#e0908f" : "#d2cefd",
+                  color: t.points < 0 ? "var(--bad-soft)" : "var(--accent-text)",
                 }}
               >
                 {t.points > 0 ? "+" : ""}
@@ -100,7 +100,7 @@ function Working({ player }: { player: PreseasonPlayer }) {
               gap: 10,
               paddingTop: 6,
               marginTop: 2,
-              borderTop: "1px solid rgba(145,132,217,.14)",
+              borderTop: "1px solid rgb(var(--accent-rgb) / .14)",
             }}
           >
             <span style={{ ...label }}>TOTAL</span>
@@ -109,7 +109,7 @@ function Working({ player }: { player: PreseasonPlayer }) {
                 marginLeft: "auto",
                 fontFamily: "var(--font-heading)",
                 fontVariantNumeric: "tabular-nums",
-                color: "#e9e9ed",
+                color: "var(--text)",
               }}
             >
               {num(player.points)}
@@ -117,7 +117,7 @@ function Working({ player }: { player: PreseasonPlayer }) {
           </div>
         </div>
       ) : (
-        <div style={{ fontSize: 12.5, color: "#9397ab" }}>
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
           No rule applied to anything he did, so he scores nothing.
         </div>
       )}
@@ -133,14 +133,14 @@ function Working({ player }: { player: PreseasonPlayer }) {
                     <td
                       style={{
                         padding: "4px 12px 4px 0",
-                        color: "#75798c",
+                        color: "var(--text-dim)",
                         whiteSpace: "nowrap",
                         verticalAlign: "top",
                       }}
                     >
                       {group.group}
                     </td>
-                    <td style={{ padding: "4px 0", color: "#c8ccdc" }}>
+                    <td style={{ padding: "4px 0", color: "var(--text-2)" }}>
                       {Object.entries(group.stats)
                         .map(([k, v]) => `${k} ${v}`)
                         .join("  ·  ")}
@@ -163,7 +163,7 @@ function Working({ player }: { player: PreseasonPlayer }) {
           minHeight: 34,
           marginTop: 10,
           fontSize: 11.5,
-          color: "#b5abfc",
+          color: "var(--accent-link)",
           textDecoration: "none",
         }}
       >
@@ -175,7 +175,7 @@ function Working({ player }: { player: PreseasonPlayer }) {
 
 function PlayerRow({ player, slot }: { player: PreseasonPlayer; slot?: string }) {
   return (
-    <details style={{ borderTop: "1px solid rgba(145,132,217,.14)" }}>
+    <details style={{ borderTop: "1px solid rgb(var(--accent-rgb) / .14)" }}>
       <summary
         style={{
           display: "flex",
@@ -196,7 +196,7 @@ function PlayerRow({ player, slot }: { player: PreseasonPlayer; slot?: string })
             style={{
               fontFamily: "var(--font-heading)",
               fontSize: 14.5,
-              color: "#e9e9ed",
+              color: "var(--text)",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -204,14 +204,14 @@ function PlayerRow({ player, slot }: { player: PreseasonPlayer; slot?: string })
           >
             {player.name}
           </div>
-          <div style={{ fontSize: 11, color: "#75798c", marginTop: 2, lineHeight: 1.45 }}>
+          <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 2, lineHeight: 1.45 }}>
             {player.position || "—"} · {player.team}
             {/* Nothing here is ever a guess. ESPN's own answer is the silent
                 default; the other two say where they came from, and "not
                 stated" is an admitted blank rather than a position invented
                 from the columns a man happened to appear in. */}
             {player.positionSource !== "espn" ? (
-              <span style={{ color: player.positionSource === "pool" ? "#8a7fd4" : "#e0b573" }}>
+              <span style={{ color: player.positionSource === "pool" ? "var(--accent-solid)" : "var(--warn)" }}>
                 {" "}
                 {player.positionSource === "pool"
                   ? "(position from our pool)"
@@ -227,7 +227,7 @@ function PlayerRow({ player, slot }: { player: PreseasonPlayer; slot?: string })
             <div
               style={{
                 fontSize: 11.5,
-                color: "#c8ccdc",
+                color: "var(--text-2)",
                 marginTop: 3,
                 lineHeight: 1.45,
                 overflowWrap: "anywhere",
@@ -243,7 +243,7 @@ function PlayerRow({ player, slot }: { player: PreseasonPlayer; slot?: string })
             fontFamily: "var(--font-heading)",
             fontSize: 18,
             fontVariantNumeric: "tabular-nums",
-            color: "#d2cefd",
+            color: "var(--accent-text)",
             flex: "0 0 auto",
           }}
         >
@@ -297,18 +297,18 @@ export default function PreseasonCheck() {
             fontFamily: "var(--font-heading)",
             fontSize: 26,
             margin: "8px 0 10px",
-            color: "#e9e9ed",
+            color: "var(--text)",
             letterSpacing: "-.01em",
           }}
         >
           The preseason, scored
         </h1>
-        <p style={{ fontSize: 13, color: "#9397ab", lineHeight: 1.6, margin: 0 }}>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, margin: 0 }}>
           Real ESPN box scores put through the same arithmetic that will score the
           season, so it can be checked while being wrong still costs nothing. Tap
           any player to see the working and a link to the box score it came from.
         </p>
-        <p style={{ fontSize: 12, color: "#75798c", lineHeight: 1.6, marginTop: 10 }}>
+        <p style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.6, marginTop: 10 }}>
           Nothing here is written down. Preseason points never reach a roster, a
           record or a standings table — starters play a series and third-stringers
           play three quarters, so these numbers are a test of the parser and
@@ -328,26 +328,26 @@ export default function PreseasonCheck() {
       </div>
 
       {loading ? (
-        <div style={{ fontSize: 12.5, color: "#75798c" }}>Reading ESPN…</div>
+        <div style={{ fontSize: 12.5, color: "var(--text-dim)" }}>Reading ESPN…</div>
       ) : error ? (
-        <div style={{ ...card, padding: "16px 18px", fontSize: 12.5, color: "#e0b573" }}>
+        <div style={{ ...card, padding: "16px 18px", fontSize: 12.5, color: "var(--warn)" }}>
           {error}
         </div>
       ) : !data || !data.found || !data.players.length ? (
-        <div style={{ ...card, padding: "16px 18px", fontSize: 12.5, color: "#9397ab" }}>
+        <div style={{ ...card, padding: "16px 18px", fontSize: 12.5, color: "var(--text-muted)" }}>
           ESPN has no played games for that preseason week. Try another one — week 1
           is the Hall of Fame game and there is a gap before week 2.
         </div>
       ) : (
         <>
-          <div style={{ fontSize: 11.5, color: "#75798c", marginBottom: 14, lineHeight: 1.7 }}>
+          <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 14, lineHeight: 1.7 }}>
             Preseason week {data.week} · {data.games.length}{" "}
             {data.games.length === 1 ? "game" : "games"} · scoring set to{" "}
-            <span style={{ color: "#b5abfc" }}>
+            <span style={{ color: "var(--accent-link)" }}>
               {FORMAT_LABEL[data.format] ?? data.format}
             </span>
             {data.failed.length ? (
-              <span style={{ color: "#e0b573" }}>
+              <span style={{ color: "var(--warn)" }}>
                 {" "}
                 · {data.failed.length} game(s) could not be read
               </span>
@@ -365,7 +365,7 @@ export default function PreseasonCheck() {
               }}
             >
               <span style={label}>A MOCK LINEUP</span>
-              <span style={{ fontSize: 11, color: "#75798c" }}>
+              <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
                 The busiest player at each slot
               </span>
               <span
@@ -373,7 +373,7 @@ export default function PreseasonCheck() {
                   marginLeft: "auto",
                   fontFamily: "var(--font-heading)",
                   fontSize: 20,
-                  color: "#e9e9ed",
+                  color: "var(--text)",
                   fontVariantNumeric: "tabular-nums",
                 }}
               >
@@ -391,9 +391,9 @@ export default function PreseasonCheck() {
                     display: "flex",
                     gap: 12,
                     padding: "11px 16px",
-                    borderTop: "1px solid rgba(145,132,217,.14)",
+                    borderTop: "1px solid rgb(var(--accent-rgb) / .14)",
                     fontSize: 12.5,
-                    color: "#75798c",
+                    color: "var(--text-dim)",
                   }}
                 >
                   <span style={{ ...label, width: 44, flex: "0 0 auto" }}>{row.slot}</span>
@@ -403,7 +403,7 @@ export default function PreseasonCheck() {
             )}
           </div>
 
-          <p style={{ fontSize: 11.5, color: "#75798c", lineHeight: 1.6, margin: "0 0 22px" }}>
+          <p style={{ fontSize: 11.5, color: "var(--text-dim)", lineHeight: 1.6, margin: "0 0 22px" }}>
             Picked by touches rather than by points on purpose: a third-string
             receiver who caught one long touchdown outscores everybody and proves
             nothing, while a back who carried it eighteen times has a stat line with
@@ -413,7 +413,7 @@ export default function PreseasonCheck() {
           <div style={{ ...card }}>
             <div style={{ padding: "12px 16px", display: "flex", gap: 10, flexWrap: "wrap" }}>
               <span style={label}>EVERYONE WHO TOUCHED THE BALL</span>
-              <span style={{ fontSize: 11, color: "#75798c" }}>
+              <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
                 {data.players.length} players, busiest first
               </span>
             </div>
@@ -429,7 +429,7 @@ export default function PreseasonCheck() {
                 marginTop: 14,
                 padding: "14px 16px",
                 fontSize: 12,
-                color: "#e0b573",
+                color: "var(--warn)",
                 lineHeight: 1.6,
               }}
             >
@@ -437,7 +437,7 @@ export default function PreseasonCheck() {
               {data.unattributed.map((note, i) => (
                 <div key={i}>{note}</div>
               ))}
-              <div style={{ color: "#9397ab", marginTop: 8 }}>
+              <div style={{ color: "var(--text-muted)", marginTop: 8 }}>
                 The scoreboard proved these happened; ESPN&rsquo;s wording did not say
                 who by. They are reported rather than guessed at — a point given to
                 the wrong player is worse than a point given late.

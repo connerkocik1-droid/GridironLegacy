@@ -48,9 +48,9 @@ interface Admin {
 }
 
 const card: React.CSSProperties = {
-  border: "1px solid rgba(145,132,217,.22)",
+  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgba(26,28,43,.55)",
+  background: "rgb(var(--surface-rgb) / .55)",
   padding: "16px 18px",
   marginBottom: 16,
 };
@@ -58,19 +58,19 @@ const card: React.CSSProperties = {
 const numberField: React.CSSProperties = {
   width: 78,
   padding: "8px 10px",
-  background: "rgba(20,22,35,.8)",
-  border: "1px solid rgba(145,132,217,.3)",
+  background: "rgb(var(--sunken-rgb) / .8)",
+  border: "1px solid rgb(var(--accent-rgb) / .3)",
   borderRadius: "var(--radius-sm)",
-  color: "#e9e9ed",
+  color: "var(--text)",
   font: "inherit",
   fontSize: 14,
 };
 
 const action = (enabled: boolean): React.CSSProperties => ({
   padding: "8px 14px",
-  border: "1px solid rgba(181,171,252,.6)",
+  border: "1px solid rgb(var(--accent-bright-rgb) / .6)",
   background: "transparent",
-  color: "#d2cefd",
+  color: "var(--accent-text)",
   borderRadius: "var(--radius-sm)",
   font: "inherit",
   fontSize: 12,
@@ -383,14 +383,14 @@ export default function Commissioner() {
   }
 
   if (error && !admin) {
-    return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
   }
   if (!admin) {
-    return <div style={{ padding: "24px 26px", color: "#75798c" }}>Opening the league office…</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--text-dim)" }}>Opening the league office…</div>;
   }
   if (!admin.isCommissioner) {
     return (
-      <div style={{ padding: "24px 26px", color: "#9397ab" }}>
+      <div style={{ padding: "24px 26px", color: "var(--text-muted)" }}>
         The league office is the commissioner&apos;s.
       </div>
     );
@@ -417,7 +417,7 @@ export default function Commissioner() {
 
   return (
     <div style={{ padding: "24px 26px 40px", maxWidth: 780 }}>
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>LEAGUE OFFICE</div>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>LEAGUE OFFICE</div>
       <h1
         style={{
           fontFamily: "var(--font-heading)",
@@ -438,7 +438,7 @@ export default function Commissioner() {
             alignItems: "center",
             minHeight: 34,
             fontSize: 12,
-            color: "#b5abfc",
+            color: "var(--accent-link)",
             textDecoration: "none",
           }}
         >
@@ -449,15 +449,15 @@ export default function Commissioner() {
       <OfficeMenu />
 
       {notice ? (
-        <div style={{ fontSize: 12, color: "#7fd1a8", marginBottom: 14 }}>{notice}</div>
+        <div style={{ fontSize: 12, color: "var(--good)", marginBottom: 14 }}>{notice}</div>
       ) : null}
       {error ? (
-        <div style={{ fontSize: 12, color: "#e0b573", marginBottom: 14 }}>{error}</div>
+        <div style={{ fontSize: 12, color: "var(--warn)", marginBottom: 14 }}>{error}</div>
       ) : null}
 
       <div id="office-size" style={card}>
-        <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>League size</h6>
-        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 14px" }}>
+        <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>League size</h6>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 14px" }}>
           {claimed} of {admin.managers.length} franchises claimed. Adding creates
           open franchises for people to claim; removing only ever takes away ones
           nobody has claimed and that hold no players. The draft board is rebuilt
@@ -466,7 +466,7 @@ export default function Commissioner() {
 
         <div style={{ display: "flex", gap: 20, alignItems: "flex-end", flexWrap: "wrap" }}>
           <div>
-            <label htmlFor="teams" style={{ display: "block", fontSize: 10, letterSpacing: ".2em", color: "#75798c", marginBottom: 6 }}>
+            <label htmlFor="teams" style={{ display: "block", fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)", marginBottom: 6 }}>
               FRANCHISES
             </label>
             <input
@@ -480,7 +480,7 @@ export default function Commissioner() {
           </div>
 
           <div>
-            <label htmlFor="rounds" style={{ display: "block", fontSize: 10, letterSpacing: ".2em", color: "#75798c", marginBottom: 6 }}>
+            <label htmlFor="rounds" style={{ display: "block", fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)", marginBottom: 6 }}>
               ROUNDS
             </label>
             <input
@@ -498,7 +498,7 @@ export default function Commissioner() {
           </button>
         </div>
 
-        <div style={{ fontSize: 11, color: "#75798c", marginTop: 12 }}>
+        <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 12 }}>
           {admin.canResize
             ? `Board: ${admin.board.picks} picks.`
             : `The draft has started — ${admin.board.made} picks are in, so the size is fixed now.`}
@@ -506,8 +506,8 @@ export default function Commissioner() {
       </div>
 
       <div id="office-draft-day" style={card}>
-        <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Draft day</h6>
-        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 14px" }}>
+        <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>Draft day</h6>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 14px" }}>
           What the countdown in the draft room counts to, in your own time zone.
           Reaching it does not open the room — you still do that, so a late
           arrival does not miss their pick.
@@ -516,7 +516,7 @@ export default function Commissioner() {
           <div>
             <label
               htmlFor="draftAt"
-              style={{ display: "block", fontSize: 10, letterSpacing: ".2em", color: "#75798c", marginBottom: 6 }}
+              style={{ display: "block", fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)", marginBottom: 6 }}
             >
               DATE AND TIME
             </label>
@@ -533,10 +533,10 @@ export default function Commissioner() {
           </button>
         </div>
 
-        <p style={{ fontSize: 11.5, color: "#75798c", lineHeight: 1.6, margin: "14px 0 0" }}>
+        <p style={{ fontSize: 11.5, color: "var(--text-dim)", lineHeight: 1.6, margin: "14px 0 0" }}>
           Before the night itself, walk through the reveal, the chime and the
           countdown at{" "}
-          <a href="/draft/rehearsal" style={{ color: "#b5abfc" }}>
+          <a href="/draft/rehearsal" style={{ color: "var(--accent-link)" }}>
             /draft/rehearsal
           </a>
           . It drives the same screens without touching the league, and tells
@@ -594,19 +594,19 @@ export default function Commissioner() {
       </div>
 
       <div id="office-schedule" style={card}>
-        <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Season schedule</h6>
-        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 10px" }}>
+        <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>Season schedule</h6>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 10px" }}>
           Everyone plays everyone once, then divisional rivals meet a second
           time. That decides the season length rather than the other way round:
           {" "}
-          <strong style={{ color: "#d2cefd", fontWeight: 500 }}>
+          <strong style={{ color: "var(--accent-text)", fontWeight: 500 }}>
             {seasonWeeks} weeks
           </strong>{" "}
           for {admin.managers.length} franchises. Build it once the divisions
           are settled — it cannot be rebuilt after a week has been played,
           because that would discard results that already stand.
         </p>
-        <p style={{ fontSize: 11.5, color: "#75798c", lineHeight: 1.6, margin: "0 0 14px" }}>
+        <p style={{ fontSize: 11.5, color: "var(--text-dim)", lineHeight: 1.6, margin: "0 0 14px" }}>
           {seasonWeeks > 15
             ? "That is longer than an NFL regular season leaves room for once you add playoffs — consider fewer franchises, or divisional rivals once."
             : "That leaves room for playoffs inside an 18-week NFL season."}
@@ -617,8 +617,8 @@ export default function Commissioner() {
       </div>
 
       <div id="office-franchises" style={card}>
-        <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Franchises and divisions</h6>
-        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 10px" }}>
+        <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>Franchises and divisions</h6>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 10px" }}>
           {divisions.join(" and ")} — {perDivision.join(" and ")} franchises.
           Moving a franchise takes effect when you rebuild the schedule, and is
           refused once a week has been played. Clearing a PIN does not set a new
@@ -646,10 +646,10 @@ export default function Commissioner() {
               flexWrap: "wrap",
               rowGap: 6,
               padding: "9px 0",
-              borderTop: "1px solid rgba(145,132,217,.12)",
+              borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
             }}
           >
-            <span style={{ fontSize: 10, color: "#75798c", width: 44, flex: "0 0 auto" }}>
+            <span style={{ fontSize: 10, color: "var(--text-dim)", width: 44, flex: "0 0 auto" }}>
               {m.slot}
             </span>
             {/* A floor, not just a share. The row wraps, and with a bare
@@ -660,7 +660,7 @@ export default function Commissioner() {
             <span style={{ fontFamily: "var(--font-heading)", fontSize: 14, minWidth: 0, flex: "1 1 140px" }}>
               {m.franchise}
               {m.isCommissioner ? (
-                <span style={{ fontSize: 10, letterSpacing: ".14em", color: "#b5abfc", marginLeft: 8 }}>
+                <span style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--accent-link)", marginLeft: 8 }}>
                   COMMISSIONER
                 </span>
               ) : null}
@@ -675,9 +675,9 @@ export default function Commissioner() {
                     padding: "3px 8px",
                     fontSize: 10,
                     letterSpacing: ".12em",
-                    border: `1px solid ${m.division === d ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.22)"}`,
-                    background: m.division === d ? "rgba(145,132,217,.26)" : "transparent",
-                    color: m.division === d ? "#e9e9ed" : "#75798c",
+                    border: `1px solid ${m.division === d ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .22)"}`,
+                    background: m.division === d ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+                    color: m.division === d ? "var(--text)" : "var(--text-dim)",
                     borderRadius: "var(--radius-sm)",
                     fontFamily: "inherit",
                     cursor: busy || m.division === d ? "default" : "pointer",
@@ -695,8 +695,8 @@ export default function Commissioner() {
                 padding: "2px 7px",
                 borderRadius: 2,
                 flex: "0 0 auto",
-                border: `1px solid ${m.claimed ? "rgba(127,209,168,.5)" : "rgba(145,132,217,.35)"}`,
-                color: m.claimed ? "#7fd1a8" : "#9397ab",
+                border: `1px solid ${m.claimed ? "rgb(var(--good-rgb) / .5)" : "rgb(var(--accent-rgb) / .35)"}`,
+                color: m.claimed ? "var(--good)" : "var(--text-muted)",
               }}
             >
               {m.claimed ? m.name : "OPEN"}
@@ -714,8 +714,8 @@ export default function Commissioner() {
                   ...action(!busy),
                   padding: "5px 10px",
                   fontSize: 10,
-                  border: "1px solid rgba(224,131,131,.4)",
-                  color: "#c98f8f",
+                  border: "1px solid rgb(var(--bad-rgb) / .4)",
+                  color: "var(--bad)",
                 }}
               >
                 Let go
@@ -728,25 +728,25 @@ export default function Commissioner() {
       <div
         style={{
           ...card,
-          border: "1px solid rgba(224,131,131,.26)",
-          background: "rgba(43,28,32,.3)",
+          border: "1px solid rgb(var(--bad-rgb) / .26)",
+          background: "rgb(var(--danger-ground-rgb) / .3)",
         }}
       >
-        <h6 style={{ margin: "0 0 4px", color: "#e5a3a3" }}>Reset the league</h6>
-        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 10px" }}>
+        <h6 style={{ margin: "0 0 4px", color: "var(--bad-text)" }}>Reset the league</h6>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 10px" }}>
           Puts the league back to the day it was created. Every roster, the
           draft, the schedule and every result, live scores, trades, waiver
           claims, draft queues and pick-&rsquo;em picks are removed, and the
           board is redrawn empty.
         </p>
-        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 10px" }}>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 10px" }}>
           The league itself stays: the franchises and their names, the
           divisions, these settings, the draft date, and the PINs people have
           already chosen &mdash; so nobody has to sign up again over a mistake
           in week three. The rosters are saved to the league&rsquo;s backups
           first, so they can be read back out with the service key.
         </p>
-        <p style={{ fontSize: 11.5, color: "#75798c", lineHeight: 1.6, margin: "0 0 14px" }}>
+        <p style={{ fontSize: 11.5, color: "var(--text-dim)", lineHeight: 1.6, margin: "0 0 14px" }}>
           Unlike the draft reset, this is not refused once weeks have been
           played. That is what it is for. You will need to build the schedule
           again afterwards.
@@ -758,7 +758,7 @@ export default function Commissioner() {
             alignItems: "flex-start",
             gap: 9,
             fontSize: 12,
-            color: "#9397ab",
+            color: "var(--text-muted)",
             lineHeight: 1.55,
             margin: "0 0 16px",
             cursor: "pointer",
@@ -768,7 +768,7 @@ export default function Commissioner() {
             type="checkbox"
             checked={releaseFranchises}
             onChange={(e) => setReleaseFranchises(e.target.checked)}
-            style={{ marginTop: 2, accentColor: "#c98f8f" }}
+            style={{ marginTop: 2, accentColor: "var(--bad)" }}
           />
           <span>
             Also release the franchises &mdash; PINs cleared and sign-ins
@@ -782,9 +782,9 @@ export default function Commissioner() {
           disabled={busy}
           style={{
             padding: "8px 14px",
-            border: "1px solid rgba(224,131,131,.5)",
+            border: "1px solid rgb(var(--bad-rgb) / .5)",
             background: "transparent",
-            color: "#e5a3a3",
+            color: "var(--bad-text)",
             borderRadius: "var(--radius-sm)",
             font: "inherit",
             fontSize: 12,
@@ -811,12 +811,12 @@ export default function Commissioner() {
           if (manager) void release(manager);
         }}
       >
-        <p style={{ fontSize: 13, lineHeight: 1.75, color: "#9397ab", margin: "0 0 10px" }}>
+        <p style={{ fontSize: 13, lineHeight: 1.75, color: "var(--text-muted)", margin: "0 0 10px" }}>
           {releasing?.franchise} stays in the league exactly as it is — same
           name, same roster, same fixtures, same place in the draft. Only{" "}
           {releasing?.name ?? "the manager"} goes.
         </p>
-        <p style={{ fontSize: 12, lineHeight: 1.7, color: "#75798c", margin: 0 }}>
+        <p style={{ fontSize: 12, lineHeight: 1.7, color: "var(--text-dim)", margin: 0 }}>
           Their PIN and sign-in are cleared, so a browser they left open stops
           being that team at once. The seat is then open for somebody new to
           claim at sign-in, and they inherit the roster.
@@ -835,12 +835,12 @@ export default function Commissioner() {
           void resetLeague();
         }}
       >
-        <p style={{ fontSize: 13, lineHeight: 1.75, color: "#9397ab", margin: "0 0 10px" }}>
+        <p style={{ fontSize: 13, lineHeight: 1.75, color: "var(--text-muted)", margin: "0 0 10px" }}>
           Everything that has happened in {admin.league?.name ?? "the league"} is
           removed: rosters, the draft, the schedule and any results already in
           it, scores, trades, claims and pick-&rsquo;em.
         </p>
-        <p style={{ fontSize: 12, lineHeight: 1.7, color: "#75798c", margin: 0 }}>
+        <p style={{ fontSize: 12, lineHeight: 1.7, color: "var(--text-dim)", margin: 0 }}>
           {releaseFranchises
             ? "The franchises are released too — every PIN but yours is cleared, and they are open to claim again."
             : "The franchises, their names and everyone's PIN are kept."}{" "}
@@ -897,9 +897,9 @@ function OfficeMenu() {
         position: "sticky",
         top,
         zIndex: 15,
-        background: "rgba(22,24,38,.94)",
+        background: "rgb(var(--bg-rgb) / .94)",
         backdropFilter: "blur(10px)",
-        borderBottom: "1px solid rgba(145,132,217,.18)",
+        borderBottom: "1px solid rgb(var(--accent-rgb) / .18)",
       }}
     >
       {places.map(([id, label]) => (
@@ -913,9 +913,9 @@ function OfficeMenu() {
             minHeight: 34,
             padding: "0 12px",
             borderRadius: "var(--radius-sm)",
-            border: "1px solid rgba(145,132,217,.28)",
+            border: "1px solid rgb(var(--accent-rgb) / .28)",
             fontSize: 11.5,
-            color: "#b5abfc",
+            color: "var(--accent-link)",
             textDecoration: "none",
             whiteSpace: "nowrap",
           }}

@@ -18,12 +18,12 @@ import DraftBoard from "./DraftBoard";
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"];
 
 const TINT: Record<string, string> = {
-  QB: "#e5a3a3",
-  RB: "#8fd3b0",
-  WR: "#a8b8e8",
-  TE: "#e0bb84",
-  K: "#b0a8cc",
-  "D/ST": "#a8a8bb",
+  QB: "var(--pos-qb)",
+  RB: "var(--pos-rb)",
+  WR: "var(--pos-wr)",
+  TE: "var(--pos-te)",
+  K: "var(--pos-k)",
+  "D/ST": "var(--pos-dst)",
 };
 
 const PACE = { instant: 0, brisk: 320, watchable: 900 };
@@ -37,9 +37,9 @@ interface Made {
 }
 
 const card: React.CSSProperties = {
-  border: "1px solid rgba(145,132,217,.22)",
+  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgba(26,28,43,.55)",
+  background: "rgb(var(--surface-rgb) / .55)",
 };
 
 const button = (enabled = true): React.CSSProperties => ({
@@ -47,9 +47,9 @@ const button = (enabled = true): React.CSSProperties => ({
   fontSize: 11,
   letterSpacing: ".1em",
   textTransform: "uppercase",
-  border: "1px solid rgba(181,171,252,.6)",
+  border: "1px solid rgb(var(--accent-bright-rgb) / .6)",
   background: "transparent",
-  color: "#d2cefd",
+  color: "var(--accent-text)",
   borderRadius: "var(--radius-sm)",
   fontFamily: "inherit",
   cursor: enabled ? "pointer" : "default",
@@ -60,9 +60,9 @@ const chip = (on: boolean): React.CSSProperties => ({
   padding: "5px 10px",
   fontSize: 10,
   letterSpacing: ".1em",
-  border: `1px solid ${on ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
-  background: on ? "rgba(145,132,217,.26)" : "transparent",
-  color: on ? "#e9e9ed" : "#9397ab",
+  border: `1px solid ${on ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+  background: on ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+  color: on ? "var(--text)" : "var(--text-muted)",
   borderRadius: "var(--radius-sm)",
   fontFamily: "inherit",
   cursor: "pointer",
@@ -187,7 +187,7 @@ export default function MockDraft() {
   if (!running && !picks.length) {
     return (
       <div style={{ padding: "24px 26px 40px", maxWidth: 760 }}>
-        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>PRACTICE</div>
+        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>PRACTICE</div>
         <h1
           style={{
             fontFamily: "var(--font-heading)",
@@ -199,7 +199,7 @@ export default function MockDraft() {
         >
           Mock draft
         </h1>
-        <p style={{ fontSize: 13, color: "#9397ab", lineHeight: 1.7, margin: "0 0 22px", maxWidth: "62ch" }}>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.7, margin: "0 0 22px", maxWidth: "62ch" }}>
           Eleven opponents who draft off ADP and then argue with it — for the
           starters they still need, the depth they are allowed to carry, and the
           bye weeks they have already collected. Nothing here touches the
@@ -246,7 +246,7 @@ export default function MockDraft() {
             ))}
           </Row>
 
-          <p style={{ fontSize: 11.5, color: "#75798c", lineHeight: 1.6, margin: "14px 0 0" }}>
+          <p style={{ fontSize: 11.5, color: "var(--text-dim)", lineHeight: 1.6, margin: "14px 0 0" }}>
             Picking {seat + 1} of {teams} means your next two are {seat + 1} and{" "}
             {teams * 2 - seat}, then {teams * 2 + seat + 1} — the turn is what
             makes an early slot cost you later.
@@ -264,7 +264,7 @@ export default function MockDraft() {
     <div style={{ padding: "18px 26px 40px" }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 16, flexWrap: "wrap", marginBottom: 14 }}>
         <div>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>
             {finished ? "MOCK COMPLETE" : "ON THE CLOCK"}
           </div>
           <div style={{ fontFamily: "var(--font-heading)", fontSize: 30, marginTop: 4 }}>
@@ -274,7 +274,7 @@ export default function MockDraft() {
                 ? "You're up"
                 : `Team ${(onTheClock ?? 0) + 1} is thinking`}
           </div>
-          <div style={{ fontSize: 11, color: "#75798c", marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 2 }}>
             {finished
               ? `${picks.length} picks over ${rounds} rounds`
               : `Round ${round} · pick ${picks.length + 1} of ${order.length}`}
@@ -325,11 +325,11 @@ export default function MockDraft() {
                 alignItems: "center",
                 gap: 9,
                 padding: "11px 14px",
-                borderBottom: "1px solid rgba(145,132,217,.18)",
+                borderBottom: "1px solid rgb(var(--accent-rgb) / .18)",
                 flexWrap: "wrap",
               }}
             >
-              <h6 style={{ margin: 0, color: myTurn ? "#d2cefd" : "#75798c" }}>
+              <h6 style={{ margin: 0, color: myTurn ? "var(--accent-text)" : "var(--text-dim)" }}>
                 {myTurn ? "Your pick" : "Best available"}
               </h6>
               {myTurn ? (
@@ -346,10 +346,10 @@ export default function MockDraft() {
                   marginLeft: "auto",
                   width: 110,
                   padding: "5px 8px",
-                  background: "rgba(20,22,35,.8)",
-                  border: "1px solid rgba(145,132,217,.28)",
+                  background: "rgb(var(--sunken-rgb) / .8)",
+                  border: "1px solid rgb(var(--accent-rgb) / .28)",
                   borderRadius: "var(--radius-sm)",
-                  color: "#e9e9ed",
+                  color: "var(--text)",
                   font: "inherit",
                   fontSize: 12,
                 }}
@@ -373,12 +373,12 @@ export default function MockDraft() {
                     alignItems: "center",
                     gap: 9,
                     padding: "7px 14px",
-                    borderTop: "1px solid rgba(145,132,217,.1)",
+                    borderTop: "1px solid rgb(var(--accent-rgb) / .1)",
                   }}
                 >
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 12.5, color: "#e9e9ed" }}>{p.n}</div>
-                    <div style={{ fontSize: 10, color: "#75798c", letterSpacing: ".06em" }}>
+                    <div style={{ fontSize: 12.5, color: "var(--text)" }}>{p.n}</div>
+                    <div style={{ fontSize: 10, color: "var(--text-dim)", letterSpacing: ".06em" }}>
                       <span style={{ color: TINT[p.p] }}>{p.posRank || p.p}</span> · {p.t} · ADP{" "}
                       {p.adp}
                       {p.bye ? ` · BYE ${p.bye}` : ""}
@@ -415,7 +415,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       aria-label={label}
       style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginBottom: 11 }}
     >
-      <span style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c", width: 90 }}>{label}</span>
+      <span style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)", width: 90 }}>{label}</span>
       {children}
     </div>
   );
@@ -448,11 +448,11 @@ function Summary({ roster, league }: { roster: Player[]; league: { starters: Rec
 
   return (
     <div style={{ ...card, padding: "16px 18px", marginBottom: 16 }}>
-      <h6 style={{ margin: "0 0 10px", color: "#d2cefd" }}>How you came out</h6>
+      <h6 style={{ margin: "0 0 10px", color: "var(--accent-text)" }}>How you came out</h6>
 
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 12 }}>
         {(["QB", "RB", "WR", "TE", "K", "D/ST"] as Position[]).map((p) => (
-          <span key={p} style={{ fontSize: 11, color: "#9397ab" }}>
+          <span key={p} style={{ fontSize: 11, color: "var(--text-muted)" }}>
             <span style={{ color: TINT[p], letterSpacing: ".08em", fontSize: 10 }}>
               {p === "D/ST" ? "DST" : p}
             </span>{" "}
@@ -461,13 +461,13 @@ function Summary({ roster, league }: { roster: Player[]; league: { starters: Rec
         ))}
       </div>
 
-      <p style={{ fontSize: 12, lineHeight: 1.7, color: missing.length ? "#e0b573" : "#7fd1a8", margin: "0 0 6px" }}>
+      <p style={{ fontSize: 12, lineHeight: 1.7, color: missing.length ? "var(--warn)" : "var(--good)", margin: "0 0 6px" }}>
         {missing.length
           ? `You cannot field a legal lineup — short ${missing.join(", ")}.`
           : "Every starting place is filled."}
       </p>
 
-      <p style={{ fontSize: 12, lineHeight: 1.7, color: crowded.length ? "#e0b573" : "#9397ab", margin: 0 }}>
+      <p style={{ fontSize: 12, lineHeight: 1.7, color: crowded.length ? "var(--warn)" : "var(--text-muted)", margin: 0 }}>
         {crowded.length
           ? `Week ${crowded[0][0]} takes ${crowded[0][1].length} of your players out at once: ${crowded[0][1].slice(0, 4).join(", ")}${crowded[0][1].length > 4 ? "…" : ""}.`
           : "No single bye week guts the roster."}

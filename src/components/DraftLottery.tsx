@@ -102,7 +102,7 @@ export default function DraftLottery({
 
   return (
     <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 18px 44px" }}>
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c", marginTop: 26 }}>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)", marginTop: 26 }}>
         DRAFT NIGHT
       </div>
       <h1
@@ -112,12 +112,12 @@ export default function DraftLottery({
           letterSpacing: "-.03em",
           margin: "7px 0 8px",
           fontWeight: 500,
-          color: "#e9e9ed",
+          color: "var(--text)",
         }}
       >
         {finished ? "The order is set" : "Drawing the order"}
       </h1>
-      <p style={{ fontSize: 12.5, color: "#9397ab", lineHeight: 1.65, margin: "0 0 20px" }}>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.65, margin: "0 0 20px" }}>
         {finished
           ? "Every pick is spoken for. The commissioner starts round one."
           : "From the last pick up to the first."}
@@ -129,7 +129,7 @@ export default function DraftLottery({
             style={{
               fontSize: 10,
               letterSpacing: ".24em",
-              color: "#b5abfc",
+              color: "var(--accent-link)",
               marginBottom: 8,
             }}
           >
@@ -149,9 +149,9 @@ export default function DraftLottery({
         <div
           style={{
             marginTop: drawing ? 22 : 0,
-            border: "1px solid rgba(145,132,217,.22)",
+            border: "1px solid rgb(var(--accent-rgb) / .22)",
             borderRadius: "var(--radius-lg)",
-            background: "rgba(26,28,43,.55)",
+            background: "rgb(var(--surface-rgb) / .55)",
             overflow: "hidden",
           }}
         >
@@ -166,8 +166,8 @@ export default function DraftLottery({
                   alignItems: "center",
                   gap: 12,
                   padding: "11px 14px",
-                  borderTop: "1px solid rgba(145,132,217,.12)",
-                  background: first ? "rgba(145,132,217,.16)" : undefined,
+                  borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
+                  background: first ? "rgb(var(--accent-rgb) / .16)" : undefined,
                 }}
               >
                 <span
@@ -176,7 +176,7 @@ export default function DraftLottery({
                     fontSize: 13,
                     width: 30,
                     flex: "0 0 auto",
-                    color: first ? "#d2cefd" : "#75798c",
+                    color: first ? "var(--accent-text)" : "var(--text-dim)",
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
@@ -206,7 +206,7 @@ export default function DraftLottery({
                     flex: 1,
                     fontFamily: "var(--font-heading)",
                     fontSize: 15,
-                    color: first ? "#e9e9ed" : "#c8ccdc",
+                    color: first ? "var(--text)" : "var(--text-2)",
                   }}
                 >
                   <span
@@ -227,7 +227,7 @@ export default function DraftLottery({
                         // flex item and flexbox eats whitespace at the edge of
                         // one, which ran the dot straight into the franchise.
                         marginLeft: 6,
-                        color: "#75798c",
+                        color: "var(--text-dim)",
                         fontWeight: 400,
                         whiteSpace: "nowrap",
                       }}
@@ -242,7 +242,7 @@ export default function DraftLottery({
                       marginLeft: "auto",
                       fontSize: 10,
                       letterSpacing: ".16em",
-                      color: "#b5abfc",
+                      color: "var(--accent-link)",
                       flex: "0 0 auto",
                     }}
                   >
@@ -298,9 +298,9 @@ function Reel({
       style={{
         position: "relative",
         overflow: "hidden",
-        border: "1px solid rgba(145,132,217,.3)",
+        border: "1px solid rgb(var(--accent-rgb) / .3)",
         borderRadius: "var(--radius-lg)",
-        background: "rgba(20,22,35,.7)",
+        background: "rgb(var(--sunken-rgb) / .7)",
         padding: "14px 0",
         // Faded at both edges, so names arrive out of nowhere rather than
         // sliding in from a hard border.
@@ -319,9 +319,9 @@ function Reel({
           bottom: 0,
           width: CARD + 8,
           transform: "translateX(-50%)",
-          border: "1px solid rgba(181,171,252,.55)",
+          border: "1px solid rgb(var(--accent-bright-rgb) / .55)",
           borderRadius: "var(--radius-md)",
-          background: "rgba(145,132,217,.1)",
+          background: "rgb(var(--accent-rgb) / .1)",
           pointerEvents: "none",
         }}
       />
@@ -361,7 +361,7 @@ function Reel({
                 style={{
                   fontFamily: "var(--font-heading)",
                   fontSize: 12,
-                  color: "#c8ccdc",
+                  color: "var(--text-2)",
                   textAlign: "center",
                   lineHeight: 1.35,
                   overflow: "hidden",
@@ -379,7 +379,7 @@ function Reel({
                 <span
                   style={{
                     fontSize: 10.5,
-                    color: "#75798c",
+                    color: "var(--text-dim)",
                     textAlign: "center",
                     marginTop: -2,
                     maxWidth: "100%",

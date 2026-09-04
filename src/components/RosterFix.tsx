@@ -16,10 +16,10 @@ interface Feed {
 
 const field: React.CSSProperties = {
   padding: "7px 9px",
-  background: "rgba(20,22,35,.8)",
-  border: "1px solid rgba(145,132,217,.28)",
+  background: "rgb(var(--sunken-rgb) / .8)",
+  border: "1px solid rgb(var(--accent-rgb) / .28)",
   borderRadius: "var(--radius-sm)",
-  color: "#e9e9ed",
+  color: "var(--text)",
   font: "inherit",
   fontSize: 12.5,
 };
@@ -29,9 +29,9 @@ const button = (enabled: boolean): React.CSSProperties => ({
   fontSize: 10,
   letterSpacing: ".14em",
   textTransform: "uppercase",
-  border: `1px solid ${enabled ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.2)"}`,
+  border: `1px solid ${enabled ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .2)"}`,
   background: "transparent",
-  color: enabled ? "#d2cefd" : "#5a5d6e",
+  color: enabled ? "var(--accent-text)" : "var(--text-faint)",
   borderRadius: "var(--radius-sm)",
   fontFamily: "inherit",
   cursor: enabled ? "pointer" : "default",
@@ -116,29 +116,29 @@ export default function RosterFix() {
 
   return (
     <div>
-      <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Fix a roster</h6>
-      <p style={{ fontSize: 11.5, color: "#9397ab", margin: "0 0 12px", lineHeight: 1.6 }}>
+      <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>Fix a roster</h6>
+      <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "0 0 12px", lineHeight: 1.6 }}>
         For an honest mistake: a player autodrafted to the wrong franchise, a drop somebody made by
         accident. Every correction appears in the league&apos;s moves with your reason attached, so
         nobody has to take your word for what happened.
       </p>
 
       {notice ? (
-        <div style={{ fontSize: 12, color: "#7fd1a8", marginBottom: 10 }}>{notice}</div>
+        <div style={{ fontSize: 12, color: "var(--good)", marginBottom: 10 }}>{notice}</div>
       ) : null}
-      {error ? <div style={{ fontSize: 12, color: "#e0b573", marginBottom: 10 }}>{error}</div> : null}
+      {error ? <div style={{ fontSize: 12, color: "var(--warn)", marginBottom: 10 }}>{error}</div> : null}
 
       {chosen ? (
         <div
           style={{
-            border: "1px solid rgba(145,132,217,.28)",
+            border: "1px solid rgb(var(--accent-rgb) / .28)",
             borderRadius: "var(--radius-md)",
             padding: "12px 14px",
           }}
         >
           <div style={{ fontSize: 13, marginBottom: 10 }}>
             <span style={{ fontFamily: "var(--font-heading)", fontSize: 15 }}>{chosen.name}</span>
-            <span style={{ color: "#75798c" }}> — held by {chosen.franchise}</span>
+            <span style={{ color: "var(--text-dim)" }}> — held by {chosen.franchise}</span>
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
@@ -149,7 +149,7 @@ export default function RosterFix() {
                   display: "block",
                   fontSize: 10,
                   letterSpacing: ".18em",
-                  color: "#75798c",
+                  color: "var(--text-dim)",
                   marginBottom: 5,
                 }}
               >
@@ -179,7 +179,7 @@ export default function RosterFix() {
                   display: "block",
                   fontSize: 10,
                   letterSpacing: ".18em",
-                  color: "#75798c",
+                  color: "var(--text-dim)",
                   marginBottom: 5,
                 }}
               >
@@ -202,13 +202,13 @@ export default function RosterFix() {
             <button
               onClick={() => void move(true)}
               disabled={busy}
-              style={{ ...button(!busy), borderColor: "rgba(224,181,115,.5)", color: "#e0b573" }}
+              style={{ ...button(!busy), borderColor: "rgb(var(--warn-rgb) / .5)", color: "var(--warn)" }}
             >
               Release to waivers
             </button>
             <button
               onClick={() => setChosen(null)}
-              style={{ ...button(true), borderColor: "rgba(145,132,217,.24)", color: "#9397ab" }}
+              style={{ ...button(true), borderColor: "rgb(var(--accent-rgb) / .24)", color: "var(--text-muted)" }}
             >
               Cancel
             </button>
@@ -236,12 +236,12 @@ export default function RosterFix() {
                   style={{ ...button(true), textTransform: "none", fontSize: 11.5 }}
                 >
                   {p.name}
-                  <span style={{ color: "#75798c" }}> · {p.franchise}</span>
+                  <span style={{ color: "var(--text-dim)" }}> · {p.franchise}</span>
                 </button>
               ))}
             </div>
           ) : search.trim().length >= 2 ? (
-            <div style={{ fontSize: 11.5, color: "#75798c", marginTop: 10 }}>
+            <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginTop: 10 }}>
               Nobody on a roster by that name. A free agent has to be added by his own franchise.
             </div>
           ) : null}

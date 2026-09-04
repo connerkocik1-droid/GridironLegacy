@@ -101,9 +101,9 @@ const control = (): React.CSSProperties => ({
   fontSize: 10,
   letterSpacing: ".12em",
   textTransform: "uppercase",
-  border: "1px solid rgba(145,132,217,.34)",
+  border: "1px solid rgb(var(--accent-rgb) / .34)",
   background: "transparent",
-  color: "#9397ab",
+  color: "var(--text-muted)",
   borderRadius: "var(--radius-sm)",
   fontFamily: "inherit",
   cursor: "pointer",
@@ -582,10 +582,10 @@ export default function DraftRoom() {
   }
 
   if (error && !board) {
-    return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
   }
   if (!board) {
-    return <div style={{ padding: "24px 26px", color: "#75798c" }}>Opening the draft room…</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--text-dim)" }}>Opening the draft room…</div>;
   }
 
 
@@ -651,7 +651,7 @@ export default function DraftRoom() {
         {film}
         <audio ref={chime} src="/assets/nfl-draft-chime.mp3" preload="auto" />
         {error ? (
-          <div style={{ padding: "0 26px", fontSize: 12, color: "#e0b573" }}>{error}</div>
+          <div style={{ padding: "0 26px", fontSize: 12, color: "var(--warn)" }}>{error}</div>
         ) : null}
         {board.league.lotteryOrder && board.league.lotteryAt ? (
           <DraftLottery
@@ -662,7 +662,7 @@ export default function DraftRoom() {
             onDone={() => setLotteryDone(true)}
           />
         ) : (
-          <div style={{ padding: "26px", fontSize: 12.5, color: "#9397ab" }}>
+          <div style={{ padding: "26px", fontSize: 12.5, color: "var(--text-muted)" }}>
             Drawing the order…
           </div>
         )}
@@ -675,10 +675,10 @@ export default function DraftRoom() {
               style={{
                 minHeight: 44,
                 padding: "12px 22px",
-                border: `1px solid ${lotteryDone ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.22)"}`,
+                border: `1px solid ${lotteryDone ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .22)"}`,
                 borderRadius: "var(--radius-sm)",
-                background: lotteryDone ? "rgba(145,132,217,.18)" : "transparent",
-                color: lotteryDone ? "#e9e9ed" : "#5a5d6e",
+                background: lotteryDone ? "rgb(var(--accent-rgb) / .18)" : "transparent",
+                color: lotteryDone ? "var(--text)" : "var(--text-faint)",
                 font: "inherit",
                 fontSize: 12,
                 letterSpacing: ".14em",
@@ -688,7 +688,7 @@ export default function DraftRoom() {
             >
               Commence draft
             </button>
-            <div style={{ fontSize: 11.5, color: "#75798c", marginTop: 10 }}>
+            <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginTop: 10 }}>
               {lotteryDone
                 ? "Round one, and the pick clock, start when you press it."
                 : "Available once every pick has been drawn."}
@@ -706,7 +706,7 @@ export default function DraftRoom() {
         {film}
         <audio ref={chime} src="/assets/nfl-draft-chime.mp3" preload="auto" />
         {error ? (
-          <div style={{ padding: "0 26px", fontSize: 12, color: "#e0b573" }}>{error}</div>
+          <div style={{ padding: "0 26px", fontSize: 12, color: "var(--warn)" }}>{error}</div>
         ) : null}
         <DraftCountdown
           draftAt={board.league.draftAt}
@@ -742,7 +742,7 @@ export default function DraftRoom() {
             textAlign: "center",
             padding: "0 26px 18px",
             fontSize: 11.5,
-            color: "#75798c",
+            color: "var(--text-dim)",
           }}
         >
           Pick clock — {describeClock(board.league.pickClock)}
@@ -779,7 +779,7 @@ export default function DraftRoom() {
             franchise name is worth less than the two of them being read in one
             glance, so it ellipses instead. */}
         <div style={{ flex: "1 1 150px", minWidth: 0 }}>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>ON THE CLOCK</div>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>ON THE CLOCK</div>
           <div
             style={{
               display: "flex",
@@ -817,7 +817,7 @@ export default function DraftRoom() {
                   : "Waiting to start"}
             </span>
           </div>
-          <div style={{ fontSize: 11, color: "#75798c", marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 2 }}>
             {board.onTheClock
               ? `Round ${board.onTheClock.round} · pick ${board.onTheClock.overall}` +
                 // The clock shortens as the draft goes on, so the round has to
@@ -870,9 +870,9 @@ export default function DraftRoom() {
                 fontSize: 10,
                 letterSpacing: ".12em",
                 textTransform: "uppercase",
-                border: `1px solid ${view === v ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
-                background: view === v ? "rgba(145,132,217,.26)" : "transparent",
-                color: view === v ? "#e9e9ed" : "#9397ab",
+                border: `1px solid ${view === v ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+                background: view === v ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+                color: view === v ? "var(--text)" : "var(--text-muted)",
                 borderRadius: "var(--radius-sm)",
                 fontFamily: "inherit",
                 cursor: "pointer",
@@ -896,8 +896,8 @@ export default function DraftRoom() {
               fontSize: 10,
               letterSpacing: ".1em",
               textTransform: "uppercase",
-              color: board.me.autodraft ? "#e0b573" : "#9397ab",
-              border: `1px solid ${board.me.autodraft ? "rgba(224,181,115,.55)" : "rgba(145,132,217,.24)"}`,
+              color: board.me.autodraft ? "var(--warn)" : "var(--text-muted)",
+              border: `1px solid ${board.me.autodraft ? "rgb(var(--warn-rgb) / .55)" : "rgb(var(--accent-rgb) / .24)"}`,
               borderRadius: "var(--radius-sm)",
               cursor: "pointer",
               whiteSpace: "nowrap",
@@ -909,7 +909,7 @@ export default function DraftRoom() {
               checked={board.me.autodraft}
               disabled={picking != null}
               onChange={(e) => void toggleAutodraft(e.target.checked)}
-              style={{ accentColor: "#e0b573", cursor: "pointer" }}
+              style={{ accentColor: "var(--warn)", cursor: "pointer" }}
             />
             Autodraft
           </label>
@@ -926,8 +926,8 @@ export default function DraftRoom() {
               fontSize: 10,
               letterSpacing: ".1em",
               textTransform: "uppercase",
-              color: "#9397ab",
-              border: "1px solid rgba(145,132,217,.24)",
+              color: "var(--text-muted)",
+              border: "1px solid rgb(var(--accent-rgb) / .24)",
               borderRadius: "var(--radius-sm)",
               cursor: "pointer",
               whiteSpace: "nowrap",
@@ -938,7 +938,7 @@ export default function DraftRoom() {
               type="checkbox"
               checked={animations}
               onChange={(e) => setPickAnimations(e.target.checked)}
-              style={{ accentColor: "#9184d9", cursor: "pointer" }}
+              style={{ accentColor: "var(--accent-solid)", cursor: "pointer" }}
             />
             Pick animation
           </label>
@@ -954,7 +954,7 @@ export default function DraftRoom() {
                   width: 1,
                   alignSelf: "stretch",
                   margin: "0 5px",
-                  background: "rgba(145,132,217,.22)",
+                  background: "rgb(var(--accent-rgb) / .22)",
                 }}
               />
 
@@ -996,16 +996,16 @@ export default function DraftRoom() {
       </div>
 
       {error ? (
-        <div style={{ padding: "0 26px 8px", fontSize: 12, color: "#e0b573" }}>{error}</div>
+        <div style={{ padding: "0 26px 8px", fontSize: 12, color: "var(--warn)" }}>{error}</div>
       ) : null}
 
       {view === "board" ? (
         <div style={{ padding: "6px 26px 40px" }}>
           <div
             style={{
-              border: "1px solid rgba(145,132,217,.22)",
+              border: "1px solid rgb(var(--accent-rgb) / .22)",
               borderRadius: "var(--radius-lg)",
-              background: "rgba(26,28,43,.55)",
+              background: "rgb(var(--surface-rgb) / .55)",
               overflow: "hidden",
             }}
           >
@@ -1039,9 +1039,9 @@ export default function DraftRoom() {
             autodraft it feeds has always fallen through to best-available. */}
         <div
           style={{
-            border: `1px solid ${board.me.autodraft ? "rgba(224,181,115,.4)" : "rgba(145,132,217,.22)"}`,
+            border: `1px solid ${board.me.autodraft ? "rgb(var(--warn-rgb) / .4)" : "rgb(var(--accent-rgb) / .22)"}`,
             borderRadius: "var(--radius-lg)",
-            background: "rgba(26,28,43,.55)",
+            background: "rgb(var(--surface-rgb) / .55)",
             overflow: "hidden",
             marginBottom: 12,
           }}
@@ -1052,23 +1052,23 @@ export default function DraftRoom() {
               alignItems: "baseline",
               gap: 10,
               padding: "11px 16px",
-              borderBottom: queue.length ? "1px solid rgba(145,132,217,.18)" : undefined,
+              borderBottom: queue.length ? "1px solid rgb(var(--accent-rgb) / .18)" : undefined,
               flexWrap: "wrap",
             }}
           >
-            <h6 style={{ margin: 0, color: "#d2cefd" }}>Your queue</h6>
-            <span style={{ fontSize: 11, color: "#75798c" }}>
+            <h6 style={{ margin: 0, color: "var(--accent-text)" }}>Your queue</h6>
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
               {queue.length ? `${queue.length} queued` : "Nobody yet"}
             </span>
             {board.me.autodraft ? (
-              <span style={{ fontSize: 11, color: "#e0b573", marginLeft: "auto" }}>
+              <span style={{ fontSize: 11, color: "var(--warn)", marginLeft: "auto" }}>
                 Autodraft is on — these are who you get.
               </span>
             ) : null}
           </div>
 
           {queue.length === 0 ? (
-            <div style={{ padding: "12px 16px", fontSize: 11.5, color: "#75798c", lineHeight: 1.6 }}>
+            <div style={{ padding: "12px 16px", fontSize: 11.5, color: "var(--text-dim)", lineHeight: 1.6 }}>
               Queue players below and they are drafted for you, in this order,
               if your clock runs out or you switch autodraft on. Anyone already
               taken is skipped. With nothing queued you get the best available
@@ -1083,13 +1083,13 @@ export default function DraftRoom() {
                   alignItems: "center",
                   gap: 9,
                   padding: "8px 16px",
-                  borderTop: i === 0 ? undefined : "1px solid rgba(145,132,217,.1)",
+                  borderTop: i === 0 ? undefined : "1px solid rgb(var(--accent-rgb) / .1)",
                 }}
               >
                 <span
                   style={{
                     fontSize: 11,
-                    color: "#75798c",
+                    color: "var(--text-dim)",
                     width: 18,
                     flex: "0 0 auto",
                     fontVariantNumeric: "tabular-nums",
@@ -1136,9 +1136,9 @@ export default function DraftRoom() {
 
         <div
           style={{
-            border: `1px solid ${board.myTurn ? "rgba(181,171,252,.55)" : "rgba(145,132,217,.22)"}`,
+            border: `1px solid ${board.myTurn ? "rgb(var(--accent-bright-rgb) / .55)" : "rgb(var(--accent-rgb) / .22)"}`,
             borderRadius: "var(--radius-lg)",
-            background: "rgba(26,28,43,.55)",
+            background: "rgb(var(--surface-rgb) / .55)",
             overflow: "hidden",
           }}
         >
@@ -1148,11 +1148,11 @@ export default function DraftRoom() {
               alignItems: "center",
               gap: 10,
               padding: "12px 16px",
-              borderBottom: "1px solid rgba(145,132,217,.18)",
+              borderBottom: "1px solid rgb(var(--accent-rgb) / .18)",
               flexWrap: "wrap",
             }}
           >
-            <h6 style={{ margin: 0, color: "#d2cefd" }}>Best available</h6>
+            <h6 style={{ margin: 0, color: "var(--accent-text)" }}>Best available</h6>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -1161,10 +1161,10 @@ export default function DraftRoom() {
                 flex: "1 1 110px",
                 minWidth: 0,
                 padding: "5px 9px",
-                background: "rgba(20,22,35,.8)",
-                border: "1px solid rgba(145,132,217,.28)",
+                background: "rgb(var(--sunken-rgb) / .8)",
+                border: "1px solid rgb(var(--accent-rgb) / .28)",
                 borderRadius: "var(--radius-sm)",
-                color: "#e9e9ed",
+                color: "var(--text)",
                 font: "inherit",
                 fontSize: 12,
               }}
@@ -1193,9 +1193,9 @@ export default function DraftRoom() {
                     padding: "5px 9px",
                     fontSize: 10,
                     letterSpacing: ".1em",
-                    border: `1px solid ${filter === pos ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
-                    background: filter === pos ? "rgba(145,132,217,.26)" : "transparent",
-                    color: filter === pos ? "#e9e9ed" : "#9397ab",
+                    border: `1px solid ${filter === pos ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+                    background: filter === pos ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+                    color: filter === pos ? "var(--text)" : "var(--text-muted)",
                     borderRadius: "var(--radius-sm)",
                     fontFamily: "inherit",
                     cursor: "pointer",
@@ -1209,7 +1209,7 @@ export default function DraftRoom() {
 
           <div style={{ maxHeight: 560, overflowY: "auto" }}>
             {visible.length === 0 ? (
-              <div style={{ padding: 16, fontSize: 12, color: "#75798c" }}>Nobody left here.</div>
+              <div style={{ padding: 16, fontSize: 12, color: "var(--text-dim)" }}>Nobody left here.</div>
             ) : null}
 
             {visible.map((p) => (
@@ -1220,7 +1220,7 @@ export default function DraftRoom() {
                   alignItems: "center",
                   gap: 11,
                   padding: "9px 16px",
-                  borderTop: "1px solid rgba(145,132,217,.1)",
+                  borderTop: "1px solid rgb(var(--accent-rgb) / .1)",
                   opacity: picking === p.name ? 0.5 : 1,
                 }}
               >
@@ -1233,8 +1233,8 @@ export default function DraftRoom() {
                   style={{
                     borderRadius: "50%",
                     objectFit: "contain",
-                    border: "1px solid rgba(145,132,217,.25)",
-                    background: "rgba(35,37,50,.7)",
+                    border: "1px solid rgb(var(--accent-rgb) / .25)",
+                    background: "rgb(var(--raised-rgb) / .7)",
                     flex: "0 0 auto",
                   }}
                 />
@@ -1264,7 +1264,7 @@ export default function DraftRoom() {
                       />
                     ) : null}
                   </div>
-                  <div style={{ fontSize: 10, color: "#75798c", marginTop: 2 }}>
+                  <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
                     {p.posRank} · ADP {p.adp} · bye {p.bye}
                   </div>
                 </div>
@@ -1284,10 +1284,10 @@ export default function DraftRoom() {
                   }
                   style={{
                     ...queueButton(true),
-                    color: queue.includes(p.name) ? "#e0b573" : "#9397ab",
+                    color: queue.includes(p.name) ? "var(--warn)" : "var(--text-muted)",
                     borderColor: queue.includes(p.name)
-                      ? "rgba(224,181,115,.5)"
-                      : "rgba(145,132,217,.28)",
+                      ? "rgb(var(--warn-rgb) / .5)"
+                      : "rgb(var(--accent-rgb) / .28)",
                   }}
                 >
                   {queue.includes(p.name) ? "★" : "+"}
@@ -1315,13 +1315,13 @@ export default function DraftRoom() {
                     textAlign: "center",
                     border: `1px solid ${
                       pickingForSomeoneElse
-                        ? "rgba(224,131,131,.45)"
+                        ? "rgb(var(--bad-rgb) / .45)"
                         : canPick
-                          ? "rgba(181,171,252,.6)"
-                          : "rgba(145,132,217,.2)"
+                          ? "rgb(var(--accent-bright-rgb) / .6)"
+                          : "rgb(var(--accent-rgb) / .2)"
                     }`,
                     background: "transparent",
-                    color: pickingForSomeoneElse ? "#c98f8f" : canPick ? "#d2cefd" : "#5a5d6e",
+                    color: pickingForSomeoneElse ? "var(--bad)" : canPick ? "var(--accent-text)" : "var(--text-faint)",
                     borderRadius: "var(--radius-sm)",
                     fontFamily: "inherit",
                     cursor: canPick ? "pointer" : "default",
@@ -1355,9 +1355,9 @@ function queueButton(enabled: boolean): React.CSSProperties {
     padding: "4px 8px",
     fontSize: 12,
     lineHeight: 1,
-    border: "1px solid rgba(145,132,217,.28)",
+    border: "1px solid rgb(var(--accent-rgb) / .28)",
     background: "transparent",
-    color: enabled ? "#9397ab" : "#4d5062",
+    color: enabled ? "var(--text-muted)" : "var(--text-off)",
     borderRadius: "var(--radius-sm)",
     fontFamily: "inherit",
     cursor: enabled ? "pointer" : "default",
@@ -1391,7 +1391,7 @@ function Waiting({
 }) {
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 18px 48px", textAlign: "center" }}>
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c", marginTop: 40 }}>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)", marginTop: 40 }}>
         DRAFT NIGHT
       </div>
       <h1
@@ -1401,7 +1401,7 @@ function Waiting({
           letterSpacing: "-.03em",
           margin: "8px 0 10px",
           fontWeight: 500,
-          color: "#e9e9ed",
+          color: "var(--text)",
         }}
       >
         {title}
@@ -1409,7 +1409,7 @@ function Waiting({
       <p
         style={{
           fontSize: 12.5,
-          color: "#9397ab",
+          color: "var(--text-muted)",
           lineHeight: 1.7,
           margin: "0 auto 22px",
           maxWidth: "46ch",
@@ -1419,7 +1419,7 @@ function Waiting({
       </p>
 
       {error ? (
-        <div style={{ fontSize: 12, color: "#e0b573", marginBottom: 14 }}>{error}</div>
+        <div style={{ fontSize: 12, color: "var(--warn)", marginBottom: 14 }}>{error}</div>
       ) : null}
 
       {action ? (
@@ -1429,10 +1429,10 @@ function Waiting({
           style={{
             minHeight: 44,
             padding: "12px 22px",
-            border: "1px solid rgba(181,171,252,.6)",
+            border: "1px solid rgb(var(--accent-bright-rgb) / .6)",
             borderRadius: "var(--radius-sm)",
-            background: "rgba(145,132,217,.18)",
-            color: "#e9e9ed",
+            background: "rgb(var(--accent-rgb) / .18)",
+            color: "var(--text)",
             font: "inherit",
             fontSize: 12,
             letterSpacing: ".14em",
@@ -1463,8 +1463,8 @@ function Waiting({
               fontSize: 11,
               padding: "5px 10px",
               borderRadius: "var(--radius-sm)",
-              border: `1px solid ${m.ready ? "rgba(127,209,168,.4)" : "rgba(145,132,217,.22)"}`,
-              color: m.ready ? "#7fd1a8" : "#75798c",
+              border: `1px solid ${m.ready ? "rgb(var(--good-rgb) / .4)" : "rgb(var(--accent-rgb) / .22)"}`,
+              color: m.ready ? "var(--good)" : "var(--text-dim)",
             }}
           >
             {m.franchise}
@@ -1472,7 +1472,7 @@ function Waiting({
         ))}
       </div>
 
-      <div style={{ fontSize: 11.5, color: "#75798c", marginTop: 22 }}>
+      <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginTop: 22 }}>
         Pick clock — {clock}
       </div>
     </div>

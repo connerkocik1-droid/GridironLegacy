@@ -143,7 +143,7 @@ export default function LeagueHub() {
   return (
     <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 18px 44px" }}>
       <div style={{ margin: "26px 0 20px" }}>
-        <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>
+        <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>
           {counts.season ? `${counts.season} SEASON` : "THE LEAGUE"}
           {counts.week != null ? ` · WEEK ${counts.week}` : ""}
         </div>
@@ -154,7 +154,7 @@ export default function LeagueHub() {
             letterSpacing: "-.025em",
             margin: "7px 0 0",
             fontWeight: 500,
-            color: "#e9e9ed",
+            color: "var(--text)",
             overflowWrap: "anywhere",
           }}
         >
@@ -178,9 +178,9 @@ export default function LeagueHub() {
               href={p.href}
               style={{
                 display: "block",
-                border: "1px solid rgba(181,171,252,.4)",
+                border: "1px solid rgb(var(--accent-bright-rgb) / .4)",
                 borderRadius: "var(--radius-md)",
-                background: "rgba(145,132,217,.12)",
+                background: "rgb(var(--accent-rgb) / .12)",
                 padding: "18px 18px 19px",
                 textDecoration: "none",
                 color: "inherit",
@@ -194,7 +194,7 @@ export default function LeagueHub() {
                   fontFamily: "var(--font-heading)",
                   fontSize: 21,
                   letterSpacing: "-.02em",
-                  color: "#e9e9ed",
+                  color: "var(--text)",
                 }}
               >
                 <span style={{ minWidth: 0 }}>{p.name}</span>
@@ -207,9 +207,9 @@ export default function LeagueHub() {
                       letterSpacing: ".12em",
                       padding: "3px 7px",
                       borderRadius: 999,
-                      background: "rgba(145,132,217,.3)",
-                      border: "1px solid rgba(181,171,252,.55)",
-                      color: "#d2cefd",
+                      background: "rgb(var(--accent-rgb) / .3)",
+                      border: "1px solid rgb(var(--accent-bright-rgb) / .55)",
+                      color: "var(--accent-text)",
                       whiteSpace: "nowrap",
                     }}
                   >
@@ -217,7 +217,7 @@ export default function LeagueHub() {
                   </span>
                 ) : null}
               </div>
-              <div style={{ fontSize: 11.5, color: "#9397ab", lineHeight: 1.55, marginTop: 6 }}>
+              <div style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.55, marginTop: 6 }}>
                 {p.line}
               </div>
               {/* The same amber as the My Team hub's. These two pages are
@@ -225,7 +225,7 @@ export default function LeagueHub() {
                   is a different colour on each reads as two different kinds of
                   thing rather than the same one twice. */}
               {badge ? (
-                <div style={{ fontSize: 11.5, color: "#e0b573", marginTop: 8 }}>{badge}</div>
+                <div style={{ fontSize: 11.5, color: "var(--warn)", marginTop: 8 }}>{badge}</div>
               ) : null}
             </Link>
           );

@@ -78,7 +78,7 @@ export default function HomeBoard() {
         <DraftBand home={home} />
 
         {error && !home ? (
-          <div style={{ fontSize: 12.5, color: "#e0b573" }}>{error}</div>
+          <div style={{ fontSize: 12.5, color: "var(--warn)" }}>{error}</div>
         ) : (
           <MatchupBand home={home} />
         )}

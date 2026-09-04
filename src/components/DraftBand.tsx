@@ -78,9 +78,9 @@ export default function DraftBand({ home }: { home: Home | null }) {
         display: "flex",
         alignItems: "center",
         gap: 14,
-        border: "1px solid rgba(224,181,115,.45)",
+        border: "1px solid rgb(var(--warn-rgb) / .45)",
         borderRadius: "var(--radius-lg)",
-        background: "rgba(224,181,115,.08)",
+        background: "rgb(var(--warn-rgb) / .08)",
         padding: "14px 16px",
         margin: "0 0 4px",
         textDecoration: "none",
@@ -88,14 +88,14 @@ export default function DraftBand({ home }: { home: Home | null }) {
       }}
     >
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 10, letterSpacing: ".24em", color: "#e0b573" }}>
+        <div style={{ fontSize: 10, letterSpacing: ".24em", color: "var(--warn)" }}>
           {running ? "THE DRAFT IS ON" : "DRAFT NIGHT"}
         </div>
         <div
           style={{
             fontFamily: "var(--font-heading)",
             fontSize: 17,
-            color: "#e9e9ed",
+            color: "var(--text)",
             margin: "5px 0 0",
           }}
         >
@@ -105,7 +105,7 @@ export default function DraftBand({ home }: { home: Home | null }) {
               ? when(at)
               : "No date set yet"}
         </div>
-        <div style={{ fontSize: 11.5, color: "#9397ab", marginTop: 3 }}>
+        <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 3 }}>
           {running
             ? "Somebody is on the clock."
             : at && far
@@ -115,7 +115,7 @@ export default function DraftBand({ home }: { home: Home | null }) {
               : "The commissioner sets the date in the league office."}
         </div>
       </div>
-      <span aria-hidden style={{ color: "#e0b573", fontSize: 18, flex: "0 0 auto" }}>
+      <span aria-hidden style={{ color: "var(--warn)", fontSize: 18, flex: "0 0 auto" }}>
         →
       </span>
     </Link>

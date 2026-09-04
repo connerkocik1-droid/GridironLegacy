@@ -6,17 +6,17 @@ const label: React.CSSProperties = {
   display: "block",
   fontSize: 10,
   letterSpacing: ".18em",
-  color: "#75798c",
+  color: "var(--text-dim)",
   marginBottom: 5,
 };
 
 const field: React.CSSProperties = {
   width: 90,
   padding: "7px 9px",
-  background: "rgba(20,22,35,.8)",
-  border: "1px solid rgba(145,132,217,.28)",
+  background: "rgb(var(--sunken-rgb) / .8)",
+  border: "1px solid rgb(var(--accent-rgb) / .28)",
   borderRadius: "var(--radius-sm)",
-  color: "#e9e9ed",
+  color: "var(--text)",
   font: "inherit",
   fontSize: 13,
 };
@@ -58,8 +58,8 @@ export default function SeasonRules({
 
   return (
     <div>
-      <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Season rules</h6>
-      <p style={{ fontSize: 11.5, color: "#9397ab", margin: "0 0 12px", lineHeight: 1.6 }}>
+      <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>Season rules</h6>
+      <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "0 0 12px", lineHeight: 1.6 }}>
         When trading stops, and how long a dropped player sits on waivers before the run releases
         him. Both take effect on the next move anybody makes.
       </p>
@@ -99,9 +99,9 @@ export default function SeasonRules({
             fontSize: 10,
             letterSpacing: ".14em",
             textTransform: "uppercase",
-            border: `1px solid ${valid && changed && !busy ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.2)"}`,
+            border: `1px solid ${valid && changed && !busy ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .2)"}`,
             background: "transparent",
-            color: valid && changed && !busy ? "#d2cefd" : "#5a5d6e",
+            color: valid && changed && !busy ? "var(--accent-text)" : "var(--text-faint)",
             borderRadius: "var(--radius-sm)",
             fontFamily: "inherit",
             cursor: valid && changed && !busy ? "pointer" : "default",
@@ -111,7 +111,7 @@ export default function SeasonRules({
         </button>
       </div>
 
-      <p style={{ fontSize: 11, color: "#75798c", margin: "12px 0 0", lineHeight: 1.6 }}>
+      <p style={{ fontSize: 11, color: "var(--text-dim)", margin: "12px 0 0", lineHeight: 1.6 }}>
         {deadlineNum === 0
           ? "Trades never stop — a franchise out of contention can hand its season to a friend in week seventeen."
           : `Trades stop after week ${deadlineNum} of a ${regularWeeks}-week regular season.`}{" "}

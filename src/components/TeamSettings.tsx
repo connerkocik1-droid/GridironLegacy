@@ -34,17 +34,17 @@ const label: React.CSSProperties = {
   display: "block",
   fontSize: 10,
   letterSpacing: ".2em",
-  color: "#75798c",
+  color: "var(--text-dim)",
   marginBottom: 6,
 };
 
 const field: React.CSSProperties = {
   width: "100%",
   padding: "8px 10px",
-  background: "rgba(20,22,35,.8)",
-  border: "1px solid rgba(145,132,217,.3)",
+  background: "rgb(var(--sunken-rgb) / .8)",
+  border: "1px solid rgb(var(--accent-rgb) / .3)",
   borderRadius: "var(--radius-sm)",
-  color: "#e9e9ed",
+  color: "var(--text)",
   font: "inherit",
   fontSize: 13,
 };
@@ -58,9 +58,9 @@ const rowButton = (open: boolean): React.CSSProperties => ({
   padding: "12px 14px",
   minHeight: 34,
   border: "none",
-  borderTop: "1px solid rgba(145,132,217,.14)",
-  background: open ? "rgba(145,132,217,.12)" : "transparent",
-  color: open ? "#d2cefd" : "#c9cbd8",
+  borderTop: "1px solid rgb(var(--accent-rgb) / .14)",
+  background: open ? "rgb(var(--accent-rgb) / .12)" : "transparent",
+  color: open ? "var(--accent-text)" : "var(--text-2)",
   font: "inherit",
   fontSize: 12.5,
   textAlign: "left",
@@ -70,9 +70,9 @@ const rowButton = (open: boolean): React.CSSProperties => ({
 const action = (enabled: boolean): React.CSSProperties => ({
   padding: "8px 13px",
   minHeight: 34,
-  border: "1px solid rgba(181,171,252,.6)",
+  border: "1px solid rgb(var(--accent-bright-rgb) / .6)",
   background: "transparent",
-  color: "#d2cefd",
+  color: "var(--accent-text)",
   borderRadius: "var(--radius-sm)",
   font: "inherit",
   fontSize: 11,
@@ -241,16 +241,16 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
   return (
     <>
       {error ? (
-        <div style={{ padding: "0 14px 10px", fontSize: 11.5, color: "#e0b573" }}>{error}</div>
+        <div style={{ padding: "0 14px 10px", fontSize: 11.5, color: "var(--warn)" }}>{error}</div>
       ) : null}
       {done ? (
-        <div style={{ padding: "0 14px 10px", fontSize: 11.5, color: "#7fd1a8" }}>{done}</div>
+        <div style={{ padding: "0 14px 10px", fontSize: 11.5, color: "var(--good)" }}>{done}</div>
       ) : null}
 
       {/* ------------------------------------------------ team name --- */}
       <button onClick={() => show("name")} style={rowButton(section === "name")}>
         Change team name
-        <span aria-hidden style={{ color: "#75798c" }}>{section === "name" ? "−" : "+"}</span>
+        <span aria-hidden style={{ color: "var(--text-dim)" }}>{section === "name" ? "−" : "+"}</span>
       </button>
 
       {section === "name" ? (
@@ -284,12 +284,12 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
           is about the manager rather than about the team. */}
       <button onClick={() => show("email")} style={rowButton(section === "email")}>
         Email me when something happens
-        <span aria-hidden style={{ color: "#75798c" }}>{section === "email" ? "\u2212" : "+"}</span>
+        <span aria-hidden style={{ color: "var(--text-dim)" }}>{section === "email" ? "\u2212" : "+"}</span>
       </button>
 
       {section === "email" ? (
         <div style={{ padding: "12px 14px 14px" }}>
-          <p style={{ fontSize: 11.5, color: "#9397ab", lineHeight: 1.6, margin: "0 0 12px" }}>
+          <p style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
             The league already tells you things in the bell at the top of the
             page. Give an address and it will tell you by email as well &mdash;
             when you are on the clock, when somebody offers you a trade, when a
@@ -319,7 +319,7 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
               marginTop: 12,
               minHeight: 34,
               fontSize: 12,
-              color: "#c8ccdc",
+              color: "var(--text-2)",
               cursor: email.trim() ? "pointer" : "default",
               opacity: email.trim() ? 1 : 0.5,
             }}
@@ -329,7 +329,7 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
               checked={wantsMail}
               disabled={!email.trim()}
               onChange={(e) => setWantsMail(e.target.checked)}
-              style={{ accentColor: "#9184d9", cursor: "inherit" }}
+              style={{ accentColor: "var(--accent-solid)", cursor: "inherit" }}
             />
             Send them
           </label>
@@ -349,14 +349,14 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
       {/* ----------------------------------------------- team photo --- */}
       <button onClick={() => show("photo")} style={rowButton(section === "photo")}>
         Change team photo
-        <span aria-hidden style={{ color: "#75798c" }}>{section === "photo" ? "−" : "+"}</span>
+        <span aria-hidden style={{ color: "var(--text-dim)" }}>{section === "photo" ? "−" : "+"}</span>
       </button>
 
       {section === "photo" ? (
         <div style={{ padding: "12px 14px 14px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <TeamCrest franchise={manager.franchise} logo={preview ?? manager.logo} size={54} />
-            <div style={{ fontSize: 11.5, color: "#9397ab", lineHeight: 1.55, flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.55, flex: 1, minWidth: 0 }}>
               {preview
                 ? "This is how it will look. Save it to make it yours."
                 : "A square is taken from the middle and shrunk to 256 pixels, on this machine — the original never leaves it."}
@@ -390,8 +390,8 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
                 disabled={busy}
                 style={{
                   ...action(!busy),
-                  border: "1px solid rgba(224,131,131,.45)",
-                  color: "#c98f8f",
+                  border: "1px solid rgb(var(--bad-rgb) / .45)",
+                  color: "var(--bad)",
                 }}
               >
                 Remove
@@ -404,7 +404,7 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
       {/* ------------------------------------------------------ PIN --- */}
       <button onClick={() => show("pin")} style={rowButton(section === "pin")}>
         Change PIN
-        <span aria-hidden style={{ color: "#75798c" }}>{section === "pin" ? "−" : "+"}</span>
+        <span aria-hidden style={{ color: "var(--text-dim)" }}>{section === "pin" ? "−" : "+"}</span>
       </button>
 
       {section === "pin" ? (
@@ -435,7 +435,7 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
             style={field}
           />
 
-          <p style={{ fontSize: 11, color: "#75798c", lineHeight: 1.55, margin: "10px 0 0" }}>
+          <p style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.55, margin: "10px 0 0" }}>
             Four digits. Your current one is asked for so a browser left open
             cannot lock you out of your own franchise.
           </p>

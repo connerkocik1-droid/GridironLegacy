@@ -37,9 +37,9 @@ export default function MiniGamesStrip() {
           href={g.href}
           style={{
             display: "block",
-            border: "1px solid rgba(145,132,217,.28)",
+            border: "1px solid rgb(var(--accent-rgb) / .28)",
             borderRadius: "var(--radius-md)",
-            background: "rgba(35,37,50,.55)",
+            background: "rgb(var(--raised-rgb) / .55)",
             padding: "13px 15px 14px",
             textDecoration: "none",
             color: "inherit",
@@ -49,12 +49,12 @@ export default function MiniGamesStrip() {
             style={{
               fontFamily: "var(--font-heading)",
               fontSize: 15,
-              color: "#d2cefd",
+              color: "var(--accent-text)",
             }}
           >
             {g.name}
           </div>
-          <div style={{ fontSize: 11.5, color: "#8f94a8", lineHeight: 1.55, marginTop: 4 }}>
+          <div style={{ fontSize: 11.5, color: "var(--text-quiet)", lineHeight: 1.55, marginTop: 4 }}>
             {g.line}
           </div>
         </Link>

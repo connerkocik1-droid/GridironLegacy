@@ -40,7 +40,7 @@ const POLL_MS = 8_000;
 const label: React.CSSProperties = {
   fontSize: 10,
   letterSpacing: ".2em",
-  color: "#75798c",
+  color: "var(--text-dim)",
 };
 
 /** The time, at the resolution a conversation cares about. */
@@ -190,7 +190,7 @@ export default function LeagueChat() {
             alignItems: "center",
             minHeight: 34,
             fontSize: 11.5,
-            color: "#b5abfc",
+            color: "var(--accent-link)",
             textDecoration: "none",
           }}
         >
@@ -206,23 +206,23 @@ export default function LeagueChat() {
           letterSpacing: "-.025em",
           margin: "7px 0 10px",
           fontWeight: 500,
-          color: "#e9e9ed",
+          color: "var(--text)",
         }}
       >
         League chat
       </h1>
-      <p style={{ fontSize: 12.5, color: "#9397ab", lineHeight: 1.65, margin: "0 0 12px" }}>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.65, margin: "0 0 12px" }}>
         Everyone sees everything here, and nothing is emailed.
       </p>
 
       {error ? (
         <div
           style={{
-            border: "1px solid rgba(224,181,115,.35)",
+            border: "1px solid rgb(var(--warn-rgb) / .35)",
             borderRadius: "var(--radius-sm)",
             padding: "9px 12px",
             fontSize: 12,
-            color: "#e0b573",
+            color: "var(--warn)",
             marginBottom: 12,
           }}
         >
@@ -243,9 +243,9 @@ export default function LeagueChat() {
         style={{
           display: "flex",
           flexDirection: "column",
-          border: "1px solid rgba(145,132,217,.22)",
+          border: "1px solid rgb(var(--accent-rgb) / .22)",
           borderRadius: "var(--radius-lg)",
-          background: "rgba(26,28,43,.55)",
+          background: "rgb(var(--surface-rgb) / .55)",
           padding: "6px 0",
           height: "min(58vh, 520px)",
           overflowY: "auto",
@@ -257,11 +257,11 @@ export default function LeagueChat() {
             overflowing list in every browser. */}
         <div style={{ marginTop: "auto" }}>
         {!feed ? (
-          <div style={{ padding: "16px 18px", fontSize: 12.5, color: "#75798c" }}>
+          <div style={{ padding: "16px 18px", fontSize: 12.5, color: "var(--text-dim)" }}>
             Reading the conversation…
           </div>
         ) : messages.length === 0 ? (
-          <div style={{ padding: "16px 18px", fontSize: 12.5, color: "#9397ab", lineHeight: 1.65 }}>
+          <div style={{ padding: "16px 18px", fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.65 }}>
             Nobody has said anything yet. Somebody has to go first — it is
             traditionally an accusation about the last trade.
           </div>
@@ -310,12 +310,12 @@ export default function LeagueChat() {
                       style={{
                         fontFamily: "var(--font-heading)",
                         fontSize: 13,
-                        color: m.mine ? "#d2cefd" : "#e9e9ed",
+                        color: m.mine ? "var(--accent-text)" : "var(--text)",
                       }}
                     >
                       {who?.franchise ?? "Somebody"}
                     </span>
-                    <span style={{ fontSize: 10.5, color: "#75798c" }}>{when(m.at)}</span>
+                    <span style={{ fontSize: 10.5, color: "var(--text-dim)" }}>{when(m.at)}</span>
                   </div>
                   <div
                     style={{
@@ -327,15 +327,15 @@ export default function LeagueChat() {
                     <span
                       style={{
                         fontSize: 13,
-                        color: "#c8ccdc",
+                        color: "var(--text-2)",
                         lineHeight: 1.55,
                         padding: "6px 10px",
                         borderRadius: 12,
                         borderTopRightRadius: m.mine ? 3 : 12,
                         borderTopLeftRadius: m.mine ? 12 : 3,
                         background: m.mine
-                          ? "rgba(145,132,217,.24)"
-                          : "rgba(145,132,217,.09)",
+                          ? "rgb(var(--accent-rgb) / .24)"
+                          : "rgb(var(--accent-rgb) / .09)",
                         overflowWrap: "anywhere",
                         whiteSpace: "pre-wrap",
                         maxWidth: "100%",
@@ -355,7 +355,7 @@ export default function LeagueChat() {
                       minHeight: 34,
                       border: 0,
                       background: "transparent",
-                      color: "#5a5d6e",
+                      color: "var(--text-faint)",
                       font: "inherit",
                       fontSize: 13,
                       cursor: "pointer",
@@ -391,10 +391,10 @@ export default function LeagueChat() {
             flex: 1,
             minWidth: 0,
             padding: "9px 11px",
-            background: "rgba(20,22,35,.8)",
-            border: "1px solid rgba(145,132,217,.28)",
+            background: "rgb(var(--sunken-rgb) / .8)",
+            border: "1px solid rgb(var(--accent-rgb) / .28)",
             borderRadius: "var(--radius-sm)",
-            color: "#e9e9ed",
+            color: "var(--text)",
             font: "inherit",
             fontSize: 13,
             lineHeight: 1.5,
@@ -407,9 +407,9 @@ export default function LeagueChat() {
           style={{
             minHeight: 40,
             padding: "9px 16px",
-            border: `1px solid ${draft.trim() ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.2)"}`,
+            border: `1px solid ${draft.trim() ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .2)"}`,
             background: "transparent",
-            color: draft.trim() ? "#d2cefd" : "#5a5d6e",
+            color: draft.trim() ? "var(--accent-text)" : "var(--text-faint)",
             borderRadius: "var(--radius-sm)",
             font: "inherit",
             fontSize: 12,

@@ -1,0 +1,95 @@
+/* ---------------------------------------------------------------- theme ---
+   Every colour this app draws, named once.
+
+   It was fifteen hundred literals written inline on components — a hex or an
+   rgba() at the point of use, nine hundred of them some shade of the same
+   purple. That is fine for one theme and impossible for two, so this is the
+   list, and the components name these rather than the values.
+
+   Two kinds of token, for two reasons:
+
+     *-rgb holds bare channels, so a component can ask for the same colour at
+     whatever transparency it needs — rgb(var(--accent-rgb) / .22) — rather
+     than the palette having to carry a token per alpha. The purple alone is
+     used at fourteen different ones.
+
+     Everything else is a whole colour, because it is only ever used whole.
+
+   The pylon's orange is deliberately absent. It is the mark, it is the same
+   in any theme, and it stays written where it is drawn. */
+
+:root {
+  /* Ground, from the page up to the things that sit on it. */
+  --bg: #161826;
+  --bg-rgb: 22 24 38;
+  --surface-rgb: 26 28 43;
+  --sunken-rgb: 20 22 35;
+  --raised-rgb: 35 37 50;
+  --glow-rgb: 66 58 106;
+  /* Opaque, for the one place a sticky cell must hide what scrolls under it. */
+  --board-solid: #1b1d2c;
+
+  /* The accent, and the brighter one that means "this, now". */
+  --accent-rgb: 145 132 217;
+  --accent-bright-rgb: 181 171 252;
+  --accent-text: #d2cefd;
+  --accent-link: #b5abfc;
+  --accent-solid: #9184d9;
+
+  /* Text, loudest to quietest. */
+  --text: #e9e9ed;
+  --text-2: #c8ccdc;
+  --text-3: #b2b6ca;
+  --text-muted: #9397ab;
+  --text-quiet: #8f94a8;
+  --text-dim: #75798c;
+  --text-faint: #5a5d6e;
+
+  /* Gradient stops on the two bars that draw a share of something. */
+  --accent-deep: #5d5294;
+  --accent-mid: #8f83d6;
+  --accent-soft: #7a6fb8;
+
+  /* Below the page: a video letterbox, an empty crest, a row that is not
+     itself a surface. */
+  --well: #11131f;
+  --shadow-rgb: 0 0 0;
+  /* Behind a dialog, and the ground the pick reveal is lit against. */
+  --scrim-rgb: 10 11 19;
+  --reveal-rgb: 46 40 78;
+  /* The one card in the office that is about to break something. */
+  --danger-ground-rgb: 43 28 32;
+
+  /* Text that is off rather than quiet — a disabled control. */
+  --text-off: #4d5062;
+
+  /* Position, wherever a player is tinted by what he plays. Named after the
+     position rather than after the feeling, because a quarterback is not a
+     warning: they only look like the semantic colours below by coincidence,
+     and in a second theme they will not. */
+  --pos-qb: #e5a3a3;
+  --pos-qb-rgb: 224 131 131;
+  --pos-rb: #8fd3b0;
+  --pos-rb-rgb: 127 209 168;
+  --pos-wr: #a8b8e8;
+  --pos-wr-rgb: 145 164 217;
+  --pos-te: #e0bb84;
+  --pos-te-rgb: 224 181 115;
+  --pos-k: #b0a8cc;
+  --pos-k-rgb: 160 150 190;
+  --pos-dst: #a8a8bb;
+  --pos-dst-rgb: 140 140 155;
+
+  /* What a number means. */
+  --good: #7fd1a8;
+  --good-rgb: 127 209 168;
+  --warn: #e0b573;
+  --warn-rgb: 224 181 115;
+  --bad: #c98f8f;
+  --bad-text: #e5a3a3;
+  --bad-rgb: 224 131 131;
+  /* The softer red, for a margin lost rather than a thing gone wrong. */
+  --bad-soft: #e0908f;
+  /* Suspended, which is neither hurt nor fine. */
+  --suspended: #c98fd0;
+}

@@ -46,14 +46,14 @@ function Half({ label, items }: { label: string; items: string[] }) {
         style={{
           fontSize: 10,
           letterSpacing: ".16em",
-          color: "#75798c",
+          color: "var(--text-dim)",
           marginBottom: 4,
         }}
       >
         {label}
       </div>
       {items.length === 0 ? (
-        <div style={{ fontSize: 12, color: "#5a5d6e" }}>Nothing</div>
+        <div style={{ fontSize: 12, color: "var(--text-faint)" }}>Nothing</div>
       ) : (
         <ul
           style={{
@@ -71,11 +71,11 @@ function Half({ label, items }: { label: string; items: string[] }) {
                 display: "flex",
                 gap: 7,
                 fontSize: 12.5,
-                color: "#c8ccdc",
+                color: "var(--text-2)",
                 lineHeight: 1.5,
               }}
             >
-              <span aria-hidden style={{ color: "#e0b573", flex: "0 0 auto" }}>
+              <span aria-hidden style={{ color: "var(--warn)", flex: "0 0 auto" }}>
                 •
               </span>
               <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{item}</span>
@@ -103,9 +103,9 @@ export default function TradeAsks({ trades }: { trades: TradeAsk[] }) {
             // player happens to be in the middle of it.
             alignItems: "flex-start",
             gap: 12,
-            border: "1px solid rgba(224,181,115,.45)",
+            border: "1px solid rgb(var(--warn-rgb) / .45)",
             borderRadius: "var(--radius-md)",
-            background: "rgba(224,181,115,.08)",
+            background: "rgb(var(--warn-rgb) / .08)",
             padding: "12px 14px",
             textDecoration: "none",
             color: "inherit",
@@ -117,7 +117,7 @@ export default function TradeAsks({ trades }: { trades: TradeAsk[] }) {
               style={{
                 fontSize: 10,
                 letterSpacing: ".2em",
-                color: "#e0b573",
+                color: "var(--warn)",
                 marginBottom: 4,
               }}
             >
@@ -127,7 +127,7 @@ export default function TradeAsks({ trades }: { trades: TradeAsk[] }) {
               style={{
                 fontFamily: "var(--font-heading)",
                 fontSize: 15,
-                color: "#e9e9ed",
+                color: "var(--text)",
                 lineHeight: 1.35,
               }}
             >
@@ -151,7 +151,7 @@ export default function TradeAsks({ trades }: { trades: TradeAsk[] }) {
           </div>
           <span
             aria-hidden
-            style={{ color: "#e0b573", fontSize: 16, flex: "0 0 auto", marginTop: 14 }}
+            style={{ color: "var(--warn)", fontSize: 16, flex: "0 0 auto", marginTop: 14 }}
           >
             →
           </span>

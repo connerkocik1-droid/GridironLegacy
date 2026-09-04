@@ -43,9 +43,9 @@ export default function ResetDraft({
           fontSize: 10,
           letterSpacing: ".12em",
           textTransform: "uppercase",
-          border: "1px solid rgba(224,131,131,.34)",
+          border: "1px solid rgb(var(--bad-rgb) / .34)",
           background: "transparent",
-          color: "#c98f8f",
+          color: "var(--bad)",
           borderRadius: "var(--radius-sm)",
           fontFamily: "inherit",
           cursor: busy ? "default" : "pointer",
@@ -69,13 +69,13 @@ export default function ResetDraft({
       >
         {picksMade ? (
           <>
-            <p style={{ fontSize: 13, lineHeight: 1.75, color: "#9397ab", margin: "0 0 10px" }}>
+            <p style={{ fontSize: 13, lineHeight: 1.75, color: "var(--text-muted)", margin: "0 0 10px" }}>
               {picksMade === 1 ? "One pick is" : `All ${picksMade} picks are`} undone and every
               roster in the league is emptied. The board is redrawn at the league&rsquo;s current
               size and the room closes, ready to open again.
             </p>
 
-            <p style={{ fontSize: 12, lineHeight: 1.7, color: "#75798c", margin: 0 }}>
+            <p style={{ fontSize: 12, lineHeight: 1.7, color: "var(--text-dim)", margin: 0 }}>
               Standing trade offers are declined and pending waiver claims cancelled, since the
               players they name go back into the pool. Draft queues are left alone, and the
               rosters are saved to the league&rsquo;s backups on the way past.
@@ -83,13 +83,13 @@ export default function ResetDraft({
           </>
         ) : (
           <>
-            <p style={{ fontSize: 13, lineHeight: 1.75, color: "#9397ab", margin: "0 0 10px" }}>
+            <p style={{ fontSize: 13, lineHeight: 1.75, color: "var(--text-muted)", margin: "0 0 10px" }}>
               No picks to undo. The board is redrawn at the league&rsquo;s current size and in its
               current order, and the room is closed, ready to open — which is what you want if the
               board was built before the last franchise arrived.
             </p>
 
-            <p style={{ fontSize: 12, lineHeight: 1.7, color: "#75798c", margin: 0 }}>
+            <p style={{ fontSize: 12, lineHeight: 1.7, color: "var(--text-dim)", margin: 0 }}>
               Any rosters, standing trade offers and pending waiver claims are cleared too. In a
               league that has not drafted there is usually nothing there to clear.
             </p>

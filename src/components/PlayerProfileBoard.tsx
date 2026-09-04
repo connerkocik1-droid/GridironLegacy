@@ -25,9 +25,9 @@ import type { Story } from "@/lib/news";
 const BLANK = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 const card: React.CSSProperties = {
-  border: "1px solid rgba(145,132,217,.22)",
+  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgba(26,28,43,.55)",
+  background: "rgb(var(--surface-rgb) / .55)",
   overflow: "hidden",
 };
 
@@ -44,7 +44,7 @@ const LAST_SEASON = 2025;
 const label: React.CSSProperties = {
   fontSize: 10,
   letterSpacing: ".2em",
-  color: "#75798c",
+  color: "var(--text-dim)",
 };
 
 interface Payload {
@@ -85,7 +85,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
 
   if (error) {
     return (
-      <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 18px", fontSize: 12.5, color: "#e0b573" }}>
+      <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 18px", fontSize: 12.5, color: "var(--warn)" }}>
         {error}
       </div>
     );
@@ -93,7 +93,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
 
   if (!data) {
     return (
-      <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 18px", fontSize: 12.5, color: "#75798c" }}>
+      <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 18px", fontSize: 12.5, color: "var(--text-dim)" }}>
         Reading the player…
       </div>
     );
@@ -120,8 +120,8 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
             height: 72,
             borderRadius: "50%",
             objectFit: "cover",
-            border: "1px solid rgba(145,132,217,.35)",
-            background: "rgba(35,37,50,.7)",
+            border: "1px solid rgb(var(--accent-rgb) / .35)",
+            background: "rgb(var(--raised-rgb) / .7)",
             flex: "0 0 auto",
           }}
         />
@@ -133,7 +133,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
               letterSpacing: "-.025em",
               margin: 0,
               fontWeight: 500,
-              color: "#e9e9ed",
+              color: "var(--text)",
               overflowWrap: "anywhere",
             }}
           >
@@ -147,7 +147,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
               marginTop: 7,
               flexWrap: "wrap",
               fontSize: 12,
-              color: "#9397ab",
+              color: "var(--text-muted)",
             }}
           >
             {profile.position ? <span>{profile.position}</span> : null}
@@ -183,7 +183,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
           </div>
 
           {health?.note ? (
-            <div style={{ fontSize: 11.5, color: "#9397ab", marginTop: 7, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 7, lineHeight: 1.5 }}>
               {health.detail}
               {health.note ? ` — ${health.note}` : ""}
             </div>
@@ -192,15 +192,15 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
       </div>
 
       {owner ? (
-        <div style={{ ...card, padding: "11px 16px", fontSize: 12, color: "#9397ab", marginBottom: 16 }}>
+        <div style={{ ...card, padding: "11px 16px", fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
           {owner.mine ? (
             <>
-              On <span style={{ color: "#7fd1a8" }}>your roster</span>
+              On <span style={{ color: "var(--good)" }}>your roster</span>
               {owner.lineupSlot === "IR" ? ", on injured reserve" : ""}.
             </>
           ) : (
             <>
-              Held by <span style={{ color: "#e9e9ed" }}>{owner.franchise}</span>.
+              Held by <span style={{ color: "var(--text)" }}>{owner.franchise}</span>.
             </>
           )}
         </div>
@@ -218,7 +218,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
                 style={{
                   fontFamily: "var(--font-heading)",
                   fontSize: 15,
-                  color: "#d2cefd",
+                  color: "var(--accent-text)",
                   marginBottom: 7,
                 }}
               >
@@ -226,12 +226,12 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
               </div>
             ) : null}
             {profile.insight ? (
-              <p style={{ fontSize: 12.5, color: "#9397ab", lineHeight: 1.65, margin: 0 }}>
+              <p style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.65, margin: 0 }}>
                 {profile.insight}
               </p>
             ) : null}
             {profile.adp != null ? (
-              <div style={{ fontSize: 11, color: "#75798c", marginTop: 10 }}>
+              <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 10 }}>
                 Drafted around pick {profile.adp}
                 {profile.posRank ? ` · ${profile.posRank}` : ""}
                 {profile.rostered != null ? ` · rostered in ${profile.rostered}% of leagues` : ""}
@@ -278,7 +278,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
                 <div
                   style={{
                     fontSize: 12,
-                    color: "#c8ccdc",
+                    color: "var(--text-2)",
                     lineHeight: 1.5,
                     marginTop: 11,
                     overflowWrap: "anywhere",
@@ -295,7 +295,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
                   gap: 6,
                   marginTop: 9,
                   fontSize: 11,
-                  color: "#b5abfc",
+                  color: "var(--accent-link)",
                 }}
               >
                 {openWeeks ? "Hide the weeks" : "Week by week"}
@@ -320,7 +320,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
                       display: "flex",
                       gap: 12,
                       padding: "10px 16px",
-                      borderTop: "1px solid rgba(145,132,217,.14)",
+                      borderTop: "1px solid rgb(var(--accent-rgb) / .14)",
                       alignItems: "baseline",
                     }}
                   >
@@ -330,7 +330,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
                         flex: 1,
                         minWidth: 0,
                         fontSize: 11.5,
-                        color: "#c8ccdc",
+                        color: "var(--text-2)",
                         lineHeight: 1.45,
                         overflowWrap: "anywhere",
                       }}
@@ -341,7 +341,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
                       style={{
                         fontFamily: "var(--font-heading)",
                         fontSize: 15,
-                        color: "#d2cefd",
+                        color: "var(--accent-text)",
                         fontVariantNumeric: "tabular-nums",
                         flex: "0 0 auto",
                       }}
@@ -353,7 +353,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
               : null}
           </>
         ) : (
-          <div style={{ padding: "16px 18px", fontSize: 12.5, color: "#9397ab", lineHeight: 1.6 }}>
+          <div style={{ padding: "16px 18px", fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.6 }}>
             Nothing scored yet this season. Weeks appear here as they are played.
           </div>
         )}
@@ -372,34 +372,34 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
           <div style={{ ...label, marginBottom: 10 }}>LAST SEASON · {LAST_SEASON}</div>
           <div style={{ ...card, marginBottom: 24 }}>
             {profile.career.length === 0 ? (
-              <div style={{ padding: "14px 16px", fontSize: 12, color: "#9397ab", lineHeight: 1.6 }}>
+              <div style={{ padding: "14px 16px", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>
                 No {LAST_SEASON} line on file for him.
               </div>
             ) : null}
             {profile.career.map((s) => (
               <div
                 key={`${s.year}-${s.team}`}
-                style={{ padding: "12px 16px", borderTop: "1px solid rgba(145,132,217,.14)" }}
+                style={{ padding: "12px 16px", borderTop: "1px solid rgb(var(--accent-rgb) / .14)" }}
               >
                 <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
                   <span
                     style={{
                       fontFamily: "var(--font-heading)",
                       fontSize: 14,
-                      color: "#e9e9ed",
+                      color: "var(--text)",
                     }}
                   >
                     {s.year}
                   </span>
-                  <span style={{ fontSize: 11, color: "#75798c" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
                     {s.team} · {s.position}
                   </span>
                 </div>
-                <div style={{ fontSize: 11.5, color: "#c8ccdc", marginTop: 4, lineHeight: 1.5, overflowWrap: "anywhere" }}>
+                <div style={{ fontSize: 11.5, color: "var(--text-2)", marginTop: 4, lineHeight: 1.5, overflowWrap: "anywhere" }}>
                   {s.line}
                 </div>
                 {s.line2 ? (
-                  <div style={{ fontSize: 11.5, color: "#9397ab", marginTop: 2, lineHeight: 1.5, overflowWrap: "anywhere" }}>
+                  <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.5, overflowWrap: "anywhere" }}>
                     {s.line2}
                   </div>
                 ) : null}
@@ -420,7 +420,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
       </div>
 
       {!profile.found ? (
-        <div style={{ ...card, padding: "14px 16px", fontSize: 12, color: "#9397ab", lineHeight: 1.6 }}>
+        <div style={{ ...card, padding: "14px 16px", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>
           This player was never in the draft pool, so there is nothing here but
           what the league itself has recorded about him.
         </div>
@@ -430,7 +430,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
         <Link
           href="/rankings"
           style={{
-            color: "#b5abfc",
+            color: "var(--accent-link)",
             textDecoration: "none",
             display: "inline-flex",
             alignItems: "center",
@@ -447,13 +447,13 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
 function Stat({ label: name, value }: { label: string; value: string }) {
   return (
     <div>
-      <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c" }}>{name}</div>
+      <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)" }}>{name}</div>
       <div
         style={{
           fontFamily: "var(--font-heading)",
           fontSize: 19,
           marginTop: 3,
-          color: "#e9e9ed",
+          color: "var(--text)",
           fontVariantNumeric: "tabular-nums",
         }}
       >

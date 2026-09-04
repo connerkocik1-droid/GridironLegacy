@@ -18,7 +18,7 @@ export default function LineupPage() {
       style={{
         minHeight: "100vh",
         background:
-          "radial-gradient(120% 80% at 50% -10%,rgba(66,58,106,.4),transparent 60%),#161826",
+          "radial-gradient(120% 80% at 50% -10%,rgb(var(--glow-rgb) / .4),transparent 60%),var(--bg)",
       }}
     >
       <Nav current="/lineup" />
@@ -28,10 +28,10 @@ export default function LineupPage() {
         style={{
           margin: "8px 26px 0",
           paddingTop: 22,
-          borderTop: "1px solid rgba(145,132,217,.18)",
+          borderTop: "1px solid rgb(var(--accent-rgb) / .18)",
         }}
       >
-        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>THIS WEEK</div>
+        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>THIS WEEK</div>
         <h2
           style={{
             fontFamily: "var(--font-heading)",

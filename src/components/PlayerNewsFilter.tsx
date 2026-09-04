@@ -65,9 +65,9 @@ export default function PlayerNewsFilter({
   }, [load]);
 
   const card: React.CSSProperties = {
-    border: "1px solid rgba(145,132,217,.22)",
+    border: "1px solid rgb(var(--accent-rgb) / .22)",
     borderRadius: "var(--radius-lg)",
-    background: "rgba(26,28,43,.55)",
+    background: "rgb(var(--surface-rgb) / .55)",
     overflow: "hidden",
   };
 
@@ -76,7 +76,7 @@ export default function PlayerNewsFilter({
     return (
       <>
         {signedOut ? (
-          <p style={{ fontSize: 12, color: "#9397ab", margin: "0 0 12px" }}>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 12px" }}>
             Sign in to see which of these are about your players.
           </p>
         ) : null}
@@ -96,7 +96,7 @@ export default function PlayerNewsFilter({
             as a fault in the page, and the card below already says the wire is
             quiet in words a person would use. */}
         {stories.length > 0 ? (
-          <p style={{ fontSize: 12, color: "#9397ab", margin: 0 }}>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
             {mine.length} of {stories.length}{" "}
             {stories.length === 1 ? "story mentions" : "stories mention"} your
             players or the ones you are watching.
@@ -118,9 +118,9 @@ export default function PlayerNewsFilter({
                 fontSize: 10,
                 letterSpacing: ".1em",
                 textTransform: "uppercase",
-                border: `1px solid ${mineOnly === opt.on ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
-                background: mineOnly === opt.on ? "rgba(145,132,217,.26)" : "transparent",
-                color: mineOnly === opt.on ? "#e9e9ed" : "#9397ab",
+                border: `1px solid ${mineOnly === opt.on ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+                background: mineOnly === opt.on ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+                color: mineOnly === opt.on ? "var(--text)" : "var(--text-muted)",
                 borderRadius: "var(--radius-sm)",
                 fontFamily: "inherit",
                 cursor: "pointer",

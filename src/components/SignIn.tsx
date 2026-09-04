@@ -27,10 +27,10 @@ type Mode = "landing" | "signin" | "pick" | "confirm" | "activate";
 const field: React.CSSProperties = {
   width: "100%",
   padding: "9px 11px",
-  background: "rgba(20,22,35,.8)",
-  border: "1px solid rgba(145,132,217,.3)",
+  background: "rgb(var(--sunken-rgb) / .8)",
+  border: "1px solid rgb(var(--accent-rgb) / .3)",
   borderRadius: "var(--radius-sm)",
-  color: "#e9e9ed",
+  color: "var(--text)",
   font: "inherit",
   fontSize: 14,
 };
@@ -39,7 +39,7 @@ const label: React.CSSProperties = {
   display: "block",
   fontSize: 10,
   letterSpacing: ".2em",
-  color: "#75798c",
+  color: "var(--text-dim)",
   margin: "14px 0 6px",
 };
 
@@ -47,9 +47,9 @@ const primary = (enabled: boolean): React.CSSProperties => ({
   width: "100%",
   marginTop: 18,
   padding: "12px 16px",
-  border: "1px solid rgba(181,171,252,.6)",
-  background: "rgba(145,132,217,.14)",
-  color: "#d2cefd",
+  border: "1px solid rgb(var(--accent-bright-rgb) / .6)",
+  background: "rgb(var(--accent-rgb) / .14)",
+  color: "var(--accent-text)",
   borderRadius: "var(--radius-sm)",
   font: "inherit",
   fontSize: 13,
@@ -62,7 +62,7 @@ const primary = (enabled: boolean): React.CSSProperties => ({
 const quiet: React.CSSProperties = {
   border: "none",
   background: "transparent",
-  color: "#9397ab",
+  color: "var(--text-muted)",
   font: "inherit",
   fontSize: 12,
   padding: 0,
@@ -81,13 +81,13 @@ const grid: React.CSSProperties = {
 const cardEyebrow = (bright: boolean): React.CSSProperties => ({
   fontSize: 10,
   letterSpacing: ".18em",
-  color: bright ? "#b5abfc" : "#75798c",
+  color: bright ? "var(--accent-link)" : "var(--text-dim)",
 });
 
 const cardName: React.CSSProperties = {
   fontFamily: "var(--font-heading)",
   fontSize: 15,
-  color: "#e9e9ed",
+  color: "var(--text)",
   margin: "5px 0 3px",
   overflow: "hidden",
   textOverflow: "ellipsis",
@@ -215,10 +215,10 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
   }
 
   if (error && !slots) {
-    return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
   }
   if (!slots) {
-    return <div style={{ padding: "24px 26px", color: "#75798c" }}>Reading the league…</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--text-dim)" }}>Reading the league…</div>;
   }
 
   const free = slots.filter((s) => !s.claimed);
@@ -226,7 +226,7 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
 
   const heading = (
     <>
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>
         DYNASTY · {slots.length} TEAM
       </div>
       <h1
@@ -246,8 +246,8 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
 
   const messages = (
     <>
-      {notice ? <div style={{ fontSize: 12, color: "#b5abfc", marginTop: 14 }}>{notice}</div> : null}
-      {error ? <div style={{ fontSize: 12, color: "#e0b573", marginTop: 14 }}>{error}</div> : null}
+      {notice ? <div style={{ fontSize: 12, color: "var(--accent-link)", marginTop: 14 }}>{notice}</div> : null}
+      {error ? <div style={{ fontSize: 12, color: "var(--warn)", marginTop: 14 }}>{error}</div> : null}
     </>
   );
 
@@ -256,7 +256,7 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
     return (
       <div>
         {heading}
-        <p style={{ fontSize: 13, color: "#9397ab", lineHeight: 1.6, margin: "0 0 8px" }}>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 8px" }}>
           {/* Counted, not spelled out. The eyebrow above this already reads the
               real league size, and a hardcoded "Twelve" beside it is wrong the
               moment a commissioner adds a thirteenth franchise — on the first
@@ -285,20 +285,20 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
             ...primary(true),
             marginTop: 10,
             background: "transparent",
-            border: "1px solid rgba(145,132,217,.3)",
-            color: "#9397ab",
+            border: "1px solid rgb(var(--accent-rgb) / .3)",
+            color: "var(--text-muted)",
           }}
         >
           Sign up
         </button>
 
-        <div style={{ fontSize: 12, color: "#75798c", marginTop: 16, textAlign: "center" }}>
+        <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 16, textAlign: "center" }}>
           {free.length
             ? `${free.length} ${free.length === 1 ? "franchise is" : "franchises are"} still open.`
             : "Every franchise is taken."}
         </div>
 
-        <p style={{ fontSize: 11, color: "#75798c", lineHeight: 1.6, marginTop: 20 }}>
+        <p style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.6, marginTop: 20 }}>
           Forgotten your PIN? The commissioner can clear it — they cannot set a
           new one, so nobody can sign in as your team.
         </p>
@@ -311,7 +311,7 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
     return (
       <div>
         {heading}
-        <p style={{ fontSize: 13, color: "#9397ab", lineHeight: 1.6, margin: "0 0 4px" }}>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 4px" }}>
           {anyClaimed
             ? "Press your franchise, then type your PIN."
             : "Nobody has claimed a franchise yet. Sign up to be the first."}
@@ -330,7 +330,7 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
                   {s.isCommissioner ? " · COMMISSIONER" : ""}
                 </div>
                 <div style={cardName}>{s.franchise}</div>
-                <div style={{ fontSize: 10.5, color: usable ? "#9397ab" : "#75798c" }}>
+                <div style={{ fontSize: 10.5, color: usable ? "var(--text-muted)" : "var(--text-dim)" }}>
                   {usable ? s.name : "Open · sign up to claim"}
                 </div>
               </>
@@ -341,13 +341,13 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
               padding: "13px 13px 12px",
               border: `1px solid ${
                 mine
-                  ? "rgba(181,171,252,.75)"
+                  ? "rgb(var(--accent-bright-rgb) / .75)"
                   : usable
-                    ? "rgba(181,171,252,.45)"
-                    : "rgba(145,132,217,.14)"
+                    ? "rgb(var(--accent-bright-rgb) / .45)"
+                    : "rgb(var(--accent-rgb) / .14)"
               }`,
               borderRadius: "var(--radius-sm)",
-              background: usable ? "rgba(145,132,217,.1)" : "rgba(20,22,35,.5)",
+              background: usable ? "rgb(var(--accent-rgb) / .1)" : "rgb(var(--sunken-rgb) / .5)",
               color: "inherit",
               font: "inherit",
               // Unclaimed teams are still listed — seeing which are gone is the
@@ -460,7 +460,7 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
     return (
       <div>
         {heading}
-        <p style={{ fontSize: 13, color: "#9397ab", lineHeight: 1.6, margin: "0 0 4px" }}>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 4px" }}>
           Pick a franchise. The greyed-out ones already belong to somebody.
         </p>
         {messages}
@@ -481,9 +481,9 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
                 style={{
                   textAlign: "left",
                   padding: "13px 13px 12px",
-                  border: `1px solid ${open ? "rgba(181,171,252,.45)" : "rgba(145,132,217,.14)"}`,
+                  border: `1px solid ${open ? "rgb(var(--accent-bright-rgb) / .45)" : "rgb(var(--accent-rgb) / .14)"}`,
                   borderRadius: "var(--radius-sm)",
-                  background: open ? "rgba(145,132,217,.1)" : "rgba(20,22,35,.5)",
+                  background: open ? "rgb(var(--accent-rgb) / .1)" : "rgb(var(--sunken-rgb) / .5)",
                   color: "inherit",
                   font: "inherit",
                   cursor: open ? "pointer" : "default",
@@ -497,7 +497,7 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
                   {s.isCommissioner ? " · COMMISSIONER" : ""}
                 </div>
                 <div style={cardName}>{s.franchise}</div>
-                <div style={{ fontSize: 10.5, color: open ? "#7fd1a8" : "#75798c" }}>
+                <div style={{ fontSize: 10.5, color: open ? "var(--good)" : "var(--text-dim)" }}>
                   {open ? "Open" : `Taken · ${s.name}`}
                 </div>
               </button>
@@ -531,25 +531,25 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
         {heading}
         <div
           style={{
-            border: "1px solid rgba(181,171,252,.45)",
+            border: "1px solid rgb(var(--accent-bright-rgb) / .45)",
             borderRadius: "var(--radius-lg)",
-            background: "rgba(145,132,217,.1)",
+            background: "rgb(var(--accent-rgb) / .1)",
             padding: "20px 20px 18px",
             margin: "10px 0 4px",
           }}
         >
-          <div style={{ fontSize: 10, letterSpacing: ".18em", color: "#b5abfc" }}>{chosen.slot}</div>
+          <div style={{ fontSize: 10, letterSpacing: ".18em", color: "var(--accent-link)" }}>{chosen.slot}</div>
           <div
             style={{
               fontFamily: "var(--font-heading)",
               fontSize: 26,
-              color: "#e9e9ed",
+              color: "var(--text)",
               margin: "6px 0 4px",
             }}
           >
             {chosen.franchise}
           </div>
-          <div style={{ fontSize: 11, color: "#75798c" }}>
+          <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
             {chosen.isCommissioner ? "The commissioner's franchise" : "Open"}
           </div>
         </div>
@@ -557,7 +557,7 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
         <p
           style={{
             fontSize: 15,
-            color: "#e9e9ed",
+            color: "var(--text)",
             lineHeight: 1.6,
             margin: "18px 0 0",
             textAlign: "center",
@@ -588,8 +588,8 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
               ...primary(true),
               marginTop: 0,
               background: "transparent",
-              border: "1px solid rgba(145,132,217,.3)",
-              color: "#9397ab",
+              border: "1px solid rgb(var(--accent-rgb) / .3)",
+              color: "var(--text-muted)",
             }}
           >
             No
@@ -605,8 +605,8 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
     return (
       <div>
         {heading}
-        <p style={{ fontSize: 13, color: "#9397ab", lineHeight: 1.6, margin: "0 0 2px" }}>
-          Claiming <strong style={{ color: "#d2cefd", fontWeight: 500 }}>{chosen.slot}</strong>. Your
+        <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 2px" }}>
+          Claiming <strong style={{ color: "var(--accent-text)", fontWeight: 500 }}>{chosen.slot}</strong>. Your
           first name and a four-digit PIN are all it takes.
         </p>
 
@@ -621,11 +621,11 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
             autoComplete="given-name"
             style={field}
           />
-          <p style={{ fontSize: 11.5, color: "#75798c", lineHeight: 1.6, margin: "7px 0 0" }}>
+          <p style={{ fontSize: 11.5, color: "var(--text-dim)", lineHeight: 1.6, margin: "7px 0 0" }}>
             {firstName.trim() ? (
               <>
                 Your team will be called{" "}
-                <strong style={{ color: "#b5abfc", fontWeight: 500 }}>
+                <strong style={{ color: "var(--accent-link)", fontWeight: 500 }}>
                   {teamNameFor(firstName)}
                 </strong>{" "}
                 until you rename it — you can do that any time from the profile

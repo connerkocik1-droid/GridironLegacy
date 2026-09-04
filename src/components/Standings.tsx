@@ -47,7 +47,7 @@ interface Board {
 const th: React.CSSProperties = {
   fontSize: 10,
   letterSpacing: ".16em",
-  color: "#75798c",
+  color: "var(--text-dim)",
   fontWeight: 400,
   textAlign: "right",
   padding: "0 0 8px",
@@ -57,7 +57,7 @@ const th: React.CSSProperties = {
 const td: React.CSSProperties = {
   fontFamily: "var(--font-heading)",
   fontSize: 13,
-  color: "#b2b6ca",
+  color: "var(--text-3)",
   textAlign: "right",
   padding: "9px 0",
   fontVariantNumeric: "tabular-nums",
@@ -124,7 +124,7 @@ export default function Standings() {
   }, [board]);
 
   if (error && !board) {
-    return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
   }
   if (!board) {
     return <Skeleton rows={6} />;
@@ -132,7 +132,7 @@ export default function Standings() {
 
   return (
     <div style={{ padding: "24px 26px 40px" }}>
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>THE TABLE</div>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>THE TABLE</div>
       <h1
         style={{
           fontFamily: "var(--font-heading)",
@@ -144,7 +144,7 @@ export default function Standings() {
       >
         Standings
       </h1>
-      <p style={{ fontSize: 12.5, color: "#9397ab", margin: "0 0 18px" }}>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 18px" }}>
         {board.played
           ? "Ordered by record, then by points scored."
           : "Nothing has been graded yet, so this is ordered by points scored."}
@@ -167,9 +167,9 @@ export default function Standings() {
           <div
             key={name}
             style={{
-              border: "1px solid rgba(145,132,217,.22)",
+              border: "1px solid rgb(var(--accent-rgb) / .22)",
               borderRadius: "var(--radius-lg)",
-              background: "rgba(26,28,43,.55)",
+              background: "rgb(var(--surface-rgb) / .55)",
               overflowX: "auto",
             }}
           >
@@ -178,7 +178,7 @@ export default function Standings() {
                 padding: "12px 15px 4px",
                 fontSize: 10,
                 letterSpacing: ".2em",
-                color: "#b5abfc",
+                color: "var(--accent-link)",
               }}
             >
               {name.toUpperCase()}
@@ -208,8 +208,8 @@ export default function Standings() {
                     <tr
                       key={f.id}
                       style={{
-                        borderTop: "1px solid rgba(145,132,217,.1)",
-                        background: mine ? "rgba(145,132,217,.1)" : undefined,
+                        borderTop: "1px solid rgb(var(--accent-rgb) / .1)",
+                        background: mine ? "rgb(var(--accent-rgb) / .1)" : undefined,
                       }}
                     >
                       <td style={{ padding: "8px 15px" }}>
@@ -220,7 +220,7 @@ export default function Standings() {
                               width: 14,
                               fontFamily: "var(--font-heading)",
                               fontSize: 11,
-                              color: "#5a5d6e",
+                              color: "var(--text-faint)",
                               fontVariantNumeric: "tabular-nums",
                             }}
                           >
@@ -237,7 +237,7 @@ export default function Standings() {
                             <div
                               style={{
                                 fontSize: 13,
-                                color: "#e9e9ed",
+                                color: "var(--text)",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
@@ -245,10 +245,10 @@ export default function Standings() {
                             >
                               {f.franchise}
                               {mine ? (
-                                <span style={{ color: "#b5abfc", fontSize: 10 }}> · YOU</span>
+                                <span style={{ color: "var(--accent-link)", fontSize: 10 }}> · YOU</span>
                               ) : null}
                             </div>
-                            <div style={{ fontSize: 10, color: "#75798c", whiteSpace: "nowrap" }}>
+                            <div style={{ fontSize: 10, color: "var(--text-dim)", whiteSpace: "nowrap" }}>
                               {f.slot} · {f.claimed ? f.name : "open"}
                             </div>
                             <Form results={f.form ?? []} />
@@ -292,9 +292,9 @@ function Form({ results }: { results: ("W" | "L" | "T")[] }) {
   if (!results.length) return null;
 
   const colour: Record<string, string> = {
-    W: "#7fd1a8",
-    L: "#e0908f",
-    T: "#75798c",
+    W: "var(--good)",
+    L: "var(--bad-soft)",
+    T: "var(--text-dim)",
   };
 
   return (
