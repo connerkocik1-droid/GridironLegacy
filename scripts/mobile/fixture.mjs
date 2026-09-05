@@ -597,7 +597,9 @@ export function routes(page, over = {}) {
         pickSeconds: 90, pickClock: PICK_CLOCK, serverNow: new Date().toISOString(),
         draftAt: null, cinematicRounds: 3, introVideo: null,
         lotteryOrder: MANAGERS.map((m) => m.slot), lotteryAt },
-      onTheClock: PICKS[2], myTurn: false, picks: PICKS,
+      onTheClock: over.myTurn ? { ...PICKS[2], manager_id: ME.id } : PICKS[2],
+      myTurn: Boolean(over.myTurn),
+      picks: PICKS,
       // The route sends a name only for a franchise somebody has claimed, so
       // the fixture does too — otherwise the lottery reads "Open Team · Open"
       // here and nowhere else.

@@ -489,6 +489,35 @@ for (const width of WIDTHS) {
   }
 }
 
+// On the clock — which is the state the draft room exists for, and the one it
+// was never measured in.
+//
+// The fixture puts somebody else on the clock, so every run measured a room a
+// manager is watching rather than one they are using: no Draft button live,
+// and the player rows laid out for a screen where nothing is urgent. At 320px
+// with the button live, "Jahmyr Gibbs" came out as three lines reading Jahm,
+// yr, Gibbs — on the busiest list in the app, to somebody with ninety seconds.
+// Every check passed it, because no check ever saw it.
+for (const width of WIDTHS) {
+  const ctx = await browser.newContext({
+    viewport: { width, height: 844 }, hasTouch: true, isMobile: true,
+  });
+  await ctx.addCookies([sessionCookie()]);
+  const page = await ctx.newPage();
+  routes(page, { myTurn: true, secondsGone: 30 });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e).slice(0, 120)));
+  try {
+    await page.goto(`${BASE}/draft`, { waitUntil: "domcontentloaded", timeout: 20000 });
+  } catch {
+    // As above: measure what rendered.
+  }
+  await page.waitForTimeout(1400);
+  findings.push([width, "draft-my-turn", "/draft (on the clock)", await page.evaluate(measure), errors]);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/${width}-draft-my-turn.png`, fullPage: true });
+  await ctx.close();
+}
+
 // The home page before the league has drafted. Every other case here is a
 // league in mid-season, and this one is what the other eleven managers see on
 // the day they first sign in: no schedule, no scores, and draft night still to

@@ -1094,6 +1094,7 @@ export default function DraftRoom() {
       // this said the same thing as the board tab, and on a phone it pushed
       // the players — the only thing you are here to read — into a strip.
       <div
+        className="gl-draft-panels"
         style={{
           maxWidth: 780,
           margin: "0 auto",
@@ -1105,6 +1106,7 @@ export default function DraftRoom() {
             since the room was built and no screen ever wrote to it, so the
             autodraft it feeds has always fallen through to best-available. */}
         <div
+          className="gl-draft-queue"
           style={{
             border: `1px solid ${board.me.autodraft ? "rgb(var(--warn-rgb) / .4)" : "rgb(var(--accent-rgb) / .22)"}`,
             borderRadius: "var(--radius-lg)",
@@ -1135,11 +1137,22 @@ export default function DraftRoom() {
           </div>
 
           {queue.length === 0 ? (
+            // Short on a phone. Empty, this card was four hundred pixels of
+            // explanation sitting between a running clock and the list of
+            // players — most of a 320px screen spent on a paragraph a manager
+            // reads once and then scrolls past every pick for eighteen
+            // rounds. The full version keeps its place where there is room
+            // for it; the phone gets the sentence that matters.
             <div style={{ padding: "12px 16px", fontSize: 11.5, color: "var(--text-dim)", lineHeight: 1.6 }}>
-              Queue players below and they are drafted for you, in this order,
-              if your clock runs out or you switch autodraft on. Anyone already
-              taken is skipped. With nothing queued you get the best available
-              for what your roster still needs.
+              <span className="gl-queue-short">
+                Queue players below and they are drafted for you, in order, if your clock runs out.
+              </span>
+              <span className="gl-queue-long">
+                Queue players below and they are drafted for you, in this order,
+                if your clock runs out or you switch autodraft on. Anyone already
+                taken is skipped. With nothing queued you get the best available
+                for what your roster still needs.
+              </span>
             </div>
           ) : (
             queue.map((name, i) => (

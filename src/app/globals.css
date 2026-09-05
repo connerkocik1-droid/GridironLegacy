@@ -340,6 +340,57 @@ a:hover {
     max-width: 100px;
   }
 
+  /* The headshot goes, and the name gets its width.
+     ------------------------------------------------
+     Two hundred and thirty-six pixels of row, on the busiest screen in the
+     app, split: a 28px face, a queue button, a Draft button that would not go
+     under seventy-eight, and three gaps of eleven. What was left for the
+     player's name — the only thing in the row anybody is reading — was
+     sixty-one, and "Jahmyr Gibbs" came out as Jahm / yr / Gibbs.
+
+     The face is the first thing to go. It is recognition, not information,
+     and the matchup cell already drops it at this width for the same reason:
+     the name, the position and the ADP are the decision. That is thirty-nine
+     pixels back, another sixteen off the button, and six off the gaps — the
+     name goes from sixty-one to about a hundred and twenty, which fits it on
+     one line and takes the row from sixty pixels to forty-four. Five more
+     players on screen while somebody is on the clock. */
+  .gl-draft-row > img {
+    display: none;
+  }
+  .gl-draft-row {
+    gap: 9px !important;
+  }
+  .gl-draft-row > :last-child {
+    min-width: 62px !important;
+  }
+
+  /* One sentence instead of four while the clock is running. */
+  .gl-queue-long {
+    display: none;
+  }
+
+  /* And the queue goes below the players.
+     -------------------------------------
+     The two cards were in the order they were built in, which put the queue —
+     the thing a manager sets up once and then checks — above the list they
+     scan on every one of eighteen picks. On a 320px screen that pushed the
+     first player six hundred and seventy pixels down: under three rows
+     visible with a clock running.
+
+     Swapped rather than collapsed, so nothing is hidden behind a press and
+     the queue is still right there under the list. Order only, in CSS, on the
+     one container that holds exactly these two. */
+  .gl-draft-panels {
+    display: flex;
+    flex-direction: column;
+  }
+  .gl-draft-queue {
+    order: 2;
+    margin-bottom: 0 !important;
+    margin-top: 12px;
+  }
+
   /* Except when the button is the commissioner's. "Pick for them" will not go
      under about eighty pixels however it wraps its own words, and eighty
      pixels out of a 320px row is the whole of what the name had — it was
@@ -675,6 +726,12 @@ button[disabled]:active {
   html[data-tabbar] .gl-offline {
     bottom: calc(58px + env(safe-area-inset-bottom)) !important;
   }
+}
+
+/* The queue's explanation, in full, wherever there is room for it. The phones
+   block above swaps in a one-line version. */
+.gl-queue-short {
+  display: none;
 }
 
 /* Off a phone there is no tab bar, so the notice sits on the bottom edge and
