@@ -103,7 +103,7 @@ export default function DraftCountdown({
 
   return (
     <div style={{ padding: "48px 26px 60px", textAlign: "center" }}>
-      <div style={{ fontSize: 10, letterSpacing: ".4em", color: "#75798c" }}>
+      <div style={{ fontSize: 10, letterSpacing: ".4em", color: "var(--text-dim)" }}>
         {state === "paused" ? "DRAFT PAUSED" : past ? "DRAFT DAY" : "THE DRAFT"}
       </div>
 
@@ -145,13 +145,13 @@ export default function DraftCountdown({
                   fontFamily: "var(--font-heading)",
                   fontSize: 46,
                   lineHeight: 1,
-                  color: "#d2cefd",
+                  color: "var(--accent-text)",
                   fontVariantNumeric: "tabular-nums",
                 }}
               >
                 {String(p.n).padStart(2, "0")}
               </div>
-              <div style={{ fontSize: 10, letterSpacing: ".26em", color: "#75798c", marginTop: 6 }}>
+              <div style={{ fontSize: 10, letterSpacing: ".26em", color: "var(--text-dim)", marginTop: 6 }}>
                 {p.label}
               </div>
             </div>
@@ -162,7 +162,7 @@ export default function DraftCountdown({
       <p
         style={{
           fontSize: 13,
-          color: "#9397ab",
+          color: "var(--text-muted)",
           lineHeight: 1.7,
           maxWidth: "56ch",
           margin: "0 auto 24px",
@@ -183,9 +183,9 @@ export default function DraftCountdown({
           disabled={busy || meReady}
           style={{
             padding: "13px 30px",
-            border: `1px solid ${meReady ? "rgba(127,209,168,.55)" : "rgba(181,171,252,.6)"}`,
-            background: meReady ? "rgba(127,209,168,.1)" : "rgba(145,132,217,.16)",
-            color: meReady ? "#7fd1a8" : "#e9e9ed",
+            border: `1px solid ${meReady ? "rgb(var(--good-rgb) / .55)" : "rgb(var(--accent-bright-rgb) / .6)"}`,
+            background: meReady ? "rgb(var(--good-rgb) / .1)" : "rgb(var(--accent-rgb) / .16)",
+            color: meReady ? "var(--good)" : "var(--text)",
             borderRadius: "var(--radius-sm)",
             font: "inherit",
             fontSize: 13,
@@ -201,7 +201,7 @@ export default function DraftCountdown({
         <p
           style={{
             fontSize: 11.5,
-            color: "#75798c",
+            color: "var(--text-dim)",
             lineHeight: 1.6,
             maxWidth: "48ch",
             margin: "12px auto 0",
@@ -224,9 +224,9 @@ export default function DraftCountdown({
           disabled={busy}
           style={{
             padding: "13px 30px",
-            border: "1px solid rgba(181,171,252,.6)",
+            border: "1px solid rgb(var(--accent-bright-rgb) / .6)",
             background: "transparent",
-            color: "#d2cefd",
+            color: "var(--accent-text)",
             borderRadius: "var(--radius-sm)",
             font: "inherit",
             fontSize: 13,

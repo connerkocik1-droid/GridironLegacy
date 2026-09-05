@@ -135,7 +135,7 @@ export default function MyTeamHub() {
           <TeamCrest franchise={manager.franchise} logo={manager.logo} size={52} shape="box" />
         ) : null}
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>YOUR FRANCHISE</div>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>YOUR FRANCHISE</div>
           <h1
             style={{
               fontFamily: "var(--font-heading)",
@@ -143,7 +143,7 @@ export default function MyTeamHub() {
               letterSpacing: "-.025em",
               margin: "6px 0 0",
               fontWeight: 500,
-              color: "#e9e9ed",
+              color: "var(--text)",
               overflowWrap: "anywhere",
             }}
           >
@@ -168,9 +168,9 @@ export default function MyTeamHub() {
               href={p.href}
               style={{
                 display: "block",
-                border: "1px solid rgba(181,171,252,.4)",
+                border: "1px solid rgb(var(--accent-bright-rgb) / .4)",
                 borderRadius: "var(--radius-md)",
-                background: "rgba(145,132,217,.12)",
+                background: "rgb(var(--accent-rgb) / .12)",
                 padding: "18px 18px 19px",
                 textDecoration: "none",
                 color: "inherit",
@@ -181,16 +181,16 @@ export default function MyTeamHub() {
                   fontFamily: "var(--font-heading)",
                   fontSize: 21,
                   letterSpacing: "-.02em",
-                  color: "#e9e9ed",
+                  color: "var(--text)",
                 }}
               >
                 {p.name}
               </div>
-              <div style={{ fontSize: 11.5, color: "#9397ab", lineHeight: 1.55, marginTop: 6 }}>
+              <div style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.55, marginTop: 6 }}>
                 {p.line}
               </div>
               {badge ? (
-                <div style={{ fontSize: 11.5, color: "#e0b573", marginTop: 8 }}>{badge}</div>
+                <div style={{ fontSize: 11.5, color: "var(--warn)", marginTop: 8 }}>{badge}</div>
               ) : null}
             </Link>
           );

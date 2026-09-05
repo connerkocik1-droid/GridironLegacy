@@ -1,13 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import DraftBand from "./DraftBand";
 import MatchupBand from "./MatchupBand";
 import Section from "./Section";
+import SinceYouLooked from "./SinceYouLooked";
 import MyTeamButton from "./MyTeamButton";
 import TradeAsks from "./TradeAsks";
 import TheLeagueButton from "./TheLeagueButton";
 import MiniGamesButton from "./MiniGamesButton";
 import ScoreTicker from "./ScoreTicker";
+import { useRefreshable } from "@/lib/use-refresh";
 import type { Home } from "@/lib/home-types";
 
 /**
@@ -37,6 +40,9 @@ export default function HomeBoard() {
       setError("Could not read the league.");
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.
@@ -71,8 +77,19 @@ export default function HomeBoard() {
           has. Not collapsible: a band you can fold away is a band somebody
           folds away once and then wonders where their score went. */}
       <Section eyebrow="YOUR GAME" title="This matchup">
+        {/* Above the matchup for as long as there is a draft to come: before
+            the schedule exists there is no matchup, and draft night is the
+            only thing happening in this league. It removes itself afterwards. */}
+        <DraftBand home={home} />
+
+        {/* Above the score, because it is about the score: what the number
+            was when this manager last put their phone down, and what it is
+            now. Says nothing at all on a first visit, on a second visit half
+            an hour later, or on a week where nothing moved. */}
+        <SinceYouLooked home={home} />
+
         {error && !home ? (
-          <div style={{ fontSize: 12.5, color: "#e0b573" }}>{error}</div>
+          <div style={{ fontSize: 12.5, color: "var(--warn)" }}>{error}</div>
         ) : (
           <MatchupBand home={home} />
         )}
@@ -100,11 +117,17 @@ export default function HomeBoard() {
           stay on a desktop, where the room exists and the top bar's links are
           small. Mini-games is in neither bar, so its door is the only way in
           and it keeps it. */}
-      <div className="gl-home-doors">
-        <MyTeamButton />
-        <TheLeagueButton />
+      {/* The same left edge as every band above them. The doors were written
+          full-bleed and read as a set that way; with two of them hidden on a
+          phone the one that is left was a card wider than everything else on
+          the page, which looks like a mistake rather than a decision. */}
+      <div style={{ padding: "0 26px" }}>
+        <div className="gl-home-doors">
+          <MyTeamButton />
+          <TheLeagueButton />
+        </div>
+        <MiniGamesButton />
       </div>
-      <MiniGamesButton />
     </div>
   );
 }

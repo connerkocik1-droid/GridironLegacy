@@ -28,24 +28,24 @@ interface Watched {
 }
 
 const card: React.CSSProperties = {
-  border: "1px solid rgba(145,132,217,.22)",
+  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgba(26,28,43,.55)",
+  background: "rgb(var(--surface-rgb) / .55)",
   overflow: "hidden",
 };
 
 const label: React.CSSProperties = {
   fontSize: 10,
   letterSpacing: ".2em",
-  color: "#75798c",
+  color: "var(--text-dim)",
 };
 
 /** "Free", "on waivers until Tuesday", or whose team he is on. */
 function standing(w: Watched): { text: string; colour: string } {
   if (w.owner) {
     return w.owner.mine
-      ? { text: "On your roster", colour: "#7fd1a8" }
-      : { text: w.owner.franchise, colour: "#9397ab" };
+      ? { text: "On your roster", colour: "var(--good)" }
+      : { text: w.owner.franchise, colour: "var(--text-muted)" };
   }
   if (w.clearsAt) {
     const when = new Date(w.clearsAt);
@@ -56,9 +56,9 @@ function standing(w: Watched): { text: string; colour: string } {
           hour: "numeric",
           minute: "2-digit",
         })}`;
-    return { text: label, colour: "#e0b573" };
+    return { text: label, colour: "var(--warn)" };
   }
-  return { text: "Free agent", colour: "#b5abfc" };
+  return { text: "Free agent", colour: "var(--accent-link)" };
 }
 
 export default function WatchlistBoard() {
@@ -133,7 +133,7 @@ export default function WatchlistBoard() {
             alignItems: "center",
             minHeight: 34,
             fontSize: 11.5,
-            color: "#b5abfc",
+            color: "var(--accent-link)",
             textDecoration: "none",
           }}
         >
@@ -149,26 +149,26 @@ export default function WatchlistBoard() {
           letterSpacing: "-.025em",
           margin: "7px 0 10px",
           fontWeight: 500,
-          color: "#e9e9ed",
+          color: "var(--text)",
         }}
       >
         Watchlist
       </h1>
-      <p style={{ fontSize: 12.5, color: "#9397ab", lineHeight: 1.65, margin: "0 0 18px" }}>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.65, margin: "0 0 18px" }}>
         Players you have not decided about yet. Watching one changes nothing and
         commits nothing — it only means their news reaches you.
       </p>
 
       {error ? (
-        <div style={{ ...card, padding: "14px 16px", fontSize: 12.5, color: "#e0b573" }}>
+        <div style={{ ...card, padding: "14px 16px", fontSize: 12.5, color: "var(--warn)" }}>
           {error}
         </div>
       ) : null}
 
       {!watching ? (
-        <div style={{ fontSize: 12.5, color: "#75798c" }}>Reading your watchlist…</div>
+        <div style={{ fontSize: 12.5, color: "var(--text-dim)" }}>Reading your watchlist…</div>
       ) : watching.length === 0 ? (
-        <div style={{ ...card, padding: "18px 20px", fontSize: 12.5, color: "#9397ab", lineHeight: 1.65 }}>
+        <div style={{ ...card, padding: "18px 20px", fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.65 }}>
           Nobody yet. Watch a player from the free agents page and he will turn
           up here, along with anything the wire says about him.
           <div style={{ marginTop: 12 }}>
@@ -178,7 +178,7 @@ export default function WatchlistBoard() {
                 display: "inline-flex",
                 alignItems: "center",
                 minHeight: 34,
-                color: "#b5abfc",
+                color: "var(--accent-link)",
                 textDecoration: "none",
                 fontSize: 12,
               }}
@@ -195,63 +195,75 @@ export default function WatchlistBoard() {
               const where = standing(w);
 
               return (
+                // One line, never wrapped. Three items of wildly different
+                // widths in a wrapping row broke differently on every player —
+                // the status beside the name here, under it there, the button
+                // on a line of its own below — and a list where no two rows are
+                // the same shape is a list nobody can scan.
                 <div
                   key={w.name}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: 12,
-                    padding: "12px 16px",
-                    borderTop: "1px solid rgba(145,132,217,.14)",
-                    flexWrap: "wrap",
+                    padding: "11px 16px",
+                    borderTop: "1px solid rgb(var(--accent-rgb) / .14)",
                   }}
                 >
-                  <div style={{ minWidth: 0, flex: "1 1 180px" }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ minWidth: 0 }}>
                       <PlayerName
                         name={w.name}
                         style={{
                           fontFamily: "var(--font-heading)",
                           fontSize: 15.5,
-                          color: "#e9e9ed",
+                          color: "var(--text)",
                         }}
                       />
                     </div>
-                    <div style={{ fontSize: 11, color: "#75798c", marginTop: 2 }}>
+                    {/* Where he stands belongs with the rest of his
+                        particulars rather than in a column of its own: "on
+                        waivers until Friday 8:13 PM" is wider than the name
+                        beside it, and it was the reason every row broke
+                        somewhere different. */}
+                    <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 2, lineHeight: 1.5 }}>
                       {p ? `${p.p} · ${p.t}` : "Not in the pool"}
                       {p?.bye ? ` · bye ${p.bye}` : ""}
+                      {where.text ? (
+                        <>
+                          {" · "}
+                          <span style={{ color: where.colour }}>{where.text}</span>
+                        </>
+                      ) : null}
                     </div>
                   </div>
 
-                  <div
-                    style={{
-                      fontSize: 11.5,
-                      color: where.colour,
-                      flex: "0 1 auto",
-                      textAlign: "right",
-                    }}
-                  >
-                    {where.text}
-                  </div>
-
+                  {/* A mark rather than a sentence. "Stop watching" was the
+                      widest thing on the row and it is the least of what the
+                      row says; the words live on the button for anything that
+                      reads them out. */}
                   <button
                     onClick={() => void stopWatching(w.name)}
                     disabled={busy === w.name}
                     aria-label={`Stop watching ${w.name}`}
+                    title={`Stop watching ${w.name}`}
                     style={{
+                      minWidth: 34,
                       minHeight: 34,
-                      padding: "6px 11px",
-                      border: "1px solid rgba(145,132,217,.3)",
+                      padding: 0,
+                      border: "1px solid rgb(var(--accent-rgb) / .3)",
                       background: "transparent",
-                      color: "#9397ab",
+                      color: "var(--text-muted)",
                       borderRadius: "var(--radius-sm)",
-                      font: "inherit",
-                      fontSize: 11,
+                      fontFamily: "inherit",
+                      fontSize: 14,
+                      lineHeight: 1,
                       cursor: busy === w.name ? "default" : "pointer",
                       flex: "0 0 auto",
+                      opacity: busy === w.name ? 0.5 : 1,
                     }}
                   >
-                    Stop watching
+                    ×
                   </button>
                 </div>
               );
@@ -265,7 +277,7 @@ export default function WatchlistBoard() {
                 display: "inline-flex",
                 alignItems: "center",
                 minHeight: 34,
-                color: "#b5abfc",
+                color: "var(--accent-link)",
                 textDecoration: "none",
               }}
             >

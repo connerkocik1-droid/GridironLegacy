@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Skeleton from "./Skeleton";
-import { headshot, logo } from "@/data/league-data";
+import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
+import TeamMark from "./TeamMark";
+import { useRefreshable } from "@/lib/use-refresh";
 import { flagColor, flagsFor, player, proj } from "@/lib/roster";
 
 const BLANK =
@@ -74,9 +76,9 @@ function clears(iso: string) {
 }
 
 const card: React.CSSProperties = {
-  border: "1px solid rgba(145,132,217,.22)",
+  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgba(26,28,43,.55)",
+  background: "rgb(var(--surface-rgb) / .55)",
   overflow: "hidden",
 };
 
@@ -85,9 +87,9 @@ const button = (enabled: boolean): React.CSSProperties => ({
   fontSize: 10,
   letterSpacing: ".1em",
   textTransform: "uppercase",
-  border: `1px solid ${enabled ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.2)"}`,
+  border: `1px solid ${enabled ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .2)"}`,
   background: "transparent",
-  color: enabled ? "#d2cefd" : "#5a5d6e",
+  color: enabled ? "var(--accent-text)" : "var(--text-faint)",
   borderRadius: "var(--radius-sm)",
   fontFamily: "inherit",
   cursor: enabled ? "pointer" : "default",
@@ -136,6 +138,9 @@ export default function PlayersBoard() {
       // A star nobody can draw is a star nobody has set. The page works.
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.
@@ -251,7 +256,7 @@ export default function PlayersBoard() {
   }
 
   if (error && !feed) {
-    return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
   }
   if (!feed) {
     return <Skeleton rows={6} />;
@@ -262,7 +267,7 @@ export default function PlayersBoard() {
 
   return (
     <div style={{ padding: "24px 26px 40px" }}>
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>
         {feed.mode === "open" ? "OPEN MARKET" : "WAIVERS"}
       </div>
       <h1
@@ -283,7 +288,7 @@ export default function PlayersBoard() {
           were buried in the middle of a sentence. The prose says the rule
           once; the numbers are numbers. The star's own tooltip explains the
           star, so the line about it has gone. */}
-      <p style={{ fontSize: 12, color: "#9397ab", margin: "0 0 12px", maxWidth: "72ch", lineHeight: 1.6 }}>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 12px", maxWidth: "72ch", lineHeight: 1.6 }}>
         {feed.mode === "open"
           ? "Adds land immediately — first come, first served, and a dropped player goes straight back into this list."
           : feed.mode === "all"
@@ -312,16 +317,16 @@ export default function PlayersBoard() {
       </div>
 
       {notice ? (
-        <div style={{ fontSize: 12, color: "#7fd1a8", marginBottom: 12 }}>{notice}</div>
+        <div style={{ fontSize: 12, color: "var(--good)", marginBottom: 12 }}>{notice}</div>
       ) : null}
       {error ? (
-        <div style={{ fontSize: 12, color: "#e0b573", marginBottom: 12 }}>{error}</div>
+        <div style={{ fontSize: 12, color: "var(--warn)", marginBottom: 12 }}>{error}</div>
       ) : null}
 
       {pendingAdd ? (
         <div style={{ ...card, padding: "14px 16px", marginBottom: 14 }}>
-          <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Drop someone for {pendingAdd}</h6>
-          <p style={{ fontSize: 11.5, color: "#9397ab", margin: "0 0 10px" }}>
+          <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>Drop someone for {pendingAdd}</h6>
+          <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "0 0 10px" }}>
             Your roster is full. Pick who leaves, or cancel.
           </p>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -339,7 +344,7 @@ export default function PlayersBoard() {
               ))}
             <button
               onClick={() => setPendingAdd(null)}
-              style={{ ...button(true), borderColor: "rgba(145,132,217,.24)", color: "#9397ab" }}
+              style={{ ...button(true), borderColor: "rgb(var(--accent-rgb) / .24)", color: "var(--text-muted)" }}
             >
               Cancel
             </button>
@@ -358,11 +363,14 @@ export default function PlayersBoard() {
               flexWrap: "wrap",
             }}
           >
-            <h6 style={{ margin: 0, color: "#e0b573" }}>On waivers</h6>
-            <span style={{ fontSize: 10, letterSpacing: ".14em", color: "#75798c" }}>
+            <h6 style={{ margin: 0, color: "var(--warn)" }}>On waivers</h6>
+            <span style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--text-dim)" }}>
               {feed.wire.length} RECENTLY DROPPED
             </span>
-            <span style={{ fontSize: 11, color: "#75798c", marginLeft: "auto" }}>
+            <span
+              className="gl-push-end"
+              style={{ fontSize: 11, color: "var(--text-dim)", marginLeft: "auto" }}
+            >
               Claims only until each one clears.
             </span>
           </div>
@@ -376,7 +384,7 @@ export default function PlayersBoard() {
                   alignItems: "center",
                   gap: 10,
                   padding: "9px 16px",
-                  borderTop: "1px solid rgba(145,132,217,.12)",
+                  borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -388,8 +396,8 @@ export default function PlayersBoard() {
                   style={{
                     borderRadius: "50%",
                     objectFit: "contain",
-                    border: "1px solid rgba(224,181,115,.3)",
-                    background: "rgba(35,37,50,.7)",
+                    border: "1px solid rgb(var(--warn-rgb) / .3)",
+                    background: "rgb(var(--raised-rgb) / .7)",
                     flex: "0 0 auto",
                   }}
                 />
@@ -397,12 +405,12 @@ export default function PlayersBoard() {
                   <div style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}>
                     {w.name}
                     {w.position ? (
-                      <span style={{ color: "#75798c", fontSize: 11 }}> · {w.position}</span>
+                      <span style={{ color: "var(--text-dim)", fontSize: 11 }}> · {w.position}</span>
                     ) : null}
                   </div>
-                  <div style={{ fontSize: 10, color: "#e0b573", marginTop: 2 }}>
+                  <div style={{ fontSize: 10, color: "var(--warn)", marginTop: 2 }}>
                     {clears(w.clearsAt)}
-                    {w.mine ? <span style={{ color: "#75798c" }}> · you dropped him</span> : null}
+                    {w.mine ? <span style={{ color: "var(--text-dim)" }}> · you dropped him</span> : null}
                   </div>
                 </div>
                 <button
@@ -421,8 +429,8 @@ export default function PlayersBoard() {
       {pending.length ? (
         <div style={{ ...card, marginBottom: 14 }}>
           <div style={{ padding: "12px 16px", display: "flex", gap: 10, alignItems: "center" }}>
-            <h6 style={{ margin: 0, color: "#d2cefd" }}>Your pending claims</h6>
-            <span style={{ fontSize: 10, letterSpacing: ".14em", color: "#75798c" }}>
+            <h6 style={{ margin: 0, color: "var(--accent-text)" }}>Your pending claims</h6>
+            <span style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--text-dim)" }}>
               {pending.length} QUEUED
             </span>
           </div>
@@ -434,13 +442,13 @@ export default function PlayersBoard() {
                 alignItems: "center",
                 gap: 10,
                 padding: "9px 16px",
-                borderTop: "1px solid rgba(145,132,217,.12)",
+                borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
               }}
             >
               <span style={{ fontFamily: "var(--font-heading)", fontSize: 14, flex: 1, minWidth: 0 }}>
                 {c.add_player}
                 {c.drop_player ? (
-                  <span style={{ fontSize: 11, color: "#75798c" }}> — dropping {c.drop_player}</span>
+                  <span style={{ fontSize: 11, color: "var(--text-dim)" }}> — dropping {c.drop_player}</span>
                 ) : null}
               </span>
               <button onClick={() => withdraw(c.id)} disabled={busy} style={button(!busy)}>
@@ -454,7 +462,7 @@ export default function PlayersBoard() {
       {settled.length ? (
         <div style={{ ...card, marginBottom: 14 }}>
           <div style={{ padding: "12px 16px" }}>
-            <h6 style={{ margin: 0, color: "#9397ab" }}>Recently settled</h6>
+            <h6 style={{ margin: 0, color: "var(--text-muted)" }}>Recently settled</h6>
           </div>
           {settled.map((c) => (
             <div
@@ -464,7 +472,7 @@ export default function PlayersBoard() {
                 alignItems: "baseline",
                 gap: 9,
                 padding: "8px 16px",
-                borderTop: "1px solid rgba(145,132,217,.12)",
+                borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
               }}
             >
               <span
@@ -473,14 +481,14 @@ export default function PlayersBoard() {
                   letterSpacing: ".14em",
                   width: 60,
                   flex: "0 0 auto",
-                  color: c.status === "won" ? "#7fd1a8" : "#75798c",
+                  color: c.status === "won" ? "var(--good)" : "var(--text-dim)",
                 }}
               >
                 {c.status.toUpperCase()}
               </span>
               <span style={{ fontSize: 13, minWidth: 0, flex: 1 }}>{c.add_player}</span>
               {c.reason ? (
-                <span style={{ fontSize: 10.5, color: "#75798c" }}>{c.reason}</span>
+                <span style={{ fontSize: 10.5, color: "var(--text-dim)" }}>{c.reason}</span>
               ) : null}
             </div>
           ))}
@@ -494,7 +502,7 @@ export default function PlayersBoard() {
             alignItems: "center",
             gap: 10,
             padding: "12px 16px",
-            borderBottom: "1px solid rgba(145,132,217,.18)",
+            borderBottom: "1px solid rgb(var(--accent-rgb) / .18)",
             flexWrap: "wrap",
           }}
         >
@@ -507,10 +515,10 @@ export default function PlayersBoard() {
             placeholder="Search players"
             style={{
               padding: "6px 10px",
-              background: "rgba(20,22,35,.8)",
-              border: "1px solid rgba(145,132,217,.28)",
+              background: "rgb(var(--sunken-rgb) / .8)",
+              border: "1px solid rgb(var(--accent-rgb) / .28)",
               borderRadius: "var(--radius-sm)",
-              color: "#e9e9ed",
+              color: "var(--text)",
               font: "inherit",
               fontSize: 12,
             }}
@@ -527,9 +535,9 @@ export default function PlayersBoard() {
                   padding: "5px 9px",
                   fontSize: 10,
                   letterSpacing: ".1em",
-                  border: `1px solid ${filter === pos ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
-                  background: filter === pos ? "rgba(145,132,217,.26)" : "transparent",
-                  color: filter === pos ? "#e9e9ed" : "#9397ab",
+                  border: `1px solid ${filter === pos ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+                  background: filter === pos ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+                  color: filter === pos ? "var(--text)" : "var(--text-muted)",
                   borderRadius: "var(--radius-sm)",
                   fontFamily: "inherit",
                   cursor: "pointer",
@@ -542,7 +550,7 @@ export default function PlayersBoard() {
         </div>
 
         {feed.players.length === 0 ? (
-          <div style={{ padding: 16, fontSize: 12, color: "#75798c" }}>Nobody left here.</div>
+          <div style={{ padding: 16, fontSize: 12, color: "var(--text-dim)" }}>Nobody left here.</div>
         ) : null}
 
         {feed.players.map((p) => {
@@ -561,7 +569,7 @@ export default function PlayersBoard() {
                 alignItems: "center",
                 gap: 11,
                 padding: "9px 16px",
-                borderTop: "1px solid rgba(145,132,217,.1)",
+                borderTop: "1px solid rgb(var(--accent-rgb) / .1)",
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -573,24 +581,15 @@ export default function PlayersBoard() {
                 style={{
                   borderRadius: "50%",
                   objectFit: "contain",
-                  border: "1px solid rgba(145,132,217,.25)",
-                  background: "rgba(35,37,50,.7)",
+                  border: "1px solid rgb(var(--accent-rgb) / .25)",
+                  background: "rgb(var(--raised-rgb) / .7)",
                   flex: "0 0 auto",
                 }}
               />
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <PlayerName name={p.name} style={{ fontFamily: "var(--font-heading)", fontSize: 14 }} />
-                  {p.team ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={logo(p.team)}
-                      alt=""
-                      width={13}
-                      height={13}
-                      style={{ objectFit: "contain", opacity: 0.8 }}
-                    />
-                  ) : null}
+                  <TeamMark team={p.team} />
                   {flags.map((f) => (
                     <span
                       key={f.label}
@@ -607,10 +606,10 @@ export default function PlayersBoard() {
                     </span>
                   ))}
                 </div>
-                <div style={{ fontSize: 10, color: "#75798c", marginTop: 2 }}>
+                <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
                   {p.posRank} · ADP {p.adp} · bye {p.bye} · proj {proj(p.name).toFixed(1)}
                   {p.clearsAt ? (
-                    <span style={{ color: "#e0b573" }}> · on waivers, {clears(p.clearsAt)}</span>
+                    <span style={{ color: "var(--warn)" }}> · on waivers, {clears(p.clearsAt)}</span>
                   ) : null}
                 </div>
               </div>
@@ -633,9 +632,9 @@ export default function PlayersBoard() {
                   padding: "6px 9px",
                   fontSize: 13,
                   lineHeight: 1,
-                  border: `1px solid ${watching.has(p.name) ? "rgba(224,181,115,.55)" : "rgba(145,132,217,.22)"}`,
+                  border: `1px solid ${watching.has(p.name) ? "rgb(var(--warn-rgb) / .55)" : "rgb(var(--accent-rgb) / .22)"}`,
                   background: "transparent",
-                  color: watching.has(p.name) ? "#e0b573" : "#5a5d6e",
+                  color: watching.has(p.name) ? "var(--warn)" : "var(--text-faint)",
                   borderRadius: "var(--radius-sm)",
                   fontFamily: "inherit",
                   cursor: "pointer",
@@ -667,10 +666,10 @@ export default function PlayersBoard() {
               alignItems: "center",
               gap: 10,
               padding: "11px 16px",
-              borderTop: "1px solid rgba(145,132,217,.18)",
+              borderTop: "1px solid rgb(var(--accent-rgb) / .18)",
             }}
           >
-            <span style={{ fontSize: 11, color: "#75798c" }}>
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
               {feed.page * 60 + 1}–{feed.page * 60 + feed.players.length} of {feed.total}
             </span>
             <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
@@ -695,7 +694,7 @@ export default function PlayersBoard() {
 
       <div style={{ ...card, marginTop: 14 }}>
         <div style={{ padding: "12px 16px" }}>
-          <h6 style={{ margin: 0, color: "#9397ab" }}>Your roster</h6>
+          <h6 style={{ margin: 0, color: "var(--text-muted)" }}>Your roster</h6>
         </div>
         {feed.roster.map((r) => {
           const p = player(r.player_name);
@@ -707,7 +706,7 @@ export default function PlayersBoard() {
                 alignItems: "center",
                 gap: 10,
                 padding: "8px 16px",
-                borderTop: "1px solid rgba(145,132,217,.1)",
+                borderTop: "1px solid rgb(var(--accent-rgb) / .1)",
               }}
             >
               <span
@@ -716,7 +715,7 @@ export default function PlayersBoard() {
                   letterSpacing: ".12em",
                   width: 38,
                   flex: "0 0 auto",
-                  color: r.lineup_slot === "IR" ? "#5a5d6e" : "#b5abfc",
+                  color: r.lineup_slot === "IR" ? "var(--text-faint)" : "var(--accent-link)",
                 }}
               >
                 {r.lineup_slot === "IR"
@@ -727,7 +726,7 @@ export default function PlayersBoard() {
               </span>
               <span style={{ fontSize: 13, minWidth: 0, flex: 1 }}>
                 {r.player_name}
-                {p ? <span style={{ color: "#75798c", fontSize: 11 }}> · {p.p}</span> : null}
+                {p ? <span style={{ color: "var(--text-dim)", fontSize: 11 }}> · {p.p}</span> : null}
               </span>
               {/* Just "Drop": where he goes afterwards is the page's subject
                   above and the notice below, and a three-word button squeezes
@@ -771,18 +770,18 @@ function Fact({
         gap: 7,
         padding: "6px 10px",
         borderRadius: "var(--radius-sm)",
-        border: `1px solid ${warn ? "rgba(224,181,115,.5)" : "rgba(145,132,217,.24)"}`,
-        background: warn ? "rgba(224,181,115,.08)" : "rgba(26,28,43,.55)",
+        border: `1px solid ${warn ? "rgb(var(--warn-rgb) / .5)" : "rgb(var(--accent-rgb) / .24)"}`,
+        background: warn ? "rgb(var(--warn-rgb) / .08)" : "rgb(var(--surface-rgb) / .55)",
       }}
     >
-      <span style={{ fontSize: 10, letterSpacing: ".14em", color: warn ? "#e0b573" : "#75798c" }}>
+      <span style={{ fontSize: 10, letterSpacing: ".14em", color: warn ? "var(--warn)" : "var(--text-dim)" }}>
         {label}
       </span>
       <span
         style={{
           fontFamily: "var(--font-heading)",
           fontSize: 13,
-          color: warn ? "#e0b573" : "#e9e9ed",
+          color: warn ? "var(--warn)" : "var(--text)",
           fontVariantNumeric: "tabular-nums",
         }}
       >

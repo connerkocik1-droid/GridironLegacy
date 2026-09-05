@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { headshot, logo } from "@/data/league-data";
+import { headshot } from "@/data/league-data";
+import TeamMark from "./TeamMark";
 import PlayerName from "./PlayerName";
 import DraftBoard from "./DraftBoard";
 import DraftCountdown from "./DraftCountdown";
@@ -12,9 +13,11 @@ import DraftLottery from "./DraftLottery";
 import PickClock from "./PickClock";
 import ResetDraft from "./ResetDraft";
 import TeamCrest from "./TeamCrest";
+import { useRefreshable } from "@/lib/use-refresh";
 import { useLogos } from "@/lib/use-logos";
 import { setPickAnimations, usePickAnimations } from "@/lib/use-pick-animations";
 import { describeClock, pickSecondsFor, type ClockTier } from "@/lib/draft-clock";
+import { stillNeeded } from "@/lib/draft-needs";
 
 const BLANK =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -61,6 +64,8 @@ interface Board {
     draftAt: string | null;
     cinematicRounds: number;
     introVideo: string | null;
+    /** How many of each position a lineup needs, from the league's settings. */
+    starters?: Record<string, number> | null;
     /** The drawn order, first pick first. Null until the lottery runs. */
     lotteryOrder: string[] | null;
     /** When the reveal began, so every screen animates from the same instant. */
@@ -69,7 +74,15 @@ interface Board {
   onTheClock: Pick | null;
   myTurn: boolean;
   picks: Pick[];
-  managers: { id: string; slot: string; franchise: string; ready?: boolean; autodraft?: boolean }[];
+  managers: {
+    id: string;
+    slot: string;
+    franchise: string;
+    /** Whoever holds it, or null for a franchise nobody has claimed. */
+    name?: string | null;
+    ready?: boolean;
+    autodraft?: boolean;
+  }[];
   available: Available[];
   /** This manager's own list, in their own order. */
   queue: string[];
@@ -93,9 +106,9 @@ const control = (): React.CSSProperties => ({
   fontSize: 10,
   letterSpacing: ".12em",
   textTransform: "uppercase",
-  border: "1px solid rgba(145,132,217,.34)",
+  border: "1px solid rgb(var(--accent-rgb) / .34)",
   background: "transparent",
-  color: "#9397ab",
+  color: "var(--text-muted)",
   borderRadius: "var(--radius-sm)",
   fontFamily: "inherit",
   cursor: "pointer",
@@ -129,6 +142,22 @@ export default function DraftRoom() {
   const animations = usePickAnimations();
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Polls that failed in a row, so one dropped request stays quiet. */
+  const misses = useRef(0);
+  /**
+   * Whether the message on screen belongs to something the manager did.
+   *
+   * This room reloads every five seconds, and a good load used to clear the
+   * error line — which meant every message an action produced was wiped
+   * within five seconds of appearing. "That pick did not go through" is not a
+   * thing to show for four seconds and then take away: a manager who looked
+   * up at the wrong moment never learns why their pick vanished, on the one
+   * screen where that matters most.
+   *
+   * So a message from an action stays until the manager does something else.
+   * Only the poll's own complaint is the poll's to clear.
+   */
+  const sticky = useRef(false);
   const [filter, setFilter] = useState("ALL");
   const [search, setSearch] = useState("");
   const [picking, setPicking] = useState<string | null>(null);
@@ -195,6 +224,18 @@ export default function DraftRoom() {
     }
   }
 
+  /** Says why something a manager did failed, and keeps saying it. */
+  const fail = useCallback((said: string) => {
+    sticky.current = true;
+    setError(said);
+  }, []);
+
+  /** Starting an action: the last one's message is no longer the news. */
+  const clearFailure = useCallback(() => {
+    sticky.current = false;
+    setError(null);
+  }, []);
+
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/draft", { cache: "no-store" });
@@ -206,12 +247,13 @@ export default function DraftRoom() {
       if (!res.ok) throw new Error(String(res.status));
 
       const data: Board = await res.json();
+      misses.current = 0;
       setSkew(new Date(data.league.serverNow).getTime() - Date.now());
       setBoard(data);
       // Not while this browser is mid-write: the server's answer is behind
       // what the manager is looking at until the write lands.
       if (!queueDirty.current) setQueue(data.queue ?? []);
-      setError(null);
+      if (!sticky.current) setError(null);
 
       // Everybody in, or the commissioner has opened the room. The countdown
       // reaching zero is the third way in, and it reports itself from the tick
@@ -233,9 +275,19 @@ export default function DraftRoom() {
         setIntroPlaying(true);
       }
     } catch {
-      setError("Could not load the draft board.");
+      // One missed poll is not worth a word. The room asks again every five
+      // seconds, and a phone on a stadium wifi drops one regularly — an
+      // alarming red line under the clock every time it does is how a manager
+      // learns to distrust a screen that is actually fine. Three in a row,
+      // though, is fifteen seconds of not knowing whose turn it is, and that
+      // is worth saying.
+      misses.current += 1;
+      if (misses.current >= 3) setError("Lost the league — still trying.");
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.
@@ -371,7 +423,7 @@ export default function DraftRoom() {
         body: JSON.stringify({ lottery: true }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) setError(body.error ?? "The lottery did not run.");
+      if (!res.ok) fail(body.error ?? "The lottery did not run.");
       else setError(null);
       await load();
     } catch {
@@ -391,7 +443,7 @@ export default function DraftRoom() {
         body: JSON.stringify({ state }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) setError(body.error ?? "That did not go through.");
+      if (!res.ok) fail(body.error ?? "That did not go through.");
       else setError(null);
       await load();
     } finally {
@@ -410,7 +462,7 @@ export default function DraftRoom() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError(body.error ?? "Could not mark you ready.");
+        fail(body.error ?? "Could not mark you ready.");
       } else {
         setError(null);
       }
@@ -443,7 +495,7 @@ export default function DraftRoom() {
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         setQueue(before);
-        setError(body.error ?? "Could not save your queue.");
+        fail(body.error ?? "Could not save your queue.");
       } else {
         setError(null);
       }
@@ -490,7 +542,7 @@ export default function DraftRoom() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError(body.error ?? "Could not change autodraft.");
+        fail(body.error ?? "Could not change autodraft.");
       } else {
         setError(null);
       }
@@ -506,7 +558,7 @@ export default function DraftRoom() {
     try {
       const res = await fetch("/api/admin/draft/reset", { method: "POST" });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) setError(body.error ?? "The draft was not reset.");
+      if (!res.ok) fail(body.error ?? "The draft was not reset.");
       else setError(null);
       // A reset empties the board, so the "new pick" tracker is emptied with
       // it — otherwise the re-drafted pick 1 is an overall this browser has
@@ -530,7 +582,7 @@ export default function DraftRoom() {
         body: JSON.stringify({ nudgeSeconds: seconds }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) setError(body.error ?? "Could not move the clock.");
+      if (!res.ok) fail(body.error ?? "Could not move the clock.");
       else setError(null);
       await load();
     } finally {
@@ -555,6 +607,13 @@ export default function DraftRoom() {
     if (!board.myTurn && !forSomebodyElse) return;
 
     setPicking(name);
+    clearFailure();
+    // Held rather than set, because the reload below is what clears the error
+    // on a good load — set it inside the catch and the very refresh that
+    // proves what happened wipes the sentence explaining it. This is the last
+    // word, after the board has spoken.
+    let failure: string | null = null;
+
     try {
       const res = await fetch("/api/draft", {
         method: "POST",
@@ -565,25 +624,52 @@ export default function DraftRoom() {
         }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) setError(body.error ?? "That pick did not go through.");
-      else setError(null);
-      await load();
+      if (!res.ok) failure = body.error ?? "That pick did not go through.";
+    } catch {
+      // The connection went while the pick was in the air.
+      //
+      // This had no catch at all, which is the worst place in the app not to
+      // have one: fetch rejects on a dropped connection, the rejection escaped
+      // an async click handler where nothing was waiting for it, and the
+      // manager got no error, no retry and no pick — while their clock ran
+      // out. On a phone, during a draft, on the one press that cannot be
+      // taken again.
+      //
+      // Whether it landed is now a question about the board rather than about
+      // this request, and the board is asked below whatever happened here. So
+      // the sentence is written to be true either way, and it points at the
+      // thing that actually knows.
+      failure = "The connection went while that pick was sent — the board below is what happened.";
     } finally {
+      // In every path, including the one that threw. A draft room showing a
+      // stale board after a failed pick is how two managers end up believing
+      // different things about whose turn it is.
+      await load();
+      if (failure) fail(failure);
+      else clearFailure();
       setPicking(null);
     }
   }
 
   if (error && !board) {
-    return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
   }
   if (!board) {
-    return <div style={{ padding: "24px 26px", color: "#75798c" }}>Opening the draft room…</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--text-dim)" }}>Opening the draft room…</div>;
   }
 
 
   // The commissioner can take the pick in hand for whoever is on the clock.
   // One value rather than the condition written twice, so what the button
   // looks like and what it does cannot drift apart.
+  // Which starting slots this manager still cannot fill. Computed from the
+  // picks the room already holds, so it costs nothing and it is right the
+  // instant a pick lands rather than at the next reload.
+  const needs = stillNeeded(
+    board.picks.filter((p) => p.manager_id === board.me.id && p.player_name).map((p) => p.player_name as string),
+    board.league.starters,
+  );
+
   const canPick =
     board.league.state === "running" &&
     (board.myTurn || (board.me.is_commissioner && Boolean(board.onTheClock?.manager_id)));
@@ -643,7 +729,7 @@ export default function DraftRoom() {
         {film}
         <audio ref={chime} src="/assets/nfl-draft-chime.mp3" preload="auto" />
         {error ? (
-          <div style={{ padding: "0 26px", fontSize: 12, color: "#e0b573" }}>{error}</div>
+          <div style={{ padding: "0 26px", fontSize: 12, color: "var(--warn)" }}>{error}</div>
         ) : null}
         {board.league.lotteryOrder && board.league.lotteryAt ? (
           <DraftLottery
@@ -654,7 +740,7 @@ export default function DraftRoom() {
             onDone={() => setLotteryDone(true)}
           />
         ) : (
-          <div style={{ padding: "26px", fontSize: 12.5, color: "#9397ab" }}>
+          <div style={{ padding: "26px", fontSize: 12.5, color: "var(--text-muted)" }}>
             Drawing the order…
           </div>
         )}
@@ -667,10 +753,10 @@ export default function DraftRoom() {
               style={{
                 minHeight: 44,
                 padding: "12px 22px",
-                border: `1px solid ${lotteryDone ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.22)"}`,
+                border: `1px solid ${lotteryDone ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .22)"}`,
                 borderRadius: "var(--radius-sm)",
-                background: lotteryDone ? "rgba(145,132,217,.18)" : "transparent",
-                color: lotteryDone ? "#e9e9ed" : "#5a5d6e",
+                background: lotteryDone ? "rgb(var(--accent-rgb) / .18)" : "transparent",
+                color: lotteryDone ? "var(--text)" : "var(--text-faint)",
                 font: "inherit",
                 fontSize: 12,
                 letterSpacing: ".14em",
@@ -680,7 +766,7 @@ export default function DraftRoom() {
             >
               Commence draft
             </button>
-            <div style={{ fontSize: 11.5, color: "#75798c", marginTop: 10 }}>
+            <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginTop: 10 }}>
               {lotteryDone
                 ? "Round one, and the pick clock, start when you press it."
                 : "Available once every pick has been drawn."}
@@ -698,7 +784,7 @@ export default function DraftRoom() {
         {film}
         <audio ref={chime} src="/assets/nfl-draft-chime.mp3" preload="auto" />
         {error ? (
-          <div style={{ padding: "0 26px", fontSize: 12, color: "#e0b573" }}>{error}</div>
+          <div style={{ padding: "0 26px", fontSize: 12, color: "var(--warn)" }}>{error}</div>
         ) : null}
         <DraftCountdown
           draftAt={board.league.draftAt}
@@ -734,7 +820,7 @@ export default function DraftRoom() {
             textAlign: "center",
             padding: "0 26px 18px",
             fontSize: 11.5,
-            color: "#75798c",
+            color: "var(--text-dim)",
           }}
         >
           Pick clock — {describeClock(board.league.pickClock)}
@@ -771,7 +857,7 @@ export default function DraftRoom() {
             franchise name is worth less than the two of them being read in one
             glance, so it ellipses instead. */}
         <div style={{ flex: "1 1 150px", minWidth: 0 }}>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>ON THE CLOCK</div>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>ON THE CLOCK</div>
           <div
             style={{
               display: "flex",
@@ -809,7 +895,7 @@ export default function DraftRoom() {
                   : "Waiting to start"}
             </span>
           </div>
-          <div style={{ fontSize: 11, color: "#75798c", marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 2 }}>
             {board.onTheClock
               ? `Round ${board.onTheClock.round} · pick ${board.onTheClock.overall}` +
                 // The clock shortens as the draft goes on, so the round has to
@@ -862,9 +948,9 @@ export default function DraftRoom() {
                 fontSize: 10,
                 letterSpacing: ".12em",
                 textTransform: "uppercase",
-                border: `1px solid ${view === v ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
-                background: view === v ? "rgba(145,132,217,.26)" : "transparent",
-                color: view === v ? "#e9e9ed" : "#9397ab",
+                border: `1px solid ${view === v ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+                background: view === v ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+                color: view === v ? "var(--text)" : "var(--text-muted)",
                 borderRadius: "var(--radius-sm)",
                 fontFamily: "inherit",
                 cursor: "pointer",
@@ -888,8 +974,8 @@ export default function DraftRoom() {
               fontSize: 10,
               letterSpacing: ".1em",
               textTransform: "uppercase",
-              color: board.me.autodraft ? "#e0b573" : "#9397ab",
-              border: `1px solid ${board.me.autodraft ? "rgba(224,181,115,.55)" : "rgba(145,132,217,.24)"}`,
+              color: board.me.autodraft ? "var(--warn)" : "var(--text-muted)",
+              border: `1px solid ${board.me.autodraft ? "rgb(var(--warn-rgb) / .55)" : "rgb(var(--accent-rgb) / .24)"}`,
               borderRadius: "var(--radius-sm)",
               cursor: "pointer",
               whiteSpace: "nowrap",
@@ -901,7 +987,7 @@ export default function DraftRoom() {
               checked={board.me.autodraft}
               disabled={picking != null}
               onChange={(e) => void toggleAutodraft(e.target.checked)}
-              style={{ accentColor: "#e0b573", cursor: "pointer" }}
+              style={{ accentColor: "var(--warn)", cursor: "pointer" }}
             />
             Autodraft
           </label>
@@ -918,8 +1004,8 @@ export default function DraftRoom() {
               fontSize: 10,
               letterSpacing: ".1em",
               textTransform: "uppercase",
-              color: "#9397ab",
-              border: "1px solid rgba(145,132,217,.24)",
+              color: "var(--text-muted)",
+              border: "1px solid rgb(var(--accent-rgb) / .24)",
               borderRadius: "var(--radius-sm)",
               cursor: "pointer",
               whiteSpace: "nowrap",
@@ -930,7 +1016,7 @@ export default function DraftRoom() {
               type="checkbox"
               checked={animations}
               onChange={(e) => setPickAnimations(e.target.checked)}
-              style={{ accentColor: "#9184d9", cursor: "pointer" }}
+              style={{ accentColor: "var(--accent-solid)", cursor: "pointer" }}
             />
             Pick animation
           </label>
@@ -946,7 +1032,7 @@ export default function DraftRoom() {
                   width: 1,
                   alignSelf: "stretch",
                   margin: "0 5px",
-                  background: "rgba(145,132,217,.22)",
+                  background: "rgb(var(--accent-rgb) / .22)",
                 }}
               />
 
@@ -988,16 +1074,16 @@ export default function DraftRoom() {
       </div>
 
       {error ? (
-        <div style={{ padding: "0 26px 8px", fontSize: 12, color: "#e0b573" }}>{error}</div>
+        <div style={{ padding: "0 26px 8px", fontSize: 12, color: "var(--warn)" }}>{error}</div>
       ) : null}
 
       {view === "board" ? (
         <div style={{ padding: "6px 26px 40px" }}>
           <div
             style={{
-              border: "1px solid rgba(145,132,217,.22)",
+              border: "1px solid rgb(var(--accent-rgb) / .22)",
               borderRadius: "var(--radius-lg)",
-              background: "rgba(26,28,43,.55)",
+              background: "rgb(var(--surface-rgb) / .55)",
               overflow: "hidden",
             }}
           >
@@ -1019,6 +1105,7 @@ export default function DraftRoom() {
       // this said the same thing as the board tab, and on a phone it pushed
       // the players — the only thing you are here to read — into a strip.
       <div
+        className="gl-draft-panels"
         style={{
           maxWidth: 780,
           margin: "0 auto",
@@ -1030,10 +1117,11 @@ export default function DraftRoom() {
             since the room was built and no screen ever wrote to it, so the
             autodraft it feeds has always fallen through to best-available. */}
         <div
+          className="gl-draft-queue"
           style={{
-            border: `1px solid ${board.me.autodraft ? "rgba(224,181,115,.4)" : "rgba(145,132,217,.22)"}`,
+            border: `1px solid ${board.me.autodraft ? "rgb(var(--warn-rgb) / .4)" : "rgb(var(--accent-rgb) / .22)"}`,
             borderRadius: "var(--radius-lg)",
-            background: "rgba(26,28,43,.55)",
+            background: "rgb(var(--surface-rgb) / .55)",
             overflow: "hidden",
             marginBottom: 12,
           }}
@@ -1044,27 +1132,38 @@ export default function DraftRoom() {
               alignItems: "baseline",
               gap: 10,
               padding: "11px 16px",
-              borderBottom: queue.length ? "1px solid rgba(145,132,217,.18)" : undefined,
+              borderBottom: queue.length ? "1px solid rgb(var(--accent-rgb) / .18)" : undefined,
               flexWrap: "wrap",
             }}
           >
-            <h6 style={{ margin: 0, color: "#d2cefd" }}>Your queue</h6>
-            <span style={{ fontSize: 11, color: "#75798c" }}>
+            <h6 style={{ margin: 0, color: "var(--accent-text)" }}>Your queue</h6>
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
               {queue.length ? `${queue.length} queued` : "Nobody yet"}
             </span>
             {board.me.autodraft ? (
-              <span style={{ fontSize: 11, color: "#e0b573", marginLeft: "auto" }}>
+              <span style={{ fontSize: 11, color: "var(--warn)", marginLeft: "auto" }}>
                 Autodraft is on — these are who you get.
               </span>
             ) : null}
           </div>
 
           {queue.length === 0 ? (
-            <div style={{ padding: "12px 16px", fontSize: 11.5, color: "#75798c", lineHeight: 1.6 }}>
-              Queue players below and they are drafted for you, in this order,
-              if your clock runs out or you switch autodraft on. Anyone already
-              taken is skipped. With nothing queued you get the best available
-              for what your roster still needs.
+            // Short on a phone. Empty, this card was four hundred pixels of
+            // explanation sitting between a running clock and the list of
+            // players — most of a 320px screen spent on a paragraph a manager
+            // reads once and then scrolls past every pick for eighteen
+            // rounds. The full version keeps its place where there is room
+            // for it; the phone gets the sentence that matters.
+            <div style={{ padding: "12px 16px", fontSize: 11.5, color: "var(--text-dim)", lineHeight: 1.6 }}>
+              <span className="gl-queue-short">
+                Queue players below and they are drafted for you, in order, if your clock runs out.
+              </span>
+              <span className="gl-queue-long">
+                Queue players below and they are drafted for you, in this order,
+                if your clock runs out or you switch autodraft on. Anyone already
+                taken is skipped. With nothing queued you get the best available
+                for what your roster still needs.
+              </span>
             </div>
           ) : (
             queue.map((name, i) => (
@@ -1075,13 +1174,13 @@ export default function DraftRoom() {
                   alignItems: "center",
                   gap: 9,
                   padding: "8px 16px",
-                  borderTop: i === 0 ? undefined : "1px solid rgba(145,132,217,.1)",
+                  borderTop: i === 0 ? undefined : "1px solid rgb(var(--accent-rgb) / .1)",
                 }}
               >
                 <span
                   style={{
                     fontSize: 11,
-                    color: "#75798c",
+                    color: "var(--text-dim)",
                     width: 18,
                     flex: "0 0 auto",
                     fontVariantNumeric: "tabular-nums",
@@ -1128,9 +1227,9 @@ export default function DraftRoom() {
 
         <div
           style={{
-            border: `1px solid ${board.myTurn ? "rgba(181,171,252,.55)" : "rgba(145,132,217,.22)"}`,
+            border: `1px solid ${board.myTurn ? "rgb(var(--accent-bright-rgb) / .55)" : "rgb(var(--accent-rgb) / .22)"}`,
             borderRadius: "var(--radius-lg)",
-            background: "rgba(26,28,43,.55)",
+            background: "rgb(var(--surface-rgb) / .55)",
             overflow: "hidden",
           }}
         >
@@ -1140,11 +1239,73 @@ export default function DraftRoom() {
               alignItems: "center",
               gap: 10,
               padding: "12px 16px",
-              borderBottom: "1px solid rgba(145,132,217,.18)",
+              borderBottom: "1px solid rgb(var(--accent-rgb) / .18)",
               flexWrap: "wrap",
             }}
           >
-            <h6 style={{ margin: 0, color: "#d2cefd" }}>Best available</h6>
+            <h6 style={{ margin: 0, color: "var(--accent-text)" }}>Best available</h6>
+            {/* What this manager still cannot field.
+                ---------------------------------------
+                The one thing a screen can usefully say to somebody with
+                ninety seconds and six hundred names. Not "what would round
+                out the roster", which is taste, but the hard version: which
+                starting slots would go out empty if the draft ended now. A
+                manager who finishes with no kicker scores nothing at kicker,
+                every week, all season — and in round eleven that is very easy
+                to forget.
+
+                Each one filters the list, because being told and then having
+                to go and find the control is two presses and a thought during
+                the one minute nobody has either to spare. */}
+            {needs.length ? (
+              <div
+                className="gl-scroll-x"
+                style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "nowrap", minWidth: 0 }}
+              >
+                <span
+                  style={{
+                    // Ten, not nine and a half. The audit's floor, and it is
+                    // the right floor: this label is read at arm's length on
+                    // a phone by somebody who has ninety seconds.
+                    fontSize: 10,
+                    letterSpacing: ".14em",
+                    color: "var(--text-dim)",
+                    flex: "0 0 auto",
+                  }}
+                >
+                  STILL NEED
+                </span>
+                {needs.map((need) => (
+                  <button
+                    key={need.position}
+                    onClick={() => setFilter(need.position)}
+                    aria-label={`Show ${need.position} — ${need.short} still needed`}
+                    style={{
+                      flex: "0 0 auto",
+                      padding: "4px 8px",
+                      fontFamily: "inherit",
+                      fontSize: 10,
+                      letterSpacing: ".08em",
+                      cursor: "pointer",
+                      borderRadius: "var(--radius-sm)",
+                      border: `1px solid ${
+                        filter === need.position
+                          ? "rgb(var(--accent-bright-rgb) / .6)"
+                          : "rgb(var(--warn-rgb) / .45)"
+                      }`,
+                      background:
+                        filter === need.position
+                          ? "rgb(var(--accent-rgb) / .26)"
+                          : "rgb(var(--warn-rgb) / .12)",
+                      color: filter === need.position ? "var(--text)" : "var(--warn)",
+                    }}
+                  >
+                    {need.position === "D/ST" ? "DST" : need.position}
+                    {need.short > 1 ? ` ${need.short}` : ""}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -1153,10 +1314,10 @@ export default function DraftRoom() {
                 flex: "1 1 110px",
                 minWidth: 0,
                 padding: "5px 9px",
-                background: "rgba(20,22,35,.8)",
-                border: "1px solid rgba(145,132,217,.28)",
+                background: "rgb(var(--sunken-rgb) / .8)",
+                border: "1px solid rgb(var(--accent-rgb) / .28)",
                 borderRadius: "var(--radius-sm)",
-                color: "#e9e9ed",
+                color: "var(--text)",
                 font: "inherit",
                 fontSize: 12,
               }}
@@ -1185,9 +1346,9 @@ export default function DraftRoom() {
                     padding: "5px 9px",
                     fontSize: 10,
                     letterSpacing: ".1em",
-                    border: `1px solid ${filter === pos ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
-                    background: filter === pos ? "rgba(145,132,217,.26)" : "transparent",
-                    color: filter === pos ? "#e9e9ed" : "#9397ab",
+                    border: `1px solid ${filter === pos ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+                    background: filter === pos ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+                    color: filter === pos ? "var(--text)" : "var(--text-muted)",
                     borderRadius: "var(--radius-sm)",
                     fontFamily: "inherit",
                     cursor: "pointer",
@@ -1201,18 +1362,25 @@ export default function DraftRoom() {
 
           <div style={{ maxHeight: 560, overflowY: "auto" }}>
             {visible.length === 0 ? (
-              <div style={{ padding: 16, fontSize: 12, color: "#75798c" }}>Nobody left here.</div>
+              <div style={{ padding: 16, fontSize: 12, color: "var(--text-dim)" }}>Nobody left here.</div>
             ) : null}
 
             {visible.map((p) => (
-              <div className="gl-draft-row"
+              // The commissioner's row is a different row. "Pick for them" is
+              // three words where everybody else's button is one, and on a
+              // 320px screen those two extra words were taken out of the only
+              // part of the row that can give — the name — until "Ashton
+              // Jeanty" came out as four lines of one letter. Only this state
+              // wraps; the other eleven managers keep the single-line row the
+              // list was designed as.
+              <div className={pickingForSomeoneElse ? "gl-draft-row gl-draft-row-wide" : "gl-draft-row"}
                 key={p.name}
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 11,
                   padding: "9px 16px",
-                  borderTop: "1px solid rgba(145,132,217,.1)",
+                  borderTop: "1px solid rgb(var(--accent-rgb) / .1)",
                   opacity: picking === p.name ? 0.5 : 1,
                 }}
               >
@@ -1225,8 +1393,8 @@ export default function DraftRoom() {
                   style={{
                     borderRadius: "50%",
                     objectFit: "contain",
-                    border: "1px solid rgba(145,132,217,.25)",
-                    background: "rgba(35,37,50,.7)",
+                    border: "1px solid rgb(var(--accent-rgb) / .25)",
+                    background: "rgb(var(--raised-rgb) / .7)",
                     flex: "0 0 auto",
                   }}
                 />
@@ -1245,18 +1413,9 @@ export default function DraftRoom() {
                         style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}
                       />
                     </span>
-                    {p.team ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={logo(p.team)}
-                        alt=""
-                        width={13}
-                        height={13}
-                        style={{ objectFit: "contain", opacity: 0.8 }}
-                      />
-                    ) : null}
+                    <TeamMark team={p.team} />
                   </div>
-                  <div style={{ fontSize: 10, color: "#75798c", marginTop: 2 }}>
+                  <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
                     {p.posRank} · ADP {p.adp} · bye {p.bye}
                   </div>
                 </div>
@@ -1276,10 +1435,10 @@ export default function DraftRoom() {
                   }
                   style={{
                     ...queueButton(true),
-                    color: queue.includes(p.name) ? "#e0b573" : "#9397ab",
+                    color: queue.includes(p.name) ? "var(--warn)" : "var(--text-muted)",
                     borderColor: queue.includes(p.name)
-                      ? "rgba(224,181,115,.5)"
-                      : "rgba(145,132,217,.28)",
+                      ? "rgb(var(--warn-rgb) / .5)"
+                      : "rgb(var(--accent-rgb) / .28)",
                   }}
                 >
                   {queue.includes(p.name) ? "★" : "+"}
@@ -1307,13 +1466,13 @@ export default function DraftRoom() {
                     textAlign: "center",
                     border: `1px solid ${
                       pickingForSomeoneElse
-                        ? "rgba(224,131,131,.45)"
+                        ? "rgb(var(--bad-rgb) / .45)"
                         : canPick
-                          ? "rgba(181,171,252,.6)"
-                          : "rgba(145,132,217,.2)"
+                          ? "rgb(var(--accent-bright-rgb) / .6)"
+                          : "rgb(var(--accent-rgb) / .2)"
                     }`,
                     background: "transparent",
-                    color: pickingForSomeoneElse ? "#c98f8f" : canPick ? "#d2cefd" : "#5a5d6e",
+                    color: pickingForSomeoneElse ? "var(--bad)" : canPick ? "var(--accent-text)" : "var(--text-faint)",
                     borderRadius: "var(--radius-sm)",
                     fontFamily: "inherit",
                     cursor: canPick ? "pointer" : "default",
@@ -1347,9 +1506,9 @@ function queueButton(enabled: boolean): React.CSSProperties {
     padding: "4px 8px",
     fontSize: 12,
     lineHeight: 1,
-    border: "1px solid rgba(145,132,217,.28)",
+    border: "1px solid rgb(var(--accent-rgb) / .28)",
     background: "transparent",
-    color: enabled ? "#9397ab" : "#4d5062",
+    color: enabled ? "var(--text-muted)" : "var(--text-off)",
     borderRadius: "var(--radius-sm)",
     fontFamily: "inherit",
     cursor: enabled ? "pointer" : "default",
@@ -1383,7 +1542,7 @@ function Waiting({
 }) {
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 18px 48px", textAlign: "center" }}>
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c", marginTop: 40 }}>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)", marginTop: 40 }}>
         DRAFT NIGHT
       </div>
       <h1
@@ -1393,7 +1552,7 @@ function Waiting({
           letterSpacing: "-.03em",
           margin: "8px 0 10px",
           fontWeight: 500,
-          color: "#e9e9ed",
+          color: "var(--text)",
         }}
       >
         {title}
@@ -1401,7 +1560,7 @@ function Waiting({
       <p
         style={{
           fontSize: 12.5,
-          color: "#9397ab",
+          color: "var(--text-muted)",
           lineHeight: 1.7,
           margin: "0 auto 22px",
           maxWidth: "46ch",
@@ -1411,7 +1570,7 @@ function Waiting({
       </p>
 
       {error ? (
-        <div style={{ fontSize: 12, color: "#e0b573", marginBottom: 14 }}>{error}</div>
+        <div style={{ fontSize: 12, color: "var(--warn)", marginBottom: 14 }}>{error}</div>
       ) : null}
 
       {action ? (
@@ -1421,10 +1580,10 @@ function Waiting({
           style={{
             minHeight: 44,
             padding: "12px 22px",
-            border: "1px solid rgba(181,171,252,.6)",
+            border: "1px solid rgb(var(--accent-bright-rgb) / .6)",
             borderRadius: "var(--radius-sm)",
-            background: "rgba(145,132,217,.18)",
-            color: "#e9e9ed",
+            background: "rgb(var(--accent-rgb) / .18)",
+            color: "var(--text)",
             font: "inherit",
             fontSize: 12,
             letterSpacing: ".14em",
@@ -1455,8 +1614,8 @@ function Waiting({
               fontSize: 11,
               padding: "5px 10px",
               borderRadius: "var(--radius-sm)",
-              border: `1px solid ${m.ready ? "rgba(127,209,168,.4)" : "rgba(145,132,217,.22)"}`,
-              color: m.ready ? "#7fd1a8" : "#75798c",
+              border: `1px solid ${m.ready ? "rgb(var(--good-rgb) / .4)" : "rgb(var(--accent-rgb) / .22)"}`,
+              color: m.ready ? "var(--good)" : "var(--text-dim)",
             }}
           >
             {m.franchise}
@@ -1464,7 +1623,7 @@ function Waiting({
         ))}
       </div>
 
-      <div style={{ fontSize: 11.5, color: "#75798c", marginTop: 22 }}>
+      <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginTop: 22 }}>
         Pick clock — {clock}
       </div>
     </div>

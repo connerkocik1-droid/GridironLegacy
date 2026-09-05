@@ -33,7 +33,7 @@ const RED = 5;
 export default function PickClock({ remaining, total, mine }: Props) {
   const level = remaining <= RED ? "red" : remaining <= AMBER ? "amber" : "calm";
 
-  const colour = level === "red" ? "#e0908f" : level === "amber" ? "#e0b573" : "#d2cefd";
+  const colour = level === "red" ? "var(--bad-soft)" : level === "amber" ? "var(--warn)" : "var(--accent-text)";
 
   // Guarded: a clock whose round length is unknown would divide by nought and
   // draw a bar of NaN, which renders as an empty track and reads as "no time
@@ -50,6 +50,10 @@ export default function PickClock({ remaining, total, mine }: Props) {
           lineHeight: 1.05,
           color: colour,
           fontVariantNumeric: "tabular-nums",
+          // The clock is one token. At 320px, squeezed beside the franchise,
+          // "1:28" was coming out as two lines — the one number on draft
+          // night that has to be read at a glance and never puzzled over.
+          whiteSpace: "nowrap",
           transition: "color 300ms ease",
         }}
       >
@@ -63,7 +67,7 @@ export default function PickClock({ remaining, total, mine }: Props) {
         style={{
           height: 3,
           borderRadius: 2,
-          background: "rgba(145,132,217,.18)",
+          background: "rgb(var(--accent-rgb) / .18)",
           overflow: "hidden",
           margin: "5px 0 5px auto",
           width: "100%",
@@ -90,7 +94,7 @@ export default function PickClock({ remaining, total, mine }: Props) {
         style={{
           fontSize: 10,
           letterSpacing: ".2em",
-          color: mine ? colour : "#75798c",
+          color: mine ? colour : "var(--text-dim)",
         }}
       >
         {mine ? "YOUR PICK" : "REMAINING"}

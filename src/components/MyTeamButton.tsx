@@ -17,9 +17,9 @@ export default function MyTeamButton() {
         display: "flex",
         alignItems: "center",
         gap: 14,
-        border: "1px solid rgba(181,171,252,.5)",
+        border: "1px solid rgb(var(--accent-bright-rgb) / .5)",
         borderRadius: "var(--radius-md)",
-        background: "rgba(145,132,217,.16)",
+        background: "rgb(var(--accent-rgb) / .16)",
         padding: "16px 18px",
         margin: "14px 0 4px",
         textDecoration: "none",
@@ -33,16 +33,16 @@ export default function MyTeamButton() {
             fontFamily: "var(--font-heading)",
             fontSize: 22,
             letterSpacing: "-.02em",
-            color: "#e9e9ed",
+            color: "var(--text)",
           }}
         >
           My Team
         </div>
-        <div style={{ fontSize: 11.5, color: "#9397ab", lineHeight: 1.5, marginTop: 4 }}>
+        <div style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.5, marginTop: 4 }}>
           Your roster, matchups, player news, watchlist and trades.
         </div>
       </div>
-      <span aria-hidden style={{ color: "#b5abfc", fontSize: 18, flex: "0 0 auto" }}>
+      <span aria-hidden style={{ color: "var(--accent-link)", fontSize: 18, flex: "0 0 auto" }}>
         →
       </span>
     </Link>

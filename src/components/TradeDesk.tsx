@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { logo } from "@/data/league-data";
+import TeamMark from "./TeamMark";
 import { player, proj } from "@/lib/roster";
 
 interface Manager {
@@ -54,18 +54,18 @@ function ordinal(n: number): string {
 }
 
 const card: React.CSSProperties = {
-  border: "1px solid rgba(145,132,217,.22)",
+  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgba(26,28,43,.55)",
+  background: "rgb(var(--surface-rgb) / .55)",
 };
 
 const STATUS_COLOR: Record<Trade["status"], string> = {
-  open: "#b5abfc",
-  countered: "#e0b573",
-  agreed: "#7fd1a8",
-  executed: "#7fd1a8",
-  declined: "#75798c",
-  rescinded: "#75798c",
+  open: "var(--accent-link)",
+  countered: "var(--warn)",
+  agreed: "var(--good)",
+  executed: "var(--good)",
+  declined: "var(--text-dim)",
+  rescinded: "var(--text-dim)",
 };
 
 /**
@@ -89,8 +89,8 @@ function PickList({
   if (!picks.length) return null;
 
   return (
-    <div style={{ marginTop: 12, borderTop: "1px solid rgba(145,132,217,.16)", paddingTop: 10 }}>
-      <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c", marginBottom: 7 }}>
+    <div style={{ marginTop: 12, borderTop: "1px solid rgb(var(--accent-rgb) / .16)", paddingTop: 10 }}>
+      <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)", marginBottom: 7 }}>
         DRAFT PICKS
       </div>
       <div style={{ maxHeight: 200, overflowY: "auto" }}>
@@ -108,7 +108,7 @@ function PickList({
           >
             {label(p)}
             {!p.tradeable ? (
-              <span style={{ marginLeft: "auto", color: "#75798c", fontSize: 10 }}>LOCKED</span>
+              <span style={{ marginLeft: "auto", color: "var(--text-dim)", fontSize: 10 }}>LOCKED</span>
             ) : null}
           </button>
         ))}
@@ -127,18 +127,15 @@ function PlayerChip({ name, onRemove }: { name: string; onRemove?: () => void })
         gap: 6,
         padding: "4px 8px",
         margin: "0 4px 4px 0",
-        border: "1px solid rgba(145,132,217,.3)",
+        border: "1px solid rgb(var(--accent-rgb) / .3)",
         borderRadius: "var(--radius-sm)",
-        background: "rgba(20,22,35,.7)",
+        background: "rgb(var(--sunken-rgb) / .7)",
         fontSize: 12,
       }}
     >
-      {p?.t ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logo(p.t)} alt="" width={14} height={14} style={{ objectFit: "contain" }} />
-      ) : null}
+      <TeamMark team={p?.t} size={14} opacity={1} />
       {name}
-      <span style={{ color: "#75798c", fontSize: 10 }}>{proj(name).toFixed(1)}</span>
+      <span style={{ color: "var(--text-dim)", fontSize: 10 }}>{proj(name).toFixed(1)}</span>
       {onRemove ? (
         <button
           onClick={onRemove}
@@ -146,7 +143,7 @@ function PlayerChip({ name, onRemove }: { name: string; onRemove?: () => void })
           style={{
             border: "none",
             background: "none",
-            color: "#75798c",
+            color: "var(--text-dim)",
             cursor: "pointer",
             font: "inherit",
             padding: 0,
@@ -330,10 +327,10 @@ export default function TradeDesk() {
   }
 
   if (error && !desk) {
-    return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
   }
   if (!desk) {
-    return <div style={{ padding: "24px 26px", color: "#75798c" }}>Opening the trade desk…</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--text-dim)" }}>Opening the trade desk…</div>;
   }
 
   const partners = desk.managers.filter((m) => m.id !== desk.me.id);
@@ -341,7 +338,7 @@ export default function TradeDesk() {
   return (
     <>
       <div style={{ padding: "24px 26px 12px" }}>
-        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>TRADE DESK</div>
+        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>TRADE DESK</div>
         <div
           style={{
             fontFamily: "var(--font-heading)",
@@ -356,7 +353,7 @@ export default function TradeDesk() {
       </div>
 
       {error ? (
-        <div style={{ padding: "0 26px 8px", fontSize: 12, color: "#e0b573" }}>{error}</div>
+        <div style={{ padding: "0 26px 8px", fontSize: 12, color: "var(--warn)" }}>{error}</div>
       ) : null}
 
       <div className="gl-cols"
@@ -369,9 +366,9 @@ export default function TradeDesk() {
         }}
       >
         <div style={{ ...card, padding: "16px 18px" }}>
-          <h6 style={{ margin: "0 0 10px", color: "#d2cefd" }}>Build an offer</h6>
+          <h6 style={{ margin: "0 0 10px", color: "var(--accent-text)" }}>Build an offer</h6>
 
-          <label style={{ display: "block", fontSize: 10, letterSpacing: ".2em", color: "#75798c" }}>
+          <label style={{ display: "block", fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)" }}>
             TRADE WITH
           </label>
           <select
@@ -387,9 +384,9 @@ export default function TradeDesk() {
               width: "100%",
               margin: "6px 0 16px",
               padding: "8px 10px",
-              background: "rgba(20,22,35,.8)",
-              color: "#e9e9ed",
-              border: "1px solid rgba(145,132,217,.3)",
+              background: "rgb(var(--sunken-rgb) / .8)",
+              color: "var(--text)",
+              border: "1px solid rgb(var(--accent-rgb) / .3)",
               borderRadius: "var(--radius-sm)",
               font: "inherit",
             }}
@@ -406,7 +403,7 @@ export default function TradeDesk() {
               exchange rather than two lists. */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div>
-              <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c", marginBottom: 8 }}>
+              <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)", marginBottom: 8 }}>
                 YOU SEND · {giveValue.toFixed(1)}
               </div>
               <div style={{ minHeight: 34, marginBottom: 8 }}>
@@ -415,6 +412,14 @@ export default function TradeDesk() {
                 ))}
               </div>
               <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                {/* Said on this side too, so the column is not simply blank
+                    before the draft. Players only — any picks this manager
+                    holds are listed below and are tradeable from day one. */}
+                {myRoster.length === 0 ? (
+                  <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
+                    No players until you have drafted.
+                  </div>
+                ) : null}
                 {myRoster.map((n) => (
                   <button
                     key={n}
@@ -422,7 +427,7 @@ export default function TradeDesk() {
                     style={rowButton(give.includes(n))}
                   >
                     {n}
-                    <span style={{ marginLeft: "auto", color: "#75798c", fontSize: 11 }}>
+                    <span style={{ marginLeft: "auto", color: "var(--text-dim)", fontSize: 11 }}>
                       {proj(n).toFixed(1)}
                     </span>
                   </button>
@@ -438,7 +443,7 @@ export default function TradeDesk() {
             </div>
 
             <div>
-              <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c", marginBottom: 8 }}>
+              <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)", marginBottom: 8 }}>
                 YOU GET · {wantValue.toFixed(1)}
               </div>
               <div style={{ minHeight: 34, marginBottom: 8 }}>
@@ -448,7 +453,7 @@ export default function TradeDesk() {
               </div>
               <div style={{ maxHeight: 260, overflowY: "auto" }}>
                 {!partner ? (
-                  <div style={{ fontSize: 11, color: "#75798c" }}>Pick a manager first.</div>
+                  <div style={{ fontSize: 11, color: "var(--text-dim)" }}>Pick a manager first.</div>
                 ) : null}
                 {theirRoster.map((n) => (
                   <button
@@ -457,7 +462,7 @@ export default function TradeDesk() {
                     style={rowButton(want.includes(n))}
                   >
                     {n}
-                    <span style={{ marginLeft: "auto", color: "#75798c", fontSize: 11 }}>
+                    <span style={{ marginLeft: "auto", color: "var(--text-dim)", fontSize: 11 }}>
                       {proj(n).toFixed(1)}
                     </span>
                   </button>
@@ -496,9 +501,9 @@ export default function TradeDesk() {
               style={{
                 flex: "0 0 auto",
                 padding: "9px 16px",
-                border: "1px solid rgba(181,171,252,.6)",
+                border: "1px solid rgb(var(--accent-bright-rgb) / .6)",
                 background: "transparent",
-                color: "#d2cefd",
+                color: "var(--accent-text)",
                 borderRadius: "var(--radius-sm)",
                 // The shorthand, deliberately: this button sets no size of its
                 // own, so inheriting the body's is exactly what it wants. The
@@ -510,16 +515,16 @@ export default function TradeDesk() {
             >
               Send offer
             </button>
-            <span style={{ flex: "1 1 200px", fontSize: 11, color: "#75798c" }}>
+            <span style={{ flex: "1 1 200px", fontSize: 11, color: "var(--text-dim)" }}>
               Projected points, not a valuation — judge the deal yourself.
             </span>
           </div>
         </div>
 
         <div style={{ ...card, padding: "16px 18px" }}>
-          <h6 style={{ margin: "0 0 10px", color: "#d2cefd" }}>Offers</h6>
+          <h6 style={{ margin: "0 0 10px", color: "var(--accent-text)" }}>Offers</h6>
           {desk.trades.length === 0 ? (
-            <div style={{ fontSize: 11, color: "#75798c" }}>Nothing on the table.</div>
+            <div style={{ fontSize: 11, color: "var(--text-dim)" }}>Nothing on the table.</div>
           ) : null}
 
           {desk.trades.map((t) => {
@@ -535,7 +540,7 @@ export default function TradeDesk() {
             return (
               <div
                 key={t.id}
-                style={{ padding: "10px 0", borderTop: "1px solid rgba(145,132,217,.14)" }}
+                style={{ padding: "10px 0", borderTop: "1px solid rgb(var(--accent-rgb) / .14)" }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontFamily: "var(--font-heading)", fontSize: 13 }}>
@@ -555,10 +560,10 @@ export default function TradeDesk() {
                   </span>
                 </div>
 
-                <div style={{ fontSize: 11, color: "#9397ab", margin: "6px 0 2px" }}>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", margin: "6px 0 2px" }}>
                   You send: {mine.length ? mine.join(", ") : "nothing"}
                 </div>
-                <div style={{ fontSize: 11, color: "#9397ab", marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>
                   You get: {theirs.length ? theirs.join(", ") : "nothing"}
                 </div>
 
@@ -567,10 +572,10 @@ export default function TradeDesk() {
                 t.status !== "declined" &&
                 t.status !== "rescinded" ? (
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => respond(t, "accept")} disabled={busy} style={smallButton("#7fd1a8")}>
+                    <button onClick={() => respond(t, "accept")} disabled={busy} style={smallButton("var(--good)")}>
                       Accept
                     </button>
-                    <button onClick={() => respond(t, "decline")} disabled={busy} style={smallButton("#e0b573")}>
+                    <button onClick={() => respond(t, "decline")} disabled={busy} style={smallButton("var(--warn)")}>
                       Decline
                     </button>
                   </div>
@@ -580,16 +585,16 @@ export default function TradeDesk() {
                     <button
                       onClick={() => respond(t, "rescind")}
                       disabled={busy}
-                      style={smallButton("#e0b573")}
+                      style={smallButton("var(--warn)")}
                     >
                       Withdraw
                     </button>
-                    <span style={{ fontSize: 10, color: "#75798c" }}>
+                    <span style={{ fontSize: 10, color: "var(--text-dim)" }}>
                       Waiting on the other manager.
                     </span>
                   </div>
                 ) : t.status === "agreed" ? (
-                  <div style={{ fontSize: 10, color: "#75798c" }}>Waiting on the other manager.</div>
+                  <div style={{ fontSize: 10, color: "var(--text-dim)" }}>Waiting on the other manager.</div>
                 ) : null}
               </div>
             );
@@ -609,9 +614,9 @@ function rowButton(active: boolean): React.CSSProperties {
     textAlign: "left",
     padding: "7px 9px",
     marginBottom: 4,
-    border: `1px solid ${active ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.2)"}`,
+    border: `1px solid ${active ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .2)"}`,
     borderRadius: "var(--radius-sm)",
-    background: active ? "rgba(145,132,217,.22)" : "rgba(20,22,35,.5)",
+    background: active ? "rgb(var(--accent-rgb) / .22)" : "rgb(var(--sunken-rgb) / .5)",
     color: "inherit",
     font: "inherit",
     fontSize: 12,

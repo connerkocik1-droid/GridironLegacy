@@ -69,7 +69,7 @@ export default async function HomePage() {
         style={{
           minHeight: "100vh",
           background:
-            "radial-gradient(120% 80% at 50% -10%,rgba(66,58,106,.4),transparent 60%),#161826",
+            "radial-gradient(120% 80% at 50% -10%,rgb(var(--glow-rgb) / .4),transparent 60%),var(--bg)",
         }}
       >
         <Nav current="/" />
@@ -87,7 +87,7 @@ export default async function HomePage() {
       style={{
         minHeight: "100vh",
         background:
-          "radial-gradient(120% 80% at 50% -10%,rgba(66,58,106,.4),transparent 60%),#161826",
+          "radial-gradient(120% 80% at 50% -10%,rgb(var(--glow-rgb) / .4),transparent 60%),var(--bg)",
       }}
     >
       {/* No nav for a signed-out visitor: every link behind it would only ask
@@ -123,12 +123,12 @@ export default async function HomePage() {
                   fontSize: 15,
                   fontWeight: 500,
                   margin: 0,
-                  color: "#d2cefd",
+                  color: "var(--accent-text)",
                 }}
               >
                 The league
               </h2>
-              <span style={{ fontSize: 11, color: "#75798c" }}>
+              <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
                 {open > 0
                   ? `${open} of ${franchises.length} still open`
                   : "every franchise claimed"}
@@ -146,10 +146,10 @@ export default async function HomePage() {
                 <div
                   key={f.slot}
                   style={{
-                    border: `1px solid ${f.claimed ? "rgba(145,132,217,.34)" : "rgba(145,132,217,.16)"}`,
+                    border: `1px solid ${f.claimed ? "rgb(var(--accent-rgb) / .34)" : "rgb(var(--accent-rgb) / .16)"}`,
                     borderRadius: "var(--radius-md)",
                     padding: "10px 12px",
-                    background: f.claimed ? "rgba(35,37,50,.6)" : "rgba(28,30,42,.35)",
+                    background: f.claimed ? "rgb(var(--raised-rgb) / .6)" : "rgb(var(--surface-rgb) / .35)",
                   }}
                 >
                   <div
@@ -159,19 +159,19 @@ export default async function HomePage() {
                       gap: 6,
                       fontSize: 10,
                       letterSpacing: ".18em",
-                      color: "#75798c",
+                      color: "var(--text-dim)",
                     }}
                   >
                     {f.slot}
                     {f.division ? <span>· {f.division.toUpperCase()}</span> : null}
-                    {f.isCommissioner ? <span style={{ color: "#b5abfc" }}>· COMM</span> : null}
+                    {f.isCommissioner ? <span style={{ color: "var(--accent-link)" }}>· COMM</span> : null}
                   </div>
                   <div
                     style={{
                       fontFamily: "var(--font-heading)",
                       fontSize: 14,
                       marginTop: 3,
-                      color: f.claimed ? "#e9e9ed" : "#9397ab",
+                      color: f.claimed ? "var(--text)" : "var(--text-muted)",
                     }}
                   >
                     {f.franchise}
@@ -181,7 +181,7 @@ export default async function HomePage() {
                       fontSize: 10,
                       letterSpacing: ".14em",
                       marginTop: 5,
-                      color: f.claimed ? "#7fd1a8" : "#75798c",
+                      color: f.claimed ? "var(--good)" : "var(--text-dim)",
                     }}
                   >
                     {f.claimed ? f.name.toUpperCase() : "OPEN"}
@@ -191,7 +191,7 @@ export default async function HomePage() {
             </div>
           </div>
         ) : (
-          <div style={{ fontSize: 13, color: "#9397ab", lineHeight: 1.7, maxWidth: "52ch" }}>
+          <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.7, maxWidth: "52ch" }}>
             <p style={{ margin: "0 0 10px" }}>No league yet.</p>
             <p style={{ margin: 0 }}>
               Run <code>supabase/seed.sql</code> against your database, then set{" "}

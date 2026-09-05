@@ -1,0 +1,222 @@
+/* ---------------------------------------------------------------- theme ---
+   Every colour this app draws, named once.
+
+   It was fifteen hundred literals written inline on components — a hex or an
+   rgba() at the point of use, nine hundred of them some shade of the same
+   purple. That is fine for one theme and impossible for two, so this is the
+   list, and the components name these rather than the values.
+
+   Two kinds of token, for two reasons:
+
+     *-rgb holds bare channels, so a component can ask for the same colour at
+     whatever transparency it needs — rgb(var(--accent-rgb) / .22) — rather
+     than the palette having to carry a token per alpha. The purple alone is
+     used at fourteen different ones.
+
+     Everything else is a whole colour, because it is only ever used whole.
+
+   The pylon's orange is deliberately absent. It is the mark, it is the same
+   in any theme, and it stays written where it is drawn. */
+
+:root {
+  /* Ground, from the page up to the things that sit on it. */
+  --bg: #161826;
+  --bg-rgb: 22 24 38;
+  --surface-rgb: 26 28 43;
+  --sunken-rgb: 20 22 35;
+  --raised-rgb: 35 37 50;
+  --glow-rgb: 66 58 106;
+  /* Opaque, for the one place a sticky cell must hide what scrolls under it. */
+  --board-solid: #1b1d2c;
+
+  /* The accent, and the brighter one that means "this, now". */
+  --accent-rgb: 145 132 217;
+  --accent-bright-rgb: 181 171 252;
+  --accent-text: #d2cefd;
+  --accent-link: #b5abfc;
+  --accent-solid: #9184d9;
+
+  /* Text, loudest to quietest. */
+  --text: #e9e9ed;
+  --text-2: #c8ccdc;
+  --text-3: #b2b6ca;
+  --text-muted: #9397ab;
+  --text-quiet: #8f94a8;
+  --text-dim: #75798c;
+  /* Lifted from the old #5a5d6e, which measured 2.64:1 on a card — under even
+     the large-text floor, and this is the tone a rank number and an empty
+     roster slot are drawn in. Still the quietest thing in the palette. */
+  --text-faint: #6a6e82;
+
+  /* Gradient stops on the two bars that draw a share of something. */
+  --accent-deep: #5d5294;
+  --accent-mid: #8f83d6;
+  --accent-soft: #7a6fb8;
+
+  /* Below the page: a video letterbox, an empty crest, a row that is not
+     itself a surface. */
+  --well: #11131f;
+  --shadow-rgb: 0 0 0;
+  /* Behind a dialog, and the ground the pick reveal is lit against. */
+  --scrim-rgb: 10 11 19;
+  --reveal-rgb: 46 40 78;
+  /* The one card in the office that is about to break something. */
+  --danger-ground-rgb: 43 28 32;
+
+  /* Text that is off rather than quiet — a disabled control. */
+  --text-off: #4d5062;
+
+  /* Position, wherever a player is tinted by what he plays. Named after the
+     position rather than after the feeling, because a quarterback is not a
+     warning: they only look like the semantic colours below by coincidence,
+     and in a second theme they will not. */
+  --pos-qb: #e5a3a3;
+  --pos-qb-rgb: 224 131 131;
+  --pos-rb: #8fd3b0;
+  --pos-rb-rgb: 127 209 168;
+  --pos-wr: #a8b8e8;
+  --pos-wr-rgb: 145 164 217;
+  --pos-te: #e0bb84;
+  --pos-te-rgb: 224 181 115;
+  --pos-k: #b0a8cc;
+  --pos-k-rgb: 160 150 190;
+  --pos-dst: #a8a8bb;
+  --pos-dst-rgb: 140 140 155;
+
+  /* What a number means. */
+  --good: #7fd1a8;
+  --good-rgb: 127 209 168;
+  --warn: #e0b573;
+  --warn-rgb: 224 181 115;
+  --bad: #c98f8f;
+  --bad-text: #e5a3a3;
+  --bad-rgb: 224 131 131;
+  /* The softer red, for a margin lost rather than a thing gone wrong. */
+  --bad-soft: #e0908f;
+  /* Suspended, which is neither hurt nor fine. */
+  --suspended: #c98fd0;
+
+  /* ------------------------------------------------------- the old names ---
+     nocturne.css arrived with a token set of its own and a dark value written
+     into each one. Almost all of it is unreachable now — globals.css restates
+     the body and the links underneath it — but three declarations in that file
+     are still live on every page, and every one of them was a fixed dark-theme
+     purple in a light-theme app: the focus ring, the selection highlight, and
+     the one .btn-primary left in the trade desk.
+
+     Aliased rather than edited in place, because these are one file's private
+     names and this is where the app's colours live. And aliased with var()
+     rather than repeated: a custom property that refers to another is
+     substituted against whichever palette is on, so the light block below
+     redefines all three of these without mentioning them. */
+  --color-accent: var(--accent-solid);
+  --color-text: var(--text);
+  --color-bg: var(--bg);
+  --color-divider: rgb(var(--accent-rgb) / .28);
+}
+
+/* ----------------------------------------------------------------- light ---
+   The same app in daylight, not an inversion of it.
+
+   Nothing here is a flipped channel. Text darkens and its scale turns over —
+   in the dark theme "faint" is darker than "muted", and on white it has to be
+   lighter — while the purples darken to stay legible on a pale ground and the
+   surfaces invert their relationship with the page: cards are darker than the
+   background in the dark theme and lighter than it here.
+
+   Which theme is on is decided by the script in layout.tsx and written onto
+   the root element, rather than by a media query here. That is one list of
+   values instead of two identical ones, and it is what lets a manager choose
+   Light on a phone that is set to Dark. */
+
+:root[data-theme="light"] {
+  --bg: #f1f0f7;
+  --bg-rgb: 255 255 255;
+  --surface-rgb: 255 255 255;
+  --sunken-rgb: 255 255 255;
+  --raised-rgb: 255 255 255;
+  /* The wash at the top of every page. Pale enough at .4 to be a suggestion. */
+  --glow-rgb: 214 208 242;
+  --board-solid: #ffffff;
+  /* Below the page rather than above it, which on a pale ground means darker. */
+  --well: #e4e2ee;
+
+  --accent-rgb: 132 118 214;
+  --accent-bright-rgb: 106 90 196;
+  --accent-text: #4a3f9e;
+  --accent-link: #5b4bc4;
+  --accent-solid: #6f61c9;
+  --accent-deep: #4a3f9e;
+  --accent-mid: #7a6bd4;
+  --accent-soft: #9c90e0;
+
+  /* The scale turns over: loudest is darkest here. */
+  --text: #1b1c26;
+  --text-2: #33364a;
+  --text-3: #454962;
+  --text-muted: #5a5e75;
+  --text-quiet: #666a80;
+  --text-dim: #61657b;
+  --text-faint: #8a8fa3;
+  --text-off: #a2a6b8;
+
+  --good: #1f8a5c;
+  --good-rgb: 31 138 92;
+  --warn: #8a6314;
+  --warn-rgb: 176 128 40;
+  --bad: #a33b3b;
+  --bad-text: #a33b3b;
+  --bad-soft: #b04a4a;
+  --bad-rgb: 176 70 70;
+  --suspended: #8b3f97;
+
+  --pos-qb: #a33b3b;
+  --pos-qb-rgb: 176 70 70;
+  --pos-rb: #1f7a55;
+  --pos-rb-rgb: 31 122 85;
+  --pos-wr: #3a4f96;
+  --pos-wr-rgb: 58 79 150;
+  --pos-te: #8a6314;
+  --pos-te-rgb: 176 128 40;
+  --pos-k: #5a5288;
+  --pos-k-rgb: 90 82 136;
+  --pos-dst: #55586b;
+  --pos-dst-rgb: 85 88 107;
+
+  /* Pale, because it sits on white. */
+  --danger-ground-rgb: 226 176 176;
+
+  /* Deliberately unchanged. A scrim darkens whatever is behind it in any
+     theme, and the pick reveal is a cinema: it is lit the same way at noon as
+     at midnight. Anything drawn on top of these opts back into the dark text
+     with gl-on-dark, below. */
+}
+
+/* ------------------------------------------------------------ on the dark ---
+   The two places that stay dark in a light app: the film, and the pick reveal.
+   Both are full-screen and both are lit rather than laid out, so the text on
+   them has to keep the dark theme's colours whatever the rest of the app is
+   doing. Re-declaring the tokens on the subtree is the whole trick. */
+
+.gl-on-dark {
+  --text: #e9e9ed;
+  --text-2: #c8ccdc;
+  --text-3: #b2b6ca;
+  --text-muted: #9397ab;
+  --text-quiet: #8f94a8;
+  --text-dim: #75798c;
+  --text-faint: #6a6e82;
+  --text-off: #4d5062;
+  --accent-text: #d2cefd;
+  --accent-link: #b5abfc;
+  --accent-solid: #9184d9;
+  --accent-rgb: 145 132 217;
+  --accent-bright-rgb: 181 171 252;
+  --surface-rgb: 26 28 43;
+  --sunken-rgb: 20 22 35;
+  --raised-rgb: 35 37 50;
+  --warn: #e0b573;
+  --good: #7fd1a8;
+  --bad: #c98f8f;
+  --bad-soft: #e0908f;
+}

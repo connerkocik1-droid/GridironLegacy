@@ -12,6 +12,9 @@
  *   taps      a control too small to hit with a thumb
  *   tiny      text too small to read
  *   squeezed  a column narrowed until its text wraps a word per line
+ *   broken    a word wider than the box holding it, so the browser cuts it in half
+ *   eggs      something asking for a 50% radius whose sides disagree — a squashed circle
+ *   stranded  a note pushed right that wrapped onto a line of its own and stayed there
  *
  * 320px is not a nostalgic width. It is where a layout that merely looks tight
  * at 390 actually breaks, and it costs nothing to check both.
@@ -24,46 +27,107 @@
 import { chromium } from "playwright";
 import { mkdirSync } from "node:fs";
 import { routes } from "./fixture.mjs";
+import { PAGES } from "./pages.mjs";
 import { sessionCookie } from "./session.mjs";
 
 const BASE = process.env.AUDIT_BASE ?? "http://localhost:3000";
 const STUB = process.env.AUDIT_STUB ?? "http://127.0.0.1:54321";
 const SHOTS = process.env.AUDIT_SHOTS ?? null;
 
-const PAGES = [
-  ["/", "home"],
-  ["/activity", "activity"],
-  ["/my-team", "my-team"],
-  ["/the-league", "the-league"],
-  ["/rules", "rules"],
-  ["/chat", "chat"],
-  ["/my-team/edit", "edit-team"],
-  ["/watchlist", "watchlist"],
-  ["/player/Puka%20Nacua", "player-profile"],
-  ["/lineup", "lineup"],
-  ["/matchups", "matchups"],
-  ["/standings", "standings"],
-  ["/rankings", "rankings"],
-  ["/draft", "draft"],
-  ["/draft/rehearsal", "rehearsal"],
-  ["/draft/mock", "mock-draft"],
-  ["/free-agents", "free-agents"],
-  ["/trade-builder", "trade-builder"],
-  ["/league", "league"],
-  ["/news", "news"],
-  ["/player-news", "player-news"],
-  ["/pickem", "pickem"],
-  ["/20-0", "twenty-zero"],
-  ["/minigames", "minigames"],
-  ["/commissioner", "commissioner"],
-  ["/commissioner/preseason", "preseason-check"],
-];
 
 const WIDTHS = [320, 390];
 
 /** Runs in the page. Everything it returns is a measurement, not a judgement. */
 function measure() {
   const doc = document.documentElement;
+
+  /**
+   * Text nobody can read, in whichever theme is on.
+   *
+   * The layout checks above would pass a page whose every word was the same
+   * colour as the card behind it, which is exactly the failure a second theme
+   * introduces: a token gets a light value that was fine on black and vanishes
+   * on white, and nothing anywhere says so.
+   *
+   * Three below is the floor, not four and a half. This app has a deliberate
+   * scale of quiet text — a bye week, a timestamp, the slot a player fills —
+   * and holding all of it to body-copy contrast would flag thirty things that
+   * are meant to be quiet and bury the one that is broken.
+   *
+   * Defined at the top level so both the full measurement and the second-theme
+   * pass can call it.
+   */
+  const worstContrast = () => {
+  const channel = (c) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  const luminance = ([r, g, b]) =>
+    0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+
+  const parse = (v) => {
+    const m = /rgba?\(([^)]+)\)/.exec(v || "");
+    if (!m) return null;
+    const p = m[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+    return { rgb: [p[0], p[1], p[2]], a: p.length > 3 ? p[3] : 1 };
+  };
+
+  const over = (top, bottom) =>
+    top.rgb.map((c, i) => c * top.a + bottom[i] * (1 - top.a));
+
+  // What is actually behind this text: every background between it and the
+  // page, composited in the order the browser paints them.
+  const groundOf = (el) => {
+    const stack = [];
+    for (let p = el; p; p = p.parentElement) {
+      const bg = parse(getComputedStyle(p).backgroundColor);
+      if (bg && bg.a > 0) stack.push(bg);
+    }
+    let ground = [255, 255, 255];
+    for (let i = stack.length - 1; i >= 0; i--) ground = over(stack[i], ground);
+    return ground;
+  };
+
+  let worst = null;
+  for (const el of document.querySelectorAll("*")) {
+    if (el.children.length) continue;
+    if (el.closest("[aria-hidden='true']")) continue;
+    // A disabled control is meant to look unavailable, and the guideline says
+    // so: contrast is not required of one. Without this the run is a list of
+    // buttons that are correctly greyed out.
+    if (el.closest("[disabled], [aria-disabled='true']")) continue;
+    const text = (el.textContent ?? "").trim();
+    if (text.length < 2) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+
+    const style = getComputedStyle(el);
+    if (style.visibility === "hidden" || style.opacity === "0") continue;
+    const tag = el.tagName ? el.tagName.toLowerCase() : "";
+    if (tag.startsWith("nextjs-")) continue;
+    if (el.closest("nextjs-portal, [id='__next-build-watcher']")) continue;
+
+    const fg = parse(style.color);
+    if (!fg) continue;
+    const ink = over(fg, groundOf(el));
+    const ground = groundOf(el);
+
+    const a = luminance(ink) + 0.05;
+    const b = luminance(ground) + 0.05;
+    const ratio = a > b ? a / b : b / a;
+
+    if (ratio < 3 && (!worst || ratio < worst.ratio)) {
+      worst = {
+        ratio: Math.round(ratio * 100) / 100,
+        text: text.slice(0, 24),
+        colour: style.color,
+      };
+    }
+  }
+  return worst;
+  };
+
+
   const limit = doc.clientWidth;
 
   // Anything that stops its children reaching the edge of the screen: a rail
@@ -158,7 +222,213 @@ function measure() {
     }
   }
 
+  /**
+   * A word too wide for the box it is in.
+   *
+   * The check above is a guess — under twenty-six pixels and over forty tall —
+   * and it is the wrong guess whenever the word is short. "Ashton Jeanty" came
+   * out of the draft room's player list at 320px as four lines reading Ashto,
+   * n, Jeant, y, in a box ninety pixels wide and sixty tall. Every check
+   * passed it: nothing overflowed, the text was 14px, the box was wider than
+   * twenty-six pixels and the tap targets were fine.
+   *
+   * So this measures the thing itself. The longest word in the element is
+   * drawn to a canvas in the element's own font; if it needs more room than
+   * the element has, the browser is going to break it in half — which
+   * `overflow-wrap: anywhere` will do silently, and which no reader forgives.
+   *
+   * Only where breaking is actually on: with the default `normal` the word
+   * overflows instead, and overflow is what the first check in this function
+   * is for.
+   */
+  const cx = document.createElement("canvas").getContext("2d");
+  const broken = [];
+  for (const el of document.querySelectorAll("*")) {
+    if (el.children.length) continue;
+    const t = (el.textContent ?? "").trim();
+    if (!t || isDevChrome(el)) continue;
+
+    const cs = getComputedStyle(el);
+    const wrapping = `${cs.overflowWrap} ${cs.wordBreak}`;
+    if (!/anywhere|break-word|break-all/.test(wrapping)) continue;
+
+    const r = el.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) continue;
+
+    cx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} / ${cs.lineHeight} ${cs.fontFamily}`;
+
+    // The unbreakable runs, not the words. A browser will wrap after a hyphen
+    // or a slash without being asked, so "Valdes-Scantling" is two runs and
+    // comes out as "Valdes-" over "Scantling" — which is how anybody would
+    // write it by hand. Counting it as one sixteen-letter word reported the
+    // draft room's queue as broken when it reads perfectly.
+    let longest = "";
+    let widest = 0;
+    for (const run of t.split(/\s+/).flatMap((w) => w.split(/(?<=[-–—/])/))) {
+      const w = cx.measureText(run).width;
+      if (w > widest) {
+        widest = w;
+        longest = run;
+      }
+    }
+
+    // A pixel of slack: sub-pixel layout should not be a finding, and neither
+    // should a word that fits exactly.
+    if (widest > r.width + 1) {
+      broken.push(`"${longest}" needs ${Math.round(widest)}px in a ${Math.round(r.width)}px box`);
+    }
+  }
+
+  /**
+   * A number split across two lines.
+   *
+   * The check above deliberately allows a break after a hyphen, because that
+   * is what a browser does with "Valdes-Scantling" and what anybody would do
+   * by hand. It is the wrong answer for "4-1": a record is one token, and the
+   * standings table was rendering it as two lines reading 4- and 1, in every
+   * row, on a phone. Nothing caught it — no overflow, the text was 13px, the
+   * halves either side of the hyphen fitted.
+   *
+   * So this asks a narrower question: does anything that is a single run of
+   * characters containing a digit end up on more than one line?
+   *
+   * Counted by distinct line tops, not by rect count. A Range over the
+   * contents returns one rect per text node, and React renders {a}/{b} as
+   * three of them — so counting rects called every "1/6" in the app broken
+   * when it was sitting perfectly on one line. Rects that share a top share a
+   * line; it is the number of tops that says how many lines there are.
+   */
+  const split = [];
+  const range = document.createRange();
+  for (const el of document.querySelectorAll("*")) {
+    if (el.children.length || isDevChrome(el)) continue;
+    const t = (el.textContent ?? "").trim();
+    if (!t || /\s/.test(t) || !/\d/.test(t)) continue;
+
+    range.selectNodeContents(el);
+    const tops = new Set([...range.getClientRects()].map((r) => Math.round(r.top)));
+    if (tops.size > 1) split.push(`"${t.slice(0, 20)}" over ${tops.size} lines`);
+  }
+
+  /**
+   * A circle that is not a circle.
+   *
+   * A phone grows every button to a thumb-sized target — min-height 40,
+   * min-width 34 — and those rules only ever grow a control, which is right
+   * for a rectangle and wrong for a round one. A 32 by 32 button with a 50%
+   * radius comes out 34 by 40, and a 50% radius on that is an ellipse. The
+   * notices bell sat in the corner of every screen as an egg, on every phone
+   * in the league, and every check here passed it: nothing overflowed, the
+   * target was comfortably large, the text was legible.
+   *
+   * So the shape is measured. Anything asking for a 50% radius is claiming to
+   * be round, and a round thing whose sides disagree by more than a pixel is
+   * not one.
+   */
+  const eggs = [];
+  for (const el of document.querySelectorAll("*")) {
+    if (isDevChrome(el)) continue;
+    const cs = getComputedStyle(el);
+    if (!/^50%/.test(cs.borderRadius)) continue;
+
+    const r = el.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) continue;
+    if (Math.abs(r.width - r.height) <= 1) continue;
+
+    const said = (el.getAttribute("aria-label") ?? el.textContent ?? "").replace(/\s+/g, " ").trim();
+    eggs.push(
+      `${Math.round(r.width)}×${Math.round(r.height)} ${el.tagName.toLowerCase()}` +
+        (said ? ` "${said.slice(0, 20)}"` : ""),
+    );
+  }
+
+  /**
+   * A note pushed to the right that then wrapped onto its own line.
+   *
+   * `margin-left: auto` inside a `flex-wrap: wrap` row is a very common way
+   * to put a quiet note at the far end of a heading. It is also a trap: the
+   * moment the row runs out of width the note wraps to a line of its own —
+   * and the auto margin is still there, so it sits alone against the right
+   * edge, under a left-aligned heading, looking like a mistake. On the free
+   * agents page at 320px, "Claims only until each one clears." was stranded
+   * out there on its own.
+   *
+   * Nine files in this app use that combination, so guessing which ones
+   * strand would be nine speculative edits. This finds the ones that
+   * actually do — and it looks for the symptom rather than the cause,
+   * because getComputedStyle resolves `margin-left: auto` to a pixel value
+   * and asking for the string "auto" back matches nothing, ever. The first
+   * version of this check did exactly that and reported a clean app while
+   * the stranded note was plainly visible in a screenshot.
+   *
+   * The symptom is precise enough on its own: something in a wrapping flex
+   * row, sitting on a later line than the first thing in that row, and
+   * starting well to the right of where that row begins.
+   */
+  const stranded = [];
+  for (const el of document.querySelectorAll("*")) {
+    if (isDevChrome(el)) continue;
+
+    const parent = el.parentElement;
+    if (!parent) continue;
+    const ps = getComputedStyle(parent);
+    if (!ps.display.includes("flex") || ps.flexWrap !== "wrap") continue;
+
+    // Only rows that align left. A row that centres its children puts a lone
+    // wrapped item in the middle on purpose — the draft lobby's list of
+    // franchises does exactly that — and a row that spaces them apart is
+    // making the same kind of deliberate choice. The defect is an item
+    // pushed to the end of a row that everything else starts at.
+    if (!["normal", "flex-start", "start", "left"].includes(ps.justifyContent)) continue;
+
+    const first = parent.firstElementChild;
+    if (!first || first === el) continue;
+
+    const mine = el.getBoundingClientRect();
+    if (mine.width <= 0 || mine.height <= 0) continue;
+    const top = first.getBoundingClientRect();
+
+    // On a later line than the row started on.
+    const line = parseFloat(getComputedStyle(el).fontSize) || 14;
+    if (mine.top - top.top <= line * 0.5) continue;
+
+    // And not aligned with the left edge the row began at. Twenty-four pixels
+    // of slack, so an indent or a gap is not a finding.
+    const box = parent.getBoundingClientRect();
+    const leftEdge = box.left + parseFloat(ps.paddingLeft || "0") + parseFloat(ps.borderLeftWidth || "0");
+    if (mine.left - leftEdge <= 24) continue;
+
+    // And alone on that line. This is the condition that separates the defect
+    // from the ordinary right-hand column: a score sitting at the end of a
+    // row is beside its label and looks deliberate, while a note that has
+    // wrapped has nothing next to it and looks like a mistake. Without this
+    // the check reported two dozen findings, nearly all of them layouts
+    // working exactly as intended.
+    const shares = [...parent.children].some((other) => {
+      if (other === el) return false;
+      const r = other.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) return false;
+      const overlap = Math.min(r.bottom, mine.bottom) - Math.max(r.top, mine.top);
+      return overlap > Math.min(r.height, mine.height) * 0.3;
+    });
+    if (shares) continue;
+
+    // Controls are exempt. A button, or a group of them, sitting on its own
+    // line against the right edge is a deliberate and ordinary pattern — the
+    // commissioner's "Pick for them" and the mock draft's filter rail both do
+    // it on purpose. It is only text that looks orphaned out there, because
+    // text has no affordance to explain why it moved.
+    if (el.closest("button, a, select, [role='button']")) continue;
+    if (el.querySelector("button, a, select, [role='button']")) continue;
+
+    const said = (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 26);
+    if (said) stranded.push(`"${said}" alone on the right`);
+  }
+
   return {
+    contrast: worstContrast(),
+    stranded: [...new Set(stranded)].slice(0, 3),
+    eggs: [...new Set(eggs)].slice(0, 3),
     overflow: doc.scrollWidth - doc.clientWidth,
     worst,
     small: [...new Set(small)].slice(0, 5),
@@ -166,6 +436,7 @@ function measure() {
     tiny: [...new Set(tiny)].slice(0, 3),
     tinyCount: new Set(tiny).size,
     squeezed: [...new Set(squeezed)].slice(0, 3),
+    broken: [...new Set(broken.concat(split))].slice(0, 3),
   };
 }
 
@@ -198,7 +469,40 @@ for (const width of WIDTHS) {
     }
     await page.waitForTimeout(1100);
 
-    const report = await page.evaluate(measure);
+    // Both themes, each one asked for by name.
+    //
+    // Not left to the browser: Playwright's contexts are light by default, so
+    // the app resolved to light and the run measured the same theme twice and
+    // called one of them dark. The stylesheet reads one attribute, so setting
+    // it is the whole switch — and flipping in place rather than reloading
+    // keeps a second load per page off the run.
+    const inTheme = async (theme) => {
+      await page.evaluate((t) => {
+        // Both, and in that order. The attribute is what the stylesheet reads;
+        // the stored choice is what the script in the head reads, and that
+        // script runs again on its own schedule. Setting only the attribute
+        // gets it put back a few milliseconds later, which is how this pass
+        // first reported a page half in one theme and half in the other.
+        try {
+          localStorage.setItem("pylon:theme", t);
+        } catch {
+          // Then the attribute alone will have to do.
+        }
+        document.documentElement.dataset.theme = t;
+      }, theme);
+
+      // Let the colours arrive. Controls in this app carry a transition, so
+      // reading straight after the flip catches every one of them at the
+      // instant it is still the theme being left — which is how this pass
+      // first reported dark text on a white card and called it a contrast
+      // failure.
+      await page.waitForTimeout(400);
+      return page.evaluate(measure);
+    };
+
+    const report = await inTheme("dark");
+    report.lightContrast = (await inTheme("light")).contrast;
+
     findings.push([width, name, url, report, errors]);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${width}-${name}.png`, fullPage: true });
     await page.close();
@@ -262,6 +566,7 @@ for (const width of WIDTHS) {
     // quietly reporting a pass for something never measured.
     findings.push([width, "mock-running", "/draft/mock (started)", {
       overflow: 0, worst: null, small: [], smallCount: 0, tiny: [], tinyCount: 0, squeezed: [],
+      broken: [], eggs: [], stranded: [],
     }, ["could not start the mock draft — has the start button been renamed?"]]);
   }
   await ctx.close();
@@ -298,6 +603,58 @@ for (const width of WIDTHS) {
     findings.push([width, name, `/draft (${state})`, await page.evaluate(measure), errors]);
     await ctx.close();
   }
+}
+
+// On the clock — which is the state the draft room exists for, and the one it
+// was never measured in.
+//
+// The fixture puts somebody else on the clock, so every run measured a room a
+// manager is watching rather than one they are using: no Draft button live,
+// and the player rows laid out for a screen where nothing is urgent. At 320px
+// with the button live, "Jahmyr Gibbs" came out as three lines reading Jahm,
+// yr, Gibbs — on the busiest list in the app, to somebody with ninety seconds.
+// Every check passed it, because no check ever saw it.
+for (const width of WIDTHS) {
+  const ctx = await browser.newContext({
+    viewport: { width, height: 844 }, hasTouch: true, isMobile: true,
+  });
+  await ctx.addCookies([sessionCookie()]);
+  const page = await ctx.newPage();
+  routes(page, { myTurn: true, secondsGone: 30 });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e).slice(0, 120)));
+  try {
+    await page.goto(`${BASE}/draft`, { waitUntil: "domcontentloaded", timeout: 20000 });
+  } catch {
+    // As above: measure what rendered.
+  }
+  await page.waitForTimeout(1400);
+  findings.push([width, "draft-my-turn", "/draft (on the clock)", await page.evaluate(measure), errors]);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/${width}-draft-my-turn.png`, fullPage: true });
+  await ctx.close();
+}
+
+// The home page before the league has drafted. Every other case here is a
+// league in mid-season, and this one is what the other eleven managers see on
+// the day they first sign in: no schedule, no scores, and draft night still to
+// come. It is a different page and it was never measured.
+for (const width of WIDTHS) {
+  const ctx = await browser.newContext({
+    viewport: { width, height: 844 }, hasTouch: true, isMobile: true,
+  });
+  await ctx.addCookies([sessionCookie()]);
+  const page = await ctx.newPage();
+  routes(page, { preseason: true });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e).slice(0, 120)));
+  try {
+    await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded", timeout: 20000 });
+  } catch {
+    // As above: measure what rendered.
+  }
+  await page.waitForTimeout(1200);
+  findings.push([width, "home-preseason", "/ (before the draft)", await page.evaluate(measure), errors]);
+  await ctx.close();
 }
 
 // The add-to-home-screen hint is the one piece of interface that renders for
@@ -367,7 +724,8 @@ for (const width of WIDTHS) {
 
 const bad = ([, , , r, errors]) =>
   r.overflow > 1 || r.worst || r.smallCount > 0 || r.tinyCount > 0 ||
-  r.squeezed.length > 0 || errors.length > 0;
+  r.squeezed.length > 0 || (r.broken?.length ?? 0) > 0 || (r.eggs?.length ?? 0) > 0 ||
+  (r.stranded?.length ?? 0) > 0 || r.contrast || r.lightContrast || errors.length > 0;
 
 const failures = findings.filter(bad);
 
@@ -382,6 +740,14 @@ if (failures.length) {
     if (r.small.length) console.log(`  small taps (${r.smallCount}): ${r.small.join(", ")}`);
     if (r.tiny.length) console.log(`  tiny text (${r.tinyCount}): ${r.tiny.join(", ")}`);
     if (r.squeezed.length) console.log(`  squeezed: ${r.squeezed.join(", ")}`);
+    if (r.broken?.length) console.log(`  broken mid-word: ${r.broken.join(", ")}`);
+    if (r.eggs?.length) console.log(`  round but not: ${r.eggs.join(", ")}`);
+    if (r.stranded?.length) console.log(`  stranded right: ${r.stranded.join(", ")}`);
+    for (const [theme, c] of [["dark", r.contrast], ["light", r.lightContrast]]) {
+      if (c) {
+        console.log(`  ${theme}: ${c.ratio}:1 on "${c.text}" (${c.colour})`);
+      }
+    }
     if (errors.length) console.log(`  page errors: ${errors.join(" | ")}`);
   }
 }

@@ -88,7 +88,7 @@ function Dialog({
         display: "grid",
         placeItems: "center",
         padding: 20,
-        background: "rgba(10,11,19,.86)",
+        background: "rgb(var(--scrim-rgb) / .86)",
         backdropFilter: "blur(6px)",
         animation: "gl-fade 160ms ease",
       }}
@@ -98,13 +98,13 @@ function Dialog({
           maxWidth: 470,
           width: "100%",
           padding: "26px 28px",
-          border: "1px solid rgba(224,131,131,.3)",
+          border: "1px solid rgb(var(--bad-rgb) / .3)",
           borderRadius: "var(--radius-lg)",
-          background: "#1b1d2c",
+          background: "var(--board-solid)",
           textAlign: "left",
         }}
       >
-        <div style={{ fontSize: 10, letterSpacing: ".3em", color: "#c98f8f" }}>{eyebrow}</div>
+        <div style={{ fontSize: 10, letterSpacing: ".3em", color: "var(--bad)" }}>{eyebrow}</div>
 
         <h2
           id={`${fieldId}-title`}
@@ -125,7 +125,7 @@ function Dialog({
           <div style={{ margin: "18px 0 0" }}>
             <label
               htmlFor={fieldId}
-              style={{ display: "block", fontSize: 10, letterSpacing: ".18em", color: "#75798c" }}
+              style={{ display: "block", fontSize: 10, letterSpacing: ".18em", color: "var(--text-dim)" }}
             >
               TYPE {confirmWord.toUpperCase()} TO CONFIRM
             </label>
@@ -138,10 +138,10 @@ function Dialog({
                 width: "100%",
                 marginTop: 7,
                 padding: "9px 11px",
-                background: "rgba(20,22,35,.8)",
-                border: `1px solid ${ready ? "rgba(224,131,131,.55)" : "rgba(145,132,217,.3)"}`,
+                background: "rgb(var(--sunken-rgb) / .8)",
+                border: `1px solid ${ready ? "rgb(var(--bad-rgb) / .55)" : "rgb(var(--accent-rgb) / .3)"}`,
                 borderRadius: "var(--radius-sm)",
-                color: "#e9e9ed",
+                color: "var(--text)",
                 font: "inherit",
                 fontSize: 13,
               }}
@@ -155,9 +155,9 @@ function Dialog({
             onClick={onCancel}
             style={{
               padding: "10px 20px",
-              border: "1px solid rgba(145,132,217,.3)",
+              border: "1px solid rgb(var(--accent-rgb) / .3)",
               background: "transparent",
-              color: "#9397ab",
+              color: "var(--text-muted)",
               borderRadius: "var(--radius-sm)",
               font: "inherit",
               fontSize: 12,
@@ -174,9 +174,9 @@ function Dialog({
             disabled={!ready}
             style={{
               padding: "10px 20px",
-              border: "1px solid rgba(224,131,131,.6)",
-              background: "rgba(224,131,131,.14)",
-              color: "#e5a3a3",
+              border: "1px solid rgb(var(--bad-rgb) / .6)",
+              background: "rgb(var(--bad-rgb) / .14)",
+              color: "var(--bad-text)",
               borderRadius: "var(--radius-sm)",
               font: "inherit",
               fontSize: 12,

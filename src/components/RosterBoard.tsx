@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import Skeleton from "./Skeleton";
-import { headshot, logo, statLine } from "@/data/league-data";
+import { headshot, statLine } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import LiveNumber from "./LiveNumber";
 import TeamCrest from "./TeamCrest";
+import TeamMark from "./TeamMark";
+import { useRefreshable } from "@/lib/use-refresh";
 import { bestLineup, bubbleGaps, type Score } from "@/lib/matchup";
 import { flagColor, flagsFor, player, proj, type LeagueShape } from "@/lib/roster";
 import { useLogos } from "@/lib/use-logos";
@@ -70,6 +73,9 @@ export default function RosterBoard() {
       setError("Could not load your roster.");
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.
@@ -165,7 +171,7 @@ export default function RosterBoard() {
   }, [gaps]);
 
   if (error && !feed) {
-    return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
   }
   if (!feed) {
     return <Skeleton rows={6} />;
@@ -174,6 +180,11 @@ export default function RosterBoard() {
   const stashLimit = Number(feed.settings?.ir ?? 0);
   const settled = feed.final || feed.weekPhase === "final";
   const totalLabel = settled ? "FINAL" : feed.started ? "LIVE TOTAL" : "PROJECTED";
+
+  // Nobody owns anybody until the draft has run, so an empty roster is not an
+  // empty state to apologise for — it is the state the whole league is in on
+  // the day everybody signs up.
+  const undrafted = feed.roster.length === 0 && feed.injuredReserve.length === 0;
 
   return (
     <>
@@ -190,7 +201,7 @@ export default function RosterBoard() {
             name that filled a phone by itself, which pushed the score — the
             one number this page exists for — onto a band of its own below. */}
         <div style={{ flex: "1 1 170px", minWidth: 0 }}>
-          <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>
+          <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>
             DYNASTY · BEST BALL
           </div>
           <div
@@ -227,10 +238,10 @@ export default function RosterBoard() {
               display: "block",
               fontFamily: "var(--font-heading)",
               fontSize: 26,
-              color: "#d2cefd",
+              color: "var(--accent-text)",
             }}
           />
-          <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c" }}>{totalLabel}</div>
+          <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)" }}>{totalLabel}</div>
         </div>
       </div>
 
@@ -238,7 +249,7 @@ export default function RosterBoard() {
         style={{
           padding: "0 26px 8px",
           fontSize: 12,
-          color: "#9397ab",
+          color: "var(--text-muted)",
           maxWidth: "70ch",
           lineHeight: 1.6,
         }}
@@ -247,26 +258,73 @@ export default function RosterBoard() {
             third of the screen above the thing they were explaining — every
             week, to a manager who read them the first Sunday and has known it
             ever since. */}
-        {settled
-          ? "Settled. Your best possible lineup is the one that counted."
-          : feed.started
-            ? "Your whole roster is playing; the highest scorers fill the slots and swap as the numbers move."
-            : "No lineup to set — everyone you own is in, and the best scorers take the slots once the games start. Until then this is a projection."}
+        {undrafted
+          ? "Nothing to show yet, because nothing has been drafted. Every player you take on the night arrives here."
+          : settled
+            ? "Settled. Your best possible lineup is the one that counted."
+            : feed.started
+              ? "Your whole roster is playing; the highest scorers fill the slots and swap as the numbers move."
+              : "No lineup to set — everyone you own is in, and the best scorers take the slots once the games start. Until then this is a projection."}
       </div>
 
       {error ? (
-        <div style={{ padding: "0 26px 8px", fontSize: 12, color: "#e0b573" }}>{error}</div>
+        <div style={{ padding: "0 26px 8px", fontSize: 12, color: "var(--warn)" }}>{error}</div>
       ) : null}
 
       <div style={{ padding: "12px 26px 40px" }}>
         <div
           style={{
-            border: "1px solid rgba(145,132,217,.22)",
+            border: "1px solid rgb(var(--accent-rgb) / .22)",
             borderRadius: "var(--radius-lg)",
-            background: "rgba(26,28,43,.55)",
+            background: "rgb(var(--surface-rgb) / .55)",
             overflow: "hidden",
           }}
         >
+          {/* Before the draft this card was ten rows of "Nobody on the roster
+              plays here" and a line saying nought players — which is
+              accurate, is the first thing every manager in a new league sees
+              on this page, and reads as a broken screen rather than as a
+              season that has not started. One panel says it once, and points
+              at the only thing there is to do about it. */}
+          {undrafted ? (
+            <div style={{ padding: "22px 18px 24px" }}>
+              <div style={{ fontFamily: "var(--font-heading)", fontSize: 19, marginBottom: 7 }}>
+                Your roster is empty
+              </div>
+              <p
+                style={{
+                  fontSize: 12.5,
+                  color: "var(--text-muted)",
+                  lineHeight: 1.65,
+                  margin: "0 0 16px",
+                  maxWidth: "52ch",
+                }}
+              >
+                Draft night fills it. Everybody you take lands on this page, and after that there
+                is no lineup to set for the rest of the season — the slots above fill themselves
+                from whoever is scoring.
+              </p>
+              <Link
+                href="/draft"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  minHeight: 38,
+                  padding: "9px 16px",
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 13,
+                  textDecoration: "none",
+                  color: "var(--text)",
+                  background: "rgb(var(--accent-rgb) / .26)",
+                  border: "1px solid rgb(var(--accent-bright-rgb) / .5)",
+                  borderRadius: "var(--radius-sm)",
+                }}
+              >
+                The draft room
+              </Link>
+            </div>
+          ) : (
+            <>
           <SectionHeader
             title={settled ? "How it finished" : feed.started ? "Filling the slots" : "Projected to start"}
             note={`WEEK ${feed.week}`}
@@ -289,7 +347,7 @@ export default function RosterBoard() {
           />
 
           {rest.length === 0 ? (
-            <div style={{ padding: "14px 18px", fontSize: 12, color: "#75798c" }}>
+            <div style={{ padding: "14px 18px", fontSize: 12, color: "var(--text-dim)" }}>
               Everybody you own is in a slot.
             </div>
           ) : (
@@ -319,14 +377,16 @@ export default function RosterBoard() {
               );
             })
           )}
+            </>
+          )}
         </div>
 
-        {stashLimit > 0 ? (
+        {stashLimit > 0 && !undrafted ? (
           <div
             style={{
-              border: "1px solid rgba(145,132,217,.22)",
+              border: "1px solid rgb(var(--accent-rgb) / .22)",
               borderRadius: "var(--radius-lg)",
-              background: "rgba(26,28,43,.55)",
+              background: "rgb(var(--surface-rgb) / .55)",
               overflow: "hidden",
               marginTop: 14,
             }}
@@ -341,7 +401,7 @@ export default function RosterBoard() {
                 style={{
                   padding: "14px 18px",
                   fontSize: 12,
-                  color: "#75798c",
+                  color: "var(--text-dim)",
                   lineHeight: 1.6,
                 }}
               >
@@ -375,12 +435,15 @@ export default function RosterBoard() {
         ) : null}
 
         {/* Said once, at the bottom, where somebody who has scrolled the whole
-            roster and is wondering where the bench went will find it. */}
+            roster and is wondering where the bench went will find it — and not
+            at all before the draft, when there are no slots and nobody below
+            them for it to be about. */}
+        {undrafted ? null : (
         <div
           style={{
             marginTop: 12,
             fontSize: 11.5,
-            color: "#75798c",
+            color: "var(--text-dim)",
             lineHeight: 1.6,
             maxWidth: "70ch",
           }}
@@ -389,6 +452,7 @@ export default function RosterBoard() {
           one — a player who outscores a starter takes his place while the games
           are on.
         </div>
+        )}
       </div>
     </>
   );
@@ -408,12 +472,12 @@ function SectionHeader({ title, note, muted }: { title: string; note: string; mu
         alignItems: "center",
         gap: 12,
         padding: "14px 18px",
-        borderTop: muted ? "1px solid rgba(145,132,217,.18)" : undefined,
-        background: muted ? "rgba(20,22,35,.5)" : undefined,
+        borderTop: muted ? "1px solid rgb(var(--accent-rgb) / .18)" : undefined,
+        background: muted ? "rgb(var(--sunken-rgb) / .5)" : undefined,
       }}
     >
-      <h6 style={{ margin: 0, color: muted ? "#9397ab" : "#d2cefd" }}>{title}</h6>
-      <span style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c" }}>{note}</span>
+      <h6 style={{ margin: 0, color: muted ? "var(--text-muted)" : "var(--accent-text)" }}>{title}</h6>
+      <span style={{ fontSize: 10, letterSpacing: ".16em", color: "var(--text-dim)" }}>{note}</span>
     </div>
   );
 }
@@ -457,7 +521,7 @@ function PlayerRow({
         alignItems: "center",
         gap: 9,
         padding: starter ? "12px 14px" : "11px 14px",
-        borderTop: "1px solid rgba(145,132,217,.12)",
+        borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
       }}
     >
       <span
@@ -467,7 +531,7 @@ function PlayerRow({
           letterSpacing: ".14em",
           width: 32,
           flex: "0 0 auto",
-          color: starter ? "#b5abfc" : "#75798c",
+          color: starter ? "var(--accent-link)" : "var(--text-dim)",
         }}
       >
         {slot === "D/ST" ? "DST" : slot}
@@ -484,8 +548,8 @@ function PlayerRow({
             style={{
               borderRadius: "50%",
               objectFit: "contain",
-              border: "1px solid rgba(145,132,217,.3)",
-              background: "rgba(35,37,50,.7)",
+              border: "1px solid rgb(var(--accent-rgb) / .3)",
+              background: "rgb(var(--raised-rgb) / .7)",
               flex: "0 0 auto",
             }}
           />
@@ -502,16 +566,7 @@ function PlayerRow({
                 name={name}
                 style={{ fontFamily: "var(--font-heading)", fontSize: starter ? 15 : 14 }}
               />
-              {p?.t ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logo(p.t)}
-                  alt=""
-                  width={15}
-                  height={15}
-                  style={{ objectFit: "contain", opacity: 0.85, flex: "0 0 auto" }}
-                />
-              ) : null}
+              <TeamMark team={p?.t} size={15} opacity={0.85} />
             </div>
 
             {flags.length || gap != null ? (
@@ -542,8 +597,8 @@ function PlayerRow({
                       borderRadius: 2,
                       flex: "0 0 auto",
                       fontVariantNumeric: "tabular-nums",
-                      border: `1px solid ${nextIn ? "rgba(181,171,252,.55)" : "rgba(145,132,217,.24)"}`,
-                      color: nextIn ? "#b5abfc" : "#75798c",
+                      border: `1px solid ${nextIn ? "rgb(var(--accent-bright-rgb) / .55)" : "rgb(var(--accent-rgb) / .24)"}`,
+                      color: nextIn ? "var(--accent-link)" : "var(--text-dim)",
                     }}
                   >
                     {nextIn ? `NEXT IN · ${gap.toFixed(1)}` : `${gap.toFixed(1)} OFF`}
@@ -570,7 +625,7 @@ function PlayerRow({
             <div
               style={{
                 fontSize: 11,
-                color: live ? "#9397ab" : "#75798c",
+                color: live ? "var(--text-muted)" : "var(--text-dim)",
                 marginTop: 3,
                 lineHeight: 1.45,
                 overflowWrap: "anywhere",
@@ -586,12 +641,12 @@ function PlayerRow({
                 style={{
                   fontFamily: "var(--font-heading)",
                   fontSize: starter ? 17 : 15,
-                  color: live ? "#d2cefd" : "#b2b6ca",
+                  color: live ? "var(--accent-text)" : "var(--text-3)",
                 }}
               >
                 <LiveNumber key={name} value={live ? score.points : proj(name)} />
               </div>
-              <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c" }}>
+              <div style={{ fontSize: 10, letterSpacing: ".16em", color: "var(--text-dim)" }}>
                 {live ? "LIVE" : "PROJ"}
               </div>
             </div>
@@ -607,10 +662,10 @@ function PlayerRow({
                 minWidth: 34,
                 minHeight: 34,
                 padding: "6px 7px",
-                border: "1px solid rgba(145,132,217,.35)",
+                border: "1px solid rgb(var(--accent-rgb) / .35)",
                 borderRadius: "var(--radius-sm)",
                 background: "transparent",
-                color: action.busy ? "#5a5d6e" : "#b5abfc",
+                color: action.busy ? "var(--text-faint)" : "var(--accent-link)",
                 font: "inherit",
                 fontSize: 10,
                 letterSpacing: ".12em",
@@ -623,7 +678,7 @@ function PlayerRow({
           ) : null}
         </>
       ) : (
-        <div style={{ flex: 1, fontSize: 13, color: "#5a5d6e" }}>
+        <div style={{ flex: 1, fontSize: 13, color: "var(--text-faint)" }}>
           Nobody on the roster plays here
         </div>
       )}

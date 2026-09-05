@@ -131,7 +131,7 @@ function activeTab(pathname: string, tabs: Tab[]): string | null {
   return best?.href ?? null;
 }
 
-export default function TabBar() {
+export default function TabBar({ signedIn }: { signedIn: boolean }) {
   const me = useMe();
   const pathname = usePathname() ?? "/";
 
@@ -146,7 +146,19 @@ export default function TabBar() {
   // behind it would only ask them to sign in — a bar of four such links across
   // the bottom of that screen would be four ways of being told no. A league
   // that has no database yet is the same case.
-  const showing = me.status === "signed-in";
+  //
+  // But "signed in" is answered by the server, in the layout, from the cookie
+  // it already read — and only refined by the browser afterwards. It used to
+  // be the browser's answer alone, and useMe made one request with no retry:
+  // when that request was dropped the state stayed "checking" for the life of
+  // the page and this bar rendered nothing, for ever, while every board around
+  // it loaded fine because each fetches its own data.
+  //
+  // A tab is a rare thing to lose a first request in. A home-screen app is
+  // launched cold and resumed from the background, so it is the common case
+  // there — which is why the tabs were missing in the PWA and only in the PWA.
+  // The server knew the whole time.
+  const showing = me.status === "checking" ? signedIn : me.status === "signed-in";
 
   // The room the bar takes up is reserved in CSS, which cannot know whether
   // anybody is signed in — so the bar says so here. Without it the sign-in
@@ -182,8 +194,8 @@ export default function TabBar() {
         // the top links at once, which is the one thing it must not do.
         // Above the home indicator, not under the bar somebody swipes to leave.
         paddingBottom: "env(safe-area-inset-bottom)",
-        borderTop: "1px solid rgba(145,132,217,.22)",
-        background: "rgba(20,22,35,.94)",
+        borderTop: "1px solid rgb(var(--accent-rgb) / .22)",
+        background: "rgb(var(--sunken-rgb) / .94)",
         backdropFilter: "blur(14px)",
       }}
     >
@@ -223,9 +235,36 @@ function TabLink({ tab, active, dot }: { tab: Tab; active: boolean; dot?: boolea
         minHeight: 52,
         padding: "7px 2px 8px",
         textDecoration: "none",
-        color: active ? "#d2cefd" : "#7d8195",
+        position: "relative",
+        color: active ? "var(--accent-text)" : "var(--text-quiet)",
+        // The lit tab is also a lit panel. Colour alone was carrying "you are
+        // here" on a bar that is read at a glance and often in sunlight.
+        background: active
+          ? "linear-gradient(180deg,rgb(var(--accent-rgb) / .16),transparent 72%)"
+          : "transparent",
       }}
     >
+      {/* The filament. It draws itself out from the middle when the tab
+          becomes the current one, which is the app's only acknowledgement
+          that the press landed — the page underneath is still arriving. */}
+      {active ? (
+        <span
+          aria-hidden
+          className="gl-tab-lit"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: "50%",
+            width: 26,
+            marginLeft: -13,
+            height: 2,
+            borderRadius: "0 0 2px 2px",
+            background: "var(--accent-link)",
+            boxShadow: "0 0 8px rgb(var(--accent-bright-rgb) / .55)",
+          }}
+        />
+      ) : null}
+
       <span style={{ position: "relative", display: "inline-flex", flex: "0 0 auto" }}>
         {tab.icon}
         {dot ? (
@@ -238,10 +277,10 @@ function TabLink({ tab, active, dot }: { tab: Tab; active: boolean; dot?: boolea
               width: 7,
               height: 7,
               borderRadius: "50%",
-              background: "#b5abfc",
+              background: "var(--accent-link)",
               // Against the bar rather than against the icon, so it reads as a
               // mark on the tab and not as part of the glyph.
-              boxShadow: "0 0 0 2px rgba(20,22,35,.94)",
+              boxShadow: "0 0 0 2px rgb(var(--sunken-rgb) / .94)",
             }}
           />
         ) : null}

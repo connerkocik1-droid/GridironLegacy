@@ -16,9 +16,9 @@ export default function TheLeagueButton() {
         display: "flex",
         alignItems: "center",
         gap: 14,
-        border: "1px solid rgba(145,132,217,.3)",
+        border: "1px solid rgb(var(--accent-rgb) / .3)",
         borderRadius: "var(--radius-md)",
-        background: "rgba(26,28,43,.55)",
+        background: "rgb(var(--surface-rgb) / .55)",
         padding: "16px 18px",
         margin: "10px 0 4px",
         textDecoration: "none",
@@ -32,16 +32,16 @@ export default function TheLeagueButton() {
             fontFamily: "var(--font-heading)",
             fontSize: 22,
             letterSpacing: "-.02em",
-            color: "#e9e9ed",
+            color: "var(--text)",
           }}
         >
           The League
         </div>
-        <div style={{ fontSize: 11.5, color: "#9397ab", lineHeight: 1.5, marginTop: 4 }}>
+        <div style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.5, marginTop: 4 }}>
           Standings, the overview, league news, rankings and free agents.
         </div>
       </div>
-      <span aria-hidden style={{ color: "#b5abfc", fontSize: 18, flex: "0 0 auto" }}>
+      <span aria-hidden style={{ color: "var(--accent-link)", fontSize: 18, flex: "0 0 auto" }}>
         →
       </span>
     </Link>

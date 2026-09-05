@@ -1,18 +1,18 @@
 html,
 body {
   margin: 0;
-  background: #161826;
-  color: #e9e9ed;
+  background: var(--bg);
+  color: var(--text);
   font-family: var(--font-body);
 }
 
 a {
-  color: #b5abfc;
+  color: var(--accent-link);
   text-decoration: none;
 }
 
 a:hover {
-  color: #d2cefd;
+  color: var(--accent-text);
 }
 
 ::-webkit-scrollbar {
@@ -21,7 +21,7 @@ a:hover {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(145, 132, 217, 0.3);
+  background: rgb(var(--accent-rgb) / 0.3);
   border-radius: 4px;
 }
 
@@ -248,6 +248,43 @@ a:hover {
     min-width: 34px;
   }
 
+  /* Except that a round control cannot be grown in one direction only.
+     Thirty-two by thirty-two with a 50% radius is a circle; the two rules
+     above make it thirty-four by forty, and a 50% radius on that is an
+     ellipse. The notices bell in the header was drawn as an egg on every
+     phone in the league — which is most of what "things don't fit in the
+     header" was. Squared off here, at the same thumb size, so it grows and
+     stays round. */
+  .gl-round {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    flex: 0 0 auto;
+    /* Whatever is inside was drawn for a smaller box and has to end up in the
+       middle of the bigger one. Both properties, because these are a grid and
+       a flex container respectively. */
+    justify-content: center;
+    align-items: center;
+  }
+
+  /* The header, given room. Two round controls and a wordmark on a 320px
+     screen is most of the width; the tracking comes in a little and the two
+     controls sit closer together, which is fifteen pixels back without
+     anything getting smaller. */
+  .gl-nav {
+    gap: 10px !important;
+  }
+  /* !important because the wordmark is styled inline, like everything else in
+     this app — a stylesheet does not beat a style attribute. */
+  .gl-nav .gl-wordmark {
+    letter-spacing: 0.13em !important;
+  }
+  .gl-nav .gl-navend {
+    gap: 10px !important;
+  }
+
   /* A browser's own checkbox is thirteen pixels square, which on a phone is
      not a control, it is a dare. */
   input[type="checkbox"],
@@ -301,6 +338,87 @@ a:hover {
      reaches it. */
   .gl-draft-row > :last-child {
     max-width: 100px;
+  }
+
+  /* The headshot goes, and the name gets its width.
+     ------------------------------------------------
+     Two hundred and thirty-six pixels of row, on the busiest screen in the
+     app, split: a 28px face, a queue button, a Draft button that would not go
+     under seventy-eight, and three gaps of eleven. What was left for the
+     player's name — the only thing in the row anybody is reading — was
+     sixty-one, and "Jahmyr Gibbs" came out as Jahm / yr / Gibbs.
+
+     The face is the first thing to go. It is recognition, not information,
+     and the matchup cell already drops it at this width for the same reason:
+     the name, the position and the ADP are the decision. That is thirty-nine
+     pixels back, another sixteen off the button, and six off the gaps — the
+     name goes from sixty-one to about a hundred and twenty, which fits it on
+     one line and takes the row from sixty pixels to forty-four. Five more
+     players on screen while somebody is on the clock. */
+  .gl-draft-row > img {
+    display: none;
+  }
+  .gl-draft-row {
+    gap: 9px !important;
+  }
+  .gl-draft-row > :last-child {
+    min-width: 62px !important;
+  }
+
+  /* Stop pushing it to the far end.
+     -------------------------------
+     `margin-left: auto` in a wrapping flex row is a common way to put a quiet
+     note, a score or a search box at the end of a heading. It is also a trap:
+     the moment the row runs out of width the thing wraps to a line of its
+     own — and the auto margin is still there, so it sits alone against the
+     right edge under a left-aligned heading, looking like a mistake.
+
+     On a phone these rows always wrap, so the push is always wrong. The audit
+     finds them by the symptom rather than by this class, which is what turned
+     up all four of the places wearing it. */
+  .gl-push-end {
+    margin-left: 0 !important;
+  }
+
+  /* One sentence instead of four while the clock is running. */
+  .gl-queue-long {
+    display: none;
+  }
+
+  /* And the queue goes below the players.
+     -------------------------------------
+     The two cards were in the order they were built in, which put the queue —
+     the thing a manager sets up once and then checks — above the list they
+     scan on every one of eighteen picks. On a 320px screen that pushed the
+     first player six hundred and seventy pixels down: under three rows
+     visible with a clock running.
+
+     Swapped rather than collapsed, so nothing is hidden behind a press and
+     the queue is still right there under the list. Order only, in CSS, on the
+     one container that holds exactly these two. */
+  .gl-draft-panels {
+    display: flex;
+    flex-direction: column;
+  }
+  .gl-draft-queue {
+    order: 2;
+    margin-bottom: 0 !important;
+    margin-top: 12px;
+  }
+
+  /* Except when the button is the commissioner's. "Pick for them" will not go
+     under about eighty pixels however it wraps its own words, and eighty
+     pixels out of a 320px row is the whole of what the name had — it was
+     being broken mid-word, one letter to a line, which the width and
+     tap-target checks both pass and no human would accept. In this one state
+     the button takes a line of its own and the name gets the first. */
+  .gl-draft-row-wide {
+    flex-wrap: wrap;
+    row-gap: 7px;
+  }
+  .gl-draft-row-wide > :last-child {
+    max-width: none;
+    margin-left: auto;
   }
 
   /* A kickoff time, then two teams to choose between. Side by side that is
@@ -380,8 +498,8 @@ a:hover {
 /* The nav is sticky at the top, so without this it sits under the clock. */
 .gl-nav {
   padding-top: calc(10px + env(safe-area-inset-top)) !important;
-  padding-left: calc(22px + env(safe-area-inset-left)) !important;
-  padding-right: calc(22px + env(safe-area-inset-right)) !important;
+  padding-left: calc(26px + env(safe-area-inset-left)) !important;
+  padding-right: calc(26px + env(safe-area-inset-right)) !important;
 }
 
 /* And the last row of any page clears the home indicator rather than sitting
@@ -505,12 +623,12 @@ button[disabled]:active {
    not an error, but it is the kind of thing a manager wants to catch. */
 
 @keyframes gl-tick-up {
-  0%   { color: #7fd1a8; text-shadow: 0 0 18px rgba(127, 209, 168, 0.55); }
+  0%   { color: var(--good); text-shadow: 0 0 18px rgb(var(--good-rgb) / 0.55); }
   100% { color: inherit; text-shadow: none; }
 }
 
 @keyframes gl-tick-down {
-  0%   { color: #e0b573; text-shadow: 0 0 18px rgba(224, 181, 115, 0.45); }
+  0%   { color: var(--warn); text-shadow: 0 0 18px rgb(var(--warn-rgb) / 0.45); }
   100% { color: inherit; text-shadow: none; }
 }
 
@@ -535,11 +653,11 @@ button[disabled]:active {
    touchdown happened. */
 @media (prefers-reduced-motion: reduce) {
   @keyframes gl-tick-up {
-    0%   { color: #7fd1a8; }
+    0%   { color: var(--good); }
     100% { color: inherit; }
   }
   @keyframes gl-tick-down {
-    0%   { color: #e0b573; }
+    0%   { color: var(--warn); }
     100% { color: inherit; }
   }
 }
@@ -558,11 +676,11 @@ button[disabled]:active {
 .gl-skeleton {
   background-image: linear-gradient(
     90deg,
-    rgba(145, 132, 217, 0.09) 0%,
-    rgba(145, 132, 217, 0.09) 35%,
-    rgba(181, 171, 252, 0.19) 50%,
-    rgba(145, 132, 217, 0.09) 65%,
-    rgba(145, 132, 217, 0.09) 100%
+    rgb(var(--accent-rgb) / 0.09) 0%,
+    rgb(var(--accent-rgb) / 0.09) 35%,
+    rgb(var(--accent-bright-rgb) / 0.19) 50%,
+    rgb(var(--accent-rgb) / 0.09) 65%,
+    rgb(var(--accent-rgb) / 0.09) 100%
   );
   background-size: 200% 100%;
   animation: gl-shimmer 1900ms linear infinite;
@@ -574,7 +692,7 @@ button[disabled]:active {
   .gl-skeleton {
     animation: none;
     background-image: none;
-    background-color: rgba(145, 132, 217, 0.12);
+    background-color: rgb(var(--accent-rgb) / 0.12);
   }
 }
 
@@ -617,6 +735,24 @@ button[disabled]:active {
   html[data-tabbar] .gl-a2hs {
     bottom: calc(70px + env(safe-area-inset-bottom)) !important;
   }
+
+  /* And so does the offline notice — the tab bar is how somebody gets out of
+     whichever screen they are stuck on, so nothing may cover it. */
+  html[data-tabbar] .gl-offline {
+    bottom: calc(58px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* The queue's explanation, in full, wherever there is room for it. The phones
+   block above swaps in a one-line version. */
+.gl-queue-short {
+  display: none;
+}
+
+/* Off a phone there is no tab bar, so the notice sits on the bottom edge and
+   only has the home indicator to clear. */
+.gl-offline {
+  padding-bottom: calc(9px + env(safe-area-inset-bottom));
 }
 
 
@@ -653,7 +789,8 @@ button[disabled]:active {
    own height, with a little air. Generous rather than exact, because landing a
    heading slightly low reads as deliberate and landing it slightly high hides
    it. */
-[id^="office-"] {
+[id^="office-"],
+[id^="rule-"] {
   scroll-margin-top: 124px;
 }
 
@@ -705,6 +842,146 @@ button[disabled]:active {
 
 @media (prefers-reduced-motion: reduce) {
   .gl-live-dot {
+    animation: none;
+  }
+}
+
+/* --------------------------------------------------------- the launch ---
+   The screen between the icon being tapped and the app being there. See
+   LaunchScreen for why both halves of it exist.
+
+   Absent everywhere but a home-screen launch: in a browser tab you can watch
+   a page load, and covering that is a splash screen on a website. */
+
+#gl-launch {
+  display: none;
+}
+
+@keyframes gl-launch-timeout {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@media (display-mode: standalone) {
+  #gl-launch {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    /* The same ground as the launch image and as the app, so the three of
+       them are one picture rather than three. */
+    background:
+      radial-gradient(120% 80% at 50% -10%, rgb(var(--glow-rgb) / 0.4), transparent 60%),
+      var(--bg);
+    /* Slightly above centre, where the launch image puts it. */
+    padding-bottom: 12vh;
+
+    /* Fails safe. If the script never runs — an old build, a chunk that did
+       not load, JavaScript off — this still clears the screen rather than
+       leaving the app behind a pylon forever. */
+    animation: gl-launch-timeout 320ms ease 4s forwards;
+  }
+
+  /* The app said it is ready. */
+  html[data-launched] #gl-launch {
+    opacity: 0;
+    visibility: hidden;
+    /* Out of the way of a thumb the instant it starts fading, rather than
+       when it finishes. */
+    pointer-events: none;
+    transition:
+      opacity 320ms ease,
+      visibility 0s linear 320ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-launched] #gl-launch {
+    transition: none;
+  }
+}
+
+
+/* ------------------------------------------------------------- arriving ---
+   The entrance every route gets. See src/app/template.tsx for why it is a
+   template and not a layout. */
+
+@keyframes gl-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.gl-enter {
+  animation: gl-enter 200ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+/* Motion that cannot be turned off is motion imposed on somebody — and this
+   one is on every single navigation, so it is the last thing anybody with a
+   vestibular disorder wants moving. Without it the screen simply appears,
+   which is what it did before. */
+@media (prefers-reduced-motion: reduce) {
+  .gl-enter {
+    animation: none;
+  }
+}
+
+
+/* --------------------------------------------------------- the lit tab ---
+   The rule across the top of whichever tab you are on. It draws out from the
+   centre on arrival: the tab bar is pressed more than anything else in the
+   app, and this is the half of the feedback that happens where the finger
+   was, rather than on the page that is still loading. */
+
+@keyframes gl-tab-lit {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+.gl-tab-lit {
+  animation: gl-tab-lit 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-tab-lit {
+    animation: none;
+  }
+}
+
+
+/* ------------------------------------------------------- pull to refresh ---
+   The arc turns while the boards are answering. See
+   src/components/PullToRefresh.tsx for why the gesture exists at all. */
+
+@keyframes gl-pull-busy {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.gl-pull-busy {
+  animation: gl-pull-busy 900ms linear infinite;
+}
+
+/* Still says it is working, without turning. The arc is a third of a circle
+   either way, so "busy" is legible standing still. */
+@media (prefers-reduced-motion: reduce) {
+  .gl-pull-busy {
     animation: none;
   }
 }

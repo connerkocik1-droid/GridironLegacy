@@ -28,18 +28,18 @@ export default function NextSeason({
 
   return (
     <div>
-      <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Start the {next} season</h6>
+      <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>Start the {next} season</h6>
 
       {champion ? (
-        <p style={{ fontSize: 11.5, color: "#9397ab", margin: "0 0 12px", lineHeight: 1.6 }}>
-          <strong style={{ color: "#e0b573", fontWeight: 500 }}>{champion}</strong> won {season}.
+        <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "0 0 12px", lineHeight: 1.6 }}>
+          <strong style={{ color: "var(--warn)", fontWeight: 500 }}>{champion}</strong> won {season}.
           Rolling forward keeps every roster exactly as it stands and clears the season around
           them: the schedule and every result, the bracket, live claims, the trade block and
           everyone&apos;s queues. The {next} draft opens with the picks people have already been
           trading for. The rosters are photographed first, and the title stays on the record.
         </p>
       ) : (
-        <p style={{ fontSize: 11.5, color: "#9397ab", margin: "0 0 12px", lineHeight: 1.6 }}>
+        <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "0 0 12px", lineHeight: 1.6 }}>
           The {season} season has no champion yet, so there is nothing to roll forward. This
           unlocks once the postseason has been played out — a rollover in the middle of a season
           is not a rollover, it is a reset that lies about what it did.
@@ -55,7 +55,7 @@ export default function NextSeason({
                 display: "block",
                 fontSize: 10,
                 letterSpacing: ".18em",
-                color: "#75798c",
+                color: "var(--text-dim)",
                 marginBottom: 5,
               }}
             >
@@ -69,10 +69,10 @@ export default function NextSeason({
               style={{
                 width: 110,
                 padding: "7px 9px",
-                background: "rgba(20,22,35,.8)",
-                border: "1px solid rgba(145,132,217,.28)",
+                background: "rgb(var(--sunken-rgb) / .8)",
+                border: "1px solid rgb(var(--accent-rgb) / .28)",
                 borderRadius: "var(--radius-sm)",
-                color: "#e9e9ed",
+                color: "var(--text)",
                 font: "inherit",
                 fontSize: 13,
               }}
@@ -90,9 +90,9 @@ export default function NextSeason({
               fontSize: 10,
               letterSpacing: ".14em",
               textTransform: "uppercase",
-              border: `1px solid ${armed && !busy ? "rgba(224,181,115,.6)" : "rgba(145,132,217,.2)"}`,
+              border: `1px solid ${armed && !busy ? "rgb(var(--warn-rgb) / .6)" : "rgb(var(--accent-rgb) / .2)"}`,
               background: "transparent",
-              color: armed && !busy ? "#e0b573" : "#5a5d6e",
+              color: armed && !busy ? "var(--warn)" : "var(--text-faint)",
               borderRadius: "var(--radius-sm)",
               fontFamily: "inherit",
               cursor: armed && !busy ? "pointer" : "default",

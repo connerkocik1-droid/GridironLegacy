@@ -18,7 +18,7 @@ export default function NewsWire({
 }) {
   if (!stories.length) {
     return (
-      <div style={{ padding: "16px 18px", fontSize: 13, color: "#9397ab", lineHeight: 1.6 }}>
+      <div style={{ padding: "16px 18px", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
         {emptyMessage ??
           "The wire is quiet, or ESPN is not reachable right now. It refreshes every fifteen minutes."}
       </div>
@@ -38,9 +38,9 @@ export default function NewsWire({
               display: "flex",
               gap: 14,
               padding: "14px 18px",
-              borderTop: i === 0 ? undefined : "1px solid rgba(145,132,217,.12)",
-              background: mine.length ? "rgba(66,58,106,.18)" : undefined,
-              boxShadow: mine.length ? "inset 2px 0 0 rgba(181,171,252,.5)" : undefined,
+              borderTop: i === 0 ? undefined : "1px solid rgb(var(--accent-rgb) / .12)",
+              background: mine.length ? "rgb(var(--glow-rgb) / .18)" : undefined,
+              boxShadow: mine.length ? "inset 2px 0 0 rgb(var(--accent-bright-rgb) / .5)" : undefined,
             }}
           >
             {face ? (
@@ -53,8 +53,8 @@ export default function NewsWire({
                 style={{
                   borderRadius: "50%",
                   objectFit: "contain",
-                  border: "1px solid rgba(145,132,217,.3)",
-                  background: "rgba(35,37,50,.7)",
+                  border: "1px solid rgb(var(--accent-rgb) / .3)",
+                  background: "rgb(var(--raised-rgb) / .7)",
                   flex: "0 0 auto",
                 }}
               />
@@ -97,7 +97,7 @@ export default function NewsWire({
                   style={{
                     fontSize: 10,
                     letterSpacing: ".1em",
-                    color: "#75798c",
+                    color: "var(--text-dim)",
                     flex: "0 0 auto",
                   }}
                 >
@@ -109,7 +109,7 @@ export default function NewsWire({
                 <p
                   style={{
                     fontSize: 12.5,
-                    color: "#9397ab",
+                    color: "var(--text-muted)",
                     lineHeight: 1.6,
                     margin: "5px 0 0",
                     maxWidth: "76ch",
@@ -130,8 +130,8 @@ export default function NewsWire({
                         letterSpacing: ".1em",
                         padding: "0 9px",
                         borderRadius: 2,
-                        border: "1px solid rgba(181,171,252,.45)",
-                        color: "#b5abfc",
+                        border: "1px solid rgb(var(--accent-bright-rgb) / .45)",
+                        color: "var(--accent-link)",
                         textDecoration: "none",
                         display: "inline-flex",
                         alignItems: "center",

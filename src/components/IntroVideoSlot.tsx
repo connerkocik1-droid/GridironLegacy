@@ -257,11 +257,11 @@ export default function IntroVideoSlot({
         />
       ) : null}
 
-      <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>Intro video</h6>
+      <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>Intro video</h6>
       <p
         style={{
           fontSize: 12,
-          color: "#9397ab",
+          color: "var(--text-muted)",
           lineHeight: 1.6,
           margin: "0 0 10px",
         }}
@@ -274,7 +274,7 @@ export default function IntroVideoSlot({
       <p
         style={{
           fontSize: 11.5,
-          color: "#75798c",
+          color: "var(--text-dim)",
           lineHeight: 1.6,
           margin: "0 0 14px",
         }}
@@ -282,24 +282,24 @@ export default function IntroVideoSlot({
         Browsers will not start a video with sound until the person watching has
         clicked something, so the room may hear it muted with a button to turn
         the sound on. Watch it below, and walk through it again in the{" "}
-        <a href="/draft/rehearsal" style={{ color: "#b5abfc" }}>
+        <a href="/draft/rehearsal" style={{ color: "var(--accent-link)" }}>
           rehearsal room
         </a>
         , before the night itself.
       </p>
 
       {error ? (
-        <div style={{ fontSize: 12, color: "#e0b573", marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: "var(--warn)", marginBottom: 12 }}>
           {error}
         </div>
       ) : null}
       {notice ? (
-        <div style={{ fontSize: 12, color: "#7fd1a8", marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: "var(--good)", marginBottom: 12 }}>
           {notice}
         </div>
       ) : null}
       {progress ? (
-        <div style={{ fontSize: 12, color: "#9397ab", marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
           {progress}
         </div>
       ) : null}
@@ -315,8 +315,8 @@ export default function IntroVideoSlot({
             width: "100%",
             maxWidth: 420,
             borderRadius: "var(--radius-sm)",
-            border: "1px solid rgba(145,132,217,.24)",
-            background: "#0d0e17",
+            border: "1px solid rgb(var(--accent-rgb) / .24)",
+            background: "var(--well)",
             display: "block",
             marginBottom: 13,
           }}
@@ -357,8 +357,8 @@ export default function IntroVideoSlot({
               disabled={busy}
               style={{
                 ...action(!busy),
-                border: "1px solid rgba(224,131,131,.45)",
-                color: "#c98f8f",
+                border: "1px solid rgb(var(--bad-rgb) / .45)",
+                color: "var(--bad)",
               }}
             >
               Remove
@@ -371,14 +371,14 @@ export default function IntroVideoSlot({
         style={{
           marginTop: 18,
           paddingTop: 16,
-          borderTop: "1px solid rgba(145,132,217,.16)",
+          borderTop: "1px solid rgb(var(--accent-rgb) / .16)",
         }}
       >
         <div
           style={{
             fontSize: 10,
             letterSpacing: ".2em",
-            color: "#75798c",
+            color: "var(--text-dim)",
             marginBottom: 8,
           }}
         >
@@ -389,7 +389,7 @@ export default function IntroVideoSlot({
           <p
             style={{
               fontSize: 11.5,
-              color: "#9397ab",
+              color: "var(--text-muted)",
               lineHeight: 1.6,
               margin: "0 0 9px",
             }}
@@ -402,32 +402,32 @@ export default function IntroVideoSlot({
           <p
             style={{
               fontSize: 11.5,
-              color: "#75798c",
+              color: "var(--text-dim)",
               lineHeight: 1.6,
               margin: "0 0 9px",
             }}
           >
             It must be a{" "}
-            <strong style={{ color: "#9397ab", fontWeight: 500 }}>
+            <strong style={{ color: "var(--text-muted)", fontWeight: 500 }}>
               direct link to the video file
             </strong>{" "}
             — one ending in .mp4 or .webm, or a share link set to serve the file
             itself. A YouTube or Vimeo page will not play here; those hand out a
             web page, not a video. Anything on this site works too, like{" "}
-            <code style={{ color: "#9397ab" }}>/assets/intro.mp4</code> for a
+            <code style={{ color: "var(--text-muted)" }}>/assets/intro.mp4</code> for a
             file committed to the repository.
           </p>
           <p
             style={{
               fontSize: 11.5,
-              color: "#75798c",
+              color: "var(--text-dim)",
               lineHeight: 1.6,
               margin: "0 0 9px",
             }}
           >
             For a large file, encode it so it can start before it has finished
             downloading —{" "}
-            <code style={{ color: "#9397ab" }}>
+            <code style={{ color: "var(--text-muted)" }}>
               ffmpeg -i in.mp4 -movflags +faststart out.mp4
             </code>
             . Without that the browser downloads the whole thing before the
@@ -446,10 +446,10 @@ export default function IntroVideoSlot({
               style={{
                 flex: "1 1 260px",
                 padding: "8px 10px",
-                background: "rgba(20,22,35,.8)",
-                border: "1px solid rgba(145,132,217,.3)",
+                background: "rgb(var(--sunken-rgb) / .8)",
+                border: "1px solid rgb(var(--accent-rgb) / .3)",
                 borderRadius: "var(--radius-sm)",
-                color: "#e9e9ed",
+                color: "var(--text)",
                 font: "inherit",
                 fontSize: 13,
               }}
@@ -480,7 +480,7 @@ export default function IntroVideoSlot({
                 fontSize: 11.5,
                 lineHeight: 1.6,
                 margin: "9px 0 0",
-                color: trial.state === "plays" ? "#7fd1a8" : "#e0b573",
+                color: trial.state === "plays" ? "var(--good)" : "var(--warn)",
               }}
             >
               <strong style={{ fontWeight: 500 }}>
@@ -506,7 +506,7 @@ export default function IntroVideoSlot({
             <p
               style={{
                 fontSize: 11.5,
-                color: "#e0b573",
+                color: "var(--warn)",
                 lineHeight: 1.6,
                 margin: "9px 0 0",
               }}
@@ -514,18 +514,18 @@ export default function IntroVideoSlot({
               That is a <strong style={{ fontWeight: 500 }}>.mov</strong>.
               Safari plays those; Chrome and Firefox do not advertise QuickTime
               as a format they support, and a server that labels it{" "}
-              <code style={{ color: "#9397ab" }}>video/quicktime</code> will
+              <code style={{ color: "var(--text-muted)" }}>video/quicktime</code> will
               have most of your league downloading the file instead of watching
               it. Footage straight off a phone is usually HEVC as well, which
               Chrome and Firefox will not play in any container.
               <br />
               If the video inside is already H.264, swapping the container
               costs nothing and takes seconds —{" "}
-              <code style={{ color: "#9397ab" }}>
+              <code style={{ color: "var(--text-muted)" }}>
                 ffmpeg -i in.mov -c copy -movflags +faststart out.mp4
               </code>
               . If it is HEVC it has to be re-encoded:{" "}
-              <code style={{ color: "#9397ab" }}>
+              <code style={{ color: "var(--text-muted)" }}>
                 ffmpeg -i in.mov -c:v libx264 -crf 23 -c:a aac -movflags
                 +faststart out.mp4
               </code>
@@ -540,9 +540,9 @@ export default function IntroVideoSlot({
 
 const action = (enabled: boolean): React.CSSProperties => ({
   padding: "8px 14px",
-  border: "1px solid rgba(181,171,252,.6)",
+  border: "1px solid rgb(var(--accent-bright-rgb) / .6)",
   background: "transparent",
-  color: "#d2cefd",
+  color: "var(--accent-text)",
   borderRadius: "var(--radius-sm)",
   font: "inherit",
   fontSize: 12,

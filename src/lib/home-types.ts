@@ -59,7 +59,14 @@ export interface Home {
   /** Offers waiting on an answer from this manager. Newest first. */
   trades: TradeAsk[];
   /** Empty starting slots and bye-week starters, this week, for this manager. */
-  league: { name: string; season: number } | null;
+  league: {
+    name: string;
+    season: number;
+    /** When draft night is, or null if the commissioner has not set it. */
+    draftAt?: string | null;
+    /** Where the draft has got to, so the home page knows to stop mentioning it. */
+    draftState?: string;
+  } | null;
   week: number | null;
   games: HomeGame[];
   byes: { slot: string; franchise: string }[];

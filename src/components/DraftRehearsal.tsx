@@ -30,9 +30,9 @@ const FRANCHISES = [
 type ChimeState = "untested" | "blocked" | "ready" | "playing" | "missing";
 
 const card: React.CSSProperties = {
-  border: "1px solid rgba(145,132,217,.22)",
+  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgba(26,28,43,.55)",
+  background: "rgb(var(--surface-rgb) / .55)",
   padding: "16px 18px",
   marginBottom: 16,
 };
@@ -42,9 +42,9 @@ const button = (enabled = true): React.CSSProperties => ({
   fontSize: 12,
   letterSpacing: ".1em",
   textTransform: "uppercase",
-  border: "1px solid rgba(181,171,252,.6)",
+  border: "1px solid rgb(var(--accent-bright-rgb) / .6)",
   background: "transparent",
-  color: "#d2cefd",
+  color: "var(--accent-text)",
   borderRadius: "var(--radius-sm)",
   fontFamily: "inherit",
   cursor: enabled ? "pointer" : "default",
@@ -205,17 +205,17 @@ export default function DraftRehearsal() {
 
   const chimeColor =
     chimeState === "ready"
-      ? "#7fd1a8"
+      ? "var(--good)"
       : chimeState === "blocked" || chimeState === "missing"
-        ? "#e0b573"
-        : "#9397ab";
+        ? "var(--warn)"
+        : "var(--text-muted)";
 
   return (
     <div style={{ padding: "24px 26px 40px", maxWidth: 860 }}>
       <audio ref={chime} src="/assets/nfl-draft-chime.mp3" preload="auto" />
       <DraftReveal pick={reveal} onClose={() => setReveal(null)} />
 
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>REHEARSAL</div>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>REHEARSAL</div>
       <h1
         style={{
           fontFamily: "var(--font-heading)",
@@ -227,7 +227,7 @@ export default function DraftRehearsal() {
       >
         Draft day, dry run
       </h1>
-      <p style={{ fontSize: 12.5, color: "#9397ab", lineHeight: 1.7, maxWidth: "68ch", margin: "0 0 20px" }}>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.7, maxWidth: "68ch", margin: "0 0 20px" }}>
         The same reveal and countdown the draft room uses, driven by hand.
         Nothing here touches the database, so it cannot disturb a real draft —
         and it works before the league is set up. Find out here whether the
@@ -240,8 +240,8 @@ export default function DraftRehearsal() {
       ) : null}
 
       <div style={card}>
-        <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>The intro film</h6>
-        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 12px" }}>
+        <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>The intro film</h6>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
           What the room sees the moment the countdown runs out. This is the
           league&rsquo;s own file, played through the same screen — so if it
           plays here, with sound, it plays on the night. If the browser refuses
@@ -256,7 +256,7 @@ export default function DraftRehearsal() {
           >
             Play the intro
           </button>
-          <span style={{ fontSize: 12, color: introState === "ready" ? "#7fd1a8" : "#9397ab" }}>
+          <span style={{ fontSize: 12, color: introState === "ready" ? "var(--good)" : "var(--text-muted)" }}>
             {introState === "loading"
               ? "Looking for the league's film…"
               : introState === "ready"
@@ -267,8 +267,8 @@ export default function DraftRehearsal() {
       </div>
 
       <div style={card}>
-        <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>The chime</h6>
-        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 12px" }}>
+        <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>The chime</h6>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
           Browsers refuse to play audio until the page has been interacted
           with. The real room primes it silently on your first click; here you
           can check it outright.
@@ -292,8 +292,8 @@ export default function DraftRehearsal() {
       </div>
 
       <div style={card}>
-        <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>The reveal</h6>
-        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 12px" }}>
+        <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>The reveal</h6>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
           Five beats over ten seconds. A pick that is not yours closes itself
           after twelve and a half; yours waits to be dismissed.
         </p>
@@ -309,10 +309,10 @@ export default function DraftRehearsal() {
             width: "100%",
             maxWidth: 320,
             padding: "8px 11px",
-            background: "rgba(20,22,35,.8)",
-            border: "1px solid rgba(145,132,217,.3)",
+            background: "rgb(var(--sunken-rgb) / .8)",
+            border: "1px solid rgb(var(--accent-rgb) / .3)",
             borderRadius: "var(--radius-sm)",
-            color: "#e9e9ed",
+            color: "var(--text)",
             font: "inherit",
             fontSize: 13,
           }}
@@ -326,9 +326,9 @@ export default function DraftRehearsal() {
               style={{
                 padding: "5px 10px",
                 fontSize: 11,
-                border: `1px solid ${player === p.n ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.22)"}`,
-                background: player === p.n ? "rgba(145,132,217,.26)" : "transparent",
-                color: player === p.n ? "#e9e9ed" : "#9397ab",
+                border: `1px solid ${player === p.n ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .22)"}`,
+                background: player === p.n ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+                color: player === p.n ? "var(--text)" : "var(--text-muted)",
                 borderRadius: "var(--radius-sm)",
                 fontFamily: "inherit",
                 cursor: "pointer",
@@ -346,13 +346,13 @@ export default function DraftRehearsal() {
           <button onClick={runSequence} style={button()}>
             Three in a row
           </button>
-          <label style={{ fontSize: 12, color: "#9397ab", display: "flex", gap: 6, alignItems: "center" }}>
+          <label style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", gap: 6, alignItems: "center" }}>
             <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} />
             as my own pick
           </label>
         </div>
 
-        <div style={{ fontSize: 11.5, marginTop: 12, color: portrait === "failed" ? "#e0b573" : "#75798c" }}>
+        <div style={{ fontSize: 11.5, marginTop: 12, color: portrait === "failed" ? "var(--warn)" : "var(--text-dim)" }}>
           {portrait === "ok"
             ? `Portrait for ${player} loads.`
             : portrait === "failed"
@@ -362,8 +362,8 @@ export default function DraftRehearsal() {
       </div>
 
       <div style={card}>
-        <h6 style={{ margin: "0 0 4px", color: "#d2cefd" }}>The countdown</h6>
-        <p style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6, margin: "0 0 12px" }}>
+        <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>The countdown</h6>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
           What everyone sees before the room opens. Set it a couple of minutes
           out and watch it tick.
         </p>
@@ -375,9 +375,9 @@ export default function DraftRehearsal() {
               style={{
                 padding: "5px 11px",
                 fontSize: 11,
-                border: `1px solid ${countdownMins === m ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.22)"}`,
-                background: countdownMins === m ? "rgba(145,132,217,.26)" : "transparent",
-                color: countdownMins === m ? "#e9e9ed" : "#9397ab",
+                border: `1px solid ${countdownMins === m ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .22)"}`,
+                background: countdownMins === m ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+                color: countdownMins === m ? "var(--text)" : "var(--text-muted)",
                 borderRadius: "var(--radius-sm)",
                 fontFamily: "inherit",
                 cursor: "pointer",
@@ -390,9 +390,9 @@ export default function DraftRehearsal() {
 
         <div
           style={{
-            border: "1px solid rgba(145,132,217,.16)",
+            border: "1px solid rgb(var(--accent-rgb) / .16)",
             borderRadius: "var(--radius-md)",
-            background: "rgba(20,22,35,.4)",
+            background: "rgb(var(--sunken-rgb) / .4)",
           }}
         >
           <DraftCountdown
@@ -409,13 +409,13 @@ export default function DraftRehearsal() {
 
       {log.length ? (
         <div style={card}>
-          <h6 style={{ margin: "0 0 8px", color: "#9397ab" }}>What happened</h6>
+          <h6 style={{ margin: "0 0 8px", color: "var(--text-muted)" }}>What happened</h6>
           {log.map((line, i) => (
             <div
               key={i}
               style={{
                 fontSize: 11.5,
-                color: i === 0 ? "#9397ab" : "#75798c",
+                color: i === 0 ? "var(--text-muted)" : "var(--text-dim)",
                 fontVariantNumeric: "tabular-nums",
                 padding: "3px 0",
               }}

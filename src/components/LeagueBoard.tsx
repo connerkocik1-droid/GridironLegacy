@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import TeamMark from "./TeamMark";
 import Skeleton from "./Skeleton";
-import { headshot, logo } from "@/data/league-data";
+import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
+import { useRefreshable } from "@/lib/use-refresh";
 import { player } from "@/lib/roster";
 import LeagueOverview from "./LeagueOverview";
 import type { Home } from "@/lib/home-types";
@@ -53,6 +55,9 @@ export default function LeagueBoard() {
     }
   }, []);
 
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
+
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -70,7 +75,7 @@ export default function LeagueBoard() {
   }, []);
 
   if (error && !feed) {
-    return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
   }
   if (!feed) {
     return <Skeleton rows={6} />;
@@ -89,7 +94,7 @@ export default function LeagueBoard() {
 
   return (
     <div style={{ padding: "24px 26px 40px" }}>
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>
         {feed.league?.season ?? ""} SEASON
       </div>
       <h1
@@ -103,7 +108,7 @@ export default function LeagueBoard() {
       >
         {feed.league?.name ?? "League"}
       </h1>
-      <p style={{ fontSize: 12, color: "#9397ab", margin: "0 0 20px", maxWidth: "70ch", lineHeight: 1.6 }}>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 20px", maxWidth: "70ch", lineHeight: 1.6 }}>
         {feed.played
           ? "Standings by record, with points as the tiebreak. A week counts once its games are over."
           : feed.weeksScored > 0
@@ -119,26 +124,30 @@ export default function LeagueBoard() {
             style={{
               fontSize: 10,
               letterSpacing: ".28em",
-              color: "#75798c",
+              color: "var(--text-dim)",
               marginBottom: 12,
             }}
           >
+            {/* Just the two words. The qualifier that used to hang off this
+                — "nothing graded yet, ranked on points alone" — wrapped the
+                eyebrow onto two shouting lines on a phone, and said nothing
+                the paragraph above it and the POINTS ONLY note on the card
+                below it were not already saying, in lower case, twice. */}
             WHERE YOU STAND
-            {home.played ? "" : " · NOTHING GRADED YET, RANKED ON POINTS ALONE"}
           </div>
           <LeagueOverview home={home} />
         </div>
       ) : null}
 
-      <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c", marginBottom: 12 }}>
+      <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)", marginBottom: 12 }}>
         EVERY FRANCHISE
       </div>
 
       <div
         style={{
-          border: "1px solid rgba(145,132,217,.22)",
+          border: "1px solid rgb(var(--accent-rgb) / .22)",
           borderRadius: "var(--radius-lg)",
-          background: "rgba(26,28,43,.55)",
+          background: "rgb(var(--surface-rgb) / .55)",
           overflow: "hidden",
         }}
       >
@@ -166,18 +175,18 @@ export default function LeagueBoard() {
                   alignItems: "center",
                   gap: 12,
                   padding: "13px 18px",
-                  borderTop: i === 0 ? undefined : "1px solid rgba(145,132,217,.12)",
+                  borderTop: i === 0 ? undefined : "1px solid rgb(var(--accent-rgb) / .12)",
                   cursor: "pointer",
                   background:
-                    f.id === feed.meId ? "rgba(66,58,106,.26)" : isOpen ? "rgba(35,37,50,.5)" : "transparent",
-                  boxShadow: f.id === feed.meId ? "inset 2px 0 0 #b5abfc" : undefined,
+                    f.id === feed.meId ? "rgb(var(--glow-rgb) / .26)" : isOpen ? "rgb(var(--raised-rgb) / .5)" : "transparent",
+                  boxShadow: f.id === feed.meId ? "inset 2px 0 0 var(--accent-link)" : undefined,
                 }}
               >
                 <span
                   style={{
                     fontFamily: "var(--font-heading)",
                     fontSize: 15,
-                    color: "#75798c",
+                    color: "var(--text-dim)",
                     width: 22,
                     flex: "0 0 auto",
                   }}
@@ -191,7 +200,7 @@ export default function LeagueBoard() {
                       {f.franchise}
                     </span>
                     {f.isCommissioner ? (
-                      <span style={{ fontSize: 10, letterSpacing: ".14em", color: "#b5abfc" }}>
+                      <span style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--accent-link)" }}>
                         COMMISSIONER
                       </span>
                     ) : null}
@@ -202,15 +211,15 @@ export default function LeagueBoard() {
                           letterSpacing: ".14em",
                           padding: "2px 5px",
                           borderRadius: 2,
-                          border: "1px solid rgba(145,132,217,.35)",
-                          color: "#9397ab",
+                          border: "1px solid rgb(var(--accent-rgb) / .35)",
+                          color: "var(--text-muted)",
                         }}
                       >
                         OPEN
                       </span>
                     ) : null}
                   </div>
-                  <div style={{ fontSize: 11, color: "#75798c", marginTop: 3 }}>
+                  <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 3 }}>
                     {f.claimed ? f.name : "Unclaimed"} · {f.roster.length} players
                     {stashed ? ` · ${stashed} on IR` : ""}
                   </div>
@@ -218,39 +227,46 @@ export default function LeagueBoard() {
 
                 {feed.played ? (
                   <div style={{ textAlign: "right", flex: "0 0 auto", width: 66 }}>
-                    <div style={{ fontFamily: "var(--font-heading)", fontSize: 18 }}>
+                    {/* A record is one token: "12–0" was two lines at 320px. */}
+                    <div
+                      style={{
+                        fontFamily: "var(--font-heading)",
+                        fontSize: 18,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {f.record?.wins ?? 0}–{f.record?.losses ?? 0}
                       {f.record?.ties ? `–${f.record.ties}` : ""}
                     </div>
-                    <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c" }}>
+                    <div style={{ fontSize: 10, letterSpacing: ".16em", color: "var(--text-dim)" }}>
                       RECORD
                     </div>
                   </div>
                 ) : null}
 
                 <div style={{ textAlign: "right", flex: "0 0 auto", width: 74 }}>
-                  <div style={{ fontFamily: "var(--font-heading)", fontSize: 18, color: "#d2cefd" }}>
+                  <div style={{ fontFamily: "var(--font-heading)", fontSize: 18, color: "var(--accent-text)" }}>
                     {(feed.played ? (f.record?.pointsFor ?? 0) : f.pointsFor).toFixed(1)}
                   </div>
-                  <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c" }}>
+                  <div style={{ fontSize: 10, letterSpacing: ".16em", color: "var(--text-dim)" }}>
                     {feed.played ? "PF" : "POINTS FOR"}
                   </div>
                 </div>
 
                 {feed.played ? (
                   <div style={{ textAlign: "right", flex: "0 0 auto", width: 66 }}>
-                    <div style={{ fontFamily: "var(--font-heading)", fontSize: 18, color: "#9397ab" }}>
+                    <div style={{ fontFamily: "var(--font-heading)", fontSize: 18, color: "var(--text-muted)" }}>
                       {(f.record?.pointsAgainst ?? 0).toFixed(1)}
                     </div>
-                    <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c" }}>PA</div>
+                    <div style={{ fontSize: 10, letterSpacing: ".16em", color: "var(--text-dim)" }}>PA</div>
                   </div>
                 ) : null}
               </div>
 
               {isOpen ? (
-                <div style={{ background: "rgba(20,22,35,.55)", padding: "4px 18px 12px 52px" }}>
+                <div style={{ background: "rgb(var(--sunken-rgb) / .55)", padding: "4px 18px 12px 52px" }}>
                   {f.roster.length === 0 ? (
-                    <div style={{ fontSize: 12, color: "#75798c", padding: "8px 0" }}>
+                    <div style={{ fontSize: 12, color: "var(--text-dim)", padding: "8px 0" }}>
                       No players yet.
                     </div>
                   ) : null}
@@ -265,7 +281,7 @@ export default function LeagueBoard() {
                           alignItems: "center",
                           gap: 9,
                           padding: "6px 0",
-                          borderTop: "1px solid rgba(145,132,217,.08)",
+                          borderTop: "1px solid rgb(var(--accent-rgb) / .08)",
                         }}
                       >
                         <span
@@ -274,7 +290,7 @@ export default function LeagueBoard() {
                             letterSpacing: ".12em",
                             width: 34,
                             flex: "0 0 auto",
-                            color: available ? "#b5abfc" : "#5a5d6e",
+                            color: available ? "var(--accent-link)" : "var(--text-faint)",
                           }}
                         >
                           {available
@@ -292,32 +308,23 @@ export default function LeagueBoard() {
                           style={{
                             borderRadius: "50%",
                             objectFit: "contain",
-                            border: "1px solid rgba(145,132,217,.22)",
-                            background: "rgba(35,37,50,.7)",
+                            border: "1px solid rgb(var(--accent-rgb) / .22)",
+                            background: "rgb(var(--raised-rgb) / .7)",
                             flex: "0 0 auto",
                           }}
                         />
                         <span style={{ minWidth: 0, flex: 1 }}>
                           <PlayerName
                             name={r.name}
-                            style={{ fontSize: 13, color: available ? "#e9e9ed" : "#9397ab" }}
+                            style={{ fontSize: 13, color: available ? "var(--text)" : "var(--text-muted)" }}
                           />
                         </span>
-                        {p?.t ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={logo(p.t)}
-                            alt=""
-                            width={13}
-                            height={13}
-                            style={{ objectFit: "contain", opacity: 0.75, flex: "0 0 auto" }}
-                          />
-                        ) : null}
+                        <TeamMark team={p?.t} opacity={0.75} />
                         <span
                           style={{
                             fontSize: 10,
                             letterSpacing: ".1em",
-                            color: "#5a5d6e",
+                            color: "var(--text-faint)",
                             width: 44,
                             textAlign: "right",
                             flex: "0 0 auto",

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Skeleton from "./Skeleton";
 import Link from "next/link";
 import TeamCrest from "@/components/TeamCrest";
+import { useRefreshable } from "@/lib/use-refresh";
 import { useLogos } from "@/lib/use-logos";
 
 interface Entry {
@@ -40,10 +41,10 @@ const FILTERS: [string, string][] = [
 
 /** The colour a move is filed under, so a column of them can be skimmed. */
 const TONE: Record<string, string> = {
-  trade: "#b5abfc",
-  waiver: "#7fd1a8",
-  add: "#7fd1a8",
-  drop: "#e0b573",
+  trade: "var(--accent-link)",
+  waiver: "var(--good)",
+  add: "var(--good)",
+  drop: "var(--warn)",
 };
 
 /** How long ago, at the resolution somebody actually cares about. */
@@ -74,9 +75,9 @@ function sentence(e: Entry) {
 }
 
 const card: React.CSSProperties = {
-  border: "1px solid rgba(145,132,217,.22)",
+  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgba(26,28,43,.55)",
+  background: "rgb(var(--surface-rgb) / .55)",
   overflow: "hidden",
 };
 
@@ -88,27 +89,27 @@ function Row({ entry, logo }: { entry: Entry; logo: string | null }) {
         alignItems: "center",
         gap: 10,
         padding: "9px 16px",
-        borderTop: "1px solid rgba(145,132,217,.1)",
+        borderTop: "1px solid rgb(var(--accent-rgb) / .1)",
       }}
     >
       <TeamCrest franchise={entry.franchise} logo={logo} size={26} shape="box" fallback="empty" />
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontSize: 13, lineHeight: 1.45 }}>
           <span style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}>{entry.franchise}</span>{" "}
-          <span style={{ color: "#9397ab" }}>{sentence(entry)}</span>
+          <span style={{ color: "var(--text-muted)" }}>{sentence(entry)}</span>
         </div>
-        <div style={{ fontSize: 10, color: "#75798c", marginTop: 2 }}>
+        <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
           <span
             style={{
               letterSpacing: ".14em",
-              color: TONE[entry.kind] ?? "#75798c",
+              color: TONE[entry.kind] ?? "var(--text-dim)",
             }}
           >
             {entry.kind.toUpperCase()}
           </span>
           {" · "}
           {when(entry.at)}
-          {entry.mine ? <span style={{ color: "#b5abfc" }}> · you</span> : null}
+          {entry.mine ? <span style={{ color: "var(--accent-link)" }}> · you</span> : null}
         </div>
       </div>
     </div>
@@ -149,6 +150,9 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
     }
   }, [page, kind, manager, limit]);
 
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
+
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -156,7 +160,7 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
   }, [load]);
 
   if (error && !feed) {
-    return <div style={{ fontSize: 12, color: "#e0b573", padding: compact ? 0 : "0 0 20px" }}>{error}</div>;
+    return <div style={{ fontSize: 12, color: "var(--warn)", padding: compact ? 0 : "0 0 20px" }}>{error}</div>;
   }
   if (!feed) {
     return <Skeleton rows={4} title={false} style={{ padding: 0 }} />;
@@ -165,7 +169,7 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
   if (feed.entries.length === 0) {
     return (
       <div style={{ ...card, padding: "16px" }}>
-        <div style={{ fontSize: 12, color: "#9397ab", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>
           {kind === "all" && manager === "all"
             ? "Nobody has signed, dropped or traded anybody yet. Draft night is on the board, not here — this is what happens afterwards."
             : "Nothing under that filter."}
@@ -190,7 +194,7 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
           <Link
             href="/activity"
             style={{
-              color: "#b5abfc",
+              color: "var(--accent-link)",
               textDecoration: "none",
               // The only way through to the whole record, so it is a target
               // rather than a line of text somebody has to hit exactly.
@@ -237,9 +241,9 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
                 fontSize: 10,
                 letterSpacing: ".1em",
                 textTransform: "uppercase",
-                border: `1px solid ${kind === value ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
-                background: kind === value ? "rgba(145,132,217,.26)" : "transparent",
-                color: kind === value ? "#e9e9ed" : "#9397ab",
+                border: `1px solid ${kind === value ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+                background: kind === value ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+                color: kind === value ? "var(--text)" : "var(--text-muted)",
                 borderRadius: "var(--radius-sm)",
                 fontFamily: "inherit",
                 cursor: "pointer",
@@ -267,10 +271,10 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
             maxWidth: "100%",
             padding: "5px 8px",
             fontSize: 11,
-            background: "rgba(20,22,35,.8)",
-            border: "1px solid rgba(145,132,217,.28)",
+            background: "rgb(var(--sunken-rgb) / .8)",
+            border: "1px solid rgb(var(--accent-rgb) / .28)",
             borderRadius: "var(--radius-sm)",
-            color: "#e9e9ed",
+            color: "var(--text)",
             fontFamily: "inherit",
           }}
         >
@@ -295,7 +299,7 @@ export default function ActivityFeed({ limit }: { limit?: number } = {}) {
             flexWrap: "wrap",
           }}
         >
-          <span style={{ fontSize: 11, color: "#75798c" }}>
+          <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
             {feed.page * 40 + 1}–{feed.page * 40 + feed.entries.length} of {feed.total}
           </span>
           <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
@@ -325,9 +329,9 @@ const pager = (enabled: boolean): React.CSSProperties => ({
   fontSize: 10,
   letterSpacing: ".1em",
   textTransform: "uppercase",
-  border: `1px solid ${enabled ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.2)"}`,
+  border: `1px solid ${enabled ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .2)"}`,
   background: "transparent",
-  color: enabled ? "#d2cefd" : "#5a5d6e",
+  color: enabled ? "var(--accent-text)" : "var(--text-faint)",
   borderRadius: "var(--radius-sm)",
   fontFamily: "inherit",
   cursor: enabled ? "pointer" : "default",

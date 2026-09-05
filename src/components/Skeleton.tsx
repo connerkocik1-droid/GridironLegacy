@@ -51,7 +51,7 @@ export function SkeletonRow({ crest = true }: { crest?: boolean }) {
         alignItems: "center",
         gap: 12,
         padding: "12px 16px",
-        borderTop: "1px solid rgba(145,132,217,.12)",
+        borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
       }}
     >
       {crest ? <SkeletonLine width={34} height={34} radius={8} /> : null}
@@ -102,9 +102,9 @@ export default function Skeleton({
       <div
         aria-hidden
         style={{
-          border: "1px solid rgba(145,132,217,.16)",
+          border: "1px solid rgb(var(--accent-rgb) / .16)",
           borderRadius: "var(--radius-lg)",
-          background: "rgba(26,28,43,.4)",
+          background: "rgb(var(--surface-rgb) / .4)",
           overflow: "hidden",
         }}
       >

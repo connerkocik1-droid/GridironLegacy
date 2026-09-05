@@ -32,9 +32,14 @@ const bar: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 14,
-  padding: "10px 22px",
-  borderBottom: "1px solid rgba(145,132,217,.22)",
-  background: "rgba(22,24,38,.9)",
+  // Twenty-six, the same as every page's own padding, so the wordmark starts
+  // on the line every heading under it starts on. It was twenty-two, which is
+  // four pixels of disagreement down the whole left edge of the app.
+  padding: "10px 26px",
+  // The status bar is already handled: globals.css puts the safe-area insets
+  // back on this element, with !important, because it is styled inline.
+  borderBottom: "1px solid rgb(var(--accent-rgb) / .22)",
+  background: "rgb(var(--bg-rgb) / .9)",
   backdropFilter: "blur(10px)",
   // Wraps rather than scrolls. A sideways scrollbar in a nav bar hides tabs
   // from anyone who does not think to drag it, and there are enough tabs now
@@ -44,10 +49,10 @@ const bar: React.CSSProperties = {
 };
 
 const primaryLink = (active: boolean): React.CSSProperties => ({
-  background: active ? "rgba(145,132,217,.28)" : undefined,
-  border: active ? "1px solid rgba(181,171,252,.6)" : undefined,
+  background: active ? "rgb(var(--accent-rgb) / .28)" : undefined,
+  border: active ? "1px solid rgb(var(--accent-bright-rgb) / .6)" : undefined,
   borderRadius: active ? "var(--radius-sm)" : undefined,
-  color: active ? "#e9e9ed" : "#8f94a8",
+  color: active ? "var(--text)" : "var(--text-quiet)",
   fontSize: 11,
   letterSpacing: ".14em",
   textTransform: "uppercase",
@@ -76,6 +81,7 @@ export default function Nav({ current, note }: { current: string; note?: string 
           <path d="M6.8 0 h1.6 l2.2 18 h-1.6 z" fill="#b8511f" />
         </svg>
         <span
+          className="gl-wordmark"
           style={{
             fontFamily: "var(--font-heading)",
             letterSpacing: ".2em",
@@ -84,7 +90,7 @@ export default function Nav({ current, note }: { current: string; note?: string 
             whiteSpace: "nowrap",
           }}
         >
-          Pylon<span style={{ color: "#b5abfc" }}> Fantasy</span>
+          Pylon<span style={{ color: "var(--accent-link)" }}> Fantasy</span>
         </span>
       </div>
 
@@ -121,6 +127,7 @@ export default function Nav({ current, note }: { current: string; note?: string 
       </div>
 
       <div
+        className="gl-navend"
         style={{
           marginLeft: "auto",
           display: "flex",
@@ -129,7 +136,7 @@ export default function Nav({ current, note }: { current: string; note?: string 
           fontSize: 10,
           letterSpacing: ".16em",
           textTransform: "uppercase",
-          color: "#75798c",
+          color: "var(--text-dim)",
           whiteSpace: "nowrap",
           flex: "0 0 auto",
         }}

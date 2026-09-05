@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import TeamMark from "./TeamMark";
 import Skeleton from "./Skeleton";
 import LiveNumber from "./LiveNumber";
 import ScoreBar from "./ScoreBar";
-import { headshot, logo } from "@/data/league-data";
+import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
+import { useRefreshable } from "@/lib/use-refresh";
 import type { MatchupRow, SideEntry } from "@/lib/matchup";
 
 interface Side {
@@ -13,6 +15,12 @@ interface Side {
   slot: string;
   franchise: string;
   total: number;
+}
+
+/** A week this manager sits out. There is no fixture, so there is no board. */
+interface Bye {
+  week: number;
+  managers: { id: string; slot: string; franchise: string }[];
 }
 
 interface Board {
@@ -55,7 +63,7 @@ function PlayerCell({
           alignItems: "center",
           justifyContent: reverse ? "flex-end" : "flex-start",
           minWidth: 0,
-          color: "#5a5d6e",
+          color: "var(--text-faint)",
           fontSize: 12,
           padding: "0 4px",
         }}
@@ -93,8 +101,8 @@ function PlayerCell({
         style={{
           borderRadius: "50%",
           objectFit: "contain",
-          border: "1px solid rgba(145,132,217,.3)",
-          background: "rgba(35,37,50,.7)",
+          border: "1px solid rgb(var(--accent-rgb) / .3)",
+          background: "rgb(var(--raised-rgb) / .7)",
           flex: "0 0 auto",
         }}
       />
@@ -116,17 +124,7 @@ function PlayerCell({
             style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}
           />
         </span>
-        {entry.team ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            className="gl-mcell-team"
-            src={logo(entry.team)}
-            alt=""
-            width={14}
-            height={14}
-            style={{ objectFit: "contain", opacity: 0.85, flex: "0 0 auto" }}
-          />
-        ) : null}
+        <TeamMark team={entry.team} size={14} opacity={0.85} className="gl-mcell-team" />
       </div>
 
       <div
@@ -137,13 +135,13 @@ function PlayerCell({
           style={{
             fontFamily: "var(--font-heading)",
             fontSize: 16,
-            color: leading ? "#d2cefd" : "#b2b6ca",
+            color: leading ? "var(--accent-text)" : "var(--text-3)",
           }}
         >
           <LiveNumber key={entry.name} value={entry.live ? entry.points : entry.projected} />
         </div>
         {!entry.live ? (
-          <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#5a5d6e" }}>PROJ</div>
+          <div style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--text-faint)" }}>PROJ</div>
         ) : null}
       </div>
 
@@ -155,7 +153,7 @@ function PlayerCell({
         style={{
           flexBasis: "100%",
           fontSize: 10,
-          color: "#75798c",
+          color: "var(--text-dim)",
           lineHeight: 1.45,
           overflowWrap: "anywhere",
           textAlign: align,
@@ -169,8 +167,50 @@ function PlayerCell({
 
 export default function MatchupBoard() {
   const [board, setBoard] = useState<Board | null>(null);
+  const [bye, setBye] = useState<Bye | null>(null);
+  // Who the schedule says you are playing, remembered from the load that had
+  // no opponent forced on it. Once one is forced the response stops saying,
+  // and without this there is no way back to your own game.
+  const [scheduled, setScheduled] = useState<{ id: string; franchise: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [opponent, setOpponent] = useState("");
+  // Seeded from the address, once, as the initial value rather than in an
+  // effect — an effect would render the scheduled fixture first and then
+  // replace it, which is a flash of the wrong game and a wasted request.
+  // The server renders a skeleton here, so there is nothing to disagree with.
+  const [opponent, setOpponent] = useState(() =>
+    typeof window === "undefined"
+      ? ""
+      : (new URLSearchParams(window.location.search).get("opponent") ?? ""),
+  );
+
+  /**
+   * Choosing an opponent, and saying so in the address bar.
+   *
+   * This board can put you beside anybody in the league, and until now the
+   * only way to ask was a dropdown on this page — so a franchise named on any
+   * other screen was a dead end. It is a query parameter now, which makes
+   * "you against them" a place rather than a state: the matchups list links
+   * into it, a back button leaves it, and a reload keeps it.
+   *
+   * replaceState rather than a route push: it is the same page showing a
+   * different pair, and stacking a history entry per dropdown fiddle would
+   * make the back button mean "undo my last comparison" eleven times over.
+   * Read back with URLSearchParams rather than useSearchParams, which would
+   * ask this whole page to be wrapped in a Suspense boundary for one value
+   * read once.
+   */
+  const choose = useCallback((id: string) => {
+    setOpponent(id);
+    try {
+      const url = new URL(window.location.href);
+      if (id) url.searchParams.set("opponent", id);
+      else url.searchParams.delete("opponent");
+      window.history.replaceState(null, "", url);
+    } catch {
+      // The comparison still happens; the address just does not follow.
+    }
+  }, []);
+
 
   const load = useCallback(async () => {
     try {
@@ -182,12 +222,41 @@ export default function MatchupBoard() {
         return setError(body.error ?? "The league database is not configured yet.");
       }
       if (!res.ok) throw new Error(String(res.status));
-      setBoard(await res.json());
+
+      const body = await res.json();
+
+      // A bye answers 200, because sitting out a week is a fact about the
+      // schedule rather than a fault — and it comes back without the two
+      // sides, because there are not two sides. This screen used to read
+      // `board.home.total` off it and take the whole page down with it: an
+      // odd-numbered league gives somebody a bye every single week, and every
+      // one of them opened this page to a crash.
+      if (!body?.home || !body?.away) {
+        setBye({
+          week: body?.week ?? 0,
+          // Everybody but you. The route sends the whole roster, and the
+          // first version of this offered a manager their own franchise as
+          // somebody else's game to watch.
+          managers: (body?.managers ?? []).filter(
+            (m: { id: string }) => m.id !== body?.me?.id,
+          ),
+        });
+        setBoard(null);
+        setError(null);
+        return;
+      }
+
+      setBye(null);
+      setBoard(body);
+      if (!opponent) setScheduled({ id: body.away.id, franchise: body.away.franchise });
       setError(null);
     } catch {
       setError("Could not load this week's matchup.");
     }
   }, [opponent]);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.
@@ -198,7 +267,10 @@ export default function MatchupBoard() {
   }, [load]);
 
   if (error && !board) {
-    return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
+  }
+  if (bye) {
+    return <ByeWeek bye={bye} onCompare={choose} />;
   }
   if (!board) {
     return <Skeleton rows={5} />;
@@ -222,7 +294,7 @@ export default function MatchupBoard() {
         }}
       >
         <div>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>YOU</div>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>YOU</div>
           <div style={{ fontFamily: "var(--font-heading)", fontSize: 22, marginTop: 4 }}>
             {board.home.franchise}
           </div>
@@ -230,7 +302,7 @@ export default function MatchupBoard() {
             style={{
               fontFamily: "var(--font-heading)",
               fontSize: 40,
-              color: homeLeads ? "#d2cefd" : "#e9e9ed",
+              color: homeLeads ? "var(--accent-text)" : "var(--text)",
               marginTop: 2,
             }}
           >
@@ -239,30 +311,30 @@ export default function MatchupBoard() {
         </div>
 
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>
             WEEK {board.week}
           </div>
-          <div style={{ fontFamily: "var(--font-heading)", fontSize: 13, color: "#b5abfc", margin: "6px 0" }}>
+          <div style={{ fontFamily: "var(--font-heading)", fontSize: 13, color: "var(--accent-link)", margin: "6px 0" }}>
             VS
           </div>
-          <div style={{ fontSize: 10, letterSpacing: ".14em", color: "#75798c" }}>
+          <div style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--text-dim)" }}>
             {board.live ? "LIVE" : board.started ? "SCORED" : "PROJECTED"}
           </div>
         </div>
 
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>OPPONENT</div>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>OPPONENT</div>
           <select
             value={opponent}
             aria-label="Opponent"
-            onChange={(e) => setOpponent(e.target.value)}
+            onChange={(e) => choose(e.target.value)}
             style={{
               fontFamily: "var(--font-heading)",
               fontSize: 22,
               marginTop: 4,
               padding: "2px 6px",
               background: "transparent",
-              color: "#e9e9ed",
+              color: "var(--text)",
               border: "1px solid transparent",
               borderRadius: "var(--radius-sm)",
               // The native arrow anchors to the control's own right edge, which
@@ -273,20 +345,28 @@ export default function MatchupBoard() {
               cursor: "pointer",
             }}
           >
-            <option value="">{board.away.franchise}</option>
-            {board.managers
-              .filter((m) => m.id !== board.home.id && m.id !== board.away.id)
-              .map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.franchise}
-                </option>
-              ))}
+            {/* The list has to contain whatever is selected, or the control
+                renders empty. It used to hold "" for the fixture and then
+                every manager except the one on screen — so the moment you
+                picked somebody, the value was an id that no option carried
+                and the name above the score went blank. The scheduled
+                opponent is the "" option; everybody else is themselves; and
+                on a bye there is no "" option because there is no fixture. */}
+            {(scheduled ? [{ value: "", label: scheduled.franchise }] : []).concat(
+              board.managers
+                .filter((m) => m.id !== board.home.id && m.id !== scheduled?.id)
+                .map((m) => ({ value: m.id, label: m.franchise })),
+            ).map((choice) => (
+              <option key={choice.value || "scheduled"} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
           </select>
           <div
             style={{
               fontFamily: "var(--font-heading)",
               fontSize: 40,
-              color: awayLeads ? "#d2cefd" : "#e9e9ed",
+              color: awayLeads ? "var(--accent-text)" : "var(--text)",
               marginTop: 2,
             }}
           >
@@ -308,7 +388,7 @@ export default function MatchupBoard() {
         style={{
           padding: "0 26px 10px",
           fontSize: 11.5,
-          color: "#75798c",
+          color: "var(--text-dim)",
           lineHeight: 1.6,
           maxWidth: "70ch",
         }}
@@ -321,15 +401,15 @@ export default function MatchupBoard() {
       </div>
 
       {error ? (
-        <div style={{ padding: "0 26px 8px", fontSize: 12, color: "#e0b573" }}>{error}</div>
+        <div style={{ padding: "0 26px 8px", fontSize: 12, color: "var(--warn)" }}>{error}</div>
       ) : null}
 
       <div style={{ padding: "0 26px 40px" }}>
         <div
           style={{
-            border: "1px solid rgba(145,132,217,.22)",
+            border: "1px solid rgb(var(--accent-rgb) / .22)",
             borderRadius: "var(--radius-lg)",
-            background: "rgba(26,28,43,.55)",
+            background: "rgb(var(--surface-rgb) / .55)",
             overflow: "hidden",
           }}
         >
@@ -348,7 +428,7 @@ export default function MatchupBoard() {
                   alignItems: "center",
                   gap: 8,
                   padding: "11px 14px",
-                  borderTop: i === 0 ? "none" : "1px solid rgba(145,132,217,.12)",
+                  borderTop: i === 0 ? "none" : "1px solid rgb(var(--accent-rgb) / .12)",
                 }}
               >
                 <PlayerCell entry={row.home} align="left" leading={homePoints > awayPoints} />
@@ -359,8 +439,8 @@ export default function MatchupBoard() {
                     fontFamily: "var(--font-heading)",
                     fontSize: 10,
                     letterSpacing: ".14em",
-                    color: "#b5abfc",
-                    background: "rgba(145,132,217,.12)",
+                    color: "var(--accent-link)",
+                    background: "rgb(var(--accent-rgb) / .12)",
                     borderRadius: "var(--radius-sm)",
                     padding: "5px 0",
                   }}
@@ -375,5 +455,68 @@ export default function MatchupBoard() {
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * The week you are not playing.
+ *
+ * Said plainly rather than in the warning colour, because a bye is not a
+ * fault and an amber line reads as one. And it does not stop at the bad news:
+ * the same screen already knows how to put any two franchises side by side,
+ * so a manager with nothing of their own to watch can pick a game to watch
+ * instead — which is exactly what somebody on a bye is looking for.
+ */
+function ByeWeek({ bye, onCompare }: { bye: Bye; onCompare: (id: string) => void }) {
+  return (
+    <div style={{ padding: "24px 26px 40px" }}>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>
+        WEEK {bye.week}
+      </div>
+      <h1
+        style={{
+          fontFamily: "var(--font-heading)",
+          fontSize: 34,
+          letterSpacing: "-.03em",
+          margin: "8px 0 8px",
+          fontWeight: 500,
+        }}
+      >
+        You have a bye
+      </h1>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 20px", lineHeight: 1.6, maxWidth: "60ch" }}>
+        Nothing you do this week changes your record — but the rest of the league is playing, and
+        any one of their games can be put on this screen instead.
+      </p>
+
+      {bye.managers.length ? (
+        <>
+          <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)", marginBottom: 8 }}>
+            WATCH SOMEBODY ELSE
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {bye.managers.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => onCompare(m.id)}
+                style={{
+                  minHeight: 34,
+                  padding: "7px 12px",
+                  fontFamily: "inherit",
+                  fontSize: 12,
+                  color: "var(--text-2)",
+                  background: "rgb(var(--surface-rgb) / .55)",
+                  border: "1px solid rgb(var(--accent-rgb) / .24)",
+                  borderRadius: "var(--radius-sm)",
+                  cursor: "pointer",
+                }}
+              >
+                {m.franchise}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
+    </div>
   );
 }

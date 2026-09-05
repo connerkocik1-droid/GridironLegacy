@@ -27,9 +27,9 @@ type GameId = (typeof GAMES)[number]["id"];
 const tab = (active: boolean): React.CSSProperties => ({
   flex: "0 0 auto",
   whiteSpace: "nowrap",
-  border: `1px solid ${active ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
-  background: active ? "rgba(145,132,217,.22)" : "transparent",
-  color: active ? "#e9e9ed" : "#8f94a8",
+  border: `1px solid ${active ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+  background: active ? "rgb(var(--accent-rgb) / .22)" : "transparent",
+  color: active ? "var(--text)" : "var(--text-quiet)",
   borderRadius: "var(--radius-sm)",
   font: "inherit",
   fontSize: 11,
@@ -48,7 +48,7 @@ export default function MiniGames() {
   return (
     <div>
       <div style={{ padding: "24px 26px 0" }}>
-        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>ON THE SIDE</div>
+        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>ON THE SIDE</div>
         <h1
           style={{
             fontFamily: "var(--font-heading)",

@@ -116,9 +116,12 @@ export async function GET() {
     .eq("league_id", me.league_id)
     .order("overall");
 
+  // pin_hash is read and never sent: it is the only thing that says whether a
+  // franchise has an owner, and the lottery wants to put a first name beside
+  // the ones that do.
   const { data: managers } = await db
     .from("managers")
-    .select("id, slot, franchise, ready, autodraft")
+    .select("id, slot, franchise, name, pin_hash, ready, autodraft")
     .eq("league_id", me.league_id);
 
   // Who holds whom, not just who is gone: the autopick fallback is measured
@@ -191,11 +194,25 @@ export async function GET() {
       // Played once, by everyone waiting, the moment the countdown runs out.
       introVideo:
         typeof league.settings?.introVideo === "string" ? league.settings.introVideo : null,
+      // The shape of a roster, so the room can say what this manager still
+      // has no way to field. It was already loaded for the autodraft below;
+      // it simply was not being told to the browser.
+      starters: (league.settings?.starters ?? null) as Record<string, number> | null,
     },
     onTheClock,
     myTurn: onTheClock?.manager_id === me.id,
     picks: picks ?? [],
-    managers: managers ?? [],
+    managers: (managers ?? []).map((m) => ({
+      id: m.id,
+      slot: m.slot,
+      franchise: m.franchise,
+      // Null for a franchise nobody has claimed. "Open" is a placeholder, not
+      // somebody's name, and the draft room should not put it beside a crest
+      // as though it were.
+      name: m.pin_hash ? m.name : null,
+      ready: m.ready,
+      autodraft: m.autodraft,
+    })),
     available,
     queue: (queued ?? []).map((q) => q.player_name as string),
   });

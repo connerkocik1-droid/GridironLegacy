@@ -52,9 +52,9 @@ function roundName(round: number, total: number) {
 }
 
 const card: React.CSSProperties = {
-  border: "1px solid rgba(145,132,217,.22)",
+  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgba(26,28,43,.55)",
+  background: "rgb(var(--surface-rgb) / .55)",
   overflow: "hidden",
 };
 
@@ -86,7 +86,7 @@ function Team({
           fontSize: 10,
           width: 16,
           flex: "0 0 auto",
-          color: "#75798c",
+          color: "var(--text-dim)",
           letterSpacing: ".06em",
         }}
       >
@@ -102,7 +102,7 @@ function Team({
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
-          color: side.mine ? "#d2cefd" : "#e9e9ed",
+          color: side.mine ? "var(--accent-text)" : "var(--text)",
         }}
       >
         {side.franchise}
@@ -111,7 +111,7 @@ function Team({
         style={{
           fontSize: 13,
           fontVariantNumeric: "tabular-nums",
-          color: won && decided ? "#7fd1a8" : "#9397ab",
+          color: won && decided ? "var(--good)" : "var(--text-muted)",
         }}
       >
         {side.points.toFixed(1)}
@@ -189,11 +189,11 @@ export default function Bracket() {
           The postseason
         </h2>
         {champion ? (
-          <span style={{ fontSize: 11, color: "#e0b573" }}>
+          <span style={{ fontSize: 11, color: "var(--warn)" }}>
             {champion.franchise} are champions.
           </span>
         ) : byes.length ? (
-          <span style={{ fontSize: 11, color: "#75798c" }}>
+          <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
             {byes.map((b) => b.franchise).join(" and ")}{" "}
             {byes.length === 1 ? "has" : "have"} a first-round bye.
           </span>
@@ -213,19 +213,19 @@ export default function Bracket() {
             <div
               style={{
                 padding: "10px 12px",
-                borderBottom: "1px solid rgba(145,132,217,.18)",
+                borderBottom: "1px solid rgb(var(--accent-rgb) / .18)",
                 display: "flex",
                 alignItems: "baseline",
                 gap: 8,
               }}
             >
-              <h6 style={{ margin: 0, color: "#d2cefd" }}>{roundName(round, total)}</h6>
-              <span style={{ fontSize: 10, letterSpacing: ".14em", color: "#75798c" }}>
+              <h6 style={{ margin: 0, color: "var(--accent-text)" }}>{roundName(round, total)}</h6>
+              <span style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--text-dim)" }}>
                 WEEK {games[0]?.week}
               </span>
             </div>
             {games.map((g) => (
-              <div key={g.id} style={{ borderTop: "1px solid rgba(145,132,217,.1)" }}>
+              <div key={g.id} style={{ borderTop: "1px solid rgb(var(--accent-rgb) / .1)" }}>
                 <Team
                   side={g.home}
                   won={g.winner === g.home.id}
@@ -239,7 +239,7 @@ export default function Bracket() {
                   logo={logos[g.away.id] ?? null}
                 />
                 {g.onSeed ? (
-                  <div style={{ padding: "0 12px 8px", fontSize: 10, color: "#e0b573" }}>
+                  <div style={{ padding: "0 12px 8px", fontSize: 10, color: "var(--warn)" }}>
                     Drawn — the better seed goes through.
                   </div>
                 ) : null}
@@ -258,8 +258,8 @@ export default function Bracket() {
 function Titles({ champions }: { champions: Champion[] }) {
   return (
     <div style={{ ...card, marginTop: 14 }}>
-      <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(145,132,217,.18)" }}>
-        <h6 style={{ margin: 0, color: "#9397ab" }}>Champions</h6>
+      <div style={{ padding: "10px 14px", borderBottom: "1px solid rgb(var(--accent-rgb) / .18)" }}>
+        <h6 style={{ margin: 0, color: "var(--text-muted)" }}>Champions</h6>
       </div>
       {champions.map((c) => (
         <div
@@ -269,21 +269,21 @@ function Titles({ champions }: { champions: Champion[] }) {
             alignItems: "baseline",
             gap: 12,
             padding: "8px 14px",
-            borderTop: "1px solid rgba(145,132,217,.1)",
+            borderTop: "1px solid rgb(var(--accent-rgb) / .1)",
           }}
         >
           <span
             style={{
               fontSize: 11,
               letterSpacing: ".12em",
-              color: "#75798c",
+              color: "var(--text-dim)",
               width: 42,
               flex: "0 0 auto",
             }}
           >
             {c.season}
           </span>
-          <span style={{ fontFamily: "var(--font-heading)", fontSize: 14, color: "#e0b573" }}>
+          <span style={{ fontFamily: "var(--font-heading)", fontSize: 14, color: "var(--warn)" }}>
             {c.franchise}
           </span>
         </div>

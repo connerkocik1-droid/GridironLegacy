@@ -91,9 +91,9 @@ function writeRun(score: number): Run[] {
 }
 
 const card: React.CSSProperties = {
-  border: "1px solid rgba(145,132,217,.22)",
+  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgba(26,28,43,.55)",
+  background: "rgb(var(--surface-rgb) / .55)",
 };
 
 const button = (enabled = true): React.CSSProperties => ({
@@ -101,9 +101,9 @@ const button = (enabled = true): React.CSSProperties => ({
   fontSize: 12,
   letterSpacing: ".12em",
   textTransform: "uppercase",
-  border: "1px solid rgba(181,171,252,.6)",
-  background: "rgba(145,132,217,.14)",
-  color: "#d2cefd",
+  border: "1px solid rgb(var(--accent-bright-rgb) / .6)",
+  background: "rgb(var(--accent-rgb) / .14)",
+  color: "var(--accent-text)",
   borderRadius: "var(--radius-sm)",
   fontFamily: "inherit",
   cursor: enabled ? "pointer" : "default",
@@ -113,7 +113,7 @@ const button = (enabled = true): React.CSSProperties => ({
 const quiet: React.CSSProperties = {
   border: "none",
   background: "transparent",
-  color: "#75798c",
+  color: "var(--text-dim)",
   font: "inherit",
   fontSize: 11.5,
   padding: 0,
@@ -255,7 +255,7 @@ export default function TwentyZero() {
 
   return (
     <div style={{ padding: "20px 26px 44px" }}>
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>20-0 MODE</div>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>20-0 MODE</div>
       <h1
         style={{
           fontFamily: "var(--font-heading)",
@@ -267,7 +267,7 @@ export default function TwentyZero() {
       >
         Perfect draft
       </h1>
-      <p style={{ fontSize: 12.5, color: "#9397ab", lineHeight: 1.7, margin: "0 0 20px", maxWidth: "68ch" }}>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.7, margin: "0 0 20px", maxWidth: "68ch" }}>
         Twelve rounds, twelve slots. Every round spins a franchise and an era,
         and you draft from what it lands on — each player&rsquo;s best season
         inside that window, from 2002 to 2025. Rounds 1–6 build the offence,
@@ -298,7 +298,7 @@ export default function TwentyZero() {
 
           {groups.map((g) => (
             <div key={g.label} style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 10, letterSpacing: ".18em", color: "#75798c", marginBottom: 6 }}>
+              <div style={{ fontSize: 10, letterSpacing: ".18em", color: "var(--text-dim)", marginBottom: 6 }}>
                 {g.label}
               </div>
               {g.list.map((pos, k) => {
@@ -316,11 +316,11 @@ export default function TwentyZero() {
                       padding: "7px 9px",
                       marginBottom: 3,
                       borderRadius: "var(--radius-sm)",
-                      border: `1px solid ${live ? "rgba(181,171,252,.55)" : "rgba(145,132,217,.16)"}`,
+                      border: `1px solid ${live ? "rgb(var(--accent-bright-rgb) / .55)" : "rgb(var(--accent-rgb) / .16)"}`,
                       background: live
-                        ? "rgba(145,132,217,.14)"
+                        ? "rgb(var(--accent-rgb) / .14)"
                         : p
-                          ? "rgba(26,28,43,.7)"
+                          ? "rgb(var(--surface-rgb) / .7)"
                           : "transparent",
                     }}
                   >
@@ -329,7 +329,7 @@ export default function TwentyZero() {
                         fontFamily: "var(--font-heading)",
                         fontSize: 10,
                         letterSpacing: ".1em",
-                        color: "#9397ab",
+                        color: "var(--text-muted)",
                         width: 54,
                         flex: "0 0 auto",
                       }}
@@ -340,7 +340,7 @@ export default function TwentyZero() {
                       style={{
                         fontFamily: "var(--font-heading)",
                         fontSize: 10,
-                        color: "#e0b573",
+                        color: "var(--warn)",
                         width: 22,
                         flex: "0 0 auto",
                       }}
@@ -355,7 +355,7 @@ export default function TwentyZero() {
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                         flex: 1,
-                        color: p ? "#e9e9ed" : live ? "#b5abfc" : "#595d6c",
+                        color: p ? "var(--text)" : live ? "var(--accent-link)" : "var(--text-faint)",
                       }}
                     >
                       {p ? `${p.n} · ${p.yr}` : live ? "open" : "empty"}
@@ -363,7 +363,7 @@ export default function TwentyZero() {
                     {/* A filled slot reads as locked in, never as a number: the
                         score is a result, and revealing it early would turn each
                         round into arithmetic. */}
-                    <span style={{ color: "#7fd1a8", fontSize: 11 }}>{p ? "✓" : ""}</span>
+                    <span style={{ color: "var(--good)", fontSize: 11 }}>{p ? "✓" : ""}</span>
                   </div>
                 );
               })}
@@ -379,7 +379,7 @@ export default function TwentyZero() {
         <div style={{ ...card, overflow: "hidden", minHeight: 420 }}>
           {phase === "ready" || phase === "spinning" ? (
             <div style={{ padding: "26px 22px 30px", textAlign: "center" }}>
-              <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>
+              <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>
                 {spinning
                   ? "SPINNING"
                   : `ROUND ${round + 1} · ${isDefence(round) ? "DEFENCE" : "OFFENCE"}`}
@@ -400,7 +400,7 @@ export default function TwentyZero() {
                       transition: "filter .12s ease, opacity .12s ease",
                       filter: spinning
                         ? "grayscale(1) brightness(1.5) blur(1.4px)"
-                        : "drop-shadow(0 0 30px rgba(181,171,252,.55))",
+                        : "drop-shadow(0 0 30px rgb(var(--accent-bright-rgb) / .55))",
                       opacity: spinning ? 0.6 : 1,
                     }}
                   />
@@ -416,14 +416,14 @@ export default function TwentyZero() {
                   lineHeight: 1,
                   letterSpacing: "-.04em",
                   transition: "color .12s ease, filter .12s ease",
-                  color: spinning ? "#8a8fa6" : "#d2cefd",
+                  color: spinning ? "var(--text-quiet)" : "var(--accent-text)",
                   filter: spinning ? "blur(1.1px)" : "none",
-                  textShadow: spinning ? "none" : "0 0 46px rgba(181,171,252,.55)",
+                  textShadow: spinning ? "none" : "0 0 46px rgb(var(--accent-bright-rgb) / .55)",
                 }}
               >
                 {shownTeam ?? "···"}
               </div>
-              <div style={{ fontSize: 10, letterSpacing: ".26em", color: "#75798c", marginTop: 4 }}>
+              <div style={{ fontSize: 10, letterSpacing: ".26em", color: "var(--text-dim)", marginTop: 4 }}>
                 FRANCHISE
               </div>
 
@@ -435,20 +435,20 @@ export default function TwentyZero() {
                   letterSpacing: "-.03em",
                   marginTop: 14,
                   transition: "color .12s ease, filter .12s ease",
-                  color: spinning && !eraLocked ? "#8a8fa6" : "#e9e9ed",
+                  color: spinning && !eraLocked ? "var(--text-quiet)" : "var(--text)",
                   filter: spinning && !eraLocked ? "blur(1.1px)" : "none",
                 }}
               >
                 {shownEra == null ? "····" : (ERA_LABELS[shownEra] ?? "—")}
               </div>
-              <div style={{ fontSize: 10, letterSpacing: ".26em", color: "#75798c", marginTop: 4 }}>
+              <div style={{ fontSize: 10, letterSpacing: ".26em", color: "var(--text-dim)", marginTop: 4 }}>
                 ERA
               </div>
 
               <p
                 style={{
                   fontSize: 12,
-                  color: "#9397ab",
+                  color: "var(--text-muted)",
                   lineHeight: 1.7,
                   maxWidth: "52ch",
                   margin: "20px auto 18px",
@@ -475,7 +475,7 @@ export default function TwentyZero() {
                   alignItems: "center",
                   gap: 12,
                   padding: "13px 16px",
-                  borderBottom: "1px solid rgba(145,132,217,.18)",
+                  borderBottom: "1px solid rgb(var(--accent-rgb) / .18)",
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -485,10 +485,10 @@ export default function TwentyZero() {
                   style={{ width: 34, height: 34, objectFit: "contain" }}
                 />
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: "var(--font-heading)", fontSize: 16, color: "#e9e9ed" }}>
+                  <div style={{ fontFamily: "var(--font-heading)", fontSize: 16, color: "var(--text)" }}>
                     {NFL[spun.team] ?? spun.team}
                   </div>
-                  <div style={{ fontSize: 10, letterSpacing: ".16em", color: "#75798c", marginTop: 2 }}>
+                  <div style={{ fontSize: 10, letterSpacing: ".16em", color: "var(--text-dim)", marginTop: 2 }}>
                     {ERA_LABELS[spun.era]} ·{" "}
                     {spun.candidates.filter((c) => c.own).length} FROM THIS FRANCHISE ·{" "}
                     {spun.candidates.filter((c) => !c.own).length} ERA WILDCARDS
@@ -510,8 +510,8 @@ export default function TwentyZero() {
                       textAlign: "left",
                       padding: "10px 16px",
                       border: 0,
-                      borderTop: i ? "1px solid rgba(145,132,217,.14)" : "0",
-                      background: c.own ? "rgba(30,33,54,.72)" : "rgba(20,22,36,.6)",
+                      borderTop: i ? "1px solid rgb(var(--accent-rgb) / .14)" : "0",
+                      background: c.own ? "rgb(var(--raised-rgb) / .72)" : "rgb(var(--sunken-rgb) / .6)",
                       color: "inherit",
                       font: "inherit",
                       cursor: "pointer",
@@ -523,17 +523,17 @@ export default function TwentyZero() {
                           fontFamily: "var(--font-heading)",
                           fontSize: 11,
                           letterSpacing: ".1em",
-                          color: c.own ? "#b5abfc" : "#75798c",
+                          color: c.own ? "var(--accent-link)" : "var(--text-dim)",
                         }}
                       >
                         {c.season.pos}
                       </span>
-                      <span style={{ fontSize: 13.5, color: "#e9e9ed" }}>{c.season.n}</span>
-                      <span style={{ fontSize: 10.5, color: "#75798c" }}>
+                      <span style={{ fontSize: 13.5, color: "var(--text)" }}>{c.season.n}</span>
+                      <span style={{ fontSize: 10.5, color: "var(--text-dim)" }}>
                         {c.season.yr} {c.season.t}
                       </span>
                       {!c.own ? (
-                        <span style={{ fontSize: 10, letterSpacing: ".16em", color: "#e0b573" }}>
+                        <span style={{ fontSize: 10, letterSpacing: ".16em", color: "var(--warn)" }}>
                           WILDCARD
                         </span>
                       ) : null}
@@ -543,15 +543,15 @@ export default function TwentyZero() {
                           fontFamily: "var(--font-heading)",
                           fontSize: 10,
                           letterSpacing: ".14em",
-                          color: onPosition ? "#b5abfc" : "#e0b573",
+                          color: onPosition ? "var(--accent-link)" : "var(--warn)",
                         }}
                       >
                         {target ? (onPosition ? target : `${target} ←`) : "—"}
                         {target && MULT[target] ? ` ${MULT[target]}×` : ""}
                       </span>
                     </div>
-                    <div style={{ fontSize: 10.5, color: "#9397ab", marginTop: 3 }}>{c.season.line}</div>
-                    <div style={{ fontSize: 10.5, color: "#75798c" }}>{c.season.line2}</div>
+                    <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 3 }}>{c.season.line}</div>
+                    <div style={{ fontSize: 10.5, color: "var(--text-dim)" }}>{c.season.line2}</div>
                   </button>
                 );
               })}
@@ -566,13 +566,13 @@ export default function TwentyZero() {
 
           {phase === "locked" ? (
             <div style={{ padding: "40px 26px", textAlign: "center" }}>
-              <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#e0b573" }}>
+              <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--warn)" }}>
                 NOTHING LEFT TO PLACE
               </div>
               <p
                 style={{
                   fontSize: 12.5,
-                  color: "#9397ab",
+                  color: "var(--text-muted)",
                   lineHeight: 1.7,
                   maxWidth: "52ch",
                   margin: "12px auto 20px",
@@ -590,7 +590,7 @@ export default function TwentyZero() {
 
           {phase === "done" ? (
             <div style={{ padding: "44px 26px", textAlign: "center" }}>
-              <div style={{ fontSize: 10, letterSpacing: ".3em", color: "#75798c" }}>
+              <div style={{ fontSize: 10, letterSpacing: ".3em", color: "var(--text-dim)" }}>
                 {complete ? "RUN COMPLETE" : "RUN ENDED"}
               </div>
               <div
@@ -598,19 +598,19 @@ export default function TwentyZero() {
                   fontFamily: "var(--font-heading)",
                   fontSize: complete ? 68 : 34,
                   lineHeight: 1.1,
-                  color: complete ? "#d2cefd" : "#e0b573",
+                  color: complete ? "var(--accent-text)" : "var(--warn)",
                   margin: "12px 0 6px",
-                  textShadow: complete ? "0 0 40px rgba(181,171,252,.5)" : "none",
+                  textShadow: complete ? "0 0 40px rgb(var(--accent-bright-rgb) / .5)" : "none",
                 }}
               >
                 {complete ? Math.round(score) : "INCOMPLETE"}
               </div>
-              <div style={{ fontSize: 11, color: "#75798c" }}>{filled} of 12 slots filled</div>
+              <div style={{ fontSize: 11, color: "var(--text-dim)" }}>{filled} of 12 slots filled</div>
               {!complete ? (
                 <p
                   style={{
                     fontSize: 12,
-                    color: "#9397ab",
+                    color: "var(--text-muted)",
                     lineHeight: 1.7,
                     maxWidth: "50ch",
                     margin: "14px auto 0",
@@ -632,7 +632,7 @@ export default function TwentyZero() {
         {/* ------------------------------------------------- the leaderboard --- */}
         {complete ? (
           <div style={{ ...card, padding: "16px 14px" }}>
-            <div style={{ fontSize: 10, letterSpacing: ".22em", color: "#75798c", marginBottom: 10 }}>
+            <div style={{ fontSize: 10, letterSpacing: ".22em", color: "var(--text-dim)", marginBottom: 10 }}>
               YOUR BEST RUNS
             </div>
             {runs.map((r, i) => {
@@ -647,20 +647,20 @@ export default function TwentyZero() {
                     padding: "8px 9px",
                     marginBottom: 2,
                     borderRadius: "var(--radius-sm)",
-                    background: mine ? "rgba(145,132,217,.18)" : "#141625",
+                    background: mine ? "rgb(var(--accent-rgb) / .18)" : "var(--well)",
                   }}
                 >
-                  <span style={{ fontSize: 10, color: "#75798c", width: 16 }}>{i + 1}</span>
-                  <span style={{ fontSize: 12, flex: 1, minWidth: 0, color: "#e9e9ed" }}>
+                  <span style={{ fontSize: 10, color: "var(--text-dim)", width: 16 }}>{i + 1}</span>
+                  <span style={{ fontSize: 12, flex: 1, minWidth: 0, color: "var(--text)" }}>
                     {mine ? "this run" : when(r.at)}
                   </span>
-                  <span style={{ fontFamily: "var(--font-heading)", fontSize: 13, color: "#d2cefd" }}>
+                  <span style={{ fontFamily: "var(--font-heading)", fontSize: 13, color: "var(--accent-text)" }}>
                     {r.score}
                   </span>
                 </div>
               );
             })}
-            <p style={{ fontSize: 10.5, color: "#75798c", lineHeight: 1.6, margin: "12px 0 0" }}>
+            <p style={{ fontSize: 10.5, color: "var(--text-dim)", lineHeight: 1.6, margin: "12px 0 0" }}>
               {runs.length === 1
                 ? "Your first scored run. The next one has something to beat."
                 : "Your own runs, kept in this browser and nowhere else."}{" "}
@@ -684,15 +684,15 @@ function when(iso: string): string {
 function Stat({ label, value, big }: { label: string; value: string; big?: boolean }) {
   return (
     <div>
-      <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#75798c" }}>{label}</div>
+      <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)" }}>{label}</div>
       <div
         style={{
           fontFamily: "var(--font-heading)",
           fontSize: big ? 22 : 15,
           lineHeight: 1.2,
           marginTop: 3,
-          color: big ? "#b5abfc" : "#e9e9ed",
-          textShadow: big ? "0 0 22px rgba(181,171,252,.5)" : "none",
+          color: big ? "var(--accent-link)" : "var(--text)",
+          textShadow: big ? "0 0 22px rgb(var(--accent-bright-rgb) / .5)" : "none",
         }}
       >
         {value}

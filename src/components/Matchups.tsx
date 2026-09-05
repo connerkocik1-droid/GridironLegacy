@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import ScoreBar from "./ScoreBar";
 import Skeleton from "./Skeleton";
 import TeamCrest from "./TeamCrest";
+import { useRefreshable } from "@/lib/use-refresh";
 import { useLogos } from "@/lib/use-logos";
 
 /**
@@ -45,9 +48,9 @@ interface Board {
 }
 
 const tab = (active: boolean): React.CSSProperties => ({
-  border: `1px solid ${active ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.24)"}`,
-  background: active ? "rgba(145,132,217,.24)" : "transparent",
-  color: active ? "#e9e9ed" : "#8f94a8",
+  border: `1px solid ${active ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+  background: active ? "rgb(var(--accent-rgb) / .24)" : "transparent",
+  color: active ? "var(--text)" : "var(--text-quiet)",
   borderRadius: "var(--radius-sm)",
   font: "inherit",
   fontSize: 10.5,
@@ -61,21 +64,43 @@ function Score({
   won,
   lost,
   logo,
+  meId,
 }: {
   side: Side;
   won: boolean;
   lost: boolean;
   logo: string | null;
+  /** So a manager is not offered a link to play themselves. */
+  meId: string;
 }) {
+  // Every franchise on this page is a way in to the one screen that lays two
+  // rosters out slot by slot. That screen could always do it — but the only
+  // way to ask was a dropdown on the screen itself, so a name here was a dead
+  // end, and "how would I do against them" was three presses away from the
+  // page that raised the question. Yours goes to your own week.
+  const href = side.id === meId ? "/lineup" : `/lineup?opponent=${encodeURIComponent(side.id)}`;
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+    <Link
+      href={href}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 9,
+        minWidth: 0,
+        textDecoration: "none",
+        color: "inherit",
+        // The whole row, so it is a thumb-sized target rather than a name.
+        minHeight: 40,
+      }}
+    >
       <TeamCrest franchise={side.franchise} logo={logo} size={26} shape="box" fallback="empty" />
       <div style={{ minWidth: 0, flex: 1 }}>
         <div
           style={{
             fontFamily: "var(--font-heading)",
             fontSize: 14,
-            color: lost ? "#8f94a8" : "#e9e9ed",
+            color: lost ? "var(--text-quiet)" : "var(--text)",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -89,7 +114,7 @@ function Score({
           style={{
             fontSize: 10,
             letterSpacing: ".14em",
-            color: side.claimed ? "#75798c" : "#5a5d6e",
+            color: side.claimed ? "var(--text-dim)" : "var(--text-faint)",
             marginTop: 2,
           }}
         >
@@ -100,13 +125,13 @@ function Score({
         style={{
           fontFamily: "var(--font-heading)",
           fontSize: 19,
-          color: won ? "#d2cefd" : lost ? "#8f94a8" : "#b2b6ca",
+          color: won ? "var(--accent-text)" : lost ? "var(--text-quiet)" : "var(--text-3)",
           fontVariantNumeric: "tabular-nums",
         }}
       >
         {side.points == null ? "—" : side.points.toFixed(1)}
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -114,24 +139,38 @@ function GameCard({
   game,
   highlight,
   logos,
+  meId,
 }: {
   game: Game;
   highlight: boolean;
   logos: Record<string, string>;
+  /** Whose season this is, so their own fixture can be read from their side. */
+  meId: string;
 }) {
   const { home, away } = game;
   const settled = game.final;
   const homeWon = settled && (home.points ?? 0) > (away.points ?? 0);
   const awayWon = settled && (away.points ?? 0) > (home.points ?? 0);
 
+  // In your own fixture you go on top. Home and away are a coin toss in a
+  // fantasy league — nobody travels — and reading your own week from the
+  // second line is a small tax paid twelve times a season. It also lets the
+  // bar below mean "you": the fill starts at the left, so the side it is
+  // measuring has to be the side written above it.
+  const first = game.mine && home.id === meId ? home : away;
+  const second = first === home ? away : home;
+
+  const firstWon = first === home ? homeWon : awayWon;
+  const secondWon = first === home ? awayWon : homeWon;
+
   return (
     <div
       role="group"
-      aria-label={`Week ${game.week}: ${away.franchise} at ${home.franchise}`}
+      aria-label={`Week ${game.week}: ${first.franchise} versus ${second.franchise}`}
       style={{
-        border: `1px solid ${highlight ? "rgba(181,171,252,.5)" : "rgba(145,132,217,.2)"}`,
+        border: `1px solid ${highlight ? "rgb(var(--accent-bright-rgb) / .5)" : "rgb(var(--accent-rgb) / .2)"}`,
         borderRadius: "var(--radius-md)",
-        background: highlight ? "rgba(145,132,217,.1)" : "rgba(26,28,43,.55)",
+        background: highlight ? "rgb(var(--accent-rgb) / .1)" : "rgb(var(--surface-rgb) / .55)",
         padding: "12px 14px 13px",
       }}
     >
@@ -142,21 +181,36 @@ function GameCard({
           gap: 8,
           fontSize: 10,
           letterSpacing: ".18em",
-          color: "#75798c",
+          color: "var(--text-dim)",
           marginBottom: 9,
         }}
       >
         WEEK {game.week}
-        {game.divisional ? <span style={{ color: "#b5abfc" }}>· DIVISION</span> : null}
-        <span style={{ marginLeft: "auto", color: game.live ? "#7fd1a8" : "#75798c" }}>
+        {game.divisional ? <span style={{ color: "var(--accent-link)" }}>· DIVISION</span> : null}
+        <span style={{ marginLeft: "auto", color: game.live ? "var(--good)" : "var(--text-dim)" }}>
           {game.final ? "FINAL" : game.live ? "LIVE" : "TO COME"}
         </span>
       </div>
 
       <div style={{ display: "grid", gap: 8 }}>
-        <Score side={away} won={awayWon} lost={homeWon} logo={logos[away.id] ?? null} />
-        <Score side={home} won={homeWon} lost={awayWon} logo={logos[home.id] ?? null} />
+        <Score side={first} won={firstWon} lost={secondWon} logo={logos[first.id] ?? null} meId={meId} />
+        <Score side={second} won={secondWon} lost={firstWon} logo={logos[second.id] ?? null} meId={meId} />
       </div>
+
+      {/* Two numbers are a fact; the distance between them is the game. Only
+          once there is one — an unplayed week has no gap to draw, and an
+          empty track under a fixture reads as nought-all rather than as not
+          yet. Neutral unless it is yours, because "up" and "down" mean
+          nothing about somebody else's Sunday. */}
+      {(first.points ?? 0) + (second.points ?? 0) > 0 ? (
+        <ScoreBar
+          mine={first.points ?? 0}
+          theirs={second.points ?? 0}
+          neutral={!game.mine}
+          final={game.final}
+          padding="11px 0 0"
+        />
+      ) : null}
     </div>
   );
 }
@@ -182,6 +236,9 @@ export default function Matchups() {
       setError("Could not read the schedule.");
     }
   }, []);
+
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
 
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.
@@ -220,7 +277,7 @@ export default function Matchups() {
   }, [board]);
 
   if (error && !board) {
-    return <div style={{ padding: "24px 26px", color: "#e0b573" }}>{error}</div>;
+    return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
   }
   if (!board) {
     return <Skeleton rows={4} />;
@@ -228,7 +285,7 @@ export default function Matchups() {
 
   return (
     <div style={{ padding: "24px 26px 40px" }}>
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "#75798c" }}>THE SEASON</div>
+      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>THE SEASON</div>
       <h1
         style={{
           fontFamily: "var(--font-heading)",
@@ -242,13 +299,13 @@ export default function Matchups() {
       </h1>
 
       {record && record.played ? (
-        <p style={{ fontSize: 12.5, color: "#9397ab", margin: "0 0 16px" }}>
+        <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 16px" }}>
           You are {record.w}-{record.l}
           {record.t ? `-${record.t}` : ""} through {record.played}{" "}
           {record.played === 1 ? "week" : "weeks"}.
         </p>
       ) : (
-        <p style={{ fontSize: 12.5, color: "#9397ab", margin: "0 0 16px" }}>
+        <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 16px" }}>
           Nothing has been settled yet.
         </p>
       )}
@@ -279,10 +336,10 @@ export default function Matchups() {
             style={{
               marginLeft: 6,
               padding: "7px 10px",
-              background: "rgba(20,22,35,.8)",
-              border: "1px solid rgba(145,132,217,.3)",
+              background: "rgb(var(--sunken-rgb) / .8)",
+              border: "1px solid rgb(var(--accent-rgb) / .3)",
               borderRadius: "var(--radius-sm)",
-              color: "#e9e9ed",
+              color: "var(--text)",
               font: "inherit",
               fontSize: 12,
               cursor: "pointer",
@@ -299,7 +356,7 @@ export default function Matchups() {
       </div>
 
       {!shown.length ? (
-        <div style={{ fontSize: 12.5, color: "#9397ab", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.6 }}>
           {board.weeks.length
             ? "Nothing scheduled here."
             : "No schedule yet. The commissioner builds it once every franchise is claimed."}
@@ -318,6 +375,7 @@ export default function Matchups() {
               game={g}
               highlight={wholeLeague ? g.mine : g.live}
               logos={logos}
+              meId={board.meId}
             />
           ))}
         </div>

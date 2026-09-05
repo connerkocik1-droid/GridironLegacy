@@ -25,6 +25,10 @@ interface Counts {
   season: number | null;
   week: number | null;
   played: boolean;
+  /** Whoever is top of the league, and whether that is you. */
+  leader: { franchise: string; mine: boolean } | null;
+  /** Trades, claims and drops in the last day. */
+  movesToday: number;
 }
 
 const PLACES: Place[] = [
@@ -48,7 +52,14 @@ const PLACES: Place[] = [
     href: "/standings",
     name: "Standings",
     line: "The table, by division, once weeks start being graded.",
-    badge: (c) => (c.played ? null : "Nothing graded yet."),
+    badge: (c) =>
+      !c.played
+        ? "Nothing graded yet."
+        : c.leader
+          ? c.leader.mine
+            ? "You are top of the league."
+            : `${c.leader.franchise} are top of the league.`
+          : null,
   },
   {
     href: "/league",
@@ -59,6 +70,14 @@ const PLACES: Place[] = [
     href: "/activity",
     name: "Recent moves",
     line: "Every trade, claim and drop the league has made, newest first.",
+    // What happened while you were not looking, which is the only reason
+    // anybody opens this page rather than waiting to be told.
+    badge: (c) =>
+      c.movesToday === 0
+        ? null
+        : c.movesToday === 1
+          ? "1 move in the last day."
+          : `${c.movesToday} moves in the last day.`,
   },
   {
     href: "/news",
@@ -80,30 +99,51 @@ const PLACES: Place[] = [
 export default function LeagueHub() {
   // The tab bar can only say "something"; here there is room for how much.
   const unread = useChatUnread();
-  const [counts, setCounts] = useState<Counts>({ season: null, week: null, played: false });
+  const [counts, setCounts] = useState<Counts>({
+    season: null,
+    week: null,
+    played: false,
+    leader: null,
+    movesToday: 0,
+  });
   const [name, setName] = useState<string | null>(null);
 
   useEffect(() => {
-    // Only for the heading and one badge. A failure costs both and nothing
-    // else, so it is not allowed to break a page whose job is to be links.
-    void fetch("/api/home", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((home) => {
-        if (!home) return;
-        setName(home.league?.name ?? null);
-        setCounts({
-          season: home.league?.season ?? null,
-          week: home.week ?? null,
-          played: Boolean(home.played),
-        });
-      })
-      .catch(() => {});
+    // Only for the heading and three badges. A failure costs them and nothing
+    // else, so neither of these is allowed to break a page whose job is to be
+    // links — which is why both swallow everything and the state is written
+    // once, from whatever came back.
+    const DAY = 24 * 60 * 60 * 1000;
+
+    void Promise.all([
+      fetch("/api/home", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch("/api/activity", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ]).then(([home, activity]) => {
+      if (home) setName(home.league?.name ?? null);
+
+      const top = home?.played ? home.power?.[0] : null;
+      const since = Date.now() - DAY;
+
+      setCounts({
+        season: home?.league?.season ?? null,
+        week: home?.week ?? null,
+        played: Boolean(home?.played),
+        leader: top ? { franchise: top.franchise, mine: Boolean(top.mine) } : null,
+        movesToday: (activity?.entries ?? []).filter(
+          (e: { at?: string }) => e.at && Date.parse(e.at) >= since,
+        ).length,
+      });
+    });
   }, []);
 
   return (
     <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 18px 44px" }}>
       <div style={{ margin: "26px 0 20px" }}>
-        <div style={{ fontSize: 10, letterSpacing: ".28em", color: "#75798c" }}>
+        <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>
           {counts.season ? `${counts.season} SEASON` : "THE LEAGUE"}
           {counts.week != null ? ` · WEEK ${counts.week}` : ""}
         </div>
@@ -114,7 +154,7 @@ export default function LeagueHub() {
             letterSpacing: "-.025em",
             margin: "7px 0 0",
             fontWeight: 500,
-            color: "#e9e9ed",
+            color: "var(--text)",
             overflowWrap: "anywhere",
           }}
         >
@@ -138,9 +178,9 @@ export default function LeagueHub() {
               href={p.href}
               style={{
                 display: "block",
-                border: "1px solid rgba(181,171,252,.4)",
+                border: "1px solid rgb(var(--accent-bright-rgb) / .4)",
                 borderRadius: "var(--radius-md)",
-                background: "rgba(145,132,217,.12)",
+                background: "rgb(var(--accent-rgb) / .12)",
                 padding: "18px 18px 19px",
                 textDecoration: "none",
                 color: "inherit",
@@ -154,7 +194,7 @@ export default function LeagueHub() {
                   fontFamily: "var(--font-heading)",
                   fontSize: 21,
                   letterSpacing: "-.02em",
-                  color: "#e9e9ed",
+                  color: "var(--text)",
                 }}
               >
                 <span style={{ minWidth: 0 }}>{p.name}</span>
@@ -167,9 +207,9 @@ export default function LeagueHub() {
                       letterSpacing: ".12em",
                       padding: "3px 7px",
                       borderRadius: 999,
-                      background: "rgba(145,132,217,.3)",
-                      border: "1px solid rgba(181,171,252,.55)",
-                      color: "#d2cefd",
+                      background: "rgb(var(--accent-rgb) / .3)",
+                      border: "1px solid rgb(var(--accent-bright-rgb) / .55)",
+                      color: "var(--accent-text)",
                       whiteSpace: "nowrap",
                     }}
                   >
@@ -177,11 +217,15 @@ export default function LeagueHub() {
                   </span>
                 ) : null}
               </div>
-              <div style={{ fontSize: 11.5, color: "#9397ab", lineHeight: 1.55, marginTop: 6 }}>
+              <div style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.55, marginTop: 6 }}>
                 {p.line}
               </div>
+              {/* The same amber as the My Team hub's. These two pages are
+                  siblings and a manager moves between them; a live number that
+                  is a different colour on each reads as two different kinds of
+                  thing rather than the same one twice. */}
               {badge ? (
-                <div style={{ fontSize: 11.5, color: "#75798c", marginTop: 8 }}>{badge}</div>
+                <div style={{ fontSize: 11.5, color: "var(--warn)", marginTop: 8 }}>{badge}</div>
               ) : null}
             </Link>
           );

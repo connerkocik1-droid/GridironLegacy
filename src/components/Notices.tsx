@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRefreshable } from "@/lib/use-refresh";
 import { useMe } from "@/lib/use-me";
 
 interface Notice {
@@ -53,6 +54,9 @@ export default function Notices() {
     }
   }, []);
 
+  // Answers a pull-to-refresh as well as its own timer.
+  useRefreshable(load);
+
   useEffect(() => {
     // Sets state only once the request resolves, not synchronously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -91,23 +95,46 @@ export default function Notices() {
         onClick={() => void toggle()}
         aria-label={unread ? `Notices, ${unread} unread` : "Notices"}
         aria-expanded={open}
+        // Round, and told so. A phone grows every button to a thumb-sized
+        // target, and growing a circle in one direction only makes an egg —
+        // which is what this was on every phone in the league. gl-round grows
+        // it in both.
+        className="gl-round"
         style={{
           position: "relative",
           width: 32,
           height: 32,
           display: "grid",
           placeItems: "center",
-          border: `1px solid ${unread ? "rgba(181,171,252,.55)" : "rgba(145,132,217,.28)"}`,
+          border: `1px solid ${unread ? "rgb(var(--accent-bright-rgb) / .55)" : "rgb(var(--accent-rgb) / .28)"}`,
           borderRadius: "50%",
-          background: unread ? "rgba(145,132,217,.2)" : "transparent",
-          color: unread ? "#d2cefd" : "#9397ab",
+          background: unread ? "rgb(var(--accent-rgb) / .2)" : "transparent",
+          color: unread ? "var(--accent-text)" : "var(--text-muted)",
           font: "inherit",
           fontSize: 13,
           cursor: "pointer",
           padding: 0,
         }}
       >
-        <span aria-hidden>◔</span>
+        {/* A drawn bell rather than the "◔" character it used to be. That
+            glyph is a quarter-filled circle — it is not a bell, it renders at
+            a different size in every font, and inside a forty-pixel target it
+            read as a speck. This is the same construction as the tab bar's
+            icons: one stroke weight, no fill, sized to the button. */}
+        <svg
+          viewBox="0 0 24 24"
+          width="17"
+          height="17"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M18 8.4a6 6 0 0 0-12 0c0 6.2-2.4 7.8-2.4 7.8h16.8S18 14.6 18 8.4" />
+          <path d="M13.6 19.4a1.9 1.9 0 0 1-3.2 0" />
+        </svg>
         {unread ? (
           <span
             aria-hidden
@@ -119,8 +146,8 @@ export default function Notices() {
               height: 15,
               padding: "0 3px",
               borderRadius: 8,
-              background: "#b5abfc",
-              color: "#161826",
+              background: "var(--accent-link)",
+              color: "var(--bg)",
               fontSize: 9.5,
               lineHeight: "15px",
               textAlign: "center",
@@ -141,12 +168,12 @@ export default function Notices() {
             width: "min(320px, calc(100vw - 32px))",
             maxHeight: 380,
             overflowY: "auto",
-            border: "1px solid rgba(145,132,217,.3)",
+            border: "1px solid rgb(var(--accent-rgb) / .3)",
             borderRadius: "var(--radius-md)",
-            background: "rgba(22,24,38,.98)",
+            background: "rgb(var(--bg-rgb) / .98)",
             backdropFilter: "blur(10px)",
             zIndex: 40,
-            boxShadow: "0 12px 36px rgba(0,0,0,.45)",
+            boxShadow: "0 12px 36px rgb(var(--shadow-rgb) / .45)",
             // The nav bar sets uppercase, wide tracking and nowrap for its
             // tabs, and this panel hangs inside it. Without resetting all
             // three, a notice is SHOUTED IN A SINGLE CLIPPED LINE.
@@ -154,7 +181,7 @@ export default function Notices() {
             letterSpacing: "normal",
             whiteSpace: "normal",
             fontSize: 12.5,
-            color: "#e9e9ed",
+            color: "var(--text)",
           }}
         >
           {/* Offered here rather than on the home page, because this is the one
@@ -169,22 +196,22 @@ export default function Notices() {
               style={{
                 display: "block",
                 padding: "11px 14px",
-                borderBottom: "1px solid rgba(145,132,217,.18)",
+                borderBottom: "1px solid rgb(var(--accent-rgb) / .18)",
                 fontSize: 11.5,
-                color: "#b5abfc",
+                color: "var(--accent-link)",
                 textDecoration: "none",
                 lineHeight: 1.5,
               }}
             >
               Get these by email too →
-              <span style={{ display: "block", color: "#75798c", marginTop: 2 }}>
+              <span style={{ display: "block", color: "var(--text-dim)", marginTop: 2 }}>
                 So you hear about your pick when the site is closed.
               </span>
             </Link>
           ) : null}
 
           {notices.length === 0 ? (
-            <div style={{ padding: "14px 14px", fontSize: 12, color: "#75798c", lineHeight: 1.6 }}>
+            <div style={{ padding: "14px 14px", fontSize: 12, color: "var(--text-dim)", lineHeight: 1.6 }}>
               Nothing yet. This is where the league tells you it is your pick, that somebody has
               offered you a trade, or how your waiver claims went.
             </div>
@@ -192,11 +219,11 @@ export default function Notices() {
             notices.map((n) => {
               const row = (
                 <>
-                  <div style={{ fontSize: 12.5, color: "#e9e9ed", lineHeight: 1.5 }}>{n.body}</div>
+                  <div style={{ fontSize: 12.5, color: "var(--text)", lineHeight: 1.5 }}>{n.body}</div>
                   <div
                     style={{
                       fontSize: 10,
-                      color: "#75798c",
+                      color: "var(--text-dim)",
                       marginTop: 3,
                       letterSpacing: ".14em",
                     }}
@@ -211,8 +238,8 @@ export default function Notices() {
                   key={n.id}
                   style={{
                     padding: "10px 14px",
-                    borderBottom: "1px solid rgba(145,132,217,.12)",
-                    background: n.read_at ? "transparent" : "rgba(145,132,217,.08)",
+                    borderBottom: "1px solid rgb(var(--accent-rgb) / .12)",
+                    background: n.read_at ? "transparent" : "rgb(var(--accent-rgb) / .08)",
                   }}
                 >
                   {n.href ? (

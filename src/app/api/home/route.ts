@@ -44,7 +44,11 @@ export async function GET() {
 
   const [{ data: league }, { data: managers }, { data: slots }, { data: fixtures }, { data: table }] =
     await Promise.all([
-      db.from("leagues").select("name, season, settings").eq("id", me.league_id).single(),
+      db
+        .from("leagues")
+        .select("name, season, settings, draft_at, draft_state")
+        .eq("id", me.league_id)
+        .single(),
       db
         .from("managers")
         .select("id, slot, name, franchise, division")
@@ -281,7 +285,17 @@ export async function GET() {
   return Response.json({
     meId: me.id,
     trades,
-    league: league ? { name: league.name, season: league.season } : null,
+    league: league
+      ? {
+          name: league.name,
+          season: league.season,
+          // Draft night, for the home page. Before the schedule exists it is
+          // the only thing happening in this league and the home page said
+          // nothing about it at all.
+          draftAt: (league.draft_at as string | null) ?? null,
+          draftState: (league.draft_state as string | null) ?? "pending",
+        }
+      : null,
     week,
     games,
     byes,

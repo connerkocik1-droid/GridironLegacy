@@ -39,12 +39,19 @@ export default function ScoreBar({
    * remembers about a week.
    */
   final = false,
+  /**
+   * The card this sits in. The default is the matchup band's, whose padding
+   * the bar has to line up with; a card that has already padded itself passes
+   * nothing.
+   */
+  padding = "0 16px 12px",
 }: {
   mine: number;
   theirs: number;
   showMargin?: boolean;
   neutral?: boolean;
   final?: boolean;
+  padding?: string;
 }) {
   const total = mine + theirs;
 
@@ -56,13 +63,13 @@ export default function ScoreBar({
   const level = mine === theirs;
 
   return (
-    <div style={{ padding: "0 16px 12px" }}>
+    <div style={{ padding }}>
       <div
         style={{
           position: "relative",
           height: 6,
           borderRadius: 3,
-          background: "rgba(145,132,217,.16)",
+          background: "rgb(var(--accent-rgb) / .16)",
           overflow: "hidden",
         }}
       >
@@ -72,8 +79,8 @@ export default function ScoreBar({
             height: "100%",
             borderRadius: 3,
             background: leading
-              ? "linear-gradient(90deg,#8f83d6,#b5abfc)"
-              : "linear-gradient(90deg,#5d5294,#7a6fb8)",
+              ? "linear-gradient(90deg,var(--accent-mid),var(--accent-link))"
+              : "linear-gradient(90deg,var(--accent-deep),var(--accent-soft))",
             transition: "width 650ms cubic-bezier(0.2,0,0,1), background 400ms ease",
           }}
         />
@@ -90,7 +97,7 @@ export default function ScoreBar({
             // Dark rather than light: it has to be visible against the empty
             // track and against the fill, and the fill is the lighter of the
             // two. A pale tick disappears exactly when the game is closest.
-            background: "rgba(12,13,22,.8)",
+            background: "rgb(var(--shadow-rgb) / .8)",
           }}
         />
       </div>
@@ -104,18 +111,18 @@ export default function ScoreBar({
             marginTop: 6,
             fontSize: 10.5,
             letterSpacing: ".1em",
-            color: "#75798c",
+            color: "var(--text-dim)",
           }}
         >
           <span
             style={{
               color: neutral
-                ? "#9397ab"
+                ? "var(--text-muted)"
                 : level
-                  ? "#b5abfc"
+                  ? "var(--accent-link)"
                   : leading
-                    ? "#7fd1a8"
-                    : "#e0908f",
+                    ? "var(--good)"
+                    : "var(--bad-soft)",
             }}
           >
             {level ? (

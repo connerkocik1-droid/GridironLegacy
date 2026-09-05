@@ -51,13 +51,13 @@ export default function TeamCrest({
         placeItems: "center",
         overflow: "hidden",
         border: `1px solid ${
-          logo || lettered ? "rgba(181,171,252,.45)" : "rgba(145,132,217,.28)"
+          logo || lettered ? "rgb(var(--accent-bright-rgb) / .45)" : "rgb(var(--accent-rgb) / .28)"
         }`,
         background: logo
-          ? "#11131f"
+          ? "var(--well)"
           : lettered
             ? `hsl(${hash} 34% 26%)`
-            : "rgba(20,22,35,.6)",
+            : "rgb(var(--sunken-rgb) / .6)",
         color: `hsl(${hash} 60% 82%)`,
         fontSize: Math.max(9, Math.round(size * 0.36)),
         letterSpacing: ".04em",
