@@ -14,6 +14,7 @@
  *   squeezed  a column narrowed until its text wraps a word per line
  *   broken    a word wider than the box holding it, so the browser cuts it in half
  *   eggs      something asking for a 50% radius whose sides disagree — a squashed circle
+ *   stranded  a note pushed right that wrapped onto a line of its own and stayed there
  *
  * 320px is not a nostalgic width. It is where a layout that merely looks tight
  * at 390 actually breaks, and it costs nothing to check both.
@@ -341,8 +342,92 @@ function measure() {
     );
   }
 
+  /**
+   * A note pushed to the right that then wrapped onto its own line.
+   *
+   * `margin-left: auto` inside a `flex-wrap: wrap` row is a very common way
+   * to put a quiet note at the far end of a heading. It is also a trap: the
+   * moment the row runs out of width the note wraps to a line of its own —
+   * and the auto margin is still there, so it sits alone against the right
+   * edge, under a left-aligned heading, looking like a mistake. On the free
+   * agents page at 320px, "Claims only until each one clears." was stranded
+   * out there on its own.
+   *
+   * Nine files in this app use that combination, so guessing which ones
+   * strand would be nine speculative edits. This finds the ones that
+   * actually do — and it looks for the symptom rather than the cause,
+   * because getComputedStyle resolves `margin-left: auto` to a pixel value
+   * and asking for the string "auto" back matches nothing, ever. The first
+   * version of this check did exactly that and reported a clean app while
+   * the stranded note was plainly visible in a screenshot.
+   *
+   * The symptom is precise enough on its own: something in a wrapping flex
+   * row, sitting on a later line than the first thing in that row, and
+   * starting well to the right of where that row begins.
+   */
+  const stranded = [];
+  for (const el of document.querySelectorAll("*")) {
+    if (isDevChrome(el)) continue;
+
+    const parent = el.parentElement;
+    if (!parent) continue;
+    const ps = getComputedStyle(parent);
+    if (!ps.display.includes("flex") || ps.flexWrap !== "wrap") continue;
+
+    // Only rows that align left. A row that centres its children puts a lone
+    // wrapped item in the middle on purpose — the draft lobby's list of
+    // franchises does exactly that — and a row that spaces them apart is
+    // making the same kind of deliberate choice. The defect is an item
+    // pushed to the end of a row that everything else starts at.
+    if (!["normal", "flex-start", "start", "left"].includes(ps.justifyContent)) continue;
+
+    const first = parent.firstElementChild;
+    if (!first || first === el) continue;
+
+    const mine = el.getBoundingClientRect();
+    if (mine.width <= 0 || mine.height <= 0) continue;
+    const top = first.getBoundingClientRect();
+
+    // On a later line than the row started on.
+    const line = parseFloat(getComputedStyle(el).fontSize) || 14;
+    if (mine.top - top.top <= line * 0.5) continue;
+
+    // And not aligned with the left edge the row began at. Twenty-four pixels
+    // of slack, so an indent or a gap is not a finding.
+    const box = parent.getBoundingClientRect();
+    const leftEdge = box.left + parseFloat(ps.paddingLeft || "0") + parseFloat(ps.borderLeftWidth || "0");
+    if (mine.left - leftEdge <= 24) continue;
+
+    // And alone on that line. This is the condition that separates the defect
+    // from the ordinary right-hand column: a score sitting at the end of a
+    // row is beside its label and looks deliberate, while a note that has
+    // wrapped has nothing next to it and looks like a mistake. Without this
+    // the check reported two dozen findings, nearly all of them layouts
+    // working exactly as intended.
+    const shares = [...parent.children].some((other) => {
+      if (other === el) return false;
+      const r = other.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) return false;
+      const overlap = Math.min(r.bottom, mine.bottom) - Math.max(r.top, mine.top);
+      return overlap > Math.min(r.height, mine.height) * 0.3;
+    });
+    if (shares) continue;
+
+    // Controls are exempt. A button, or a group of them, sitting on its own
+    // line against the right edge is a deliberate and ordinary pattern — the
+    // commissioner's "Pick for them" and the mock draft's filter rail both do
+    // it on purpose. It is only text that looks orphaned out there, because
+    // text has no affordance to explain why it moved.
+    if (el.closest("button, a, select, [role='button']")) continue;
+    if (el.querySelector("button, a, select, [role='button']")) continue;
+
+    const said = (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 26);
+    if (said) stranded.push(`"${said}" alone on the right`);
+  }
+
   return {
     contrast: worstContrast(),
+    stranded: [...new Set(stranded)].slice(0, 3),
     eggs: [...new Set(eggs)].slice(0, 3),
     overflow: doc.scrollWidth - doc.clientWidth,
     worst,
@@ -481,7 +566,7 @@ for (const width of WIDTHS) {
     // quietly reporting a pass for something never measured.
     findings.push([width, "mock-running", "/draft/mock (started)", {
       overflow: 0, worst: null, small: [], smallCount: 0, tiny: [], tinyCount: 0, squeezed: [],
-      broken: [], eggs: [],
+      broken: [], eggs: [], stranded: [],
     }, ["could not start the mock draft — has the start button been renamed?"]]);
   }
   await ctx.close();
@@ -640,7 +725,7 @@ for (const width of WIDTHS) {
 const bad = ([, , , r, errors]) =>
   r.overflow > 1 || r.worst || r.smallCount > 0 || r.tinyCount > 0 ||
   r.squeezed.length > 0 || (r.broken?.length ?? 0) > 0 || (r.eggs?.length ?? 0) > 0 ||
-  r.contrast || r.lightContrast || errors.length > 0;
+  (r.stranded?.length ?? 0) > 0 || r.contrast || r.lightContrast || errors.length > 0;
 
 const failures = findings.filter(bad);
 
@@ -657,6 +742,7 @@ if (failures.length) {
     if (r.squeezed.length) console.log(`  squeezed: ${r.squeezed.join(", ")}`);
     if (r.broken?.length) console.log(`  broken mid-word: ${r.broken.join(", ")}`);
     if (r.eggs?.length) console.log(`  round but not: ${r.eggs.join(", ")}`);
+    if (r.stranded?.length) console.log(`  stranded right: ${r.stranded.join(", ")}`);
     for (const [theme, c] of [["dark", r.contrast], ["light", r.lightContrast]]) {
       if (c) {
         console.log(`  ${theme}: ${c.ratio}:1 on "${c.text}" (${c.colour})`);

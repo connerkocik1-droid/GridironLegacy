@@ -82,6 +82,7 @@ function Working({ player }: { player: PreseasonPlayer }) {
               <span style={{ color: "var(--text-2)", minWidth: 0 }}>{t.stat}</span>
               <span style={{ color: "var(--text-dim)", fontSize: 11.5 }}>{t.rule}</span>
               <span
+                className="gl-push-end"
                 style={{
                   marginLeft: "auto",
                   fontFamily: "var(--font-heading)",
@@ -369,6 +370,7 @@ export default function PreseasonCheck() {
                 The busiest player at each slot
               </span>
               <span
+                className="gl-push-end"
                 style={{
                   marginLeft: "auto",
                   fontFamily: "var(--font-heading)",

@@ -342,6 +342,7 @@ export default function MockDraft() {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search"
                 aria-label="Search players"
+                className="gl-push-end"
                 style={{
                   marginLeft: "auto",
                   width: 110,

@@ -367,7 +367,10 @@ export default function PlayersBoard() {
             <span style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--text-dim)" }}>
               {feed.wire.length} RECENTLY DROPPED
             </span>
-            <span style={{ fontSize: 11, color: "var(--text-dim)", marginLeft: "auto" }}>
+            <span
+              className="gl-push-end"
+              style={{ fontSize: 11, color: "var(--text-dim)", marginLeft: "auto" }}
+            >
               Claims only until each one clears.
             </span>
           </div>

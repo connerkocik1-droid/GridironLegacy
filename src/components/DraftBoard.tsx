@@ -111,7 +111,9 @@ export default function DraftBoard({
         <span style={{ fontSize: 10, letterSpacing: ".16em", color: "var(--text-dim)" }}>
           {made} OF {picks.length} PICKS MADE
         </span>
-        <div style={{ display: "flex", gap: 10, marginLeft: "auto", flexWrap: "wrap" }}>
+        {/* The position key. Pushed to the end of the heading where there is
+            room and left where there is not — see gl-push-end. */}
+        <div className="gl-push-end" style={{ display: "flex", gap: 10, marginLeft: "auto", flexWrap: "wrap" }}>
           {Object.entries(POSITION_TINT).map(([pos, tint]) => (
             <span
               key={pos}

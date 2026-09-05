@@ -365,6 +365,21 @@ a:hover {
     min-width: 62px !important;
   }
 
+  /* Stop pushing it to the far end.
+     -------------------------------
+     `margin-left: auto` in a wrapping flex row is a common way to put a quiet
+     note, a score or a search box at the end of a heading. It is also a trap:
+     the moment the row runs out of width the thing wraps to a line of its
+     own — and the auto margin is still there, so it sits alone against the
+     right edge under a left-aligned heading, looking like a mistake.
+
+     On a phone these rows always wrap, so the push is always wrong. The audit
+     finds them by the symptom rather than by this class, which is what turned
+     up all four of the places wearing it. */
+  .gl-push-end {
+    margin-left: 0 !important;
+  }
+
   /* One sentence instead of four while the clock is running. */
   .gl-queue-long {
     display: none;
