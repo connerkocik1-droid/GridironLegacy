@@ -13,6 +13,7 @@
  *   tiny      text too small to read
  *   squeezed  a column narrowed until its text wraps a word per line
  *   broken    a word wider than the box holding it, so the browser cuts it in half
+ *   eggs      something asking for a 50% radius whose sides disagree — a squashed circle
  *
  * 320px is not a nostalgic width. It is where a layout that merely looks tight
  * at 390 actually breaks, and it costs nothing to check both.
@@ -277,8 +278,41 @@ function measure() {
     }
   }
 
+  /**
+   * A circle that is not a circle.
+   *
+   * A phone grows every button to a thumb-sized target — min-height 40,
+   * min-width 34 — and those rules only ever grow a control, which is right
+   * for a rectangle and wrong for a round one. A 32 by 32 button with a 50%
+   * radius comes out 34 by 40, and a 50% radius on that is an ellipse. The
+   * notices bell sat in the corner of every screen as an egg, on every phone
+   * in the league, and every check here passed it: nothing overflowed, the
+   * target was comfortably large, the text was legible.
+   *
+   * So the shape is measured. Anything asking for a 50% radius is claiming to
+   * be round, and a round thing whose sides disagree by more than a pixel is
+   * not one.
+   */
+  const eggs = [];
+  for (const el of document.querySelectorAll("*")) {
+    if (isDevChrome(el)) continue;
+    const cs = getComputedStyle(el);
+    if (!/^50%/.test(cs.borderRadius)) continue;
+
+    const r = el.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) continue;
+    if (Math.abs(r.width - r.height) <= 1) continue;
+
+    const said = (el.getAttribute("aria-label") ?? el.textContent ?? "").replace(/\s+/g, " ").trim();
+    eggs.push(
+      `${Math.round(r.width)}×${Math.round(r.height)} ${el.tagName.toLowerCase()}` +
+        (said ? ` "${said.slice(0, 20)}"` : ""),
+    );
+  }
+
   return {
     contrast: worstContrast(),
+    eggs: [...new Set(eggs)].slice(0, 3),
     overflow: doc.scrollWidth - doc.clientWidth,
     worst,
     small: [...new Set(small)].slice(0, 5),
@@ -416,7 +450,7 @@ for (const width of WIDTHS) {
     // quietly reporting a pass for something never measured.
     findings.push([width, "mock-running", "/draft/mock (started)", {
       overflow: 0, worst: null, small: [], smallCount: 0, tiny: [], tinyCount: 0, squeezed: [],
-      broken: [],
+      broken: [], eggs: [],
     }, ["could not start the mock draft — has the start button been renamed?"]]);
   }
   await ctx.close();
@@ -545,8 +579,8 @@ for (const width of WIDTHS) {
 
 const bad = ([, , , r, errors]) =>
   r.overflow > 1 || r.worst || r.smallCount > 0 || r.tinyCount > 0 ||
-  r.squeezed.length > 0 || (r.broken?.length ?? 0) > 0 || r.contrast || r.lightContrast ||
-  errors.length > 0;
+  r.squeezed.length > 0 || (r.broken?.length ?? 0) > 0 || (r.eggs?.length ?? 0) > 0 ||
+  r.contrast || r.lightContrast || errors.length > 0;
 
 const failures = findings.filter(bad);
 
@@ -562,6 +596,7 @@ if (failures.length) {
     if (r.tiny.length) console.log(`  tiny text (${r.tinyCount}): ${r.tiny.join(", ")}`);
     if (r.squeezed.length) console.log(`  squeezed: ${r.squeezed.join(", ")}`);
     if (r.broken?.length) console.log(`  broken mid-word: ${r.broken.join(", ")}`);
+    if (r.eggs?.length) console.log(`  round but not: ${r.eggs.join(", ")}`);
     for (const [theme, c] of [["dark", r.contrast], ["light", r.lightContrast]]) {
       if (c) {
         console.log(`  ${theme}: ${c.ratio}:1 on "${c.text}" (${c.colour})`);
