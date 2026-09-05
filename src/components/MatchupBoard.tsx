@@ -173,7 +173,44 @@ export default function MatchupBoard() {
   // and without this there is no way back to your own game.
   const [scheduled, setScheduled] = useState<{ id: string; franchise: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [opponent, setOpponent] = useState("");
+  // Seeded from the address, once, as the initial value rather than in an
+  // effect — an effect would render the scheduled fixture first and then
+  // replace it, which is a flash of the wrong game and a wasted request.
+  // The server renders a skeleton here, so there is nothing to disagree with.
+  const [opponent, setOpponent] = useState(() =>
+    typeof window === "undefined"
+      ? ""
+      : (new URLSearchParams(window.location.search).get("opponent") ?? ""),
+  );
+
+  /**
+   * Choosing an opponent, and saying so in the address bar.
+   *
+   * This board can put you beside anybody in the league, and until now the
+   * only way to ask was a dropdown on this page — so a franchise named on any
+   * other screen was a dead end. It is a query parameter now, which makes
+   * "you against them" a place rather than a state: the matchups list links
+   * into it, a back button leaves it, and a reload keeps it.
+   *
+   * replaceState rather than a route push: it is the same page showing a
+   * different pair, and stacking a history entry per dropdown fiddle would
+   * make the back button mean "undo my last comparison" eleven times over.
+   * Read back with URLSearchParams rather than useSearchParams, which would
+   * ask this whole page to be wrapped in a Suspense boundary for one value
+   * read once.
+   */
+  const choose = useCallback((id: string) => {
+    setOpponent(id);
+    try {
+      const url = new URL(window.location.href);
+      if (id) url.searchParams.set("opponent", id);
+      else url.searchParams.delete("opponent");
+      window.history.replaceState(null, "", url);
+    } catch {
+      // The comparison still happens; the address just does not follow.
+    }
+  }, []);
+
 
   const load = useCallback(async () => {
     try {
@@ -233,7 +270,7 @@ export default function MatchupBoard() {
     return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
   }
   if (bye) {
-    return <ByeWeek bye={bye} onCompare={setOpponent} />;
+    return <ByeWeek bye={bye} onCompare={choose} />;
   }
   if (!board) {
     return <Skeleton rows={5} />;
@@ -290,7 +327,7 @@ export default function MatchupBoard() {
           <select
             value={opponent}
             aria-label="Opponent"
-            onChange={(e) => setOpponent(e.target.value)}
+            onChange={(e) => choose(e.target.value)}
             style={{
               fontFamily: "var(--font-heading)",
               fontSize: 22,

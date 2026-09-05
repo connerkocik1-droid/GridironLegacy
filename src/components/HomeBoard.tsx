@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import DraftBand from "./DraftBand";
 import MatchupBand from "./MatchupBand";
 import Section from "./Section";
+import SinceYouLooked from "./SinceYouLooked";
 import MyTeamButton from "./MyTeamButton";
 import TradeAsks from "./TradeAsks";
 import TheLeagueButton from "./TheLeagueButton";
@@ -80,6 +81,12 @@ export default function HomeBoard() {
             the schedule exists there is no matchup, and draft night is the
             only thing happening in this league. It removes itself afterwards. */}
         <DraftBand home={home} />
+
+        {/* Above the score, because it is about the score: what the number
+            was when this manager last put their phone down, and what it is
+            now. Says nothing at all on a first visit, on a second visit half
+            an hour later, or on a week where nothing moved. */}
+        <SinceYouLooked home={home} />
 
         {error && !home ? (
           <div style={{ fontSize: 12.5, color: "var(--warn)" }}>{error}</div>

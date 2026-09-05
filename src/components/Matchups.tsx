@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import ScoreBar from "./ScoreBar";
 import Skeleton from "./Skeleton";
 import TeamCrest from "./TeamCrest";
@@ -63,14 +64,36 @@ function Score({
   won,
   lost,
   logo,
+  meId,
 }: {
   side: Side;
   won: boolean;
   lost: boolean;
   logo: string | null;
+  /** So a manager is not offered a link to play themselves. */
+  meId: string;
 }) {
+  // Every franchise on this page is a way in to the one screen that lays two
+  // rosters out slot by slot. That screen could always do it — but the only
+  // way to ask was a dropdown on the screen itself, so a name here was a dead
+  // end, and "how would I do against them" was three presses away from the
+  // page that raised the question. Yours goes to your own week.
+  const href = side.id === meId ? "/lineup" : `/lineup?opponent=${encodeURIComponent(side.id)}`;
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+    <Link
+      href={href}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 9,
+        minWidth: 0,
+        textDecoration: "none",
+        color: "inherit",
+        // The whole row, so it is a thumb-sized target rather than a name.
+        minHeight: 40,
+      }}
+    >
       <TeamCrest franchise={side.franchise} logo={logo} size={26} shape="box" fallback="empty" />
       <div style={{ minWidth: 0, flex: 1 }}>
         <div
@@ -108,7 +131,7 @@ function Score({
       >
         {side.points == null ? "—" : side.points.toFixed(1)}
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -170,8 +193,8 @@ function GameCard({
       </div>
 
       <div style={{ display: "grid", gap: 8 }}>
-        <Score side={first} won={firstWon} lost={secondWon} logo={logos[first.id] ?? null} />
-        <Score side={second} won={secondWon} lost={firstWon} logo={logos[second.id] ?? null} />
+        <Score side={first} won={firstWon} lost={secondWon} logo={logos[first.id] ?? null} meId={meId} />
+        <Score side={second} won={secondWon} lost={firstWon} logo={logos[second.id] ?? null} meId={meId} />
       </div>
 
       {/* Two numbers are a fact; the distance between them is the game. Only
