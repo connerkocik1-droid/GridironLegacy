@@ -296,6 +296,9 @@ export default function MatchupBand({ home }: { home: Home | null }) {
                   fontSize: 10.5,
                   letterSpacing: ".1em",
                   fontVariantNumeric: "tabular-nums",
+                  // "1/6" is one token. It was coming out as two lines at
+                  // 320px — see the audit's "over two lines" check.
+                  whiteSpace: "nowrap",
                   color: step === 0 ? "var(--text-dim)" : "var(--accent-link)",
                   cursor: step === 0 ? "default" : "pointer",
                 }}

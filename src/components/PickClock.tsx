@@ -50,6 +50,10 @@ export default function PickClock({ remaining, total, mine }: Props) {
           lineHeight: 1.05,
           color: colour,
           fontVariantNumeric: "tabular-nums",
+          // The clock is one token. At 320px, squeezed beside the franchise,
+          // "1:28" was coming out as two lines — the one number on draft
+          // night that has to be read at a glance and never puzzled over.
+          whiteSpace: "nowrap",
           transition: "color 300ms ease",
         }}
       >

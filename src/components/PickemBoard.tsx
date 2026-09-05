@@ -285,6 +285,8 @@ export default function PickemBoard() {
                           color: "var(--accent-text)",
                           marginTop: 3,
                           fontVariantNumeric: "tabular-nums",
+                          // A scoreline is one token: "17–24" was two lines.
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {awayScore}–{homeScore}
@@ -300,6 +302,8 @@ export default function PickemBoard() {
                           color: "var(--text-3)",
                           marginTop: 3,
                           fontVariantNumeric: "tabular-nums",
+                          // A scoreline is one token: "17–24" was two lines.
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {awayScore}–{homeScore}
@@ -400,7 +404,15 @@ export default function PickemBoard() {
               >
                 {s.franchise}
               </span>
-              <span style={{ fontSize: 11, color: "var(--text-muted)", flex: "0 0 auto" }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "var(--text-muted)",
+                  flex: "0 0 auto",
+                  // "40/60" is one token.
+                  whiteSpace: "nowrap",
+                }}
+              >
                 {s.correct}/{s.played}
               </span>
             </div>

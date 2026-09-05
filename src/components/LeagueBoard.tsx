@@ -227,7 +227,14 @@ export default function LeagueBoard() {
 
                 {feed.played ? (
                   <div style={{ textAlign: "right", flex: "0 0 auto", width: 66 }}>
-                    <div style={{ fontFamily: "var(--font-heading)", fontSize: 18 }}>
+                    {/* A record is one token: "12–0" was two lines at 320px. */}
+                    <div
+                      style={{
+                        fontFamily: "var(--font-heading)",
+                        fontSize: 18,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {f.record?.wins ?? 0}–{f.record?.losses ?? 0}
                       {f.record?.ties ? `–${f.record.ties}` : ""}
                     </div>

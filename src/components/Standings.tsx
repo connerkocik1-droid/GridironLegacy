@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Skeleton from "./Skeleton";
 import Bracket from "./Bracket";
+import LeagueRecords from "./LeagueRecords";
 import TeamCrest from "./TeamCrest";
 import { useRefreshable } from "@/lib/use-refresh";
 import { useLogos } from "@/lib/use-logos";
@@ -45,13 +46,18 @@ interface Board {
   franchises: Franchise[];
 }
 
+// Ten pixels of air on the left of every number column. There were none, so
+// on a phone the points-for and points-against columns ran into each other and
+// read as one impossible figure: "268.0298" for a team that scored 268.0 and
+// conceded 298. The table already scrolls sideways when it has to, which is
+// what makes the room affordable.
 const th: React.CSSProperties = {
   fontSize: 10,
   letterSpacing: ".16em",
   color: "var(--text-dim)",
   fontWeight: 400,
   textAlign: "right",
-  padding: "0 0 8px",
+  padding: "0 0 8px 10px",
   whiteSpace: "nowrap",
 };
 
@@ -60,8 +66,14 @@ const td: React.CSSProperties = {
   fontSize: 13,
   color: "var(--text-3)",
   textAlign: "right",
-  padding: "9px 0",
+  padding: "9px 0 9px 10px",
   fontVariantNumeric: "tabular-nums",
+  // A record is one token. "4-1" was breaking after the hyphen and coming out
+  // as two lines reading 4- and 1 — which every check passed, because a
+  // hyphen is a place a browser is allowed to break and the word either side
+  // of it fits. It is allowed nowhere else in this app; it is not allowed
+  // here.
+  whiteSpace: "nowrap",
 };
 
 function winPct(r: Record_): number {
@@ -276,6 +288,10 @@ export default function Standings() {
           </div>
         ))}
       </div>
+
+      {/* Under the table, because the table is the fact and this is the story.
+          Draws nothing at all until a week has been settled. */}
+      <LeagueRecords />
     </div>
   );
 }

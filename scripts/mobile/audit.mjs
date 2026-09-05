@@ -279,6 +279,37 @@ function measure() {
   }
 
   /**
+   * A number split across two lines.
+   *
+   * The check above deliberately allows a break after a hyphen, because that
+   * is what a browser does with "Valdes-Scantling" and what anybody would do
+   * by hand. It is the wrong answer for "4-1": a record is one token, and the
+   * standings table was rendering it as two lines reading 4- and 1, in every
+   * row, on a phone. Nothing caught it — no overflow, the text was 13px, the
+   * halves either side of the hyphen fitted.
+   *
+   * So this asks a narrower question: does anything that is a single run of
+   * characters containing a digit end up on more than one line?
+   *
+   * Counted by distinct line tops, not by rect count. A Range over the
+   * contents returns one rect per text node, and React renders {a}/{b} as
+   * three of them — so counting rects called every "1/6" in the app broken
+   * when it was sitting perfectly on one line. Rects that share a top share a
+   * line; it is the number of tops that says how many lines there are.
+   */
+  const split = [];
+  const range = document.createRange();
+  for (const el of document.querySelectorAll("*")) {
+    if (el.children.length || isDevChrome(el)) continue;
+    const t = (el.textContent ?? "").trim();
+    if (!t || /\s/.test(t) || !/\d/.test(t)) continue;
+
+    range.selectNodeContents(el);
+    const tops = new Set([...range.getClientRects()].map((r) => Math.round(r.top)));
+    if (tops.size > 1) split.push(`"${t.slice(0, 20)}" over ${tops.size} lines`);
+  }
+
+  /**
    * A circle that is not a circle.
    *
    * A phone grows every button to a thumb-sized target — min-height 40,
@@ -320,7 +351,7 @@ function measure() {
     tiny: [...new Set(tiny)].slice(0, 3),
     tinyCount: new Set(tiny).size,
     squeezed: [...new Set(squeezed)].slice(0, 3),
-    broken: [...new Set(broken)].slice(0, 3),
+    broken: [...new Set(broken.concat(split))].slice(0, 3),
   };
 }
 
