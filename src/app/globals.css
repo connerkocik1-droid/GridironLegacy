@@ -669,6 +669,18 @@ button[disabled]:active {
   html[data-tabbar] .gl-a2hs {
     bottom: calc(70px + env(safe-area-inset-bottom)) !important;
   }
+
+  /* And so does the offline notice — the tab bar is how somebody gets out of
+     whichever screen they are stuck on, so nothing may cover it. */
+  html[data-tabbar] .gl-offline {
+    bottom: calc(58px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* Off a phone there is no tab bar, so the notice sits on the bottom edge and
+   only has the home indicator to clear. */
+.gl-offline {
+  padding-bottom: calc(9px + env(safe-area-inset-bottom));
 }
 
 

@@ -4,7 +4,9 @@ import { Inter } from "next/font/google";
 import { currentManager } from "@/lib/session";
 import AddToHomeScreen from "@/components/AddToHomeScreen";
 import LaunchScreen from "@/components/LaunchScreen";
+import OfflineBar from "@/components/OfflineBar";
 import PullToRefresh from "@/components/PullToRefresh";
+import ServiceWorker from "@/components/ServiceWorker";
 import TabBar from "@/components/TabBar";
 import "./nocturne.css";
 // The palette, before anything that names it.
@@ -185,6 +187,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* Renders nothing at all except in mobile Safari, to somebody who has
             not already installed it and has not said no. */}
         <AddToHomeScreen />
+        {/* Says so when the numbers on screen came out of the worker's cache
+            rather than off the wire. Nothing at all when online. */}
+        <OfflineBar />
+        {/* Installs the offline worker, in production builds only. */}
+        <ServiceWorker />
       </body>
     </html>
   );
