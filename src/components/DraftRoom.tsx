@@ -139,6 +139,22 @@ export default function DraftRoom() {
   const animations = usePickAnimations();
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Polls that failed in a row, so one dropped request stays quiet. */
+  const misses = useRef(0);
+  /**
+   * Whether the message on screen belongs to something the manager did.
+   *
+   * This room reloads every five seconds, and a good load used to clear the
+   * error line — which meant every message an action produced was wiped
+   * within five seconds of appearing. "That pick did not go through" is not a
+   * thing to show for four seconds and then take away: a manager who looked
+   * up at the wrong moment never learns why their pick vanished, on the one
+   * screen where that matters most.
+   *
+   * So a message from an action stays until the manager does something else.
+   * Only the poll's own complaint is the poll's to clear.
+   */
+  const sticky = useRef(false);
   const [filter, setFilter] = useState("ALL");
   const [search, setSearch] = useState("");
   const [picking, setPicking] = useState<string | null>(null);
@@ -205,6 +221,18 @@ export default function DraftRoom() {
     }
   }
 
+  /** Says why something a manager did failed, and keeps saying it. */
+  const fail = useCallback((said: string) => {
+    sticky.current = true;
+    setError(said);
+  }, []);
+
+  /** Starting an action: the last one's message is no longer the news. */
+  const clearFailure = useCallback(() => {
+    sticky.current = false;
+    setError(null);
+  }, []);
+
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/draft", { cache: "no-store" });
@@ -216,12 +244,13 @@ export default function DraftRoom() {
       if (!res.ok) throw new Error(String(res.status));
 
       const data: Board = await res.json();
+      misses.current = 0;
       setSkew(new Date(data.league.serverNow).getTime() - Date.now());
       setBoard(data);
       // Not while this browser is mid-write: the server's answer is behind
       // what the manager is looking at until the write lands.
       if (!queueDirty.current) setQueue(data.queue ?? []);
-      setError(null);
+      if (!sticky.current) setError(null);
 
       // Everybody in, or the commissioner has opened the room. The countdown
       // reaching zero is the third way in, and it reports itself from the tick
@@ -243,7 +272,14 @@ export default function DraftRoom() {
         setIntroPlaying(true);
       }
     } catch {
-      setError("Could not load the draft board.");
+      // One missed poll is not worth a word. The room asks again every five
+      // seconds, and a phone on a stadium wifi drops one regularly — an
+      // alarming red line under the clock every time it does is how a manager
+      // learns to distrust a screen that is actually fine. Three in a row,
+      // though, is fifteen seconds of not knowing whose turn it is, and that
+      // is worth saying.
+      misses.current += 1;
+      if (misses.current >= 3) setError("Lost the league — still trying.");
     }
   }, []);
 
@@ -384,7 +420,7 @@ export default function DraftRoom() {
         body: JSON.stringify({ lottery: true }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) setError(body.error ?? "The lottery did not run.");
+      if (!res.ok) fail(body.error ?? "The lottery did not run.");
       else setError(null);
       await load();
     } catch {
@@ -404,7 +440,7 @@ export default function DraftRoom() {
         body: JSON.stringify({ state }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) setError(body.error ?? "That did not go through.");
+      if (!res.ok) fail(body.error ?? "That did not go through.");
       else setError(null);
       await load();
     } finally {
@@ -423,7 +459,7 @@ export default function DraftRoom() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError(body.error ?? "Could not mark you ready.");
+        fail(body.error ?? "Could not mark you ready.");
       } else {
         setError(null);
       }
@@ -456,7 +492,7 @@ export default function DraftRoom() {
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         setQueue(before);
-        setError(body.error ?? "Could not save your queue.");
+        fail(body.error ?? "Could not save your queue.");
       } else {
         setError(null);
       }
@@ -503,7 +539,7 @@ export default function DraftRoom() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError(body.error ?? "Could not change autodraft.");
+        fail(body.error ?? "Could not change autodraft.");
       } else {
         setError(null);
       }
@@ -519,7 +555,7 @@ export default function DraftRoom() {
     try {
       const res = await fetch("/api/admin/draft/reset", { method: "POST" });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) setError(body.error ?? "The draft was not reset.");
+      if (!res.ok) fail(body.error ?? "The draft was not reset.");
       else setError(null);
       // A reset empties the board, so the "new pick" tracker is emptied with
       // it — otherwise the re-drafted pick 1 is an overall this browser has
@@ -543,7 +579,7 @@ export default function DraftRoom() {
         body: JSON.stringify({ nudgeSeconds: seconds }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) setError(body.error ?? "Could not move the clock.");
+      if (!res.ok) fail(body.error ?? "Could not move the clock.");
       else setError(null);
       await load();
     } finally {
@@ -568,6 +604,13 @@ export default function DraftRoom() {
     if (!board.myTurn && !forSomebodyElse) return;
 
     setPicking(name);
+    clearFailure();
+    // Held rather than set, because the reload below is what clears the error
+    // on a good load — set it inside the catch and the very refresh that
+    // proves what happened wipes the sentence explaining it. This is the last
+    // word, after the board has spoken.
+    let failure: string | null = null;
+
     try {
       const res = await fetch("/api/draft", {
         method: "POST",
@@ -578,10 +621,29 @@ export default function DraftRoom() {
         }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) setError(body.error ?? "That pick did not go through.");
-      else setError(null);
-      await load();
+      if (!res.ok) failure = body.error ?? "That pick did not go through.";
+    } catch {
+      // The connection went while the pick was in the air.
+      //
+      // This had no catch at all, which is the worst place in the app not to
+      // have one: fetch rejects on a dropped connection, the rejection escaped
+      // an async click handler where nothing was waiting for it, and the
+      // manager got no error, no retry and no pick — while their clock ran
+      // out. On a phone, during a draft, on the one press that cannot be
+      // taken again.
+      //
+      // Whether it landed is now a question about the board rather than about
+      // this request, and the board is asked below whatever happened here. So
+      // the sentence is written to be true either way, and it points at the
+      // thing that actually knows.
+      failure = "The connection went while that pick was sent — the board below is what happened.";
     } finally {
+      // In every path, including the one that threw. A draft room showing a
+      // stale board after a failed pick is how two managers end up believing
+      // different things about whose turn it is.
+      await load();
+      if (failure) fail(failure);
+      else clearFailure();
       setPicking(null);
     }
   }

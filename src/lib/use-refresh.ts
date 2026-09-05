@@ -25,10 +25,44 @@ type Loader = () => void | Promise<unknown>;
 
 const loaders = new Set<Loader>();
 
+let watching = false;
+let lastWoken = 0;
+
+/**
+ * Coming back to the app is a reason to ask again.
+ *
+ * A phone in a pocket is a page that has stopped: iOS freezes a backgrounded
+ * home-screen app outright, and every board's own timer stops with it. Come
+ * back five minutes later and the first thing on the screen is five-minute-old
+ * data, until whichever interval happens to fire first.
+ *
+ * That is a nuisance on the standings and a real problem in the draft room,
+ * where the room polls every five seconds precisely because five seconds is
+ * as stale as whose-turn-is-it is allowed to get — and where a manager
+ * unlocking their phone because they think they are on the clock is the exact
+ * moment the screen must be right.
+ *
+ * Installed once, on the first board to register, and throttled: a phone can
+ * fire visibilitychange several times as it settles, and three of those in a
+ * second should be one round of requests and not three.
+ */
+function watchForeground() {
+  if (watching || typeof document === "undefined") return;
+  watching = true;
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    if (Date.now() - lastWoken < 3000) return;
+    lastWoken = Date.now();
+    void refreshAll(0);
+  });
+}
+
 /** Registers a board's loader for as long as it is mounted. */
 export function useRefreshable(load: Loader) {
   useEffect(() => {
     loaders.add(load);
+    watchForeground();
     return () => {
       loaders.delete(load);
     };
