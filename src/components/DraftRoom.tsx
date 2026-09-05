@@ -1218,7 +1218,14 @@ export default function DraftRoom() {
             ) : null}
 
             {visible.map((p) => (
-              <div className="gl-draft-row"
+              // The commissioner's row is a different row. "Pick for them" is
+              // three words where everybody else's button is one, and on a
+              // 320px screen those two extra words were taken out of the only
+              // part of the row that can give — the name — until "Ashton
+              // Jeanty" came out as four lines of one letter. Only this state
+              // wraps; the other eleven managers keep the single-line row the
+              // list was designed as.
+              <div className={pickingForSomeoneElse ? "gl-draft-row gl-draft-row-wide" : "gl-draft-row"}
                 key={p.name}
                 style={{
                   display: "flex",

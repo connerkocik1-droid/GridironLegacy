@@ -32,7 +32,12 @@ const bar: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 14,
-  padding: "10px 22px",
+  // Twenty-six, the same as every page's own padding, so the wordmark starts
+  // on the line every heading under it starts on. It was twenty-two, which is
+  // four pixels of disagreement down the whole left edge of the app.
+  padding: "10px 26px",
+  // The status bar is already handled: globals.css puts the safe-area insets
+  // back on this element, with !important, because it is styled inline.
   borderBottom: "1px solid rgb(var(--accent-rgb) / .22)",
   background: "rgb(var(--bg-rgb) / .9)",
   backdropFilter: "blur(10px)",

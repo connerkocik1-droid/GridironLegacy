@@ -131,7 +131,7 @@ function activeTab(pathname: string, tabs: Tab[]): string | null {
   return best?.href ?? null;
 }
 
-export default function TabBar() {
+export default function TabBar({ signedIn }: { signedIn: boolean }) {
   const me = useMe();
   const pathname = usePathname() ?? "/";
 
@@ -146,7 +146,19 @@ export default function TabBar() {
   // behind it would only ask them to sign in — a bar of four such links across
   // the bottom of that screen would be four ways of being told no. A league
   // that has no database yet is the same case.
-  const showing = me.status === "signed-in";
+  //
+  // But "signed in" is answered by the server, in the layout, from the cookie
+  // it already read — and only refined by the browser afterwards. It used to
+  // be the browser's answer alone, and useMe made one request with no retry:
+  // when that request was dropped the state stayed "checking" for the life of
+  // the page and this bar rendered nothing, for ever, while every board around
+  // it loaded fine because each fetches its own data.
+  //
+  // A tab is a rare thing to lose a first request in. A home-screen app is
+  // launched cold and resumed from the background, so it is the common case
+  // there — which is why the tabs were missing in the PWA and only in the PWA.
+  // The server knew the whole time.
+  const showing = me.status === "checking" ? signedIn : me.status === "signed-in";
 
   // The room the bar takes up is reserved in CSS, which cannot know whether
   // anybody is signed in — so the bar says so here. Without it the sign-in

@@ -303,6 +303,21 @@ a:hover {
     max-width: 100px;
   }
 
+  /* Except when the button is the commissioner's. "Pick for them" will not go
+     under about eighty pixels however it wraps its own words, and eighty
+     pixels out of a 320px row is the whole of what the name had — it was
+     being broken mid-word, one letter to a line, which the width and
+     tap-target checks both pass and no human would accept. In this one state
+     the button takes a line of its own and the name gets the first. */
+  .gl-draft-row-wide {
+    flex-wrap: wrap;
+    row-gap: 7px;
+  }
+  .gl-draft-row-wide > :last-child {
+    max-width: none;
+    margin-left: auto;
+  }
+
   /* A kickoff time, then two teams to choose between. Side by side that is
      three columns on a screen with room for one and a half, and the second
      team fell off the edge. The time goes above the choice instead. */
@@ -380,8 +395,8 @@ a:hover {
 /* The nav is sticky at the top, so without this it sits under the clock. */
 .gl-nav {
   padding-top: calc(10px + env(safe-area-inset-top)) !important;
-  padding-left: calc(22px + env(safe-area-inset-left)) !important;
-  padding-right: calc(22px + env(safe-area-inset-right)) !important;
+  padding-left: calc(26px + env(safe-area-inset-left)) !important;
+  padding-right: calc(26px + env(safe-area-inset-right)) !important;
 }
 
 /* And the last row of any page clears the home indicator rather than sitting

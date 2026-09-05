@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Inter } from "next/font/google";
+import { currentManager } from "@/lib/session";
 import AddToHomeScreen from "@/components/AddToHomeScreen";
 import LaunchScreen from "@/components/LaunchScreen";
 import PullToRefresh from "@/components/PullToRefresh";
@@ -108,7 +109,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Who is signed in, decided here from the cookie rather than by a request
+  // the browser has to make and might not get an answer to. The bottom
+  // navigation is the one piece of chrome that must never be missing, and
+  // asking the server that already read the session costs nothing this render
+  // was not already paying — see TabBar for what it cost not to.
+  const manager = await currentManager();
   return (
     // data-theme is written here as well as by the script, so that the markup
     // the server sends already says which palette it is — the stylesheet's
@@ -174,7 +181,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* The four places, within a thumb's reach. Phones only — a desktop
             has the same links across the top of the page, and two navigations
             are worse than one wherever they are. */}
-        <TabBar />
+        <TabBar signedIn={manager != null} />
         {/* Renders nothing at all except in mobile Safari, to somebody who has
             not already installed it and has not said no. */}
         <AddToHomeScreen />

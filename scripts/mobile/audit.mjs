@@ -12,6 +12,7 @@
  *   taps      a control too small to hit with a thumb
  *   tiny      text too small to read
  *   squeezed  a column narrowed until its text wraps a word per line
+ *   broken    a word wider than the box holding it, so the browser cuts it in half
  *
  * 320px is not a nostalgic width. It is where a layout that merely looks tight
  * at 390 actually breaks, and it costs nothing to check both.
@@ -219,6 +220,63 @@ function measure() {
     }
   }
 
+  /**
+   * A word too wide for the box it is in.
+   *
+   * The check above is a guess — under twenty-six pixels and over forty tall —
+   * and it is the wrong guess whenever the word is short. "Ashton Jeanty" came
+   * out of the draft room's player list at 320px as four lines reading Ashto,
+   * n, Jeant, y, in a box ninety pixels wide and sixty tall. Every check
+   * passed it: nothing overflowed, the text was 14px, the box was wider than
+   * twenty-six pixels and the tap targets were fine.
+   *
+   * So this measures the thing itself. The longest word in the element is
+   * drawn to a canvas in the element's own font; if it needs more room than
+   * the element has, the browser is going to break it in half — which
+   * `overflow-wrap: anywhere` will do silently, and which no reader forgives.
+   *
+   * Only where breaking is actually on: with the default `normal` the word
+   * overflows instead, and overflow is what the first check in this function
+   * is for.
+   */
+  const cx = document.createElement("canvas").getContext("2d");
+  const broken = [];
+  for (const el of document.querySelectorAll("*")) {
+    if (el.children.length) continue;
+    const t = (el.textContent ?? "").trim();
+    if (!t || isDevChrome(el)) continue;
+
+    const cs = getComputedStyle(el);
+    const wrapping = `${cs.overflowWrap} ${cs.wordBreak}`;
+    if (!/anywhere|break-word|break-all/.test(wrapping)) continue;
+
+    const r = el.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) continue;
+
+    cx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} / ${cs.lineHeight} ${cs.fontFamily}`;
+
+    // The unbreakable runs, not the words. A browser will wrap after a hyphen
+    // or a slash without being asked, so "Valdes-Scantling" is two runs and
+    // comes out as "Valdes-" over "Scantling" — which is how anybody would
+    // write it by hand. Counting it as one sixteen-letter word reported the
+    // draft room's queue as broken when it reads perfectly.
+    let longest = "";
+    let widest = 0;
+    for (const run of t.split(/\s+/).flatMap((w) => w.split(/(?<=[-–—/])/))) {
+      const w = cx.measureText(run).width;
+      if (w > widest) {
+        widest = w;
+        longest = run;
+      }
+    }
+
+    // A pixel of slack: sub-pixel layout should not be a finding, and neither
+    // should a word that fits exactly.
+    if (widest > r.width + 1) {
+      broken.push(`"${longest}" needs ${Math.round(widest)}px in a ${Math.round(r.width)}px box`);
+    }
+  }
+
   return {
     contrast: worstContrast(),
     overflow: doc.scrollWidth - doc.clientWidth,
@@ -228,6 +286,7 @@ function measure() {
     tiny: [...new Set(tiny)].slice(0, 3),
     tinyCount: new Set(tiny).size,
     squeezed: [...new Set(squeezed)].slice(0, 3),
+    broken: [...new Set(broken)].slice(0, 3),
   };
 }
 
@@ -357,6 +416,7 @@ for (const width of WIDTHS) {
     // quietly reporting a pass for something never measured.
     findings.push([width, "mock-running", "/draft/mock (started)", {
       overflow: 0, worst: null, small: [], smallCount: 0, tiny: [], tinyCount: 0, squeezed: [],
+      broken: [],
     }, ["could not start the mock draft — has the start button been renamed?"]]);
   }
   await ctx.close();
@@ -485,7 +545,8 @@ for (const width of WIDTHS) {
 
 const bad = ([, , , r, errors]) =>
   r.overflow > 1 || r.worst || r.smallCount > 0 || r.tinyCount > 0 ||
-  r.squeezed.length > 0 || r.contrast || r.lightContrast || errors.length > 0;
+  r.squeezed.length > 0 || (r.broken?.length ?? 0) > 0 || r.contrast || r.lightContrast ||
+  errors.length > 0;
 
 const failures = findings.filter(bad);
 
@@ -500,6 +561,7 @@ if (failures.length) {
     if (r.small.length) console.log(`  small taps (${r.smallCount}): ${r.small.join(", ")}`);
     if (r.tiny.length) console.log(`  tiny text (${r.tinyCount}): ${r.tiny.join(", ")}`);
     if (r.squeezed.length) console.log(`  squeezed: ${r.squeezed.join(", ")}`);
+    if (r.broken?.length) console.log(`  broken mid-word: ${r.broken.join(", ")}`);
     for (const [theme, c] of [["dark", r.contrast], ["light", r.lightContrast]]) {
       if (c) {
         console.log(`  ${theme}: ${c.ratio}:1 on "${c.text}" (${c.colour})`);

@@ -38,17 +38,38 @@ const CHECKING: MeState = { status: "checking", manager: null };
 
 let state: MeState = CHECKING;
 let started = false;
+let attempts = 0;
 const listeners = new Set<() => void>();
 
 function publish(next: MeState) {
+  attempts = 0;
   state = next;
   for (const listener of listeners) listener();
 }
 
-async function load() {
+/**
+ * Asks, and keeps asking.
+ *
+ * This used to be one request with no retry: a failure returned quietly and
+ * left the state at "checking" for the life of the page. Everything built on
+ * this hides on anything but a clear answer, so a single dropped request took
+ * the whole bottom navigation off the screen — permanently, because nothing
+ * ever asked again.
+ *
+ * That is a rare thing in a browser tab and a common one in a home-screen
+ * app, which is launched cold and resumed from the background, and where the
+ * first request of a session regularly goes out before the network is there.
+ * Which is exactly the shape of the bug: tabs missing in the PWA and nowhere
+ * else.
+ */
+async function load(): Promise<void> {
   try {
     const res = await fetch("/api/auth/me", { cache: "no-store" });
-    if (!res.ok) return;
+    // A 5xx from a cold serverless function is worth asking again about. So is
+    // a 401, which here means the session cookie did not arrive rather than
+    // that there is no session — /api/auth/me answers 200 with a null manager
+    // for somebody who is genuinely signed out.
+    if (!res.ok) throw new Error(String(res.status));
 
     const data = await res.json();
     if (data.configured === false) return publish({ status: "no-league", manager: null });
@@ -60,7 +81,15 @@ async function load() {
     );
   } catch {
     // Offline, or the request was abandoned by a navigation. Whatever was
-    // known before stands.
+    // known before stands — and it is asked again, four times, backing off to
+    // about six seconds in total. Beyond that the listeners below take over:
+    // coming back to the app, or the network coming back, is a better signal
+    // to retry on than a timer.
+    if (attempts < 4) {
+      const wait = 400 * 2 ** attempts;
+      attempts += 1;
+      setTimeout(() => void load(), wait);
+    }
   }
 }
 
@@ -76,10 +105,34 @@ export function patchMe(changes: Partial<Me>) {
 
 function subscribe(onChange: () => void) {
   listeners.add(onChange);
+
   if (!started) {
     started = true;
     void load();
+
+    // A home-screen app is resumed far more often than it is launched, and a
+    // session that expired while the phone was in a pocket should be noticed
+    // on the way back in rather than on the next full page load — which in a
+    // standalone app might be days away. This is also the retry that matters:
+    // whatever failed at launch is asked again the moment the app is looked
+    // at, or the moment the network returns.
+    if (typeof window !== "undefined") {
+      const again = () => {
+        attempts = 0;
+        void load();
+      };
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") again();
+      });
+      window.addEventListener("online", again);
+      // iOS restores a standalone app from the back-forward cache, which fires
+      // no visibilitychange of its own.
+      window.addEventListener("pageshow", (e) => {
+        if ((e as PageTransitionEvent).persisted) again();
+      });
+    }
   }
+
   return () => {
     listeners.delete(onChange);
   };
