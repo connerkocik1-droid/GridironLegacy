@@ -81,6 +81,7 @@ export default function Nav({ current, note }: { current: string; note?: string 
           <path d="M6.8 0 h1.6 l2.2 18 h-1.6 z" fill="#b8511f" />
         </svg>
         <span
+          className="gl-wordmark"
           style={{
             fontFamily: "var(--font-heading)",
             letterSpacing: ".2em",
@@ -126,6 +127,7 @@ export default function Nav({ current, note }: { current: string; note?: string 
       </div>
 
       <div
+        className="gl-navend"
         style={{
           marginLeft: "auto",
           display: "flex",

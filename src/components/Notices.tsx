@@ -95,6 +95,11 @@ export default function Notices() {
         onClick={() => void toggle()}
         aria-label={unread ? `Notices, ${unread} unread` : "Notices"}
         aria-expanded={open}
+        // Round, and told so. A phone grows every button to a thumb-sized
+        // target, and growing a circle in one direction only makes an egg —
+        // which is what this was on every phone in the league. gl-round grows
+        // it in both.
+        className="gl-round"
         style={{
           position: "relative",
           width: 32,
@@ -111,7 +116,25 @@ export default function Notices() {
           padding: 0,
         }}
       >
-        <span aria-hidden>◔</span>
+        {/* A drawn bell rather than the "◔" character it used to be. That
+            glyph is a quarter-filled circle — it is not a bell, it renders at
+            a different size in every font, and inside a forty-pixel target it
+            read as a speck. This is the same construction as the tab bar's
+            icons: one stroke weight, no fill, sized to the button. */}
+        <svg
+          viewBox="0 0 24 24"
+          width="17"
+          height="17"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M18 8.4a6 6 0 0 0-12 0c0 6.2-2.4 7.8-2.4 7.8h16.8S18 14.6 18 8.4" />
+          <path d="M13.6 19.4a1.9 1.9 0 0 1-3.2 0" />
+        </svg>
         {unread ? (
           <span
             aria-hidden

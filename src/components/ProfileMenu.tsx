@@ -108,6 +108,8 @@ export default function ProfileMenu() {
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={`${manager.franchise} — your profile`}
+        // Round, and the same size as the bell beside it. See gl-round.
+        className="gl-round"
         style={{
           display: "flex",
           alignItems: "center",

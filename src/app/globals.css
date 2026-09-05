@@ -248,6 +248,43 @@ a:hover {
     min-width: 34px;
   }
 
+  /* Except that a round control cannot be grown in one direction only.
+     Thirty-two by thirty-two with a 50% radius is a circle; the two rules
+     above make it thirty-four by forty, and a 50% radius on that is an
+     ellipse. The notices bell in the header was drawn as an egg on every
+     phone in the league — which is most of what "things don't fit in the
+     header" was. Squared off here, at the same thumb size, so it grows and
+     stays round. */
+  .gl-round {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    flex: 0 0 auto;
+    /* Whatever is inside was drawn for a smaller box and has to end up in the
+       middle of the bigger one. Both properties, because these are a grid and
+       a flex container respectively. */
+    justify-content: center;
+    align-items: center;
+  }
+
+  /* The header, given room. Two round controls and a wordmark on a 320px
+     screen is most of the width; the tracking comes in a little and the two
+     controls sit closer together, which is fifteen pixels back without
+     anything getting smaller. */
+  .gl-nav {
+    gap: 10px !important;
+  }
+  /* !important because the wordmark is styled inline, like everything else in
+     this app — a stylesheet does not beat a style attribute. */
+  .gl-nav .gl-wordmark {
+    letter-spacing: 0.13em !important;
+  }
+  .gl-nav .gl-navend {
+    gap: 10px !important;
+  }
+
   /* A browser's own checkbox is thirteen pixels square, which on a phone is
      not a control, it is a dare. */
   input[type="checkbox"],
