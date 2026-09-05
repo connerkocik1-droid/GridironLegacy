@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRefreshable } from "@/lib/use-refresh";
 import type { Game } from "@/lib/espn";
@@ -50,7 +51,7 @@ function kickoff(iso: string): string {
   });
 }
 
-function GameCell({ game }: { game: Game }) {
+function GameCell({ game, dupe }: { game: Game; dupe: boolean }) {
   const { home, away, state } = game;
   if (!home || !away) return null;
 
@@ -83,37 +84,45 @@ function GameCell({ game }: { game: Game }) {
   );
 
   return (
-    <span
-      role="listitem"
-      aria-label={label}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "0 15px",
-        borderRight: "1px solid rgb(var(--accent-rgb) / .12)",
-        whiteSpace: "nowrap",
-        fontSize: 10.5,
-      }}
-    >
-      {team(away.abbrev, away.score, awayWon)}
-      <span aria-hidden style={{ color: "var(--text-faint)" }}>@</span>
-      {team(home.abbrev, home.score, homeWon)}
-
-      <span
+    <span role="listitem" style={{ display: "inline-flex", height: "100%" }}>
+      {/* The cell is the way into the game. The second copy of the track is
+          hidden from screen readers, so its link is taken out of the tab order
+          too — a focusable thing inside aria-hidden is a trap. */}
+      <Link
+        href={`/game/${game.id}`}
+        aria-label={dupe ? undefined : `${label} Open gamecast.`}
+        tabIndex={dupe ? -1 : undefined}
         style={{
-          fontSize: 10,
-          letterSpacing: ".12em",
-          color: state === "in" ? "var(--good)" : "var(--text-dim)",
-          marginLeft: 2,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "0 15px",
+          borderRight: "1px solid rgb(var(--accent-rgb) / .12)",
+          whiteSpace: "nowrap",
+          fontSize: 10.5,
+          textDecoration: "none",
+          color: "inherit",
         }}
       >
-        {state === "post"
-          ? "FINAL"
-          : state === "in"
-            ? (game.statusDetail || "LIVE").toUpperCase()
-            : kickoff(game.date).toUpperCase()}
-      </span>
+        {team(away.abbrev, away.score, awayWon)}
+        <span aria-hidden style={{ color: "var(--text-faint)" }}>@</span>
+        {team(home.abbrev, home.score, homeWon)}
+
+        <span
+          style={{
+            fontSize: 10,
+            letterSpacing: ".12em",
+            color: state === "in" ? "var(--good)" : "var(--text-dim)",
+            marginLeft: 2,
+          }}
+        >
+          {state === "post"
+            ? "FINAL"
+            : state === "in"
+              ? (game.statusDetail || "LIVE").toUpperCase()
+              : kickoff(game.date).toUpperCase()}
+        </span>
+      </Link>
     </span>
   );
 }
@@ -222,7 +231,7 @@ export default function ScoreTicker() {
           {[0, 1].map((copy) => (
             <div key={copy} aria-hidden={copy === 1} style={{ display: "flex", height: "100%", alignItems: "center" }}>
               {games.map((g) => (
-                <GameCell key={`${copy}-${g.id}`} game={g} />
+                <GameCell key={`${copy}-${g.id}`} game={g} dupe={copy === 1} />
               ))}
             </div>
           ))}

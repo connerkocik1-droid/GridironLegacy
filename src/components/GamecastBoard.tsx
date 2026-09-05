@@ -1,0 +1,396 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import LiveNumber from "./LiveNumber";
+import PlayerName from "./PlayerName";
+import Skeleton from "./Skeleton";
+import TeamMark from "./TeamMark";
+import { useMe } from "@/lib/use-me";
+import { useRefreshable } from "@/lib/use-refresh";
+import type { Gamecast, OwnedPlayer } from "@/lib/gamecast";
+import type { Game } from "@/lib/espn";
+
+/**
+ * A real football game, read by somebody with a fantasy team.
+ *
+ * Every scoreboard in the world can tell you 21–17. What none of them tell
+ * you is that four of the twenty-two people you care about are on that field,
+ * which two are yours, which one belongs to the manager you are playing this
+ * week, and what the touchdown thirty seconds ago did to your afternoon. That
+ * is the whole reason to build this rather than link out to ESPN.
+ *
+ * So the order is: the score, then your players, then everybody else's, then
+ * what actually happened. A manager who opens this during a game wants the
+ * first two and will scroll for the rest.
+ */
+
+interface Board extends Gamecast {
+  game: Game | null;
+  teamTotals: Record<string, Record<string, string>>;
+  error?: string;
+  fetchedAt: string | null;
+}
+
+export default function GamecastBoard({ id }: { id: string }) {
+  const [board, setBoard] = useState<Board | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const me = useMe();
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/game/${encodeURIComponent(id)}`, { cache: "no-store" });
+      if (res.status === 401) return setError("Sign in to follow the game.");
+      if (!res.ok) throw new Error(String(res.status));
+      setBoard(await res.json());
+      setError(null);
+    } catch {
+      setError("Could not reach the game.");
+    }
+  }, [id]);
+
+  useRefreshable(load);
+
+  useEffect(() => {
+    // Sets state only once the request resolves, not synchronously.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+  }, [load]);
+
+  // Twenty seconds while the ball is in the air, and not at all once it is
+  // over: a finished game does not change, and a phone left on this screen
+  // should not spend the evening asking whether it has.
+  const live = board?.game?.state === "in";
+  useEffect(() => {
+    if (!live) return;
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void load();
+    }, 20_000);
+    return () => clearInterval(timer);
+  }, [live, load]);
+
+  const mine = me.manager?.id ?? null;
+
+  // Yours first, then everybody else's by score. Not sorted purely by points:
+  // the question this screen answers is "how am I doing", and a manager
+  // should never have to hunt down the list for their own name.
+  const owned = useMemo(() => {
+    if (!board) return [];
+    const ours = board.owned.filter((p) => p.managerId === mine);
+    const theirs = board.owned.filter((p) => p.managerId !== mine);
+    return [...ours, ...theirs];
+  }, [board, mine]);
+
+  if (error && !board) {
+    return <div style={{ padding: "24px 26px", color: "var(--warn)" }}>{error}</div>;
+  }
+  if (!board) return <Skeleton rows={5} />;
+
+  const game = board.game;
+
+  return (
+    <div style={{ padding: "20px 26px 40px" }}>
+      <Link
+        href="/"
+        style={{
+          fontSize: 11,
+          letterSpacing: ".16em",
+          color: "var(--text-dim)",
+          textDecoration: "none",
+          display: "inline-flex",
+          alignItems: "center",
+          minHeight: 34,
+        }}
+      >
+        ‹ THE SLATE
+      </Link>
+
+      {game ? <Scoreline game={game} /> : null}
+
+      {board.error ? (
+        <div style={{ fontSize: 12.5, color: "var(--warn)", marginTop: 12 }}>{board.error}</div>
+      ) : null}
+
+      {owned.length ? (
+        <Section title="Who is in this game" note={`${owned.length} rostered`}>
+          {owned.map((p) => (
+            <PlayerRow key={`${p.name}-${p.team}`} player={p} mine={p.managerId === mine} />
+          ))}
+        </Section>
+      ) : game && game.state !== "pre" ? (
+        <Section title="Who is in this game" note="nobody">
+          <div style={{ padding: "13px 16px", fontSize: 12.5, color: "var(--text-dim)" }}>
+            Nobody in this league owns a player in this game.
+          </div>
+        </Section>
+      ) : null}
+
+      {board.notable.length ? (
+        <Section title="Doing damage" note="unowned">
+          {board.notable.map((p) => (
+            <PlayerRow key={`${p.name}-${p.team}`} player={p} mine={false} />
+          ))}
+        </Section>
+      ) : null}
+
+      {board.scoring.length ? (
+        <Section title="Scoring" note={`${board.scoring.length}`}>
+          {board.scoring.map((s, i) => (
+            <div
+              key={`${s.team}-${i}`}
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 10,
+                padding: "10px 16px",
+                borderTop: i === 0 ? undefined : "1px solid rgb(var(--accent-rgb) / .12)",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 11,
+                  color: "var(--accent-link)",
+                  flex: "0 0 auto",
+                  minWidth: 30,
+                }}
+              >
+                {s.team}
+              </span>
+              <span style={{ fontSize: 12.5, color: "var(--text-2)", lineHeight: 1.5, minWidth: 0 }}>
+                {s.text}
+              </span>
+            </div>
+          ))}
+        </Section>
+      ) : null}
+
+      {board.plays.length ? (
+        <Section title="What happened" note="newest first">
+          {board.plays.map((p) => (
+            <div
+              key={p.id}
+              style={{
+                display: "flex",
+                gap: 10,
+                padding: "9px 16px",
+                borderTop: "1px solid rgb(var(--accent-rgb) / .1)",
+                background: p.scoring ? "rgb(var(--accent-rgb) / .1)" : undefined,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 10,
+                  letterSpacing: ".08em",
+                  color: "var(--text-dim)",
+                  flex: "0 0 auto",
+                  minWidth: 52,
+                  fontVariantNumeric: "tabular-nums",
+                  // A quarter and a clock are one token each.
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Q{p.period} {p.clock}
+              </span>
+              <span style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.5, minWidth: 0 }}>
+                {p.text}
+              </span>
+            </div>
+          ))}
+        </Section>
+      ) : null}
+    </div>
+  );
+}
+
+/** The score, and what state the game is in. */
+function Scoreline({ game }: { game: Game }) {
+  const live = game.state === "in";
+
+  return (
+    <div
+      style={{
+        border: `1px solid ${live ? "rgb(var(--good-rgb) / .4)" : "rgb(var(--accent-rgb) / .22)"}`,
+        borderRadius: "var(--radius-lg)",
+        background: "rgb(var(--surface-rgb) / .55)",
+        padding: "14px 16px",
+        marginTop: 10,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          fontSize: 10,
+          letterSpacing: ".18em",
+          color: live ? "var(--good)" : "var(--text-dim)",
+          marginBottom: 11,
+        }}
+      >
+        {live ? (
+          <span
+            className="gl-live-dot"
+            aria-hidden
+            style={{ flex: "0 0 auto", width: 7, height: 7, borderRadius: "50%", background: "var(--good)" }}
+          />
+        ) : null}
+        <span style={{ whiteSpace: "nowrap" }}>{game.statusDetail || "SCHEDULED"}</span>
+      </div>
+
+      {[game.away, game.home].map((side, i) =>
+        side ? (
+          <Side key={side.abbrev} abbrev={side.abbrev} name={side.name} score={side.score}
+            leading={
+              game.away != null && game.home != null &&
+              side.score > (i === 0 ? game.home.score : game.away.score)
+            }
+            first={i === 0}
+          />
+        ) : null,
+      )}
+    </div>
+  );
+}
+
+function Side({
+  abbrev,
+  name,
+  score,
+  leading,
+  first,
+}: {
+  abbrev: string;
+  name: string;
+  score: number;
+  leading: boolean;
+  first: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        marginTop: first ? 0 : 9,
+        minWidth: 0,
+      }}
+    >
+      <TeamMark team={abbrev} size={20} opacity={1} />
+      <span
+        style={{
+          fontFamily: "var(--font-heading)",
+          fontSize: 15,
+          color: leading ? "var(--text)" : "var(--text-2)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          minWidth: 0,
+          flex: 1,
+        }}
+      >
+        {name}
+      </span>
+      <span
+        style={{
+          fontFamily: "var(--font-heading)",
+          fontSize: 26,
+          color: leading ? "var(--accent-text)" : "var(--text-3)",
+          fontVariantNumeric: "tabular-nums",
+          whiteSpace: "nowrap",
+        }}
+      >
+        <LiveNumber value={score} decimals={0} />
+      </span>
+    </div>
+  );
+}
+
+function PlayerRow({ player, mine }: { player: OwnedPlayer; mine: boolean }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 16px",
+        borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
+        background: mine ? "rgb(var(--accent-rgb) / .12)" : undefined,
+      }}
+    >
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+          <PlayerName name={player.name} style={{ fontFamily: "var(--font-heading)", fontSize: 14 }} />
+          <TeamMark team={player.team} />
+        </div>
+        <div style={{ fontSize: 10.5, color: "var(--text-dim)", marginTop: 3, lineHeight: 1.45 }}>
+          {player.position ? `${player.position} · ` : ""}
+          {player.franchise ?? "free agent"}
+          {player.statLine ? ` · ${player.statLine}` : ""}
+        </div>
+      </div>
+
+      <div
+        style={{
+          fontFamily: "var(--font-heading)",
+          fontSize: 17,
+          color: mine ? "var(--accent-text)" : "var(--text-3)",
+          fontVariantNumeric: "tabular-nums",
+          flex: "0 0 auto",
+          whiteSpace: "nowrap",
+        }}
+      >
+        <LiveNumber value={player.points} />
+      </div>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  note,
+  children,
+}: {
+  title: string;
+  note?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ marginTop: 22 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 10,
+          marginBottom: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        <h2
+          style={{
+            fontFamily: "var(--font-heading)",
+            fontSize: 15,
+            fontWeight: 500,
+            margin: 0,
+            color: "var(--accent-text)",
+          }}
+        >
+          {title}
+        </h2>
+        {note ? <span style={{ fontSize: 10.5, color: "var(--text-dim)" }}>{note}</span> : null}
+      </div>
+
+      <div
+        style={{
+          border: "1px solid rgb(var(--accent-rgb) / .22)",
+          borderRadius: "var(--radius-lg)",
+          background: "rgb(var(--surface-rgb) / .55)",
+          overflow: "hidden",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}

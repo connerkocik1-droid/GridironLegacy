@@ -479,6 +479,66 @@ export function routes(page, over = {}) {
         projected: 22, live: true, statLine: LINES.WR } })),
     managers: MANAGERS,
   }));
+  // The slate the ticker rides on. Without it the strip renders nothing, so
+  // every audit run measured a home page with the top rail missing — and the
+  // link into the gamecast lives inside that rail.
+  const SLATE = [
+    ["401671801", "PHI", "Eagles", 17, "WSH", "Commanders", 21, "in", "3rd Quarter · 4:12"],
+    ["401671802", "KC", "Chiefs", 28, "BUF", "Bills", 24, "post", "Final"],
+    ["401671803", "SF", "49ers", 0, "SEA", "Seahawks", 0, "pre", "Sun 1:00 PM"],
+  ];
+  page.route("**/api/scoreboard**", json({
+    games: SLATE.map(([id, aa, an, as_, ha, hn, hs, state, detail]) => ({
+      id, date: ago(60), week: 3, seasonType: 2, state,
+      completed: state === "post", statusDetail: detail,
+      away: { abbrev: aa, name: an, score: as_, homeAway: "away", winner: as_ > hs, logo: "" },
+      home: { abbrev: ha, name: hn, score: hs, homeAway: "home", winner: hs > as_, logo: "" },
+    })),
+    week: 3, seasonType: 2, played: true, fetchedAt: new Date().toISOString(),
+  }));
+
+  // One live game with this league all over it. Enough owned players to make
+  // the list scroll, one unowned name doing damage, and a play feed long
+  // enough that the drive log has to lay out more than a sentence.
+  page.route("**/api/game/**", json({
+    game: {
+      id: "401671801", date: ago(96), week: 3, seasonType: 2, state: "in",
+      completed: false, statusDetail: "3rd Quarter · 4:12",
+      home: { abbrev: "WSH", name: "Commanders", score: 21, homeAway: "home", winner: false, logo: "" },
+      away: { abbrev: "PHI", name: "Eagles", score: 17, homeAway: "away", winner: false, logo: "" },
+    },
+    owned: [
+      { name: "Jayden Daniels", team: "WSH", position: "QB", points: 22.4,
+        statLine: "241 yd, 2 TD", franchise: "Steel Cartel", managerId: "m0" },
+      { name: "Marvin Harrison Jr.", team: "PHI", position: "WR", points: 14.1,
+        statLine: "6 rec, 81 yd", franchise: "Steel Cartel", managerId: "m0" },
+      { name: "Saquon Barkley", team: "PHI", position: "RB", points: 19.8,
+        statLine: "17 car, 96 yd, 1 TD", franchise: "Kim's Very Long Franchise Name",
+        managerId: "m3" },
+      { name: "Terry McLaurin", team: "WSH", position: "WR", points: 9.4,
+        statLine: "4 rec, 54 yd", franchise: "Northside Nomads", managerId: "m11" },
+    ],
+    notable: [
+      { name: "Dallas Goedert", team: "PHI", position: "TE", points: 11.2,
+        statLine: "5 rec, 62 yd, 1 TD", franchise: null, managerId: null },
+    ],
+    scoring: [
+      { type: "TD", team: "WSH", text: "Jayden Daniels 12 Yd Run (Zane Gonzalez Kick)",
+        points: 7, period: 3, clock: "8:41" },
+      { type: "FG", team: "PHI", text: "Jake Elliott 47 Yd Field Goal",
+        points: 3, period: 2, clock: "0:04" },
+    ],
+    plays: Array.from({ length: 9 }, (_, i) => ({
+      id: `p${i}`, period: 3, clock: `${12 - i}:0${i}`,
+      text: i === 0
+        ? "Jayden Daniels pass complete short right to Terry McLaurin for 14 yards, tackled by Cooper DeJean at the PHI 31."
+        : "Saquon Barkley rush up the middle for 3 yards.",
+      scoring: i === 4, homeScore: 21, awayScore: 17,
+    })),
+    teamTotals: {},
+    fetchedAt: new Date().toISOString(),
+  }));
+
   page.route("**/api/rankings", json({ points: {}, rostered: {}, basis: "2025" }));
 
   page.route("**/api/players**", json({
