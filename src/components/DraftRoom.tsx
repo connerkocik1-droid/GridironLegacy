@@ -17,6 +17,7 @@ import { useRefreshable } from "@/lib/use-refresh";
 import { useLogos } from "@/lib/use-logos";
 import { setPickAnimations, usePickAnimations } from "@/lib/use-pick-animations";
 import { describeClock, pickSecondsFor, type ClockTier } from "@/lib/draft-clock";
+import { stillNeeded } from "@/lib/draft-needs";
 
 const BLANK =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -63,6 +64,8 @@ interface Board {
     draftAt: string | null;
     cinematicRounds: number;
     introVideo: string | null;
+    /** How many of each position a lineup needs, from the league's settings. */
+    starters?: Record<string, number> | null;
     /** The drawn order, first pick first. Null until the lottery runs. */
     lotteryOrder: string[] | null;
     /** When the reveal began, so every screen animates from the same instant. */
@@ -659,6 +662,14 @@ export default function DraftRoom() {
   // The commissioner can take the pick in hand for whoever is on the clock.
   // One value rather than the condition written twice, so what the button
   // looks like and what it does cannot drift apart.
+  // Which starting slots this manager still cannot fill. Computed from the
+  // picks the room already holds, so it costs nothing and it is right the
+  // instant a pick lands rather than at the next reload.
+  const needs = stillNeeded(
+    board.picks.filter((p) => p.manager_id === board.me.id && p.player_name).map((p) => p.player_name as string),
+    board.league.starters,
+  );
+
   const canPick =
     board.league.state === "running" &&
     (board.myTurn || (board.me.is_commissioner && Boolean(board.onTheClock?.manager_id)));
@@ -1233,6 +1244,68 @@ export default function DraftRoom() {
             }}
           >
             <h6 style={{ margin: 0, color: "var(--accent-text)" }}>Best available</h6>
+            {/* What this manager still cannot field.
+                ---------------------------------------
+                The one thing a screen can usefully say to somebody with
+                ninety seconds and six hundred names. Not "what would round
+                out the roster", which is taste, but the hard version: which
+                starting slots would go out empty if the draft ended now. A
+                manager who finishes with no kicker scores nothing at kicker,
+                every week, all season — and in round eleven that is very easy
+                to forget.
+
+                Each one filters the list, because being told and then having
+                to go and find the control is two presses and a thought during
+                the one minute nobody has either to spare. */}
+            {needs.length ? (
+              <div
+                className="gl-scroll-x"
+                style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "nowrap", minWidth: 0 }}
+              >
+                <span
+                  style={{
+                    // Ten, not nine and a half. The audit's floor, and it is
+                    // the right floor: this label is read at arm's length on
+                    // a phone by somebody who has ninety seconds.
+                    fontSize: 10,
+                    letterSpacing: ".14em",
+                    color: "var(--text-dim)",
+                    flex: "0 0 auto",
+                  }}
+                >
+                  STILL NEED
+                </span>
+                {needs.map((need) => (
+                  <button
+                    key={need.position}
+                    onClick={() => setFilter(need.position)}
+                    aria-label={`Show ${need.position} — ${need.short} still needed`}
+                    style={{
+                      flex: "0 0 auto",
+                      padding: "4px 8px",
+                      fontFamily: "inherit",
+                      fontSize: 10,
+                      letterSpacing: ".08em",
+                      cursor: "pointer",
+                      borderRadius: "var(--radius-sm)",
+                      border: `1px solid ${
+                        filter === need.position
+                          ? "rgb(var(--accent-bright-rgb) / .6)"
+                          : "rgb(var(--warn-rgb) / .45)"
+                      }`,
+                      background:
+                        filter === need.position
+                          ? "rgb(var(--accent-rgb) / .26)"
+                          : "rgb(var(--warn-rgb) / .12)",
+                      color: filter === need.position ? "var(--text)" : "var(--warn)",
+                    }}
+                  >
+                    {need.position === "D/ST" ? "DST" : need.position}
+                    {need.short > 1 ? ` ${need.short}` : ""}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}

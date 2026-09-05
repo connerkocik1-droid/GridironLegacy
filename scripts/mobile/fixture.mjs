@@ -596,6 +596,7 @@ export function routes(page, over = {}) {
         pickStartedAt: new Date(Date.now() - secondsGone * 1000).toISOString(),
         pickSeconds: 90, pickClock: PICK_CLOCK, serverNow: new Date().toISOString(),
         draftAt: null, cinematicRounds: 3, introVideo: null,
+        starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, "D/ST": 1, K: 1 },
         lotteryOrder: MANAGERS.map((m) => m.slot), lotteryAt },
       onTheClock: over.myTurn ? { ...PICKS[2], manager_id: ME.id } : PICKS[2],
       myTurn: Boolean(over.myTurn),

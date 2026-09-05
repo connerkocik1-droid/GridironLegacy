@@ -194,6 +194,10 @@ export async function GET() {
       // Played once, by everyone waiting, the moment the countdown runs out.
       introVideo:
         typeof league.settings?.introVideo === "string" ? league.settings.introVideo : null,
+      // The shape of a roster, so the room can say what this manager still
+      // has no way to field. It was already loaded for the autodraft below;
+      // it simply was not being told to the browser.
+      starters: (league.settings?.starters ?? null) as Record<string, number> | null,
     },
     onTheClock,
     myTurn: onTheClock?.manager_id === me.id,
