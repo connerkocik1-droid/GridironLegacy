@@ -36,7 +36,7 @@ export async function GET() {
 
   const { data: managers } = await db
     .from("managers")
-    .select("id, slot, name, franchise, pin_hash, is_commissioner, division")
+    .select("id, slot, name, franchise, pin_hash, is_commissioner, division, dues_paid")
     .eq("league_id", me.league_id)
     .order("slot");
 
@@ -57,6 +57,7 @@ export async function GET() {
       name: m.name,
       franchise: m.franchise,
       division: m.division,
+      duesPaid: m.dues_paid === true,
       claimed: m.pin_hash != null,
       isCommissioner: m.is_commissioner,
     })),
@@ -94,6 +95,8 @@ export async function PATCH(req: Request) {
     cinematicRounds?: unknown;
     tradeDeadlineWeek?: unknown;
     waiverDays?: unknown;
+    movesTab?: unknown;
+    duesNote?: unknown;
   };
   try {
     body = await req.json();
@@ -166,6 +169,75 @@ export async function PATCH(req: Request) {
       .eq("id", me.league_id);
 
     if (error) return Response.json({ error: `Could not save ${key}` }, { status: 400 });
+  }
+
+  /**
+   * What the league says about dues, in the commissioner's own words.
+   *
+   * Both the message and the switch: an empty note turns the notice off for
+   * everybody, which is how a league that does not collect dues — or one that
+   * has finished collecting them — says so. Free text on purpose. An amount
+   * and a payment app is what people actually need, and no set of fields this
+   * app could invent would fit every league's arrangement.
+   */
+  if (body.duesNote !== undefined) {
+    if (!me.is_commissioner) {
+      return Response.json({ error: "Only the commissioner can change this" }, { status: 403 });
+    }
+    if (body.duesNote !== null && typeof body.duesNote !== "string") {
+      return Response.json({ error: "duesNote must be text" }, { status: 400 });
+    }
+
+    // Long enough for an amount, a deadline and where to send it; short enough
+    // that it stays one line at the top of a phone.
+    const note = (body.duesNote ?? "").toString().trim().slice(0, 200);
+
+    const { data: league } = await db
+      .from("leagues")
+      .select("settings")
+      .eq("id", me.league_id)
+      .single();
+
+    const settings = { ...(league?.settings ?? {}) };
+    if (note) settings.duesNote = note;
+    else delete settings.duesNote;
+
+    const { error } = await db.from("leagues").update({ settings }).eq("id", me.league_id);
+    if (error) return Response.json({ error: "Could not save the dues note" }, { status: 400 });
+  }
+
+  /**
+   * Handing the bottom bar's fourth tab from the draft room to the moves.
+   *
+   * A command rather than something read off draft_state, which is the whole
+   * point: a draft reads "complete" after a rehearsal and after a reset, and a
+   * resize flips it back to pending. None of those is a league saying the
+   * offseason is over, and a tab that moves under eleven managers because a
+   * state machine did is how somebody loses the draft room on draft night.
+   *
+   * It can be said back, which matters for next season: the rollover puts a
+   * draft in front of the league again, and the room has to come with it.
+   */
+  if (body.movesTab !== undefined) {
+    if (!me.is_commissioner) {
+      return Response.json({ error: "Only the commissioner can change this" }, { status: 403 });
+    }
+    if (typeof body.movesTab !== "boolean") {
+      return Response.json({ error: "movesTab must be true or false" }, { status: 400 });
+    }
+
+    const { data: league } = await db
+      .from("leagues")
+      .select("settings")
+      .eq("id", me.league_id)
+      .single();
+
+    const { error } = await db
+      .from("leagues")
+      .update({ settings: { ...(league?.settings ?? {}), movesTab: body.movesTab } })
+      .eq("id", me.league_id);
+
+    if (error) return Response.json({ error: "Could not change the tab" }, { status: 400 });
   }
 
   /**

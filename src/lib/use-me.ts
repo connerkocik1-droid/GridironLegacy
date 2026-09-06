@@ -15,11 +15,26 @@ export interface Me {
   email?: string | null;
   /** Whether they want those emails at all. */
   email_notices?: boolean;
+  /** Whether the commissioner has marked this franchise's dues settled. */
+  dues_paid?: boolean;
 }
 
 export type MeState = {
   status: "checking" | "signed-in" | "signed-out" | "no-league";
   manager: Me | null;
+  /**
+   * Whether the league has handed the bottom bar's fourth tab from the draft
+   * room to the transactions — a command the commissioner gives, not a state
+   * the draft reaches. Null until the server has said; the layout supplies the
+   * first answer, so nothing has to guess in the meantime.
+   */
+  movesTab: boolean | null;
+  /**
+   * What the league says about dues, or null if it says nothing — which is
+   * also how a league that does not collect them says so. Both the message
+   * and the switch.
+   */
+  duesNote: string | null;
 };
 
 /**
@@ -34,7 +49,7 @@ export type MeState = {
  * on this hides on anything but a clear answer, so being unsure must not look
  * like being signed out — still less like being the commissioner.
  */
-const CHECKING: MeState = { status: "checking", manager: null };
+const CHECKING: MeState = { status: "checking", manager: null, movesTab: null, duesNote: null };
 
 let state: MeState = CHECKING;
 let started = false;
@@ -72,12 +87,16 @@ async function load(): Promise<void> {
     if (!res.ok) throw new Error(String(res.status));
 
     const data = await res.json();
-    if (data.configured === false) return publish({ status: "no-league", manager: null });
+    const movesTab = typeof data.movesTab === "boolean" ? data.movesTab : null;
+    const duesNote = typeof data.duesNote === "string" ? data.duesNote : null;
+    if (data.configured === false) {
+      return publish({ status: "no-league", manager: null, movesTab, duesNote });
+    }
 
     publish(
       data.manager
-        ? { status: "signed-in", manager: data.manager as Me }
-        : { status: "signed-out", manager: null },
+        ? { status: "signed-in", manager: data.manager as Me, movesTab, duesNote }
+        : { status: "signed-out", manager: null, movesTab, duesNote },
     );
   } catch {
     // Offline, or the request was abandoned by a navigation. Whatever was

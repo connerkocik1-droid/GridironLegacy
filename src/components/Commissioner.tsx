@@ -5,6 +5,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import DraftSettings from "./DraftSettings";
 import { readPickClock, type ClockTier } from "@/lib/draft-clock";
 import { useNavHeight } from "@/lib/use-nav-height";
+import { refreshMe } from "@/lib/use-me";
 import NextSeason from "./NextSeason";
 import RosterFix from "./RosterFix";
 import SeasonRules from "./SeasonRules";
@@ -18,6 +19,8 @@ interface Manager {
   division: string | null;
   claimed: boolean;
   isCommissioner: boolean;
+  /** Whether their dues are settled. */
+  duesPaid?: boolean;
 }
 
 interface Admin {
@@ -36,6 +39,10 @@ interface Admin {
       regularWeeks?: number;
       tradeDeadlineWeek?: number;
       waiverDays?: number;
+      /** Whether the bottom bar's fourth tab is Moves rather than the draft room. */
+      movesTab?: boolean;
+      /** What the league says about dues. Absent means it says nothing. */
+      duesNote?: string;
     };
     lottery_order?: string[] | null;
     draft_state: string;
@@ -87,6 +94,7 @@ export default function Commissioner() {
   const [teams, setTeams] = useState("");
   const [rounds, setRounds] = useState("");
   const [draftAt, setDraftAt] = useState("");
+  const [duesNote, setDuesNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [releasing, setReleasing] = useState<Manager | null>(null);
@@ -133,6 +141,7 @@ export default function Commissioner() {
               .slice(0, 16)
           : "",
       );
+      setDuesNote(data.league?.settings?.duesNote ?? "");
       setError(null);
     } catch {
       setError("Could not load the league office.");
@@ -209,6 +218,98 @@ export default function Commissioner() {
         );
       await load();
       await loadSeason();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Hands the bottom bar's fourth slot between the draft room and the moves.
+   *
+   * Its own function rather than a line in saveSettings because it is the one
+   * office control that changes what eleven other people's phones look like,
+   * so it says which way it went rather than "saved".
+   */
+  async function setMovesTab(on: boolean) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/admin/league", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ movesTab: on }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not change the tab.");
+      else {
+        setNotice(
+          on
+            ? "The fourth tab is Moves now, for everybody."
+            : "The draft room has the fourth tab back.",
+        );
+        // This manager's own bar, without waiting for the next page load.
+        void refreshMe();
+      }
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Says what the league is owed, and to whom. An empty box turns the notice
+   * off for everybody, which is how a league that is done collecting — or one
+   * that never collected — says so.
+   */
+  async function saveDuesNote() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/admin/league", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ duesNote: duesNote.trim() }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not save the dues note.");
+      else {
+        setNotice(
+          duesNote.trim()
+            ? "Saved. Everyone who has not paid will see it."
+            : "Dues note cleared. Nobody will see a notice.",
+        );
+        void refreshMe();
+      }
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Settles one franchise, or the whole league when managerId is null. */
+  async function settleDues(managerId: string | null, paid: boolean) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/admin/dues", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ managerId, paid }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not settle that.");
+      else if (managerId === null) {
+        setNotice(paid ? "Everybody is marked paid. No notices." : "Everybody is marked unpaid.");
+      }
+      // This manager's own band, if it was their own franchise.
+      void refreshMe();
+      await load();
     } finally {
       setBusy(false);
     }
@@ -397,12 +498,14 @@ export default function Commissioner() {
   }
 
   const claimed = admin.managers.filter((m) => m.claimed).length;
+  const movesTabOn = admin.league?.settings?.movesTab === true;
+  const owing = admin.managers.filter((m) => !m.duesPaid).length;
 
   // The two divisions actually in use, so a renamed pair still shows.
   const divisions = Array.from(
     new Set(admin.managers.map((m) => m.division).filter(Boolean) as string[]),
   ).sort();
-  if (divisions.length < 2) divisions.push(...["East", "West"].filter((d) => !divisions.includes(d)));
+  if (divisions.length < 2) divisions.push(...["North", "South"].filter((d) => !divisions.includes(d)));
 
   // Everyone once, then the divisional rematches: (n-1) + (largest division - 1).
   const perDivision = divisions.map(
@@ -556,6 +659,175 @@ export default function Commissioner() {
           onSave={(changes) => void saveSettings(changes, "draft settings")}
           onOrder={(slots) => void saveOrder(slots)}
         />
+      </div>
+
+      <div id="office-dues" style={card}>
+        <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>Dues</h6>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 14px" }}>
+          A line at the top of the home page, seen by the people who have not
+          paid and by nobody else. Say the amount and where to send it — it is
+          your words, not a form.
+          {" "}
+          <strong style={{ color: "var(--text-2)" }}>
+            An empty box turns it off for everybody.
+          </strong>{" "}
+          So does marking everyone paid, which is the same thing said the other
+          way round.
+        </p>
+
+        <div style={{ display: "flex", gap: 14, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+            <label
+              htmlFor="duesNote"
+              style={{ display: "block", fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)", marginBottom: 6 }}
+            >
+              WHAT TO SAY
+            </label>
+            <input
+              id="duesNote"
+              type="text"
+              value={duesNote}
+              maxLength={200}
+              placeholder="$50 to @conner on Venmo by 1 September."
+              onChange={(e) => setDuesNote(e.target.value)}
+              style={{ ...numberField, width: "100%", boxSizing: "border-box", minHeight: 40 }}
+            />
+          </div>
+          <button onClick={() => void saveDuesNote()} disabled={busy} style={{ ...action(!busy), minHeight: 40 }}>
+            Save
+          </button>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 10,
+            flexWrap: "wrap",
+            margin: "16px 0 10px",
+          }}
+        >
+          <span style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)" }}>
+            WHO HAS PAID
+          </span>
+          <span style={{ fontSize: 11.5, color: owing === 0 ? "var(--good)" : "var(--warn)" }}>
+            {owing === 0
+              ? "Everybody is square."
+              : owing === 1
+                ? "1 franchise still owes."
+                : `${owing} franchises still owe.`}
+          </span>
+        </div>
+
+        {/* minmax(0,1fr) rather than a bare auto column: an implicit grid track
+            will not go below its content's min-content width, so at 320px the
+            twelve rows pushed the whole page sideways rather than letting the
+            franchise name ellipsis do its job. */}
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: 6 }}>
+          {admin.managers.map((m) => (
+            <div
+              key={m.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                minWidth: 0,
+                padding: "8px 10px",
+                border: "1px solid rgb(var(--accent-rgb) / .18)",
+                borderRadius: "var(--radius-sm)",
+                background: m.duesPaid ? "transparent" : "rgb(var(--warn-rgb) / .08)",
+              }}
+            >
+              <span style={{ fontSize: 10, letterSpacing: ".16em", color: "var(--text-dim)", flex: "0 0 auto" }}>
+                {m.slot}
+              </span>
+              <span
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-2)",
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {m.franchise}
+              </span>
+              <button
+                onClick={() => void settleDues(m.id, !m.duesPaid)}
+                disabled={busy}
+                aria-label={`${m.franchise}: mark ${m.duesPaid ? "unpaid" : "paid"}`}
+                style={{
+                  ...action(!busy),
+                  minHeight: 34,
+                  padding: "6px 10px",
+                  flex: "0 0 auto",
+                  color: m.duesPaid ? "var(--good)" : "var(--text-dim)",
+                  borderColor: m.duesPaid
+                    ? "rgb(var(--good-rgb) / .5)"
+                    : "rgb(var(--accent-rgb) / .3)",
+                }}
+              >
+                {m.duesPaid ? "Paid" : "Owes"}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+          <button
+            onClick={() => void settleDues(null, true)}
+            disabled={busy || owing === 0}
+            style={{ ...action(!busy && owing > 0), minHeight: 40 }}
+          >
+            Everybody has paid
+          </button>
+          <button
+            onClick={() => void settleDues(null, false)}
+            disabled={busy}
+            style={{ ...action(!busy), minHeight: 40 }}
+          >
+            Start again
+          </button>
+        </div>
+      </div>
+
+      <div id="office-tab" style={card}>
+        <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>The fourth tab</h6>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 14px" }}>
+          On a phone the bottom bar has room for four, and the fourth is either
+          the draft room or Moves — free agents, the trade desk and the record.
+          They are never both the thing anybody needs: the room is the whole app
+          in August and an empty board afterwards.
+          {" "}
+          <strong style={{ color: "var(--text-2)" }}>
+            Nothing moves it but this.
+          </strong>{" "}
+          Give the word when the draft is over, and take it back next season
+          when there is another one to run. Either way it changes for all twelve
+          of you at once.
+        </p>
+
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            onClick={() => void setMovesTab(false)}
+            disabled={busy || !movesTabOn}
+            style={{ ...action(!busy && movesTabOn), minHeight: 40 }}
+          >
+            Draft room
+          </button>
+          <button
+            onClick={() => void setMovesTab(true)}
+            disabled={busy || movesTabOn}
+            style={{ ...action(!busy && !movesTabOn), minHeight: 40 }}
+          >
+            Moves
+          </button>
+          <span style={{ fontSize: 11.5, color: "var(--text-dim)" }}>
+            {movesTabOn ? "Showing Moves." : "Showing the draft room."}
+          </span>
+        </div>
       </div>
 
       <div id="office-rosters" style={card}>
@@ -872,6 +1144,8 @@ function OfficeMenu() {
     ["office-size", "Size"],
     ["office-draft-day", "Draft day"],
     ["office-draft-settings", "Draft settings"],
+    ["office-dues", "Dues"],
+    ["office-tab", "Fourth tab"],
     ["office-rosters", "Rosters"],
     ["office-schedule", "Schedule"],
     ["office-franchises", "Franchises"],

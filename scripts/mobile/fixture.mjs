@@ -11,18 +11,18 @@ export const ME = {
 };
 
 const NAMES = [
-  ["m0", "T01", "Conner", "Steel Cartel", "East"],
-  ["m1", "T02", "Dana", "Bay Area Brawlers", "East"],
-  ["m2", "T03", "Open", "Open Team", "East"],
-  ["m3", "T04", "Kim", "Kim's Very Long Franchise Name", "East"],
-  ["m4", "T05", "Alex", "Thunderbolts", "East"],
-  ["m5", "T06", "Sam", "Riverside Rattlesnakes", "East"],
-  ["m6", "T07", "Jo", "Nine Lives", "West"],
-  ["m7", "T08", "Pat", "Gold Coast Gladiators", "West"],
-  ["m8", "T09", "Chris", "Iron Rail", "West"],
-  ["m9", "T10", "Morgan", "Dust Devils", "West"],
-  ["m10", "T11", "Riley", "Harbour Hounds", "West"],
-  ["m11", "T12", "Casey", "Northside Nomads", "West"],
+  ["m0", "T01", "Conner", "Steel Cartel", "North"],
+  ["m1", "T02", "Dana", "Bay Area Brawlers", "North"],
+  ["m2", "T03", "Open", "Open Team", "North"],
+  ["m3", "T04", "Kim", "Kim's Very Long Franchise Name", "North"],
+  ["m4", "T05", "Alex", "Thunderbolts", "North"],
+  ["m5", "T06", "Sam", "Riverside Rattlesnakes", "North"],
+  ["m6", "T07", "Jo", "Nine Lives", "South"],
+  ["m7", "T08", "Pat", "Gold Coast Gladiators", "South"],
+  ["m8", "T09", "Chris", "Iron Rail", "South"],
+  ["m9", "T10", "Morgan", "Dust Devils", "South"],
+  ["m10", "T11", "Riley", "Harbour Hounds", "South"],
+  ["m11", "T12", "Casey", "Northside Nomads", "South"],
 ];
 
 export const MANAGERS = NAMES.map(([id, slot, name, franchise, division]) => ({
@@ -76,8 +76,18 @@ export function routes(page, over = {}) {
         : {
             ...ME, is_commissioner: true, ready: false, logo: null,
             email: managerEmail, email_notices: managerWantsMail,
+            // Owing, so the band at the top of the home page is measured
+            // rather than merely written. over.duesPaid tries the other side.
+            dues_paid: over.duesPaid === true,
           },
       configured: true,
+      // Which of the two the fourth tab is. The fixture league is mid-season
+      // and its commissioner has given the word, so the tab is Moves — except
+      // on the runs that exist to measure the draft room, where the league has
+      // plainly not given it yet.
+      movesTab: over.draftState == null && !over.myTurn && !over.preseason,
+      // The league is collecting. over.noDues is a league that does not.
+      duesNote: over.noDues ? null : "$50 to @conner on Venmo by 1 September.",
     } }),
   );
 
@@ -707,7 +717,10 @@ export function routes(page, over = {}) {
     league: { id: "l1", name: "Pylon Fantasy", season: 2026, settings: SETTINGS,
       draft_state: "pending", current_pick: 1, draft_at: null, lottery_order: null },
     managers: MANAGERS.map((m, i) => ({ ...m, claimed: m.name !== "Open",
-      isCommissioner: i === 0 })),
+      isCommissioner: i === 0,
+      // Mid-collection: two still owing, so the office shows both states of
+      // the row and the "everybody has paid" button is live.
+      duesPaid: i > 1 })),
     board: { picks: 288, made: 0 }, canResize: true,
   }));
   page.route("**/api/admin/roster", json({

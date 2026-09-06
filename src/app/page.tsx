@@ -1,3 +1,4 @@
+import DuesNotice from "@/components/DuesNotice";
 import HomeBoard from "@/components/HomeBoard";
 import Nav from "@/components/Nav";
 import SignIn from "@/components/SignIn";
@@ -73,6 +74,11 @@ export default async function HomePage() {
         }}
       >
         <Nav current="/" />
+        {/* Directly under the header and above everything else, because a
+            reminder about money placed below the scores is a reminder nobody
+            reads. Says nothing at all unless the league has set a note and
+            this particular franchise has not been marked paid. */}
+        <DuesNotice />
         <HomeBoard />
       </div>
     );

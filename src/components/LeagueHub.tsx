@@ -66,12 +66,15 @@ const PLACES: Place[] = [
     name: "League overview",
     line: "Who is scoring at each position, the power rankings, and every franchise's roster.",
   },
+  // The three screens where a roster changes have a tab of their own now, which
+  // takes the draft room's slot once the draft is done. This card is how they
+  // are reached before that — and it stays afterwards, because somebody
+  // looking for the wire on the league's page should find it rather than be
+  // told they were in the wrong hub.
   {
-    href: "/activity",
-    name: "Recent moves",
-    line: "Every trade, claim and drop the league has made, newest first.",
-    // What happened while you were not looking, which is the only reason
-    // anybody opens this page rather than waiting to be told.
+    href: "/moves",
+    name: "Moves",
+    line: "Free agents and waivers, the trade builder, and the record of every move the league has made.",
     badge: (c) =>
       c.movesToday === 0
         ? null
@@ -88,11 +91,6 @@ const PLACES: Place[] = [
     href: "/rankings",
     name: "Player rankings",
     line: "Every player in the pool, by position, with the numbers behind them.",
-  },
-  {
-    href: "/free-agents",
-    name: "Free agents",
-    line: "Who is unowned, who is on waivers, and when they clear.",
   },
 ];
 

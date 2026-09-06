@@ -12,7 +12,7 @@
 -- has the early schema and no record of it; this file recognises that and
 -- writes the record down rather than failing on the tables already there.
 --
--- Built from 40 migrations:
+-- Built from 42 migrations:
 --   0001_schema.sql
 --   0002_trades.sql
 --   0003_draft.sql
@@ -53,6 +53,8 @@
 --   0038_full_ppr.sql
 --   0039_draft_sequence.sql
 --   0040_pylon_fantasy.sql
+--   0041_north_south.sql
+--   0042_dues.sql
 
 begin;
 
@@ -8651,6 +8653,243 @@ begin
 
     insert into schema_migrations (name) values ('0040_pylon_fantasy.sql');
     raise notice 'applied %', '0040_pylon_fantasy.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0041_north_south.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0041_north_south.sql') then
+    raise notice 'skipping %, already applied', '0041_north_south.sql';
+  else
+    -- The divisions are North and South.
+    --
+    -- They were East and West, which was never a decision — it was the pair of
+    -- names 0009 happened to pick when it split a league in half. This is the
+    -- commissioner naming them, and it has to reach three places or the old names
+    -- grow back:
+    --
+    --   1. The managers who already carry a division. A rename that leaves the
+    --      rows alone renames nothing anybody can see.
+    --   2. assign_missing_divisions, which names both divisions when a league has
+    --      none — so a league resized before its first game would re-create East
+    --      and West underneath a standings page saying North and South.
+    --   3. assign_division_on_insert, the trigger every new franchise passes
+    --      through. This is the one that matters most: it fires on the seed, on a
+    --      resize, and on next season's rollover, so leaving it would mean the
+    --      thirteenth franchise anybody ever adds arrives in the East.
+    --
+    -- Only the two names the app itself chose are touched. A commissioner who has
+    -- already renamed their divisions to something of their own keeps them: this
+    -- is replacing a default, not overwriting a decision.
+    --
+    -- North sorts before South exactly as East sorted before West, which matters
+    -- more than it looks: every "order by division" in 0009 — the rematch
+    -- ordering, the standings grouping, the tie-break that picks the smaller
+    -- division by name — keeps the behaviour it was tested with.
+
+    update managers set division = 'North' where division = 'East';
+    update managers set division = 'South' where division = 'West';
+
+    /**
+     * A franchise added by a resize has no division, which would leave it out of
+     * the divisional rematches. New slots join the smaller division, so the two
+     * stay as even as the league allows.
+     *
+     * Unchanged from 0009 but for the pair of names.
+     */
+    create or replace function assign_missing_divisions(p_league_id uuid)
+    returns void
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_id    uuid;
+      v_divs  text[];
+      v_small text;
+    begin
+      select array_agg(distinct division order by division) into v_divs
+        from managers where league_id = p_league_id and division is not null;
+
+      -- A league with no divisions at all splits evenly by slot.
+      if v_divs is null or array_length(v_divs, 1) < 2 then
+        update managers m
+           set division = case when seq.rn * 2 <= seq.total then 'North' else 'South' end
+          from (
+            select id,
+                   row_number() over (order by slot) as rn,
+                   count(*) over () as total
+              from managers where league_id = p_league_id
+          ) seq
+         where seq.id = m.id;
+        return;
+      end if;
+
+      for v_id in
+        select id from managers
+         where league_id = p_league_id and division is null
+         order by slot
+      loop
+        select division into v_small
+          from managers
+         where league_id = p_league_id and division is not null
+         group by division
+         order by count(*), division
+         limit 1;
+
+        update managers set division = v_small where id = v_id;
+      end loop;
+    end;
+    $$;
+
+    revoke all on function assign_missing_divisions(uuid) from public;
+
+    -- Any franchise created later — by a resize, or by the seed script — joins a
+    -- division automatically, so a league can never end up with a franchise that
+    -- sits outside the divisional rematches.
+    create or replace function assign_division_on_insert()
+    returns trigger
+    language plpgsql
+    as $$
+    declare
+      v_divs  text[];
+      v_small text;
+    begin
+      if new.division is not null then return new; end if;
+
+      select array_agg(distinct division order by division) into v_divs
+        from managers where league_id = new.league_id and division is not null;
+
+      -- A league that has not got two divisions yet is filling the first ones, so
+      -- both names have to be candidates: picking the smallest of what exists
+      -- would put everybody in whichever division was created first.
+      if v_divs is null or array_length(v_divs, 1) < 2 then
+        v_divs := array['North', 'South'];
+      end if;
+
+      select d into v_small
+        from unnest(v_divs) as d
+        left join managers m
+          on m.league_id = new.league_id and m.division = d
+       group by d
+       order by count(m.id), d
+       limit 1;
+
+      new.division := coalesce(v_small, 'North');
+      return new;
+    end;
+    $$;
+
+    drop trigger if exists managers_division on managers;
+    create trigger managers_division
+      before insert on managers
+      for each row execute function assign_division_on_insert();
+
+    insert into schema_migrations (name) values ('0041_north_south.sql');
+    raise notice 'applied %', '0041_north_south.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0042_dues.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0042_dues.sql') then
+    raise notice 'skipping %, already applied', '0042_dues.sql';
+  else
+    -- League dues, and the one line on the home page that chases them.
+    --
+    -- Every league has the same problem in September and it is never the software:
+    -- three people have not paid, the commissioner does not want to be the person
+    -- who keeps asking, and so the asking happens in a group text where it is
+    -- either ignored or resented. A line at the top of the app is a better place
+    -- for it — it is seen by the person who owes and by nobody else, it says the
+    -- amount and where to send it, and it goes away the moment they are marked
+    -- paid rather than needing anybody to say so.
+    --
+    -- Two pieces, and the split matters:
+    --
+    --   * leagues.settings.duesNote, free text, written through the office. It is
+    --     both the message and the switch: no note, no notice, for anybody, ever.
+    --     A league that does not collect dues never sees a word about them, and a
+    --     brand-new league does not greet eleven people with a bill nobody set.
+    --     Deliberately not a column — it is a setting like every other setting.
+    --
+    --   * managers.dues_paid, here, because it is a fact about a franchise rather
+    --     than a preference, it is read on every page load, and the commissioner
+    --     has to be able to see the whole table at a glance.
+    --
+    -- Default false: unpaid until somebody says otherwise, which is the honest
+    -- default for money. It shows nobody anything until a note is set.
+
+    alter table managers
+      add column if not exists dues_paid boolean not null default false;
+
+    /**
+     * Marks a franchise paid or unpaid. Commissioner only, checked here rather
+     * than in the route, so it is true of the database and not just of the app.
+     *
+     * Takes a null manager to mean everybody, which is the button the office
+     * actually needs: "they are all paid up, clear it" is one press, not twelve.
+     */
+    create or replace function set_dues_paid(p_manager_id uuid, p_paid boolean)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me      managers;
+      v_changed int;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner then
+        raise exception 'Only the commissioner can settle dues' using errcode = '42501';
+      end if;
+
+      if p_manager_id is null then
+        update managers set dues_paid = p_paid where league_id = v_me.league_id;
+      else
+        update managers set dues_paid = p_paid
+         where id = p_manager_id and league_id = v_me.league_id;
+
+        if not found then
+          raise exception 'No such manager in your league' using errcode = 'P0002';
+        end if;
+      end if;
+
+      get diagnostics v_changed = row_count;
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (v_me.league_id, v_me.id, 'dues',
+              jsonb_build_object('manager_id', p_manager_id, 'paid', p_paid,
+                                 'franchises', v_changed));
+
+      return jsonb_build_object('ok', true, 'changed', v_changed);
+    end;
+    $$;
+
+    revoke all on function set_dues_paid(uuid, boolean) from public;
+    grant execute on function set_dues_paid(uuid, boolean) to authenticated;
+
+    -- Read-only to everybody else. Who has paid is not a secret inside a league —
+    -- twelve people who put money in a pot may all see the pot — but it is the
+    -- commissioner's to change, so it is not in the columns a manager may update.
+    -- 0010 grants update on (name, franchise) only, so this needs nothing: a
+    -- column nobody was granted is a column nobody can write.
+
+    insert into schema_migrations (name) values ('0042_dues.sql');
+    raise notice 'applied %', '0042_dues.sql';
   end if;
 end
 $__migration__$;

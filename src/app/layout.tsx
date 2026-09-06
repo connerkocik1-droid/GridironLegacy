@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Inter } from "next/font/google";
-import { currentManager } from "@/lib/session";
+import { currentManager, movesTabOpen } from "@/lib/session";
 import AddToHomeScreen from "@/components/AddToHomeScreen";
 import LaunchScreen from "@/components/LaunchScreen";
 import OfflineBar from "@/components/OfflineBar";
@@ -118,6 +118,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // asking the server that already read the session costs nothing this render
   // was not already paying — see TabBar for what it cost not to.
   const manager = await currentManager();
+  // Which the fourth tab is — the draft room, or the transactions the
+  // commissioner can hand its slot to once the draft is over. Decided here for
+  // the same reason as above: so the bar in the first frame is already right.
+  const movesTab = manager ? await movesTabOpen(manager.league_id) : false;
   return (
     // data-theme is written here as well as by the script, so that the markup
     // the server sends already says which palette it is — the stylesheet's
@@ -183,7 +187,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* The four places, within a thumb's reach. Phones only — a desktop
             has the same links across the top of the page, and two navigations
             are worse than one wherever they are. */}
-        <TabBar signedIn={manager != null} />
+        <TabBar signedIn={manager != null} movesTab={movesTab} />
         {/* Renders nothing at all except in mobile Safari, to somebody who has
             not already installed it and has not said no. */}
         <AddToHomeScreen />

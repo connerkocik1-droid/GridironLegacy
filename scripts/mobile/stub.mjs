@@ -105,11 +105,11 @@ createServer((req, res) => {
         JSON.stringify([
           {
             id: "m0", slot: "T01", name: "Open", franchise: "Steel Cartel",
-            pin_hash: null, is_commissioner: true, division: "East",
+            pin_hash: null, is_commissioner: true, division: "North",
           },
           {
             id: "m1", slot: "T02", name: "Open", franchise: "Bay Area Brawlers",
-            pin_hash: null, is_commissioner: false, division: "West",
+            pin_hash: null, is_commissioner: false, division: "South",
           },
         ]),
       );
@@ -122,7 +122,16 @@ createServer((req, res) => {
   }
 
   if (url.pathname === "/rest/v1/leagues") {
-    return res.end(JSON.stringify([{ id: LEAGUE_ID, name: "Pylon Fantasy", season: 2026 }]));
+    // settings.movesTab matters to the layout now: the bottom bar's fourth tab
+    // is the draft room until the commissioner hands the slot over, and the
+    // layout reads this row to decide which. The fixture league is mid-season
+    // — week three, graded scores, a standings table — so its commissioner
+    // gave the word months ago. draft_state says so too, for the routes that
+    // read it.
+    return res.end(JSON.stringify([{
+      id: LEAGUE_ID, name: "Pylon Fantasy", season: 2026,
+      draft_state: "complete", settings: { movesTab: true },
+    }]));
   }
 
   res.end("[]");
