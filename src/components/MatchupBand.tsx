@@ -319,6 +319,25 @@ export default function MatchupBand({ home }: { home: Home | null }) {
           key={at}
           className={dir === 0 ? undefined : dir > 0 ? "gl-step-next" : "gl-step-prev"}
         >
+        {/* The fixture itself is the way into it. It used to be a line of text
+            underneath — "Both lineups, player by player →" — which is a link
+            below a thing that already looks pressable, and which had nowhere
+            honest to send anybody looking at two other franchises. The matchup
+            screen lays out any two now, so every fixture in this band is a
+            place you can go by pressing the fixture.
+
+            The header above stays outside the link: the arrows and the counter
+            are controls, and putting a link around them makes stepping through
+            the week a navigation. */}
+        <Link
+          href={
+            game.mine
+              ? "/lineup"
+              : `/lineup?home=${encodeURIComponent(game.home.id)}&opponent=${encodeURIComponent(game.away.id)}`
+          }
+          aria-label={`${game.home.franchise} against ${game.away.franchise}, player by player`}
+          style={{ display: "block", textDecoration: "none", color: "inherit" }}
+        >
         <Side
           key={game.home.id}
           side={game.home}
@@ -348,15 +367,16 @@ export default function MatchupBand({ home }: { home: Home | null }) {
             final={done}
           />
         ) : null}
+        </Link>
         </div>
       </div>
 
-      {/* The way down into a game, player by player. Only for your own: the
-          lineup screen is built around you against an opponent, so there is no
-          honest place to send somebody looking at two other franchises — the
-          season page is where those are read in full. */}
-      {/* The high score and the way in, on one line where there is room and
-          stacked tight where there is not. */}
+      {/* The high score, which is the question straight after "am I winning".
+          The way into the game used to sit beside it; the card is the way in
+          now, so this line is one fact rather than a fact and a signpost —
+          and it is not drawn at all before anything has been scored, where it
+          used to leave an empty strip under the card. */}
+      {high ? (
       <div
         style={{
           marginTop: 8,
@@ -368,7 +388,7 @@ export default function MatchupBand({ home }: { home: Home | null }) {
           flexWrap: "wrap",
         }}
       >
-        {high ? (
+        {(
           <span
             style={{
               fontSize: 11,
@@ -385,21 +405,9 @@ export default function MatchupBand({ home }: { home: Home | null }) {
               {high.mine ? " · you" : ""}
             </span>
           </span>
-        ) : null}
-
-        <Link
-          href={game.mine ? "/lineup" : "/matchups"}
-          style={{
-            color: "var(--accent-link)",
-            textDecoration: "none",
-            display: "inline-flex",
-            alignItems: "center",
-            minHeight: 34,
-          }}
-        >
-          {game.mine ? "Both lineups, player by player →" : "The whole season →"}
-        </Link>
+        )}
       </div>
+      ) : null}
     </>
   );
 }

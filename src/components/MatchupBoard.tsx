@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import TeamMark from "./TeamMark";
 import Skeleton from "./Skeleton";
@@ -21,6 +22,8 @@ interface Side {
 interface Bye {
   week: number;
   managers: { id: string; slot: string; franchise: string }[];
+  /** Whether the left-hand column is the person reading it. */
+  mine?: boolean;
 }
 
 interface Board {
@@ -35,6 +38,8 @@ interface Board {
   /** The week is settled: this arrangement is the one that was recorded. */
   final: boolean;
   managers: { id: string; slot: string; franchise: string }[];
+  /** Whether the left-hand column is the person reading it. */
+  mine?: boolean;
 }
 
 const BLANK =
@@ -182,6 +187,15 @@ export default function MatchupBoard() {
       ? ""
       : (new URLSearchParams(window.location.search).get("opponent") ?? ""),
   );
+  // The left-hand franchise, when it is not the person reading. Set only from
+  // the address and never from the dropdown: this is the case where a fixture
+  // between two other franchises was opened from the home page, and the way
+  // out of it is to go back to your own game rather than to swap a side.
+  const [asHome] = useState(() =>
+    typeof window === "undefined"
+      ? ""
+      : (new URLSearchParams(window.location.search).get("home") ?? ""),
+  );
 
   /**
    * Choosing an opponent, and saying so in the address bar.
@@ -214,7 +228,10 @@ export default function MatchupBoard() {
 
   const load = useCallback(async () => {
     try {
-      const query = opponent ? `?opponent=${encodeURIComponent(opponent)}` : "";
+      const params = new URLSearchParams();
+      if (asHome) params.set("home", asHome);
+      if (opponent) params.set("opponent", opponent);
+      const query = params.toString() ? `?${params}` : "";
       const res = await fetch(`/api/matchup${query}`, { cache: "no-store" });
       if (res.status === 401) return setError("Sign in to see your matchup.");
       if (res.status === 503) {
@@ -253,7 +270,7 @@ export default function MatchupBoard() {
     } catch {
       setError("Could not load this week's matchup.");
     }
-  }, [opponent]);
+  }, [opponent, asHome]);
 
   // Answers a pull-to-refresh as well as its own timer.
   useRefreshable(load);
@@ -279,6 +296,12 @@ export default function MatchupBoard() {
   const homeLeads = board.home.total > board.away.total;
   const awayLeads = board.away.total > board.home.total;
 
+  // Two other franchises, opened from a fixture on the home page. The header
+  // cannot say "YOU" over somebody else's team, and the opponent dropdown
+  // would mean "swap who they are playing", which is not a question anybody
+  // has. So both become plain names, and there is a way back to your own week.
+  const mine = board.mine !== false;
+
   return (
     <>
       {/* The two totals face each other across the header, the same axis the
@@ -294,7 +317,9 @@ export default function MatchupBoard() {
         }}
       >
         <div>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>YOU</div>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>
+            {mine ? "YOU" : board.home.slot}
+          </div>
           <div style={{ fontFamily: "var(--font-heading)", fontSize: 22, marginTop: 4 }}>
             {board.home.franchise}
           </div>
@@ -323,7 +348,15 @@ export default function MatchupBoard() {
         </div>
 
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>OPPONENT</div>
+          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>
+            {mine ? "OPPONENT" : board.away.slot}
+          </div>
+          {!mine ? (
+            <div style={{ fontFamily: "var(--font-heading)", fontSize: 22, marginTop: 4 }}>
+              {board.away.franchise}
+            </div>
+          ) : null}
+          {mine ? (
           <select
             value={opponent}
             aria-label="Opponent"
@@ -362,6 +395,7 @@ export default function MatchupBoard() {
               </option>
             ))}
           </select>
+          ) : null}
           <div
             style={{
               fontFamily: "var(--font-heading)",
@@ -374,6 +408,28 @@ export default function MatchupBoard() {
           </div>
         </div>
       </div>
+
+      {/* The way out of somebody else's game. Without it the only way back is
+          the browser's own back button, which is not a thing a tab bar app
+          teaches anybody to reach for. */}
+      {!mine ? (
+        <div style={{ padding: "0 26px 4px" }}>
+          <Link
+            href="/lineup"
+            style={{
+              fontSize: 11,
+              letterSpacing: ".14em",
+              color: "var(--accent-link)",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              minHeight: 34,
+            }}
+          >
+            ‹ YOUR OWN MATCHUP
+          </Link>
+        </div>
+      ) : null}
 
       {/* The gap, drawn. This is the screen a manager sits on during a game,
           so it is the screen where the distance between the two numbers is

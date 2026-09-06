@@ -8,7 +8,7 @@ import Skeleton from "./Skeleton";
 import TeamMark from "./TeamMark";
 import { useMe } from "@/lib/use-me";
 import { useRefreshable } from "@/lib/use-refresh";
-import type { Gamecast, OwnedPlayer } from "@/lib/gamecast";
+import type { BoxTeam, Gamecast, OwnedPlayer } from "@/lib/gamecast";
 import type { Game } from "@/lib/espn";
 
 /**
@@ -164,6 +164,10 @@ export default function GamecastBoard({ id }: { id: string }) {
             </div>
           ))}
         </Section>
+      ) : null}
+
+      {board.box.length ? (
+        <BoxScore box={board.box} totals={board.teamTotals} game={game} />
       ) : null}
 
       {board.plays.length ? (
@@ -394,3 +398,251 @@ function Section({
     </div>
   );
 }
+
+/**
+ * The box score, which is the one part of this screen that is not about
+ * fantasy at all.
+ *
+ * Everything above it reads the game through a roster. This reads the game.
+ * It is ESPN's own groups, in ESPN's own order, with ESPN's own column
+ * headings — the moment it starts choosing which columns matter it stops
+ * being a box score and becomes another opinion, so it chooses nothing and
+ * scrolls a table sideways instead of dropping a column somebody wanted.
+ *
+ * One team at a time, because two full box scores stacked on a phone is a
+ * wall nobody reads, and the question is always about one side. The away team
+ * is first, as it is on the scoreline above and on every scoreboard there has
+ * ever been.
+ */
+function BoxScore({
+  box,
+  totals,
+  game,
+}: {
+  box: BoxTeam[];
+  totals: Record<string, Record<string, string>>;
+  game: Game | null;
+}) {
+  // Away first, then home, then anything ESPN sent that is neither — which
+  // should be nothing, and is not worth losing if it happens.
+  const order = [game?.away?.abbrev, game?.home?.abbrev].filter(Boolean) as string[];
+  const teams = [
+    ...order.map((a) => box.find((t) => t.team === a)).filter(Boolean),
+    ...box.filter((t) => !order.includes(t.team)),
+  ] as BoxTeam[];
+
+  const [showing, setShowing] = useState(teams[0]?.team ?? "");
+  const team = teams.find((t) => t.team === showing) ?? teams[0];
+  if (!team) return null;
+
+  const away = order[0];
+  const home = order[1];
+
+  return (
+    <Section title="Box score" note={team.team}>
+      {away && home && (totals[away] || totals[home]) ? (
+        <TeamTotals away={away} home={home} totals={totals} />
+      ) : null}
+
+      {teams.length > 1 ? (
+        <div
+          role="tablist"
+          aria-label="Box score team"
+          style={{
+            display: "flex",
+            borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
+          }}
+        >
+          {teams.map((t) => {
+            const on = t.team === team.team;
+            return (
+              <button
+                key={t.team}
+                role="tab"
+                aria-selected={on}
+                onClick={() => setShowing(t.team)}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  minHeight: 40,
+                  padding: "9px 8px",
+                  border: "none",
+                  borderBottom: `2px solid ${on ? "var(--accent-text)" : "transparent"}`,
+                  background: on ? "rgb(var(--accent-rgb) / .12)" : "transparent",
+                  color: on ? "var(--text)" : "var(--text-dim)",
+                  font: "inherit",
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 13,
+                  letterSpacing: ".06em",
+                  cursor: on ? "default" : "pointer",
+                }}
+              >
+                {t.team}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {team.groups.map((g) => (
+        <div key={g.group} style={{ borderTop: "1px solid rgb(var(--accent-rgb) / .12)" }}>
+          <div
+            style={{
+              fontSize: 10,
+              letterSpacing: ".2em",
+              color: "var(--text-dim)",
+              padding: "10px 16px 7px",
+            }}
+          >
+            {g.group.replace(/([a-z])([A-Z])/g, "$1 $2").toUpperCase()}
+          </div>
+
+          {/* The table scrolls inside itself. A box score is wider than a
+              phone and always will be; the page must not be. */}
+          <div className="gl-scroll-x" style={{ overflowX: "auto", padding: "0 16px 12px" }}>
+            <table
+              style={{
+                borderCollapse: "collapse",
+                fontSize: 12,
+                fontVariantNumeric: "tabular-nums",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <thead>
+                <tr>
+                  <th style={{ ...cell, textAlign: "left", color: "var(--text-dim)", fontWeight: 400 }} />
+                  {g.labels.map((label) => (
+                    <th
+                      key={label}
+                      style={{
+                        ...cell,
+                        color: "var(--text-dim)",
+                        fontWeight: 400,
+                        fontSize: 10,
+                        letterSpacing: ".08em",
+                      }}
+                    >
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {g.rows.map((r, i) => (
+                  <tr key={`${r.name}-${i}`}>
+                    <td style={{ ...cell, textAlign: "left", color: "var(--text-2)", paddingRight: 14 }}>
+                      {r.name}
+                    </td>
+                    {r.values.map((v, j) => (
+                      <td key={g.labels[j] ?? j} style={{ ...cell, color: "var(--text-3)" }}>
+                        {v}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </Section>
+  );
+}
+
+const cell: React.CSSProperties = {
+  padding: "5px 7px",
+  textAlign: "right",
+  borderBottom: "1px solid rgb(var(--accent-rgb) / .08)",
+};
+
+/**
+ * The team-total comparison, which is the half of a box score people actually
+ * read: total yards, who ran it, who turned it over.
+ *
+ * ESPN keys these by its own camelCase names, which are what the scoring code
+ * reads too, so they are not renamed at the source. The order and the wording
+ * are chosen here. Anything ESPN sends that is not on the list still appears,
+ * de-camelCased, at the bottom — a box score that silently drops a row is
+ * worse than one that shows a row nobody named.
+ */
+const TOTAL_ROWS: [string, string][] = [
+  ["totalYards", "Total yards"],
+  ["netPassingYards", "Passing"],
+  ["rushingYards", "Rushing"],
+  ["firstDowns", "First downs"],
+  ["thirdDownEff", "Third down"],
+  ["fourthDownEff", "Fourth down"],
+  ["totalPenaltiesYards", "Penalties"],
+  ["sacksYardsLost", "Sacked"],
+  ["turnovers", "Turnovers"],
+  ["possessionTime", "Possession"],
+];
+
+function TeamTotals({
+  away,
+  home,
+  totals,
+}: {
+  away: string;
+  home: string;
+  totals: Record<string, Record<string, string>>;
+}) {
+  const named = new Set(TOTAL_ROWS.map(([key]) => key));
+  const extra = [
+    ...new Set([...Object.keys(totals[away] ?? {}), ...Object.keys(totals[home] ?? {})]),
+  ].filter((key) => !named.has(key));
+
+  const rows: [string, string][] = [
+    ...TOTAL_ROWS,
+    ...extra.map((key): [string, string] => [
+      key,
+      key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase()),
+    ]),
+  ].filter(([key]) => totals[away]?.[key] != null || totals[home]?.[key] != null);
+
+  if (!rows.length) return null;
+
+  return (
+    <div style={{ padding: "12px 16px 14px" }}>
+      <div style={{ ...totalsRow, color: "var(--text-dim)", fontSize: 10, letterSpacing: ".1em" }}>
+        <span style={{ ...totalsSide, fontFamily: "var(--font-heading)" }}>{away}</span>
+        <span />
+        <span style={{ ...totalsSide, fontFamily: "var(--font-heading)" }}>{home}</span>
+      </div>
+
+      {rows.map(([key, label]) => (
+        <div key={key} style={totalsRow}>
+          <span style={{ ...totalsSide, color: "var(--text-2)" }}>{totals[away]?.[key] ?? "—"}</span>
+          <span
+            style={{
+              fontSize: 11,
+              color: "var(--text-dim)",
+              textAlign: "center",
+              minWidth: 0,
+              overflowWrap: "anywhere",
+            }}
+          >
+            {label}
+          </span>
+          <span style={{ ...totalsSide, color: "var(--text-2)" }}>{totals[home]?.[key] ?? "—"}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const totalsRow: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr)",
+  alignItems: "baseline",
+  gap: 8,
+  padding: "5px 0",
+};
+
+const totalsSide: React.CSSProperties = {
+  fontSize: 13,
+  fontVariantNumeric: "tabular-nums",
+  textAlign: "center",
+  whiteSpace: "nowrap",
+  minWidth: 0,
+};

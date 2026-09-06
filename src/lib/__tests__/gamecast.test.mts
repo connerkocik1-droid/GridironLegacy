@@ -1,4 +1,4 @@
-import { gamecast, type Ownership } from "../gamecast";
+import { boxscore, gamecast, type Ownership } from "../gamecast";
 import type { Play, PlayerStat, ScoringPlay } from "../espn";
 
 let failed = 0;
@@ -121,6 +121,46 @@ console.log("\n--- nothing has happened yet ---");
 {
   const g = gamecast([], [], [], owners([["Jahmyr Gibbs", "A", "m0"]]), "ppr");
   eq("an empty box score is empty, not an error", [g.owned, g.notable, g.plays], [[], [], []]);
+}
+
+console.log("\n--- the box score ---");
+{
+  const box = boxscore([
+    stat("Jared Goff", "DET", "passing", { "C/ATT": "22/30", YDS: "241", TD: "2", INT: "0" }),
+    stat("Jahmyr Gibbs", "DET", "rushing", { CAR: "14", YDS: "92", TD: "1" }),
+    stat("David Montgomery", "DET", "rushing", { CAR: "9", YDS: "34", TD: "0" }),
+    stat("Jordan Love", "GB", "passing", { "C/ATT": "18/31", YDS: "199", TD: "1", INT: "1" }),
+  ]);
+
+  eq("both teams, in the order they appeared", box.map((t) => t.team), ["DET", "GB"]);
+  eq("Detroit's groups", box[0].groups.map((g) => g.group), ["passing", "rushing"]);
+  eq("ESPN's own columns, in ESPN's own order",
+    box[0].groups[0].labels, ["C/ATT", "YDS", "TD", "INT"]);
+  eq("a line reads across", box[0].groups[0].rows[0], { name: "Jared Goff", values: ["22/30", "241", "2", "0"] });
+  eq("everybody in the group is there", box[0].groups[1].rows.map((r) => r.name),
+    ["Jahmyr Gibbs", "David Montgomery"]);
+  eq("and the other team is its own", box[1].groups[0].rows[0].values, ["18/31", "199", "1", "1"]);
+}
+{
+  // A column that turns up late must widen the whole group, not truncate the
+  // rows above it — and the player who never had it says so rather than
+  // shifting everybody's numbers one to the left.
+  const box = boxscore([
+    stat("A", "DET", "rushing", { CAR: "3", YDS: "9" }),
+    stat("B", "DET", "rushing", { CAR: "1", YDS: "4", TD: "1" }),
+  ]);
+  eq("a late column widens the group", box[0].groups[0].labels, ["CAR", "YDS", "TD"]);
+  eq("and the row that lacks it is padded, not shifted",
+    box[0].groups[0].rows.map((r) => r.values), [["3", "9", "—"], ["1", "4", "1"]]);
+}
+{
+  eq("no box score is no teams", boxscore([]), []);
+  eq("a player with no team is not a row",
+    boxscore([stat("Nobody", "", "rushing", { CAR: "1" })]), []);
+}
+{
+  const g = gamecast(STATS, [], [], owners([]), "ppr");
+  eq("the gamecast carries it", g.box.length > 0, true);
 }
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");

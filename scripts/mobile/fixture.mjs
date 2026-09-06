@@ -478,8 +478,28 @@ export function routes(page, over = {}) {
         updatedAt: "" },
     ]),
   ) }));
-  page.route("**/api/matchup**", json({
+  // Any two franchises, not only yours: ?home= names the left-hand side, so a
+  // fixture between two other managers opened from the band comes back with
+  // mine:false and the header stops saying YOU over somebody else's team.
+  page.route("**/api/matchup**", (r) => {
+    const asHome = new URL(r.request().url()).searchParams.get("home");
+    return r.fulfill({ json: asHome && asHome !== "m0"
+      ? { week: 3, scheduled: true, final: false, live: true, started: true, weekPhase: "live",
+          mine: false,
+          home: { id: "m4", slot: "T05", franchise: "Thunderbolts", total: 88.4 },
+          away: { id: "m7", slot: "T08", franchise: "Gold Coast Gladiators", total: 91.2 },
+          rows: ROSTER.filter(([, slot]) => slot !== "BENCH").map(([n, slot]) => ({ slot,
+            home: { name: n, position: slot, team: "WSH", points: 12.1, projected: 12,
+              live: true, statLine: lineFor(slot === "FLEX" ? "RB" : slot) },
+            away: { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", points: 13.4,
+              projected: 13, live: true, statLine: LINES.WR } })),
+          managers: MANAGERS }
+      : MATCHUP });
+  });
+
+  const MATCHUP = {
     week: 3, scheduled: true, final: false, live: true, started: true, weekPhase: "live",
+    mine: true,
     home: { id: "m0", slot: "T01", franchise: "Steel Cartel", total: 104.6 },
     away: { id: "m3", slot: "T04", franchise: "Kim's Very Long Franchise Name", total: 98.2 },
     rows: ROSTER.filter(([, slot]) => slot !== "BENCH").map(([n, slot]) => ({ slot,
@@ -488,7 +508,7 @@ export function routes(page, over = {}) {
       away: { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", points: 22.1,
         projected: 22, live: true, statLine: LINES.WR } })),
     managers: MANAGERS,
-  }));
+  };
   // The slate the ticker rides on. Without it the strip renders nothing, so
   // every audit run measured a home page with the top rail missing — and the
   // link into the gamecast lives inside that rail.
@@ -545,7 +565,47 @@ export function routes(page, over = {}) {
         : "Saquon Barkley rush up the middle for 3 yards.",
       scoring: i === 4, homeScore: 21, awayScore: 17,
     })),
-    teamTotals: {},
+    // The real football box score, in ESPN's own groups and columns. Wide on
+    // purpose: passing is eight columns, which is what the table has to scroll
+    // sideways inside itself rather than pushing the page.
+    box: [
+      {
+        team: "PHI",
+        groups: [
+          { group: "passing", labels: ["C/ATT", "YDS", "AVG", "TD", "INT", "SACKS", "QBR", "RTG"],
+            rows: [{ name: "Jalen Hurts", values: ["18/27", "212", "7.9", "1", "0", "2-14", "71.4", "104.2"] }] },
+          { group: "rushing", labels: ["CAR", "YDS", "AVG", "TD", "LONG"],
+            rows: [
+              { name: "Saquon Barkley", values: ["17", "96", "5.6", "1", "23"] },
+              { name: "Jalen Hurts", values: ["6", "31", "5.2", "0", "11"] },
+            ] },
+          { group: "receiving", labels: ["REC", "YDS", "AVG", "TD", "LONG", "TGTS"],
+            rows: [
+              { name: "Marvin Harrison Jr.", values: ["6", "81", "13.5", "0", "24", "9"] },
+              { name: "Dallas Goedert", values: ["5", "62", "12.4", "1", "19", "6"] },
+            ] },
+        ],
+      },
+      {
+        team: "WSH",
+        groups: [
+          { group: "passing", labels: ["C/ATT", "YDS", "AVG", "TD", "INT", "SACKS", "QBR", "RTG"],
+            rows: [{ name: "Jayden Daniels", values: ["22/30", "241", "8.0", "2", "0", "1-7", "88.1", "119.6"] }] },
+          { group: "rushing", labels: ["CAR", "YDS", "AVG", "TD", "LONG"],
+            rows: [{ name: "Jayden Daniels", values: ["8", "54", "6.8", "1", "12"] }] },
+          { group: "receiving", labels: ["REC", "YDS", "AVG", "TD", "LONG", "TGTS"],
+            rows: [{ name: "Terry McLaurin", values: ["4", "54", "13.5", "0", "21", "7"] }] },
+        ],
+      },
+    ],
+    teamTotals: {
+      PHI: { firstDowns: "17", thirdDownEff: "5-13", totalYards: "309", netPassingYards: "198",
+        rushingYards: "111", turnovers: "1", totalPenaltiesYards: "6-45",
+        sacksYardsLost: "2-14", possessionTime: "28:12" },
+      WSH: { firstDowns: "21", thirdDownEff: "8-14", totalYards: "372", netPassingYards: "234",
+        rushingYards: "138", turnovers: "0", totalPenaltiesYards: "4-30",
+        sacksYardsLost: "1-7", possessionTime: "31:48" },
+    },
     fetchedAt: new Date().toISOString(),
   }));
 
