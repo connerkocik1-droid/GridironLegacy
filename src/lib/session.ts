@@ -11,6 +11,8 @@ export interface SessionManager {
   league_id: string;
   is_commissioner: boolean;
   ready: boolean;
+  /** Whether the commissioner has marked this franchise's dues settled. */
+  dues_paid?: boolean;
 }
 
 /**
@@ -50,7 +52,7 @@ export async function currentManager(): Promise<SessionManager | null> {
 
     let query = db
       .from("managers")
-      .select("id, slot, name, franchise, league_id, is_commissioner, ready, email, email_notices")
+      .select("id, slot, name, franchise, league_id, is_commissioner, ready, email, email_notices, dues_paid")
       .eq("auth_user_id", user.id);
 
     // Scoped when the deployment names its league, which it always does in
@@ -64,6 +66,64 @@ export async function currentManager(): Promise<SessionManager | null> {
     return (data as SessionManager | null) ?? null;
   } catch {
     // A database that cannot be reached is not a licence to let somebody in.
+    return null;
+  }
+}
+
+/**
+ * Whether this league has handed the fourth tab over to the transactions.
+ *
+ * The bottom bar's fourth slot is the draft room until the commissioner says
+ * otherwise and the Moves tab afterwards. It is deliberately NOT read off
+ * draft_state: a draft can read "complete" before a league is ready to call
+ * the offseason over — a rehearsal, a reset, a resize that flips it back —
+ * and the tab changing under eleven managers because a state machine moved is
+ * how somebody loses the draft room on the morning of the draft. So it is a
+ * command, given once in the league office, and nothing else moves it.
+ *
+ * Read from the server, in the layout, for the same reason "signed in" is: a
+ * tab decided only in the browser is a tab that is missing on a cold
+ * home-screen launch, which is the bug the PWA had for a week.
+ *
+ * Unreachable database, no league, no LEAGUE_ID: false, so the draft room
+ * stays. Losing the draft room on draft night is much the worse of the two.
+ */
+export async function movesTabOpen(managerLeagueId?: string): Promise<boolean> {
+  return (await leagueSettings(managerLeagueId))?.movesTab === true;
+}
+
+/**
+ * What the league says about dues, or null if it says nothing.
+ *
+ * Free text, and it is both the message and the switch: no note, no notice,
+ * for anybody, ever. A league that does not collect dues never sees a word
+ * about them, and a brand-new league does not greet eleven people with a bill
+ * nobody has set.
+ */
+export async function duesNote(managerLeagueId?: string): Promise<string | null> {
+  const note = (await leagueSettings(managerLeagueId))?.duesNote;
+  return typeof note === "string" && note.trim() ? note.trim() : null;
+}
+
+/** The league's settings blob, or null if it cannot be read. */
+async function leagueSettings(
+  managerLeagueId?: string,
+): Promise<Record<string, unknown> | null> {
+  if (!isConfigured()) return null;
+
+  try {
+    const db = await serverClient();
+    const leagueId = managerLeagueId ?? process.env.LEAGUE_ID;
+    if (!leagueId) return null;
+
+    const { data } = await db
+      .from("leagues")
+      .select("settings")
+      .eq("id", leagueId)
+      .maybeSingle();
+
+    return (data?.settings as Record<string, unknown> | null) ?? null;
+  } catch {
     return null;
   }
 }

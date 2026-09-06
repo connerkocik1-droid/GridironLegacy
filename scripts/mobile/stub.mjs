@@ -122,7 +122,16 @@ createServer((req, res) => {
   }
 
   if (url.pathname === "/rest/v1/leagues") {
-    return res.end(JSON.stringify([{ id: LEAGUE_ID, name: "Pylon Fantasy", season: 2026 }]));
+    // settings.movesTab matters to the layout now: the bottom bar's fourth tab
+    // is the draft room until the commissioner hands the slot over, and the
+    // layout reads this row to decide which. The fixture league is mid-season
+    // — week three, graded scores, a standings table — so its commissioner
+    // gave the word months ago. draft_state says so too, for the routes that
+    // read it.
+    return res.end(JSON.stringify([{
+      id: LEAGUE_ID, name: "Pylon Fantasy", season: 2026,
+      draft_state: "complete", settings: { movesTab: true },
+    }]));
   }
 
   res.end("[]");

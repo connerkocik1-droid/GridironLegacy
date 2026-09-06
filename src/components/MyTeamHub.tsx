@@ -64,12 +64,14 @@ const PLACES: Place[] = [
           ? "1 player watched."
           : `${c.watching} players watched.`,
   },
+  // The trade desk is under Moves now, with the wire and the record — the
+  // three screens where a roster changes, which were split across two hubs.
+  // What stays here is the one thing about it that is about you: somebody is
+  // waiting on an answer. The card leads to the desk all the same.
   {
     href: "/trade-builder",
-    name: "Trade builder",
-    line: "Put an offer together, and see what it does to both sides.",
-    // The one badge on this page that is somebody waiting on you rather than
-    // a number about you. It is the reason to open the card at all.
+    name: "Trades",
+    line: "Offers you have been sent, and the desk to answer them at.",
     badge: (c) =>
       c.trades === 0
         ? null

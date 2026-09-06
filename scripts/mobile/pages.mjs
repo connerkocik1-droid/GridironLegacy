@@ -23,6 +23,7 @@ export const PAGES = [
   ["/draft", "draft"],
   ["/draft/rehearsal", "rehearsal"],
   ["/draft/mock", "mock-draft"],
+  ["/moves", "moves"],
   ["/free-agents", "free-agents"],
   ["/trade-builder", "trade-builder"],
   ["/league", "league"],

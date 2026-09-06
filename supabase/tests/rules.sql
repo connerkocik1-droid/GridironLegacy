@@ -3632,3 +3632,90 @@ select expect('and a name the commissioner chose is left alone',
 -- bare table of ids, so there is no email column to check. It is pinned in
 -- src/lib/__tests__/auth.test.mts instead, where the function that builds it
 -- actually lives.
+
+\echo ''
+\echo '--- league dues ---'
+
+-- Money is the one thing in a league that software usually leaves alone, and
+-- so it happens in a group text where it is ignored or resented. The rules
+-- that matter here are that the commissioner alone can settle it, that "they
+-- are all paid up" is one press rather than twelve, and that a league's dues
+-- are its own.
+
+\o /dev/null
+\set D  '99999999-0000-0000-0000-00000000000d'
+\set D2 '99999999-0000-0000-0000-00000000000e'
+\set DU1 'd0e50000-1111-4000-8000-000000000001'
+\set DU2 'd0e50000-1111-4000-8000-000000000002'
+\set DU3 'd0e50000-1111-4000-8000-000000000003'
+
+insert into auth.users (id) values (:'DU1'), (:'DU2'), (:'DU3');
+
+insert into leagues (id, name, season, commissioner_slot)
+values (:'D', 'Dues', 2026, 'AAA'), (:'D2', 'Somebody else', 2026, 'AAA');
+
+insert into managers (league_id, slot, name, franchise, auth_user_id) values
+  (:'D', 'AAA', 'A', 'Alpha',   :'DU1'),
+  (:'D', 'BBB', 'B', 'Bravo',   :'DU2'),
+  (:'D', 'CCC', 'C', 'Charlie', null);
+
+insert into managers (league_id, slot, name, franchise, auth_user_id) values
+  (:'D2', 'AAA', 'Z', 'Zulu', :'DU3');
+\o
+
+select expect('nobody has paid until somebody says so',
+  (select count(*)::int from managers where league_id = :'D' and dues_paid), 0);
+
+select expect('a manager cannot mark themselves paid',
+  (select refuses(format('select set_dues_paid(%L, true)',
+     (select id from managers where league_id = :'D' and slot = 'BBB')))
+     from (select signin(:'DU2')) _),
+  'Only the commissioner can settle dues');
+
+select expect('and did not',
+  (select count(*)::int from managers where league_id = :'D' and dues_paid), 0);
+
+\o /dev/null
+select signin(:'DU1');
+select set_dues_paid((select id from managers where league_id = :'D' and slot = 'BBB'), true);
+\o
+
+select expect('the commissioner marks one franchise paid',
+  (select string_agg(slot, ',' order by slot) from managers
+    where league_id = :'D' and dues_paid), 'BBB');
+
+select expect('and the others are untouched',
+  (select count(*)::int from managers where league_id = :'D' and not dues_paid), 2);
+
+-- The button the office actually needs.
+\o /dev/null
+select set_dues_paid(null, true);
+\o
+
+select expect('a null manager clears the whole league at once',
+  (select count(*)::int from managers where league_id = :'D' and not dues_paid), 0);
+
+select expect('and says how many that was',
+  (select (set_dues_paid(null, true) ->> 'changed')::int), 3);
+
+select expect('another league is not settled by it',
+  (select dues_paid from managers where league_id = :'D2' and slot = 'AAA'), false);
+
+select expect('a commissioner cannot settle a franchise outside their league',
+  (select refuses(format('select set_dues_paid(%L, true)',
+     (select id from managers where league_id = :'D2')))),
+  'No such manager in your league');
+
+-- It goes both ways: next season starts unpaid.
+\o /dev/null
+select set_dues_paid(null, false);
+\o
+
+select expect('and it can be taken back for a new season',
+  (select count(*)::int from managers where league_id = :'D' and dues_paid), 0);
+
+-- Four: the one franchise, the two clear-everybody calls (the assertion above
+-- makes a real one), and taking it back. The refused attempt left no row,
+-- which is the point of counting.
+select expect('every settling is on the record',
+  (select count(*)::int from admin_log where league_id = :'D' and action = 'dues'), 4);

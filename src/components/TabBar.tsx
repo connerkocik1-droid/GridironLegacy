@@ -67,7 +67,7 @@ const TABS: Tab[] = [
   {
     href: "/my-team",
     label: "My Team",
-    owns: ["/my-team", "/lineup", "/matchups", "/watchlist", "/trade-builder", "/trades", "/player"],
+    owns: ["/my-team", "/lineup", "/matchups", "/watchlist", "/player"],
     icon: glyph(
       <>
         <path d="M9 4 5 6v5h3v9h8v-9h3V6l-4-2" />
@@ -80,7 +80,7 @@ const TABS: Tab[] = [
     label: "League",
     owns: [
       "/the-league", "/standings", "/league", "/news", "/player-news",
-      "/rankings", "/free-agents", "/activity", "/rules", "/chat",
+      "/rankings", "/rules", "/chat",
     ],
     icon: glyph(
       <>
@@ -90,18 +90,47 @@ const TABS: Tab[] = [
       </>,
     ),
   },
-  {
-    href: "/draft",
-    label: "Draft",
-    owns: ["/draft"],
-    icon: glyph(
-      <>
-        <rect x="4" y="4" width="16" height="16" rx="2" />
-        <path d="M4 9.5h16M9.5 9.5V20" />
-      </>,
-    ),
-  },
 ];
+
+/**
+ * The fourth slot, which is two tabs taking turns.
+ *
+ * The draft room is the whole app in August and an empty board from September;
+ * the transactions are nothing during a draft and the thing you open most for
+ * the five months after it. They are never both what somebody needs, so they
+ * share a slot rather than each taking one — which keeps the bar at four, the
+ * width it was drawn for. Five tabs at 320px is 64px each, and "My Team" does
+ * not fit in 64px.
+ *
+ * The changeover is a command in the league office, not the draft reaching a
+ * state: a draft reads "complete" after a rehearsal and after a reset, and a
+ * resize flips it back, none of which is a league saying the offseason is
+ * over. The commissioner says when, and it can be said back.
+ */
+const DRAFT: Tab = {
+  href: "/draft",
+  label: "Draft",
+  owns: ["/draft"],
+  icon: glyph(
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M4 9.5h16M9.5 9.5V20" />
+    </>,
+  ),
+};
+
+const MOVES: Tab = {
+  href: "/moves",
+  label: "Moves",
+  // Everywhere a player changes hands, wherever it used to be filed.
+  owns: ["/moves", "/free-agents", "/players", "/trade-builder", "/trades", "/activity"],
+  icon: glyph(
+    <>
+      <path d="M4 8h13l-3-3" />
+      <path d="M20 16H7l3 3" />
+    </>,
+  ),
+};
 
 const OFFICE: Tab = {
   href: "/commissioner",
@@ -131,7 +160,19 @@ function activeTab(pathname: string, tabs: Tab[]): string | null {
   return best?.href ?? null;
 }
 
-export default function TabBar({ signedIn }: { signedIn: boolean }) {
+export default function TabBar({
+  signedIn,
+  movesTab,
+}: {
+  signedIn: boolean;
+  /**
+   * Whether the league has handed the fourth slot to the transactions,
+   * answered by the server in the layout. Same reason `signedIn` is: a tab
+   * decided only in the browser is a tab that is missing on a cold
+   * home-screen launch.
+   */
+  movesTab: boolean;
+}) {
   const me = useMe();
   const pathname = usePathname() ?? "/";
 
@@ -174,7 +215,12 @@ export default function TabBar({ signedIn }: { signedIn: boolean }) {
 
   if (!showing) return null;
 
-  const all = [...TABS, OFFICE];
+  // The server's answer holds until the browser has one of its own, so the
+  // first frame is right and the bar still changes over for eleven managers
+  // sitting in the app when the command is given — not at their next reload.
+  const fourth = (me.movesTab ?? movesTab) ? MOVES : DRAFT;
+
+  const all = [...TABS, fourth, OFFICE];
   const active = activeTab(pathname, all);
 
   return (
@@ -199,7 +245,7 @@ export default function TabBar({ signedIn }: { signedIn: boolean }) {
         backdropFilter: "blur(14px)",
       }}
     >
-      {TABS.map((tab) => (
+      {[...TABS, fourth].map((tab) => (
         <TabLink
           key={tab.href}
           tab={tab}

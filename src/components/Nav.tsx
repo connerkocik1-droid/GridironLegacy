@@ -3,17 +3,23 @@ import CommissionerOnly from "./CommissionerOnly";
 import Notices from "./Notices";
 import ProfileMenu from "./ProfileMenu";
 
-// Two doors and the draft room, and that is the whole bar.
+// Three doors and the draft room, and that is the whole bar.
 //
-// My Team is the roster, the matchups, the watchlist, the trade builder. The
-// League is the standings, the overview, the wire, the rankings, the free
-// agents. Mini-games are on the home page, in their own band. Nothing that
-// used to be a tab has gone anywhere — it is one press further in, and the
-// bar is legible on a phone for the first time.
+// My Team is the roster, the matchups and the watchlist. The League is the
+// standings, the overview, the rankings and the news. Moves is the three
+// screens where a roster changes — free agents, the trade desk, the record —
+// which used to be split across the first two for no reason anybody could
+// defend. Mini-games are on the home page, in their own band.
+//
+// Draft and Moves are both here, unlike the phone's bar below, where they
+// share the fourth slot because four is all it has room for. A desktop has
+// room for five, and a link that is simply always there beats one that
+// appears when a state changes.
 const PRIMARY = [
   { href: "/", label: "Home" },
   { href: "/my-team", label: "My Team" },
   { href: "/the-league", label: "The League" },
+  { href: "/moves", label: "Moves" },
   { href: "/draft", label: "Draft" },
 ];
 

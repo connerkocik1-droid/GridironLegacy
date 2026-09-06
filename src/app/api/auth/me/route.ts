@@ -1,4 +1,4 @@
-import { currentManager } from "@/lib/session";
+import { currentManager, duesNote, movesTabOpen } from "@/lib/session";
 import { isConfigured, serverClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +12,10 @@ export const dynamic = "force-dynamic";
  * told so rather than shown a header for a team that is not theirs.
  */
 export async function GET() {
-  if (!isConfigured()) return Response.json({ manager: null, configured: false });
+  if (!isConfigured()) return Response.json({ manager: null, configured: false, movesTab: false, duesNote: null });
 
   const manager = await currentManager();
-  if (!manager) return Response.json({ manager: null, configured: true });
+  if (!manager) return Response.json({ manager: null, configured: true, movesTab: false, duesNote: null });
 
   const db = await serverClient();
 
@@ -28,8 +28,18 @@ export async function GET() {
     .eq("manager_id", manager.id)
     .maybeSingle();
 
+  // Whether the league has handed the fourth tab over to the transactions.
+  // The layout already answers this from the server so the first frame is
+  // right; this is what makes the tab change over for eleven managers who are
+  // sitting in the app when the commissioner gives the command, rather than at
+  // each of their next reloads.
   return Response.json({
     manager: { ...manager, logo: logo?.image ?? null },
     configured: true,
+    movesTab: await movesTabOpen(manager.league_id),
+    // What the league says about dues, if it says anything. The manager's own
+    // dues_paid rides along on the manager itself, so the band on the home
+    // page needs nothing else to decide whether it is for this person.
+    duesNote: await duesNote(manager.league_id),
   });
 }
