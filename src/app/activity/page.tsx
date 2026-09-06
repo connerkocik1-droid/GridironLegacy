@@ -35,8 +35,8 @@ export default function ActivityPage() {
             lineHeight: 1.6,
           }}
         >
-          Every signing, release, waiver claim and trade this league has made, newest first. Draft
-          night lives on the board rather than here.
+          Every signing, release, claim and trade, newest first. Draft night
+          lives on the board.
         </p>
         <ActivityFeed />
       </div>

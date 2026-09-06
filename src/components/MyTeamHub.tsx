@@ -39,24 +39,24 @@ const PLACES: Place[] = [
   {
     href: "/lineup",
     name: "My roster",
-    line: "Everyone you own, who is filling the slots this week, and what they are playing against.",
+    line: "Who is filling the slots this week, and what they are playing against.",
     badge: (c) => (c.scored == null ? null : `${c.scored.toFixed(1)} so far this week.`),
   },
   {
     href: "/matchups",
     name: "Matchups",
-    line: "Your season, week by week, with the score of every one. Or the whole league's.",
+    line: "Week by week, yours or the whole league's.",
     badge: (c) => (c.record ? `${c.record} this season.` : null),
   },
   {
     href: "/news?view=players",
     name: "Player news",
-    line: "The wire, narrowed to your roster and the players you are watching.",
+    line: "The wire, narrowed to your roster and your watchlist.",
   },
   {
     href: "/watchlist",
     name: "Watchlist",
-    line: "The players you are keeping an eye on, and what they have been doing.",
+    line: "Players you are keeping an eye on, and what they have been doing.",
     badge: (c) =>
       c.watching === 0
         ? null
@@ -82,7 +82,7 @@ const PLACES: Place[] = [
   {
     href: "/my-team/edit",
     name: "Edit team",
-    line: "Your team's name, its photo, and the PIN you sign in with.",
+    line: "Your name, your photo, your PIN.",
   },
 ];
 

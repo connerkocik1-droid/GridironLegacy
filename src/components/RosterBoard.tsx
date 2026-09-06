@@ -259,12 +259,12 @@ export default function RosterBoard() {
             week, to a manager who read them the first Sunday and has known it
             ever since. */}
         {undrafted
-          ? "Nothing to show yet, because nothing has been drafted. Every player you take on the night arrives here."
+          ? "Nothing drafted yet. Everyone you take on the night arrives here."
           : settled
             ? "Settled. Your best possible lineup is the one that counted."
             : feed.started
-              ? "Your whole roster is playing; the highest scorers fill the slots and swap as the numbers move."
-              : "No lineup to set — everyone you own is in, and the best scorers take the slots once the games start. Until then this is a projection."}
+              ? "Everyone is playing; the highest scorers fill the slots and swap as they go."
+              : "No lineup to set. Until the games start this is a projection."}
       </div>
 
       {error ? (
@@ -434,25 +434,6 @@ export default function RosterBoard() {
           </div>
         ) : null}
 
-        {/* Said once, at the bottom, where somebody who has scrolled the whole
-            roster and is wondering where the bench went will find it — and not
-            at all before the draft, when there are no slots and nobody below
-            them for it to be about. */}
-        {undrafted ? null : (
-        <div
-          style={{
-            marginTop: 12,
-            fontSize: 11.5,
-            color: "var(--text-dim)",
-            lineHeight: 1.6,
-            maxWidth: "70ch",
-          }}
-        >
-          Nobody here is benched. Everyone below the slots is still eligible to fill
-          one — a player who outscores a starter takes his place while the games
-          are on.
-        </div>
-        )}
       </div>
     </>
   );

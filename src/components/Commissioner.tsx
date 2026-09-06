@@ -664,15 +664,12 @@ export default function Commissioner() {
       <div id="office-dues" style={card}>
         <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>Dues</h6>
         <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 14px" }}>
-          A line at the top of the home page, seen by the people who have not
-          paid and by nobody else. Say the amount and where to send it — it is
-          your words, not a form.
-          {" "}
+          A line at the top of the home page, seen only by the people who have
+          not paid. Say the amount and where to send it, in your words.{" "}
           <strong style={{ color: "var(--text-2)" }}>
             An empty box turns it off for everybody.
           </strong>{" "}
-          So does marking everyone paid, which is the same thing said the other
-          way round.
+          So does marking everyone paid.
         </p>
 
         <div style={{ display: "flex", gap: 14, alignItems: "flex-end", flexWrap: "wrap" }}>
@@ -796,17 +793,11 @@ export default function Commissioner() {
       <div id="office-tab" style={card}>
         <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>The fourth tab</h6>
         <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 14px" }}>
-          On a phone the bottom bar has room for four, and the fourth is either
-          the draft room or Moves — free agents, the trade desk and the record.
-          They are never both the thing anybody needs: the room is the whole app
-          in August and an empty board afterwards.
-          {" "}
-          <strong style={{ color: "var(--text-2)" }}>
-            Nothing moves it but this.
-          </strong>{" "}
-          Give the word when the draft is over, and take it back next season
-          when there is another one to run. Either way it changes for all twelve
-          of you at once.
+          The bottom bar has room for four on a phone, and the fourth is either
+          the draft room or Moves.{" "}
+          <strong style={{ color: "var(--text-2)" }}>Nothing moves it but this.</strong>{" "}
+          Give the word when the draft is over; take it back next season. It
+          changes for everybody at once.
         </p>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>

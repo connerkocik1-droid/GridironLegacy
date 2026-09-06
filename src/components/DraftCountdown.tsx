@@ -213,8 +213,8 @@ export default function DraftCountdown({
               ? "Sound is unlocked — the opening film will play out loud."
               : "Sound is unlocked for the draft room."
             : hasIntro
-              ? "Press it before the clock runs out: browsers keep a video silent until you have pressed something, and this is what lets the opening film play out loud."
-              : "Press it before the clock runs out: browsers keep sound off until you have pressed something, and this is what turns the pick chime on."}
+              ? "Press it before the clock runs out — browsers keep a video silent until you do, and this is what lets the opening film play out loud."
+              : "Press it before the clock runs out — browsers keep sound off until you do, and this turns the pick chime on."}
         </p>
       </div>
 

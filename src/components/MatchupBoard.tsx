@@ -449,11 +449,14 @@ export default function MatchupBoard() {
           maxWidth: "70ch",
         }}
       >
+        {/* Short, because the roster above this on the same page has already
+            said what best ball is. What this line adds is that it is true of
+            both sides — the rest was said twice. */}
         {board.final
-          ? "Best ball: these are the players who ended up in each slot when the last game finished. Neither manager chose them."
+          ? "Neither manager chose these: best ball filled the slots."
           : board.started
-            ? "Best ball: nobody set these lineups. Each side's highest scorers are filling the slots and will keep swapping until the last game ends."
-            : "Best ball: nobody sets a lineup. When the games start, each side's highest scorers will fill these slots by themselves — until then this is a projection."}
+            ? "Best ball, both sides: the highest scorers are filling the slots."
+            : "Best ball, both sides. A projection until the games start."}
       </div>
 
       {error ? (

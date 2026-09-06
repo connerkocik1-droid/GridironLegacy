@@ -394,10 +394,8 @@ export default function IntroVideoSlot({
               margin: "0 0 9px",
             }}
           >
-            A link has no size limit at all — uploading does, and it is not this
-            app&rsquo;s to raise: Supabase caps a project&rsquo;s files at 50MB
-            on the free plan. For a long film this is the easier road. The room
-            plays it exactly the same way.
+            No size limit, unlike uploading — Supabase caps files at 50MB on
+            the free plan. The room plays it the same way.
           </p>
           <p
             style={{
@@ -411,11 +409,9 @@ export default function IntroVideoSlot({
             <strong style={{ color: "var(--text-muted)", fontWeight: 500 }}>
               direct link to the video file
             </strong>{" "}
-            — one ending in .mp4 or .webm, or a share link set to serve the file
-            itself. A YouTube or Vimeo page will not play here; those hand out a
-            web page, not a video. Anything on this site works too, like{" "}
-            <code style={{ color: "var(--text-muted)" }}>/assets/intro.mp4</code> for a
-            file committed to the repository.
+            — ending .mp4 or .webm. A YouTube or Vimeo page hands out a web
+            page, not a video, and will not play. A path on this site works
+            too: <code style={{ color: "var(--text-muted)" }}>/assets/intro.mp4</code>.
           </p>
           <p
             style={{
@@ -425,14 +421,12 @@ export default function IntroVideoSlot({
               margin: "0 0 9px",
             }}
           >
-            For a large file, encode it so it can start before it has finished
-            downloading —{" "}
+            For a large file, let it start before it has finished downloading:{" "}
             <code style={{ color: "var(--text-muted)" }}>
               ffmpeg -i in.mp4 -movflags +faststart out.mp4
             </code>
-            . Without that the browser downloads the whole thing before the
-            first frame, which on draft night is a room full of people watching
-            a blank screen.
+            . Without it the room watches a blank screen until the whole file
+            has arrived.
           </p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input
