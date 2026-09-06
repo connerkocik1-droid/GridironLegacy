@@ -81,7 +81,11 @@ a:hover {
 }
 
 .gl-ticker:hover .gl-ticker-track,
-.gl-ticker:focus-within .gl-ticker-track {
+.gl-ticker:focus-within .gl-ticker-track,
+/* A finger is not a cursor: there is no hover to pause on. :active fires the
+   moment a thumb lands, so the game stops moving before the tap lifts and the
+   link opens the one that was actually aimed at. */
+.gl-ticker:active .gl-ticker-track {
   animation-play-state: paused;
 }
 

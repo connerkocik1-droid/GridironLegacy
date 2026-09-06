@@ -29,6 +29,7 @@ export const PAGES = [
   ["/news", "news"],
   ["/player-news", "player-news"],
   ["/pickem", "pickem"],
+  ["/game/401671801", "gamecast"],
   ["/20-0", "twenty-zero"],
   ["/minigames", "minigames"],
   ["/commissioner", "commissioner"],
