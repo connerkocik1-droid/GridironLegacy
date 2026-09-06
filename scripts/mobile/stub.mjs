@@ -105,11 +105,11 @@ createServer((req, res) => {
         JSON.stringify([
           {
             id: "m0", slot: "T01", name: "Open", franchise: "Steel Cartel",
-            pin_hash: null, is_commissioner: true, division: "East",
+            pin_hash: null, is_commissioner: true, division: "North",
           },
           {
             id: "m1", slot: "T02", name: "Open", franchise: "Bay Area Brawlers",
-            pin_hash: null, is_commissioner: false, division: "West",
+            pin_hash: null, is_commissioner: false, division: "South",
           },
         ]),
       );

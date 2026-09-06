@@ -11,18 +11,18 @@ export const ME = {
 };
 
 const NAMES = [
-  ["m0", "T01", "Conner", "Steel Cartel", "East"],
-  ["m1", "T02", "Dana", "Bay Area Brawlers", "East"],
-  ["m2", "T03", "Open", "Open Team", "East"],
-  ["m3", "T04", "Kim", "Kim's Very Long Franchise Name", "East"],
-  ["m4", "T05", "Alex", "Thunderbolts", "East"],
-  ["m5", "T06", "Sam", "Riverside Rattlesnakes", "East"],
-  ["m6", "T07", "Jo", "Nine Lives", "West"],
-  ["m7", "T08", "Pat", "Gold Coast Gladiators", "West"],
-  ["m8", "T09", "Chris", "Iron Rail", "West"],
-  ["m9", "T10", "Morgan", "Dust Devils", "West"],
-  ["m10", "T11", "Riley", "Harbour Hounds", "West"],
-  ["m11", "T12", "Casey", "Northside Nomads", "West"],
+  ["m0", "T01", "Conner", "Steel Cartel", "North"],
+  ["m1", "T02", "Dana", "Bay Area Brawlers", "North"],
+  ["m2", "T03", "Open", "Open Team", "North"],
+  ["m3", "T04", "Kim", "Kim's Very Long Franchise Name", "North"],
+  ["m4", "T05", "Alex", "Thunderbolts", "North"],
+  ["m5", "T06", "Sam", "Riverside Rattlesnakes", "North"],
+  ["m6", "T07", "Jo", "Nine Lives", "South"],
+  ["m7", "T08", "Pat", "Gold Coast Gladiators", "South"],
+  ["m8", "T09", "Chris", "Iron Rail", "South"],
+  ["m9", "T10", "Morgan", "Dust Devils", "South"],
+  ["m10", "T11", "Riley", "Harbour Hounds", "South"],
+  ["m11", "T12", "Casey", "Northside Nomads", "South"],
 ];
 
 export const MANAGERS = NAMES.map(([id, slot, name, franchise, division]) => ({

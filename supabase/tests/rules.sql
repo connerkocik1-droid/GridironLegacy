@@ -694,14 +694,14 @@ insert into auth.users (id) values (:'Y1');
 
 insert into managers (league_id, slot, name, franchise, division, is_commissioner, auth_user_id)
 values
-  (:'Y', 'AAA', 'A', 'Alpha',   'East', true,  :'Y1'),
-  (:'Y', 'BBB', 'B', 'Bravo',   'East', false, null),
-  (:'Y', 'CCC', 'C', 'Charlie', 'East', false, null),
-  (:'Y', 'DDD', 'D', 'Delta',   'East', false, null),
-  (:'Y', 'EEE', 'E', 'Echo',    'West', false, null),
-  (:'Y', 'FFF', 'F', 'Foxtrot', 'West', false, null),
-  (:'Y', 'GGG', 'G', 'Golf',    'West', false, null),
-  (:'Y', 'HHH', 'H', 'Hotel',   'West', false, null);
+  (:'Y', 'AAA', 'A', 'Alpha',   'North', true,  :'Y1'),
+  (:'Y', 'BBB', 'B', 'Bravo',   'North', false, null),
+  (:'Y', 'CCC', 'C', 'Charlie', 'North', false, null),
+  (:'Y', 'DDD', 'D', 'Delta',   'North', false, null),
+  (:'Y', 'EEE', 'E', 'Echo',    'South', false, null),
+  (:'Y', 'FFF', 'F', 'Foxtrot', 'South', false, null),
+  (:'Y', 'GGG', 'G', 'Golf',    'South', false, null),
+  (:'Y', 'HHH', 'H', 'Hotel',   'South', false, null);
 
 -- A regular season written straight down: four graded weeks whose only job is
 -- to produce a table with no ties in it anywhere.
@@ -1249,7 +1249,7 @@ select generate_schedule(:'S');
 select expect('four franchises split into two divisions',
   (select string_agg(division || ':' || n, ' ' order by division) from (
      select division, count(*) n from managers where league_id = :'S' group by division
-   ) d), 'East:2 West:2');
+   ) d), 'North:2 South:2');
 
 -- Everyone once (3 weeks) plus the divisional rematch (1 week) = 4 weeks, 8 games.
 select expect('the season is a full round robin plus the divisional rematches',
@@ -1337,7 +1337,7 @@ select generate_schedule(:'D');
 select expect('twelve franchises split six and six',
   (select string_agg(division || ':' || n, ' ' order by division) from (
      select division, count(*) n from managers where league_id = :'D' group by division
-   ) d), 'East:6 West:6');
+   ) d), 'North:6 South:6');
 
 select expect('a twelve-team season runs sixteen weeks',
   (select max(week)::int from matchups where league_id = :'D'), 16);
@@ -1688,7 +1688,7 @@ select expect('and never removes the commissioner',
 select expect('the divisions are evened up, not left lopsided',
   (select string_agg(division || ':' || n, ' ' order by division) from (
      select division, count(*) n from managers where league_id = :'R' group by division
-   ) d), 'East:5 West:5');
+   ) d), 'North:5 South:5');
 
 select expect('the season is regenerated at the new size',
   (select max(week)::int || '/' || count(*)::int from matchups where league_id = :'R'),
@@ -1731,8 +1731,8 @@ select expect('the board is rebuilt at the new size too',
 -- Rebalancing on its own: it moves as few franchises as it can, and it leaves
 -- a league that is already close enough entirely alone.
 \o /dev/null
-update managers set division = 'East'
- where id = (select id from managers where league_id = :'R' and division = 'West'
+update managers set division = 'North'
+ where id = (select id from managers where league_id = :'R' and division = 'South'
               order by slot limit 1);
 \o
 
@@ -1741,7 +1741,7 @@ select expect('a six-four split takes one move to fix', rebalance_divisions(:'R'
 select expect('and comes out even',
   (select string_agg(division || ':' || n, ' ' order by division) from (
      select division, count(*) n from managers where league_id = :'R' group by division
-   ) d), 'East:5 West:5');
+   ) d), 'North:5 South:5');
 
 select expect('an even league is left alone', rebalance_divisions(:'R'), 0);
 
@@ -1805,7 +1805,7 @@ select expect('right down to the fixtures',
 \o /dev/null
 delete from managers
  where id in (select id from managers
-               where league_id = :'Q' and division = 'East'
+               where league_id = :'Q' and division = 'North'
                order by slot desc limit 2);
 \o
 
@@ -1816,7 +1816,7 @@ select expect('which leaves a twelve-team season for ten franchises',
 select expect('and lopsided divisions',
   (select string_agg(division || ':' || n, ' ' order by division) from (
      select division, count(*) n from managers where league_id = :'Q' group by division
-   ) d), 'East:4 West:6');
+   ) d), 'North:4 South:6');
 
 select expect('the repair spots it', repair_schedule(:'Q'), true);
 
@@ -1827,7 +1827,7 @@ select expect('and rebuilds the season the league actually implies',
 select expect('evening the divisions on the way past',
   (select string_agg(division || ':' || n, ' ' order by division) from (
      select division, count(*) n from managers where league_id = :'Q' group by division
-   ) d), 'East:5 West:5');
+   ) d), 'North:5 South:5');
 
 select expect('everybody plays thirteen again',
   (select bool_and(n = 13) from (
@@ -1848,7 +1848,7 @@ select expect('an idle franchise in a rematch week is not treated as damage',
 \o /dev/null
 update matchups set final = true where league_id = :'Q' and week = 1;
 delete from managers
- where id = (select id from managers where league_id = :'Q' and division = 'West'
+ where id = (select id from managers where league_id = :'Q' and division = 'South'
               order by slot desc limit 1);
 
 create temp table mid_season as

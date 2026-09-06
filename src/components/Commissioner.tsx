@@ -402,7 +402,7 @@ export default function Commissioner() {
   const divisions = Array.from(
     new Set(admin.managers.map((m) => m.division).filter(Boolean) as string[]),
   ).sort();
-  if (divisions.length < 2) divisions.push(...["East", "West"].filter((d) => !divisions.includes(d)));
+  if (divisions.length < 2) divisions.push(...["North", "South"].filter((d) => !divisions.includes(d)));
 
   // Everyone once, then the divisional rematches: (n-1) + (largest division - 1).
   const perDivision = divisions.map(
