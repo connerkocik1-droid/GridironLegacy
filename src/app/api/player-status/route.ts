@@ -15,23 +15,44 @@ import { toHealth, type Health } from "@/lib/health";
  * is a great deal better than a page that will not load because somebody
  * else's API is having an afternoon.
  */
+export interface Reported {
+  status: Health;
+  detail: string;
+  note: string;
+}
+
+/**
+ * The report, keyed by the name every other table is keyed by.
+ *
+ * An entry whose word we cannot read is dropped rather than guessed at. This
+ * used to turn every one of them into "questionable", on the reasoning that
+ * everybody on the report is on it for a reason. They are — but ESPN's report
+ * is the whole league's, hundreds of names deep, and it carries entries with
+ * an empty status, a practice note, or a phrase we have never seen. All of
+ * them came out of here wearing a Q, which is how a badge meant for two names
+ * a week ended up on a page's worth of them.
+ *
+ * Being on a list is not a diagnosis.
+ */
+export function reportFrom(injuries: { name: string; status: string; detail?: string }[]): Record<string, Reported> {
+  const statuses: Record<string, Reported> = {};
+
+  for (const entry of injuries) {
+    const key = normalizeName(entry.name);
+    if (!key) continue;
+
+    const status = toHealth(entry.status);
+    if (status === "active") continue;
+
+    statuses[key] = { status, detail: entry.status || "", note: entry.detail || "" };
+  }
+
+  return statuses;
+}
+
 export async function GET() {
   try {
-    const injuries = await fetchInjuries();
-    const statuses: Record<string, { status: Health; detail: string; note: string }> = {};
-
-    for (const entry of injuries) {
-      const key = normalizeName(entry.name);
-      if (!key) continue;
-
-      const status = toHealth(entry.status);
-      // Everybody on the report is on it for a reason; one whose word we do
-      // not recognise is still worth showing as questionable rather than
-      // silently reading as fit.
-      const resolved: Health = status === "active" ? "questionable" : status;
-
-      statuses[key] = { status: resolved, detail: entry.status || "", note: entry.detail || "" };
-    }
+    const statuses = reportFrom(await fetchInjuries());
 
     return Response.json(
       { statuses, fetchedAt: new Date().toISOString() },

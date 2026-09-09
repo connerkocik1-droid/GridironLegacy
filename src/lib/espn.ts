@@ -15,6 +15,8 @@ const SITE =
 export type SeasonType = 1 | 2 | 3; // preseason | regular | postseason
 
 export interface Competitor {
+  /** Points in each period, oldest first. Empty before kickoff. */
+  linescores?: number[];
   abbrev: string;
   name: string;
   score: number;
@@ -35,6 +37,30 @@ export interface Game {
   statusDetail: string;
   home: Competitor | null;
   away: Competitor | null;
+  /**
+   * Where the ball is, while a game is being played. Null before kickoff,
+   * after the whistle, and any time ESPN does not send it — every field on it
+   * is optional for the same reason, and the gamecast draws its pitch only
+   * when there is enough here to draw an honest one.
+   */
+  situation: Situation | null;
+}
+
+/** The state of the current drive, as ESPN reports it. */
+export interface Situation {
+  /** Abbreviation of whoever has the ball. */
+  possession: string;
+  /** "2nd & 6 at NE 34", in ESPN's own words. */
+  downDistanceText: string;
+  down: number | null;
+  distance: number | null;
+  /**
+   * 0 at the possessing team's own goal line, 100 at the one they are
+   * attacking — ESPN's `yardLine` is already in that frame.
+   */
+  yardLine: number | null;
+  /** The first-down marker, in the same frame. Null when there is not one. */
+  lineToGain: number | null;
 }
 
 export interface PlayerStat {
@@ -131,6 +157,54 @@ function competitorOf(raw: unknown): Competitor | null {
     homeAway: c.homeAway === "home" ? "home" : "away",
     winner: c.winner === true,
     logo: typeof team.logo === "string" ? team.logo : "",
+    // Each period's points. Read defensively and dropped entirely if any of it
+    // is not a number: a partial line score is worse than none, because the
+    // header draws it in fixed columns and a gap silently shifts the rest.
+    linescores: asArray(c.linescores)
+      .map((raw) => Number(asRecord(raw).value))
+      .filter((n) => Number.isFinite(n)),
+  };
+}
+
+/**
+ * Where the ball is.
+ *
+ * Guarded to the point of paranoia because it is the one part of the feed this
+ * app has never read before and cannot be checked against a live response from
+ * where it was written. Every field is allowed to be missing, and a situation
+ * with no possession at all comes back null — so a wrong guess about the shape
+ * costs the pitch graphic and nothing else.
+ */
+function situationOf(raw: unknown): Situation | null {
+  const s = asRecord(raw);
+  const possession = asRecord(s.possession);
+  // ESPN sends possession as a team id on the scoreboard and sometimes as the
+  // abbreviation; `possessionText` is the abbreviation either way.
+  const abbrev =
+    (typeof s.possessionText === "string" && s.possessionText) ||
+    (typeof possession.abbreviation === "string" && possession.abbreviation) ||
+    "";
+  if (!abbrev) return null;
+
+  const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : null);
+
+  return {
+    possession: abbrev,
+    downDistanceText:
+      (typeof s.downDistanceText === "string" && s.downDistanceText) ||
+      (typeof s.shortDownDistanceText === "string" && s.shortDownDistanceText) ||
+      "",
+    down: num(s.down),
+    distance: num(s.distance),
+    yardLine: num(s.yardLine),
+    // ESPN sends this on some responses and not others. Where it is absent it
+    // is simply the yard line plus what is needed, which is arithmetic rather
+    // than a guess.
+    lineToGain:
+      num(s.lineToGain) ??
+      (num(s.yardLine) != null && num(s.distance) != null
+        ? Number(s.yardLine) + Number(s.distance)
+        : null),
   };
 }
 
@@ -185,6 +259,9 @@ export async function fetchScoreboard(
         statusDetail: typeof type.shortDetail === "string" ? type.shortDetail : "",
         home: competitors.find((c) => c?.homeAway === "home") ?? null,
         away: competitors.find((c) => c?.homeAway === "away") ?? null,
+        // Only while it is being played. A situation left on a finished game
+        // would draw a pitch with the ball frozen wherever the last snap died.
+        situation: state === "in" ? situationOf(comp.situation) : null,
       },
     ];
   });

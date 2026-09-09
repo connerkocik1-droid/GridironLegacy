@@ -75,12 +75,14 @@ export function toHealth(espn: string | null | undefined): Health {
   // Doubtful means unlikely rather than ruled out, so it lands with
   // questionable — the manager still has a decision to make, which is the
   // thing the two states are actually distinguishing.
-  if (s.includes("doubtful") || s.includes("questionable") || s.includes("day-to-day")) {
-    return "questionable";
-  }
-  if (s.includes("day to day") || s.includes("probable") || s.includes("limited")) {
-    return "questionable";
-  }
+  if (s.includes("doubtful") || s.includes("questionable")) return "questionable";
+  // "Day-To-Day", "Probable" and "Limited" used to land on questionable too,
+  // and they are the reason a badge stopped meaning anything. None of the
+  // three is a game designation: limited is a Wednesday practice
+  // participation, probable was abolished by the league in 2016, and
+  // day-to-day is a phrase reporters use that ESPN leaves on a player for
+  // weeks after he is fine. A manager reading a Q wants to know there is a
+  // decision to make on Sunday, and none of these says that.
   return "active";
 }
 

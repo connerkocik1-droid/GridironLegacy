@@ -3869,3 +3869,231 @@ select expect('a queue carries what each player plays',
 select expect('a queue with the wrong number of positions is refused',
   refuses(format('select set_draft_queue(%L, array[%L, %L], array[%L])', :'P', 'X', 'Y', 'QB')),
   'A position for each player, or none at all');
+
+\echo ''
+\echo '--- a roster stops moving when the football starts ---'
+
+-- Until now a manager could watch his back tear a hamstring at 1:12 and drop
+-- him at 1:13, or watch somebody else's receiver score twice and claim him
+-- before the second half.
+
+\o /dev/null
+\set K  '99999999-0000-0000-0000-0000000000ab'
+\set KU 'cb900000-1111-4000-8000-000000000001'
+\set KU2 'cb900000-1111-4000-8000-000000000002'
+
+insert into auth.users (id) values (:'KU'), (:'KU2');
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'K', 'Kickoff', 2026, 'AAA',
+        '{"starters":{"QB":1},"bench":20,"rounds":24,"waiverMode":"none"}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise, auth_user_id) values
+  (:'K', 'AAA', 'A', 'Alpha', :'KU'),
+  (:'K', 'BBB', 'B', 'Bravo', :'KU2');
+
+-- Week one is the week in play: unfinished, so current_week() answers 1.
+insert into matchups (league_id, week, home_manager, away_manager, final)
+  select :'K', 1,
+         (select id from managers where league_id = :'K' and slot = 'AAA'),
+         (select id from managers where league_id = :'K' and slot = 'BBB'),
+         false;
+
+-- Four clubs: one kicked off, one finished, one still to come, one on a bye.
+insert into nfl_games (id, season, week, season_type, starts_at, home_team, away_team, state, completed)
+values ('k-live', 2026, 1, 2, now(), 'SEA', 'SF',  'in',   false),
+       ('k-done', 2026, 1, 2, now(), 'DAL', 'NYG', 'post', true),
+       ('k-soon', 2026, 1, 2, now(), 'BUF', 'MIA', 'pre',  false);
+
+insert into nfl_players (name, team, position) values
+  ('Kick Playing',  'SEA', 'WR'),
+  ('Kick Finished', 'DAL', 'RB'),
+  ('Kick ToCome',   'BUF', 'TE'),
+  ('Kick OnBye',    'DEN', 'QB')
+on conflict (name) do update set team = excluded.team;
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'K', id, n, 'BENCH'
+    from managers, unnest(array['Kick Playing','Kick Finished','Kick ToCome','Kick OnBye']) as n
+   where managers.league_id = :'K' and managers.slot = 'AAA';
+
+select signin(:'KU');
+\o
+
+select expect('a man whose club is on the field has played',
+  player_has_played(:'K', 'Kick Playing'), true);
+select expect('and so has one whose game is over',
+  player_has_played(:'K', 'Kick Finished'), true);
+select expect('one who kicks off later has not',
+  player_has_played(:'K', 'Kick ToCome'), false);
+select expect('nor has one whose club is on a bye',
+  player_has_played(:'K', 'Kick OnBye'), false);
+select expect('nor has somebody nobody has heard of',
+  player_has_played(:'K', 'Kick Nobody'), false);
+
+\echo ''
+\echo '--- so he cannot be dropped ---'
+
+select expect('a player in play cannot be dropped',
+  refuses(format('select drop_player(%L, %L)', :'K', 'Kick Playing')),
+  'Kick Playing has already played this week — he cannot be dropped until the week turns over.');
+
+select expect('and neither can one who has finished',
+  refuses(format('select drop_player(%L, %L)', :'K', 'Kick Finished')),
+  'Kick Finished has already played this week — he cannot be dropped until the week turns over.');
+
+select expect('a refused drop leaves him where he was',
+  (select count(*)::int from roster_slots
+    where league_id = :'K' and player_name = 'Kick Playing'), 1);
+
+\o /dev/null
+select drop_player(:'K', 'Kick ToCome');
+\o
+
+select expect('but one who has not kicked off still can be',
+  (select count(*)::int from roster_slots
+    where league_id = :'K' and player_name = 'Kick ToCome'), 0);
+
+\echo ''
+\echo '--- nor picked up ---'
+
+\o /dev/null
+insert into nfl_players (name, team, position)
+values ('Kick Wire', 'SEA', 'WR'), ('Kick Fresh', 'BUF', 'WR')
+  on conflict (name) do update set team = excluded.team;
+\o
+
+select expect('a free agent whose club is playing cannot be signed',
+  refuses(format('select add_player(%L, %L)', :'K', 'Kick Wire')),
+  'Kick Wire has already played this week — he cannot be picked up until the week turns over.');
+
+-- The other half of the same move. An add that also drops somebody is two
+-- moves, and only one of them was named in the request.
+select expect('nor can a legal add be used to smuggle out an illegal drop',
+  refuses(format('select add_player(%L, %L, %L)', :'K', 'Kick Fresh', 'Kick Playing')),
+  'Kick Playing has already played this week — he cannot be dropped until the week turns over.');
+
+\o /dev/null
+select add_player(:'K', 'Kick Fresh');
+\o
+
+select expect('a free agent still to play can be signed',
+  (select count(*)::int from roster_slots
+    where league_id = :'K' and player_name = 'Kick Fresh'), 1);
+
+\echo ''
+\echo '--- a trade may be agreed mid-week, but nobody moves ---'
+
+-- The gentlest of the three rules on purpose: a trade is two managers
+-- agreeing, not one reacting, so there is no reason to stop them talking on a
+-- Sunday — only a reason not to let the players move mid-week.
+
+\o /dev/null
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'K', id, 'Kick Bravo', 'BENCH'
+    from managers where league_id = :'K' and slot = 'BBB';
+insert into nfl_players (name, team, position) values ('Kick Bravo', 'BUF', 'WR')
+  on conflict (name) do update set team = excluded.team;
+
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted)
+values ('cc900000-1111-4000-8000-000000000001', :'K',
+        (select id from managers where league_id = :'K' and slot = 'AAA'),
+        (select id from managers where league_id = :'K' and slot = 'BBB'),
+        '{"give":["Kick Playing"],"get":["Kick Bravo"]}'::jsonb,
+        'agreed', true, true);
+select signin(:'KU');
+\o
+
+select expect('a trade with a man who has played is agreed, not executed',
+  (select (execute_trade('cc900000-1111-4000-8000-000000000001') ->> 'scheduled')::boolean), true);
+
+select expect('and it says which week it goes through',
+  (select effective_week from trades where id = 'cc900000-1111-4000-8000-000000000001'), 2);
+
+select expect('nobody has moved yet',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'K' and r.player_name = 'Kick Playing'), 'AAA');
+
+select expect('nor the other way',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'K' and r.player_name = 'Kick Bravo'), 'BBB');
+
+select expect('and it cannot be pushed through by asking twice',
+  refuses(format('select execute_trade(%L)', 'cc900000-1111-4000-8000-000000000001')),
+  'This trade is already agreed and goes through in week 2');
+
+\echo ''
+\echo '--- until the week turns ---'
+
+\o /dev/null
+-- Week one is graded, so current_week() answers two and the trade is ripe.
+update matchups set final = true where league_id = :'K' and week = 1;
+insert into matchups (league_id, week, home_manager, away_manager, final)
+  select :'K', 2,
+         (select id from managers where league_id = :'K' and slot = 'AAA'),
+         (select id from managers where league_id = :'K' and slot = 'BBB'),
+         false;
+select settle_scheduled_trades(:'K');
+\o
+
+select expect('the man who had played changes hands once the week is over',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'K' and r.player_name = 'Kick Playing'), 'BBB');
+
+select expect('and so does the man he was traded for',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'K' and r.player_name = 'Kick Bravo'), 'AAA');
+
+select expect('the trade is executed rather than merely agreed',
+  (select status from trades where id = 'cc900000-1111-4000-8000-000000000001'), 'executed');
+
+\echo ''
+\echo '--- and a trade where nobody has played goes through at once ---'
+
+\o /dev/null
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted)
+values ('cc900000-1111-4000-8000-000000000002', :'K',
+        (select id from managers where league_id = :'K' and slot = 'AAA'),
+        (select id from managers where league_id = :'K' and slot = 'BBB'),
+        '{"give":["Kick Bravo"],"get":["Kick Playing"]}'::jsonb,
+        'agreed', true, true);
+-- Week two: nothing has kicked off.
+select signin(:'KU');
+\o
+
+select expect('nothing is scheduled when nothing has been played',
+  (select (execute_trade('cc900000-1111-4000-8000-000000000002') -> 'scheduled')),
+  null);
+
+select expect('and the players move immediately',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'K' and r.player_name = 'Kick Bravo'), 'BBB');
+
+\echo ''
+\echo '--- a scheduled trade that goes stale is voided, not half-applied ---'
+
+\o /dev/null
+insert into nfl_games (id, season, week, season_type, starts_at, home_team, away_team, state, completed)
+values ('k-live2', 2026, 2, 2, now(), 'SEA', 'SF', 'in', false);
+
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted, effective_week)
+values ('cc900000-1111-4000-8000-000000000003', :'K',
+        (select id from managers where league_id = :'K' and slot = 'BBB'),
+        (select id from managers where league_id = :'K' and slot = 'AAA'),
+        '{"give":["Kick Playing"],"get":["Kick Gone"]}'::jsonb,
+        'scheduled', true, true, 2);
+select settle_scheduled_trades(:'K');
+\o
+
+-- "Kick Gone" was never on Alpha's roster, so the promise cannot be kept.
+select expect('a trade whose players are no longer where they were is voided',
+  (select status from trades where id = 'cc900000-1111-4000-8000-000000000003'), 'declined');
+
+-- He is on Alpha, from the trade before this one, and a void must leave him
+-- exactly there. Half a trade applying is the failure this guards against.
+select expect('and the half of it that was still good did not move either',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'K' and r.player_name = 'Kick Playing'), 'AAA');

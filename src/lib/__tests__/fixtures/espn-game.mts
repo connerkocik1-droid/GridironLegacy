@@ -385,6 +385,73 @@ export const SCOREBOARD = {
  * of a separate board is to prove it gets one back rather than quietly being
  * handed the regular season.
  */
+/**
+ * A game in progress, with the two things the pitch graphic reads: the
+ * situation, and each side's points by period.
+ *
+ * Written from ESPN's documented shape rather than recorded off a live wire,
+ * so it tests the parser rather than anybody's memory of the feed — which is
+ * exactly why situationOf treats every field as optional.
+ */
+export const LIVE_SCOREBOARD = {
+  events: [
+    {
+      id: "401671900",
+      date: "2026-09-13T17:00Z",
+      season: { type: 2 },
+      week: { number: 2 },
+      competitions: [
+        {
+          status: { type: { state: "in", completed: false, shortDetail: "3rd Quarter · 7:56" } },
+          situation: {
+            down: 2,
+            distance: 6,
+            yardLine: 66,
+            possessionText: "SEA",
+            downDistanceText: "2nd & 6 at NE 34",
+          },
+          competitors: [
+            {
+              homeAway: "home",
+              score: "17",
+              team: { abbreviation: "NE", displayName: "New England Patriots", logo: "" },
+              linescores: [{ value: 7 }, { value: 3 }, { value: 7 }],
+            },
+            {
+              homeAway: "away",
+              score: "21",
+              team: { abbreviation: "SEA", displayName: "Seattle Seahawks", logo: "" },
+              linescores: [{ value: 7 }, { value: 14 }, { value: 0 }],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+/** The same game, finished. A situation here would freeze the ball forever. */
+export const FINISHED_SCOREBOARD = {
+  events: [
+    {
+      id: "401671900",
+      date: "2026-09-13T17:00Z",
+      season: { type: 2 },
+      week: { number: 2 },
+      competitions: [
+        {
+          status: { type: { state: "post", completed: true, shortDetail: "Final" } },
+          situation: { down: 2, distance: 6, yardLine: 66, possessionText: "SEA" },
+          competitors: [
+            { homeAway: "home", score: "17", team: { abbreviation: "NE", displayName: "New England Patriots", logo: "" } },
+            { homeAway: "away", score: "24", team: { abbreviation: "SEA", displayName: "Seattle Seahawks", logo: "" } },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
 export const PRESEASON_SCOREBOARD = {
   events: [
     {

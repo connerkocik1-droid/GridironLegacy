@@ -26,6 +26,15 @@ export async function GET(req: Request) {
   const db = serviceClient();
   const { data, error } = await db.rpc("process_waivers", { p_league_id: leagueId });
 
+  // Trades agreed mid-week wait for the week to turn, and this is the daily
+  // pass where "the week has turned" becomes true. Deliberately after the
+  // waiver run and deliberately not fatal: a settlement that fails today is
+  // retried tomorrow, and it must not take the waiver run down with it.
+  const settled = await db.rpc("settle_scheduled_trades", { p_league_id: leagueId });
+  if (settled.error) {
+    console.warn("[cron/waivers] scheduled trades not settled", settled.error.message);
+  }
+
   if (error) {
     console.error("[cron/waivers] failed", error);
     return Response.json({ error: error.message }, { status: 500 });

@@ -22,6 +22,8 @@ interface FreeAgent {
   bye: number;
   /** Set while he is on the waiver wire: the moment claims on him are settled. */
   clearsAt: string | null;
+  /** His club is on the field, or has left it. Not a pickup this week. */
+  locked?: boolean;
 }
 
 interface Wired {
@@ -48,7 +50,7 @@ interface Feed {
   waiverDays: number;
   capacity: number;
   held: number;
-  roster: { player_name: string; lineup_slot: string }[];
+  roster: { player_name: string; lineup_slot: string; locked?: boolean }[];
   claims: Claim[];
   wire: Wired[];
   total: number;
@@ -611,6 +613,11 @@ export default function PlayersBoard() {
                   {p.clearsAt ? (
                     <span style={{ color: "var(--warn)" }}> · on waivers, {clears(p.clearsAt)}</span>
                   ) : null}
+                  {/* The database refuses this whatever the page says. Saying
+                      so here is the difference between a rule and a bug. */}
+                  {p.locked ? (
+                    <span style={{ color: "var(--warn)" }}> · playing now, locked until next week</span>
+                  ) : null}
                 </div>
               </div>
 
@@ -646,14 +653,17 @@ export default function PlayersBoard() {
 
               <button
                 onClick={() => (full ? setPendingAdd(p.name) : add(p.name, null))}
-                disabled={busy || claimed}
-                style={button(!busy && !claimed)}
+                disabled={busy || claimed || Boolean(p.locked)}
+                title={p.locked ? `${p.name} has already played this week` : undefined}
+                style={button(!busy && !claimed && !p.locked)}
               >
-                {claimed
-                  ? "Claimed"
-                  : waived || feed.mode === "all"
-                    ? "Claim"
-                    : "Add"}
+                {p.locked
+                  ? "Locked"
+                  : claimed
+                    ? "Claimed"
+                    : waived || feed.mode === "all"
+                      ? "Claim"
+                      : "Add"}
               </button>
             </div>
           );
@@ -727,12 +737,20 @@ export default function PlayersBoard() {
               <span style={{ fontSize: 13, minWidth: 0, flex: 1 }}>
                 {r.player_name}
                 {p ? <span style={{ color: "var(--text-dim)", fontSize: 11 }}> · {p.p}</span> : null}
+                {r.locked ? (
+                  <span style={{ color: "var(--warn)", fontSize: 11 }}> · playing, locked</span>
+                ) : null}
               </span>
               {/* Just "Drop": where he goes afterwards is the page's subject
                   above and the notice below, and a three-word button squeezes
                   the name it sits beside off a phone screen. */}
-              <button onClick={() => drop(r.player_name)} disabled={busy} style={button(!busy)}>
-                Drop
+              <button
+                onClick={() => drop(r.player_name)}
+                disabled={busy || Boolean(r.locked)}
+                title={r.locked ? `${r.player_name} has already played this week` : undefined}
+                style={button(!busy && !r.locked)}
+              >
+                {r.locked ? "Locked" : "Drop"}
               </button>
             </div>
           );
