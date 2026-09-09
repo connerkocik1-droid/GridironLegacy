@@ -1,3 +1,4 @@
+import { find } from "@/data/league-data";
 import { availablePlayers } from "@/lib/draft-pool";
 import { maybeAutopick } from "@/lib/draft-autopick";
 import { pickSecondsFor, readPickClock } from "@/lib/draft-clock";
@@ -245,10 +246,15 @@ export async function POST(req: Request) {
   const playerName = typeof body.player === "string" ? body.player : "";
   if (!playerName) return Response.json({ error: "player is required" }, { status: 400 });
 
+  // What he plays, from the pool rather than from the browser. The database
+  // counts it against the league's position caps and writes it onto the roster
+  // row, so a player drafted thirty seconds ago is countable — until 0043 the
+  // position arrived later, with the score refresh.
   const { data, error } = await db.rpc("make_pick", {
     p_league_id: me.league_id,
     p_player_name: playerName,
     p_manager_id: typeof body.forManager === "string" ? body.forManager : null,
+    p_position: find(playerName)?.p ?? null,
   });
 
   if (error) {

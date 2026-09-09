@@ -228,11 +228,10 @@ export default function DraftRehearsal() {
         Draft day, dry run
       </h1>
       <p style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.7, maxWidth: "68ch", margin: "0 0 20px" }}>
-        The same reveal and countdown the draft room uses, driven by hand.
-        Nothing here touches the database, so it cannot disturb a real draft —
-        and it works before the league is set up. Find out here whether the
-        chime is blocked and whether the portraits load, rather than on the
-        night with eleven people watching.
+        The draft room&rsquo;s reveal and countdown, driven by hand. Nothing
+        here touches the database. Find out whether the chime is blocked and
+        the portraits load now, rather than on the night with eleven people
+        watching.
       </p>
 
       {playingIntro && intro ? (
@@ -242,11 +241,8 @@ export default function DraftRehearsal() {
       <div style={card}>
         <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>The intro film</h6>
         <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
-          What the room sees the moment the countdown runs out. This is the
-          league&rsquo;s own file, played through the same screen — so if it
-          plays here, with sound, it plays on the night. If the browser refuses
-          the sound you will see it say so, which is the answer worth having in
-          advance.
+          The league&rsquo;s own file, through the same screen the room uses:
+          if it plays here with sound, it plays on the night.
         </p>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <button
@@ -269,9 +265,8 @@ export default function DraftRehearsal() {
       <div style={card}>
         <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>The chime</h6>
         <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
-          Browsers refuse to play audio until the page has been interacted
-          with. The real room primes it silently on your first click; here you
-          can check it outright.
+          Browsers block audio until the page has been clicked. The real room
+          primes it silently; here you can check it outright.
         </p>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <button onClick={testChime} style={button()}>

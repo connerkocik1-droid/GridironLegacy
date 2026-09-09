@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { find } from "@/data/league-data";
 import { autodraftPick } from "./autodraft";
 import { pickSecondsFor, readPickClock, type ClockTier } from "./draft-clock";
 import { serviceClient } from "./supabase";
@@ -102,6 +103,9 @@ export function maybeAutopick(input: AutopickInputs): boolean {
       const { error } = await serviceClient().rpc("autodraft_expired", {
         p_league_id: input.leagueId,
         p_fallback: fallback,
+        // So the roster row records the position at once, and so the cap
+        // check inside the lock has something to check.
+        p_fallback_position: fallback ? (find(fallback)?.p ?? null) : null,
       });
       if (error) console.error("[draft] autopick failed", error);
     } catch (err) {

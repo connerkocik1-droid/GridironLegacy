@@ -24,26 +24,9 @@ export default function LineupPage() {
       <Nav current="/lineup" />
       <RosterBoard />
 
-      <div
-        style={{
-          margin: "8px 26px 0",
-          paddingTop: 22,
-          borderTop: "1px solid rgb(var(--accent-rgb) / .18)",
-        }}
-      >
-        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>THIS WEEK</div>
-        <h2
-          style={{
-            fontFamily: "var(--font-heading)",
-            fontSize: 22,
-            letterSpacing: "-.02em",
-            fontWeight: 500,
-            margin: "5px 0 0",
-          }}
-        >
-          Your matchup
-        </h2>
-      </div>
+      {/* The heading lives inside the board, which is the only place that
+          knows whose game is being shown. Printed here it said "Your matchup"
+          over a fixture between two other franchises. */}
       <MatchupBoard />
     </div>
   );

@@ -177,5 +177,50 @@ ok(
   ),
 );
 
+console.log("\n--- a whole draft, autopicked ---");
+
+/**
+ * Twelve rosters, twenty-four rounds, nobody at the keyboard.
+ *
+ * The thing this catches only shows at scale: a pick that looks sensible on
+ * its own can still leave a team without a kicker in round twenty-four,
+ * because defences and kickers sit past ADP 240 and a top-forty window in the
+ * fourteenth round reaches nowhere near them. It also proves the board
+ * outlasts a full draft, which stopped being obvious when the pool went from
+ * 585 players to 944.
+ */
+{
+  const league = { starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, "D/ST": 1 }, bench: 14, ir: 2 };
+  const TEAMS = 12, ROUNDS = 24;
+  const rosters: string[][] = Array.from({ length: TEAMS }, () => []);
+  const taken = new Set<string>();
+  let dry = 0;
+
+  for (let round = 1; round <= ROUNDS; round++) {
+    const order = [...Array(TEAMS).keys()];
+    if (round % 2 === 0) order.reverse();       // the snake
+    for (const t of order) {
+      const pick = autodraftPick({ taken, roster: rosters[t], round, rounds: ROUNDS, league });
+      if (!pick) { dry++; continue; }
+      taken.add(pick);
+      rosters[t].push(pick);
+    }
+  }
+
+  ok(`the board outlasts ${TEAMS * ROUNDS} picks`, dry === 0);
+
+  const held = (r: string[], position: string) =>
+    r.filter((n) => find(n)?.p === position).length;
+
+  const STARTERS: [string, number][] = [["QB", 1], ["RB", 2], ["WR", 2], ["TE", 1], ["K", 1], ["D/ST", 1]];
+  const short = rosters.filter((r) => STARTERS.some(([pos, n]) => held(r, pos) < n));
+  ok(`every team can field a legal lineup${short.length ? ` — ${short.length} cannot` : ""}`, short.length === 0);
+
+  // The kicker is the one worth naming: defences and kickers sit past ADP 240,
+  // and a top-forty window in the fourteenth round reaches nowhere near them.
+  ok("everybody drafted a kicker", rosters.every((r) => held(r, "K") >= 1));
+  ok("and a defence", rosters.every((r) => held(r, "D/ST") >= 1));
+}
+
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 if (failed) process.exitCode = 1;

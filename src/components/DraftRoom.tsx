@@ -255,18 +255,24 @@ export default function DraftRoom() {
       if (!queueDirty.current) setQueue(data.queue ?? []);
       if (!sticky.current) setError(null);
 
-      // Everybody in, or the commissioner has opened the room. The countdown
-      // reaching zero is the third way in, and it reports itself from the tick
-      // that already draws it.
-      const everyoneIn =
-        data.managers.length > 0 && data.managers.every((m) => m.ready === true);
-      // The room being open, which is now its own state rather than the draft
-      // having started. That separation is the point: the film plays here, and
-      // nobody is on a clock while it does.
+      // The commissioner has opened the room — which is its own state rather
+      // than the draft having started. That separation is the point: the film
+      // plays here, and nobody is on a clock while it does.
+      //
+      // And it is the ONLY thing that plays it. Two other triggers used to:
+      // the countdown crossing the hour, and everybody having pressed Ready.
+      // Both are a draft that starts itself.
+      //
+      // Ready means "I am here" — eleven people saying they have arrived, not
+      // one person saying to begin. And an hour set weeks ago is a note about
+      // when to turn up, not an instruction: somebody is late, somebody is on
+      // a train, the commissioner is still on the phone. The count of who is
+      // ready is drawn on the countdown for the commissioner to read; what
+      // they do about it is theirs.
       const opened = data.league.state === "lobby";
 
       if (
-        (everyoneIn || opened) &&
+        opened &&
         data.league.introVideo &&
         !introStarted.current &&
         !alreadyWatched(data)
@@ -804,12 +810,6 @@ export default function DraftRoom() {
           onReady={markReady}
           hasIntro={Boolean(board.league.introVideo)}
           onPrimeIntro={() => intro.current?.prime()}
-          onCountdownReached={() => {
-            if (!board.league.introVideo || introStarted.current) return;
-            if (alreadyWatched(board)) return;
-            introStarted.current = true;
-            setIntroPlaying(true);
-          }}
         />
         {/* What the clock does, before anybody is on it. A ladder is worth
             saying out loud once: a manager who learns ninety seconds in round

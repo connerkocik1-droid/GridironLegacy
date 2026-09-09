@@ -23,6 +23,13 @@ const NOT_CONFIGURED = Response.json(
  * refilling until the last game ends — so all this hands back is the roster
  * and enough about the week for the page to say which of those three things
  * is happening.
+ *
+ * Anybody's roster, not only the caller's. `?manager=` names whose, and
+ * defaults to the signed-in one. Nothing here was ever private: rosters have
+ * been readable league-wide since the first migration, because a league where
+ * you cannot see what the other eleven teams hold is a league where you cannot
+ * make a trade, judge a waiver claim, or work out why you lost. The route
+ * simply had no way to ask.
  */
 export async function GET(req: Request) {
   if (!isConfigured()) return NOT_CONFIGURED;
@@ -35,10 +42,29 @@ export async function GET(req: Request) {
 
   const { data: me } = await db
     .from("managers")
-    .select("id, slot, franchise, league_id")
+    .select("id, slot, name, franchise, league_id")
     .eq("auth_user_id", user.id)
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
+
+  // Whose roster. RLS already refuses anybody outside the caller's league, so
+  // a manager id from another league reads as one that does not exist.
+  const askedFor = new URL(req.url).searchParams.get("manager");
+  const { data: asked } = askedFor
+    ? await db
+        .from("managers")
+        .select("id, slot, name, franchise, league_id")
+        .eq("id", askedFor)
+        .eq("league_id", me.league_id)
+        .maybeSingle()
+    : { data: null };
+
+  if (askedFor && !asked) {
+    return Response.json({ error: "No such franchise in this league" }, { status: 404 });
+  }
+
+  const subject = asked ?? me;
+  const mine = subject.id === me.id;
 
   const week = await weekFrom(req, db, me.league_id);
   if (week == null) {
@@ -56,7 +82,7 @@ export async function GET(req: Request) {
   const { data: slots } = await db
     .from("roster_slots")
     .select("player_name, lineup_slot")
-    .eq("manager_id", me.id);
+    .eq("manager_id", subject.id);
 
   // Injured reserve is the only thing lineup_slot still means. A stashed
   // player is on the roster but out of the week entirely — he cannot fill a
@@ -82,12 +108,16 @@ export async function GET(req: Request) {
     .select("final")
     .eq("league_id", me.league_id)
     .eq("week", week)
-    .or(`home_manager.eq.${me.id},away_manager.eq.${me.id}`)
+    .or(`home_manager.eq.${subject.id},away_manager.eq.${subject.id}`)
     .maybeSingle();
 
   return Response.json({
     week,
-    me,
+    // "me" is whose roster this is, so the board never has to work out which
+    // franchise it is drawing. `mine` says whether the reader owns it, which
+    // is what decides whether anything on the page can be pressed.
+    me: subject,
+    mine,
     settings: league?.settings ?? null,
     roster,
     injuredReserve: stashed,

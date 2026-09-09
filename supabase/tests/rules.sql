@@ -3719,3 +3719,153 @@ select expect('and it can be taken back for a new season',
 -- which is the point of counting.
 select expect('every settling is on the record',
   (select count(*)::int from admin_log where league_id = :'D' and action = 'dues'), 4);
+
+\echo ''
+\echo '--- what a drafted player plays ---'
+
+-- 0043 started recording a man's position on his roster row at the moment he
+-- is drafted, rather than leaving it null until the next score refresh filled
+-- it in. 0044 took away the caps that were the other half of that migration,
+-- so what is left to check is the recording itself — and that nothing refuses
+-- a pick any more.
+
+\o /dev/null
+\set P  '99999999-0000-0000-0000-00000000000f'
+\set PU 'ca900000-1111-4000-8000-000000000001'
+\set PU2 'ca900000-1111-4000-8000-000000000002'
+
+insert into auth.users (id) values (:'PU'), (:'PU2');
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'P', 'Positions', 2026, 'AAA',
+        '{"starters":{"QB":1},"bench":20,"rounds":24}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise, auth_user_id) values
+  (:'P', 'AAA', 'A', 'Alpha', :'PU'),
+  (:'P', 'BBB', 'B', 'Bravo', :'PU2');
+
+select rebuild_draft_board(:'P');
+update leagues set draft_state = 'running', pick_started_at = now() where id = :'P';
+select signin(:'PU');
+\o
+
+-- Six quarterbacks to one roster, which every cap this league used to carry
+-- would have refused at the fifth. Driven off whoever is actually on the clock
+-- rather than assuming they alternate: the board snakes, so rounds one and two
+-- both end on the same manager.
+\o /dev/null
+do $$
+declare
+  v_l uuid := '99999999-0000-0000-0000-00000000000f';
+  v_a uuid;
+  v_qb int := 0;
+  v_on uuid;
+  i int;
+begin
+  select id into v_a from managers where league_id = v_l and slot = 'AAA';
+
+  for i in 1..16 loop
+    exit when v_qb >= 6;
+
+    select p.manager_id into v_on
+      from draft_picks p
+      join leagues l on l.id = p.league_id and l.current_pick = p.overall
+     where p.league_id = v_l;
+
+    perform set_config('test.uid',
+      (select auth_user_id::text from managers where id = v_on), false);
+
+    if v_on = v_a then
+      v_qb := v_qb + 1;
+      perform make_pick(v_l, format('QB %s', v_qb), null, 'QB');
+    else
+      perform make_pick(v_l, format('Their %s', i), null, 'RB');
+    end if;
+  end loop;
+end $$;
+select signin(:'PU');
+\o
+
+select expect('a roster may hold as many of a position as it likes',
+  (select count(*)::int from roster_slots
+    where league_id = :'P' and position = 'QB'
+      and manager_id = (select id from managers where league_id = :'P' and slot = 'AAA')), 6);
+
+select expect('and the position is on the row from the moment he is drafted',
+  (select position from roster_slots where league_id = :'P' and player_name = 'QB 1'), 'QB');
+
+-- A pick with no position given is not a failure: a league drafting from a
+-- client that never sent one still works. Signed in as whoever is actually on
+-- the clock, or the pick is refused for the wrong reason and the assertion
+-- below passes on a row that was never written.
+\o /dev/null
+do $$
+declare
+  v_l uuid := '99999999-0000-0000-0000-00000000000f';
+  v_on uuid;
+begin
+  select p.manager_id into v_on
+    from draft_picks p
+    join leagues l on l.id = p.league_id and l.current_pick = p.overall
+   where p.league_id = v_l;
+  perform set_config('test.uid',
+    (select auth_user_id::text from managers where id = v_on), false);
+  perform make_pick(v_l, 'Nameless Position', null, null);
+end $$;
+select signin(:'PU');
+\o
+
+select expect('a pick with no position is allowed through',
+  (select count(*)::int from roster_slots
+    where league_id = :'P' and player_name = 'Nameless Position'), 1);
+
+select expect('and records no position rather than a guess',
+  (select position from roster_slots where league_id = :'P' and player_name = 'Nameless Position'),
+  null);
+
+-- The autodraft reads the queue in order and takes the first player still
+-- available. It used to skip past anyone the roster had no room for; with no
+-- caps there is nothing to skip, so the first name is the one it takes.
+\o /dev/null
+do $$
+declare
+  v_l uuid := '99999999-0000-0000-0000-00000000000f';
+  v_a uuid;
+  v_on uuid;
+begin
+  select id into v_a from managers where league_id = v_l and slot = 'AAA';
+
+  loop
+    select p.manager_id into v_on
+      from draft_picks p
+      join leagues l on l.id = p.league_id and l.current_pick = p.overall
+     where p.league_id = v_l;
+    exit when v_on = v_a or v_on is null;
+
+    perform set_config('test.uid',
+      (select auth_user_id::text from managers where id = v_on), false);
+    perform make_pick(v_l, format('Filler %s', gen_random_uuid()), null, 'WR');
+  end loop;
+
+  perform set_config('test.uid', (select auth_user_id::text from managers where id = v_a), false);
+  perform set_draft_queue(v_l, array['QB 9', 'A Receiver'], array['QB', 'WR']);
+
+  update leagues set pick_started_at = now() - interval '10 minutes' where id = v_l;
+  perform autodraft_expired(v_l, 'Somebody Else', 'RB');
+end $$;
+select signin(:'PU');
+\o
+
+select expect('the autodraft took the top of the queue, seventh quarterback and all',
+  (select count(*)::int from roster_slots where league_id = :'P' and player_name = 'QB 9'), 1);
+
+select expect('and recorded what he plays',
+  (select position from roster_slots where league_id = :'P' and player_name = 'QB 9'), 'QB');
+
+select expect('a queue carries what each player plays',
+  (select position from draft_queue
+    where league_id = :'P' and player_name = 'A Receiver'), 'WR');
+
+select expect('a queue with the wrong number of positions is refused',
+  refuses(format('select set_draft_queue(%L, array[%L, %L], array[%L])', :'P', 'X', 'Y', 'QB')),
+  'A position for each player, or none at all');

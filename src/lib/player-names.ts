@@ -3,18 +3,38 @@
  *
  * The two lists are written by different people. Our pool says
  * "Marvin Harrison Jr."; ESPN's box score has said "Marvin Harrison Jr",
- * "Marvin Harrison Jr." and, on a bad afternoon, "M. Harrison Jr.". Seventy of
- * the five hundred and eighty-five players in the pool carry a suffix, an
- * apostrophe, a hyphen or an initial with a full stop — twelve per cent of it,
- * which is far too much to leave to string equality.
+ * "Marvin Harrison Jr." and, on a bad afternoon, "M. Harrison Jr.". Around a tenth of
+ * the pool carries a suffix, an apostrophe, a hyphen or an initial with a full
+ * stop, which is far too much to leave to string equality.
  *
  * A miss here is silent and expensive: the player simply scores nothing, and
  * the manager who started him sees a zero he has no way to argue with. So the
  * comparison happens on a normalised key rather than on the names themselves.
  */
+import aliases from "@/data/name-aliases.json";
+
 
 /** Suffixes that are part of a legal name but never part of an identity. */
 const SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv", "v"]);
+
+/**
+ * The men two sources call by different names.
+ *
+ * Normalising cannot help here, because nothing about "Marquise Brown" and
+ * "Hollywood Brown" is spelled alike — one is his name and the other is what
+ * everybody calls him, and which one arrives depends on who is writing. The
+ * pool carries one spelling; a feed can send either.
+ *
+ * This is the one case that has to be listed by hand, so it is kept short and
+ * every entry is checked against a position and a team before it goes in.
+ * Guessing that two similar names are one player is how a league ends up
+ * paying Keon Coleman's touchdown to Kevin Coleman.
+ */
+const GROUPS = new Map<string, string[]>();
+for (const group of aliases.groups) {
+  const keys = group.map(normalizeName);
+  for (const k of keys) GROUPS.set(k, keys);
+}
 
 /**
  * The key two spellings of the same player share.
@@ -97,11 +117,19 @@ export class NameIndex {
 
   /** The league's spelling of whatever ESPN called him, or null. */
   lookup(espnName: string): string | null {
-    return this.byKey.get(normalizeName(espnName)) ?? null;
+    const key = normalizeName(espnName);
+    const direct = this.byKey.get(key);
+    if (direct) return direct;
+    // He may be on the roster under the other name he goes by.
+    for (const alias of GROUPS.get(key) ?? []) {
+      const held = this.byKey.get(alias);
+      if (held) return held;
+    }
+    return null;
   }
 
   has(espnName: string): boolean {
-    return this.byKey.has(normalizeName(espnName));
+    return this.lookup(espnName) !== null;
   }
 
   get size(): number {

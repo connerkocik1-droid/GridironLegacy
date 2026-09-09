@@ -64,7 +64,7 @@ const PLACES: Place[] = [
   {
     href: "/league",
     name: "League overview",
-    line: "Who is scoring at each position, the power rankings, and every franchise's roster.",
+    line: "Scoring by position, the power rankings, and every roster.",
   },
   // The three screens where a roster changes have a tab of their own now, which
   // takes the draft room's slot once the draft is done. This card is how they
@@ -74,7 +74,7 @@ const PLACES: Place[] = [
   {
     href: "/moves",
     name: "Moves",
-    line: "Free agents and waivers, the trade builder, and the record of every move the league has made.",
+    line: "Free agents, the trade builder, and every move the league has made.",
     badge: (c) =>
       c.movesToday === 0
         ? null
@@ -85,12 +85,12 @@ const PLACES: Place[] = [
   {
     href: "/news",
     name: "League news",
-    line: "The whole wire, everything the league might care about.",
+    line: "The whole wire.",
   },
   {
     href: "/rankings",
     name: "Player rankings",
-    line: "Every player in the pool, by position, with the numbers behind them.",
+    line: "Every player in the pool, by position, with the numbers.",
   },
 ];
 

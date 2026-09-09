@@ -11,3 +11,6 @@ next-env.d.ts
 
 # Screenshots from ./scripts/audit-mobile.sh --shots
 .mobile-audit/
+
+# Source CSVs pulled by scripts/roster-sync.mjs
+.cache/

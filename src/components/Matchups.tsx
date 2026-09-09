@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import ScoreBar from "./ScoreBar";
+import MatchupCard, { type CardGame } from "./MatchupCard";
 import Skeleton from "./Skeleton";
-import TeamCrest from "./TeamCrest";
 import { useRefreshable } from "@/lib/use-refresh";
 import { useLogos } from "@/lib/use-logos";
 
@@ -17,34 +15,12 @@ import { useLogos } from "@/lib/use-logos";
  * everybody else is doing.
  */
 
-interface Side {
-  id: string;
-  slot: string;
-  /** Whoever holds the franchise, or "Open" when nobody does yet. */
-  name: string;
-  claimed: boolean;
-  franchise: string;
-  division: string | null;
-  /** Null for a week that has neither been played nor started. */
-  points: number | null;
-}
-
-interface Game {
-  week: number;
-  final: boolean;
-  divisional: boolean;
-  live: boolean;
-  mine: boolean;
-  home: Side;
-  away: Side;
-}
-
 interface Board {
   meId: string;
   league: { name: string; season: number } | null;
   weeks: number[];
   liveWeek: number | null;
-  games: Game[];
+  games: CardGame[];
 }
 
 const tab = (active: boolean): React.CSSProperties => ({
@@ -58,162 +34,6 @@ const tab = (active: boolean): React.CSSProperties => ({
   padding: "7px 14px",
   cursor: "pointer",
 });
-
-function Score({
-  side,
-  won,
-  lost,
-  logo,
-  meId,
-}: {
-  side: Side;
-  won: boolean;
-  lost: boolean;
-  logo: string | null;
-  /** So a manager is not offered a link to play themselves. */
-  meId: string;
-}) {
-  // Every franchise on this page is a way in to the one screen that lays two
-  // rosters out slot by slot. That screen could always do it — but the only
-  // way to ask was a dropdown on the screen itself, so a name here was a dead
-  // end, and "how would I do against them" was three presses away from the
-  // page that raised the question. Yours goes to your own week.
-  const href = side.id === meId ? "/lineup" : `/lineup?opponent=${encodeURIComponent(side.id)}`;
-
-  return (
-    <Link
-      href={href}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 9,
-        minWidth: 0,
-        textDecoration: "none",
-        color: "inherit",
-        // The whole row, so it is a thumb-sized target rather than a name.
-        minHeight: 40,
-      }}
-    >
-      <TeamCrest franchise={side.franchise} logo={logo} size={26} shape="box" fallback="empty" />
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div
-          style={{
-            fontFamily: "var(--font-heading)",
-            fontSize: 14,
-            color: lost ? "var(--text-quiet)" : "var(--text)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {side.franchise}
-        </div>
-        {/* Who is behind the franchise. A team name is a name somebody made
-            up; the person is who you are actually playing. */}
-        <div
-          style={{
-            fontSize: 10,
-            letterSpacing: ".14em",
-            color: side.claimed ? "var(--text-dim)" : "var(--text-faint)",
-            marginTop: 2,
-          }}
-        >
-          {side.claimed ? side.name : "Open"}
-        </div>
-      </div>
-      <div
-        style={{
-          fontFamily: "var(--font-heading)",
-          fontSize: 19,
-          color: won ? "var(--accent-text)" : lost ? "var(--text-quiet)" : "var(--text-3)",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {side.points == null ? "—" : side.points.toFixed(1)}
-      </div>
-    </Link>
-  );
-}
-
-function GameCard({
-  game,
-  highlight,
-  logos,
-  meId,
-}: {
-  game: Game;
-  highlight: boolean;
-  logos: Record<string, string>;
-  /** Whose season this is, so their own fixture can be read from their side. */
-  meId: string;
-}) {
-  const { home, away } = game;
-  const settled = game.final;
-  const homeWon = settled && (home.points ?? 0) > (away.points ?? 0);
-  const awayWon = settled && (away.points ?? 0) > (home.points ?? 0);
-
-  // In your own fixture you go on top. Home and away are a coin toss in a
-  // fantasy league — nobody travels — and reading your own week from the
-  // second line is a small tax paid twelve times a season. It also lets the
-  // bar below mean "you": the fill starts at the left, so the side it is
-  // measuring has to be the side written above it.
-  const first = game.mine && home.id === meId ? home : away;
-  const second = first === home ? away : home;
-
-  const firstWon = first === home ? homeWon : awayWon;
-  const secondWon = first === home ? awayWon : homeWon;
-
-  return (
-    <div
-      role="group"
-      aria-label={`Week ${game.week}: ${first.franchise} versus ${second.franchise}`}
-      style={{
-        border: `1px solid ${highlight ? "rgb(var(--accent-bright-rgb) / .5)" : "rgb(var(--accent-rgb) / .2)"}`,
-        borderRadius: "var(--radius-md)",
-        background: highlight ? "rgb(var(--accent-rgb) / .1)" : "rgb(var(--surface-rgb) / .55)",
-        padding: "12px 14px 13px",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          fontSize: 10,
-          letterSpacing: ".18em",
-          color: "var(--text-dim)",
-          marginBottom: 9,
-        }}
-      >
-        WEEK {game.week}
-        {game.divisional ? <span style={{ color: "var(--accent-link)" }}>· DIVISION</span> : null}
-        <span style={{ marginLeft: "auto", color: game.live ? "var(--good)" : "var(--text-dim)" }}>
-          {game.final ? "FINAL" : game.live ? "LIVE" : "TO COME"}
-        </span>
-      </div>
-
-      <div style={{ display: "grid", gap: 8 }}>
-        <Score side={first} won={firstWon} lost={secondWon} logo={logos[first.id] ?? null} meId={meId} />
-        <Score side={second} won={secondWon} lost={firstWon} logo={logos[second.id] ?? null} meId={meId} />
-      </div>
-
-      {/* Two numbers are a fact; the distance between them is the game. Only
-          once there is one — an unplayed week has no gap to draw, and an
-          empty track under a fixture reads as nought-all rather than as not
-          yet. Neutral unless it is yours, because "up" and "down" mean
-          nothing about somebody else's Sunday. */}
-      {(first.points ?? 0) + (second.points ?? 0) > 0 ? (
-        <ScoreBar
-          mine={first.points ?? 0}
-          theirs={second.points ?? 0}
-          neutral={!game.mine}
-          final={game.final}
-          padding="11px 0 0"
-        />
-      ) : null}
-    </div>
-  );
-}
 
 export default function Matchups() {
   const [board, setBoard] = useState<Board | null>(null);
@@ -258,22 +78,18 @@ export default function Matchups() {
       : board.games.filter((g) => g.mine);
   }, [board, wholeLeague, selected]);
 
+  // Counted on the server now, alongside everybody else's, because every card
+  // carries two of them. Read off whichever fixture this manager appears in.
+  // Counted on the server now, alongside everybody else's, because every card
+  // carries two of them. Read off whichever fixture this manager appears in.
   const record = useMemo(() => {
-    if (!board) return null;
-    const mine = board.games.filter((g) => g.mine && g.final);
-    let w = 0;
-    let l = 0;
-    let t = 0;
-    for (const g of mine) {
-      const me = g.home.id === board.meId ? g.home : g.away;
-      const them = g.home.id === board.meId ? g.away : g.home;
-      const a = me.points ?? 0;
-      const b = them.points ?? 0;
-      if (a > b) w++;
-      else if (a < b) l++;
-      else t++;
-    }
-    return { w, l, t, played: mine.length };
+    const fixture = board?.games.find(
+      (g) => g.home.id === board.meId || g.away.id === board.meId,
+    );
+    const side =
+      fixture && (fixture.home.id === board?.meId ? fixture.home : fixture.away);
+    const held = side ? side.record : null;
+    return held ? { ...held, played: held.w + held.l + held.t } : null;
   }, [board]);
 
   if (error && !board) {
@@ -370,7 +186,7 @@ export default function Matchups() {
           }}
         >
           {shown.map((g) => (
-            <GameCard
+            <MatchupCard
               key={`${g.week}-${g.home.id}-${g.away.id}`}
               game={g}
               highlight={wholeLeague ? g.mine : g.live}

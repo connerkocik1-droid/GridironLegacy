@@ -25,7 +25,9 @@ const STASHABLE = ["out", "ir", "suspended"];
 
 interface Feed {
   week: number;
-  me: { id: string; slot: string; franchise: string };
+  me: { id: string; slot: string; name?: string; franchise: string };
+  /** Whether the reader owns this roster. Absent on older responses. */
+  mine?: boolean;
   settings: LeagueShape | null;
   roster: string[];
   injuredReserve: string[];
@@ -50,8 +52,17 @@ interface Feed {
  * claims an arrangement once there is something real to arrange. Before
  * kickoff every score is nought and any lineup drawn from them would be
  * fiction; the projected order is shown, and labelled as a projection.
+ *
+ * Anybody's team, given a `manager`. A league where you cannot see what the
+ * other eleven hold is a league where you cannot make a trade, judge a waiver
+ * claim, or work out why you lost on Sunday — and the rosters were never
+ * private, they have been readable league-wide since the first migration.
+ * There was simply no page that asked. Somebody else's team is read-only:
+ * nothing on it can be pressed, which is not a permission check so much as an
+ * honest interface, since the database resolves the caller itself and would
+ * refuse anyway.
  */
-export default function RosterBoard() {
+export default function RosterBoard({ manager }: { manager?: string } = {}) {
   const logos = useLogos();
   const health = useHealthReport();
   const [feed, setFeed] = useState<Feed | null>(null);
@@ -60,8 +71,10 @@ export default function RosterBoard() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/lineup", { cache: "no-store" });
-      if (res.status === 401) return setError("Sign in to see your roster.");
+      const query = manager ? `?manager=${encodeURIComponent(manager)}` : "";
+      const res = await fetch(`/api/lineup${query}`, { cache: "no-store" });
+      if (res.status === 401) return setError("Sign in to see this roster.");
+      if (res.status === 404) return setError("No such franchise in this league.");
       if (res.status === 503) {
         const body = await res.json().catch(() => ({}));
         return setError(body.error ?? "The league database is not configured yet.");
@@ -70,9 +83,9 @@ export default function RosterBoard() {
       setFeed(await res.json());
       setError(null);
     } catch {
-      setError("Could not load your roster.");
+      setError("Could not load this roster.");
     }
-  }, []);
+  }, [manager]);
 
   // Answers a pull-to-refresh as well as its own timer.
   useRefreshable(load);
@@ -178,6 +191,10 @@ export default function RosterBoard() {
   }
 
   const stashLimit = Number(feed.settings?.ir ?? 0);
+  // Somebody else's team is a thing to read. The database resolves the caller
+  // itself and would refuse a write anyway, so this is honesty rather than a
+  // permission check — a button that always fails is worse than no button.
+  const mine = feed.mine !== false;
   const settled = feed.final || feed.weekPhase === "final";
   const totalLabel = settled ? "FINAL" : feed.started ? "LIVE TOTAL" : "PROJECTED";
 
@@ -202,7 +219,10 @@ export default function RosterBoard() {
             one number this page exists for — onto a band of its own below. */}
         <div style={{ flex: "1 1 170px", minWidth: 0 }}>
           <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>
-            DYNASTY · BEST BALL
+            {/* Whose team this is. On your own it is the league's format,
+                which is the only thing left to say; on somebody else's it is
+                the manager, which is the thing you came to check. */}
+            {mine ? "DYNASTY · BEST BALL" : (feed.me.name ?? "THE LEAGUE").toUpperCase()}
           </div>
           <div
             style={{
@@ -259,12 +279,12 @@ export default function RosterBoard() {
             week, to a manager who read them the first Sunday and has known it
             ever since. */}
         {undrafted
-          ? "Nothing to show yet, because nothing has been drafted. Every player you take on the night arrives here."
+          ? "Nothing drafted yet. Everyone you take on the night arrives here."
           : settled
             ? "Settled. Your best possible lineup is the one that counted."
             : feed.started
-              ? "Your whole roster is playing; the highest scorers fill the slots and swap as the numbers move."
-              : "No lineup to set — everyone you own is in, and the best scorers take the slots once the games start. Until then this is a projection."}
+              ? "Everyone is playing; the highest scorers fill the slots and swap as they go."
+              : "No lineup to set. Until the games start this is a projection."}
       </div>
 
       {error ? (
@@ -366,6 +386,7 @@ export default function RosterBoard() {
                     // out, because that is the only case the server will
                     // accept — a button that always refuses is worse than no
                     // button. Questionable is not enough: he might play.
+                    mine &&
                     stashLimit > 0 &&
                     feed.injuredReserve.length < stashLimit &&
                     STASHABLE.includes(healthOf(health, name)?.status ?? "active")
@@ -405,8 +426,9 @@ export default function RosterBoard() {
                   lineHeight: 1.6,
                 }}
               >
-                Nobody stashed. A player ruled out can sit here without costing a
-                roster spot — he scores nothing while he does.
+                {mine
+                  ? "Nobody stashed. A player ruled out can sit here without costing a roster spot — he scores nothing while he does."
+                  : "Nobody stashed."}
               </div>
             ) : (
               feed.injuredReserve.map((name) => {
@@ -421,12 +443,16 @@ export default function RosterBoard() {
                     // coming — and it is the widest thing in a row that also
                     // has to hold a button.
                     showValue={false}
-                    action={{
-                      label: "ACTIVATE",
-                      title: `Bring ${name} back onto the roster`,
-                      busy: busy === name,
-                      onClick: () => void stash(name, false),
-                    }}
+                    action={
+                      mine
+                        ? {
+                            label: "ACTIVATE",
+                            title: `Bring ${name} back onto the roster`,
+                            busy: busy === name,
+                            onClick: () => void stash(name, false),
+                          }
+                        : undefined
+                    }
                   />
                 );
               })
@@ -434,25 +460,6 @@ export default function RosterBoard() {
           </div>
         ) : null}
 
-        {/* Said once, at the bottom, where somebody who has scrolled the whole
-            roster and is wondering where the bench went will find it — and not
-            at all before the draft, when there are no slots and nobody below
-            them for it to be about. */}
-        {undrafted ? null : (
-        <div
-          style={{
-            marginTop: 12,
-            fontSize: 11.5,
-            color: "var(--text-dim)",
-            lineHeight: 1.6,
-            maxWidth: "70ch",
-          }}
-        >
-          Nobody here is benched. Everyone below the slots is still eligible to fill
-          one — a player who outscores a starter takes his place while the games
-          are on.
-        </div>
-        )}
       </div>
     </>
   );

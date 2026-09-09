@@ -1,6 +1,7 @@
 import { slotsOf } from "@/data/league-sim";
 import { proj, player, type LeagueShape } from "./roster";
 import { formatStatLine, type StatLine } from "./scoring";
+import type { TeamGame } from "./nfl-week";
 import type { Position } from "@/data/league-data";
 
 const FLEX_TAKES: Position[] = ["RB", "WR", "TE"];
@@ -19,6 +20,12 @@ export interface SideEntry {
   projected: number;
   live: boolean;
   statLine: string;
+  /**
+   * His real game this week — who, when, and whether it has been played.
+   * Hung on by the route, which is where the week's fixtures are known; null
+   * for a bye, and for a free agent, who has no team to have a game.
+   */
+  game?: TeamGame | null;
 }
 
 export interface MatchupRow {

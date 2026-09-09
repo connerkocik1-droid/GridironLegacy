@@ -2,9 +2,6 @@ import { fetchScoreboard, type Game, type SeasonType } from "@/lib/espn";
 
 export const dynamic = "force-dynamic";
 
-/** ESPN's preseason runs week 1 (Hall of Fame) through week 4. */
-const PRESEASON_WEEKS = 4;
-
 /** How far back to look for a slate that has been played. */
 const MAX_STEPS_BACK = 5;
 
@@ -16,22 +13,23 @@ function hasResults(games: Game[]): boolean {
 /**
  * The weeks to try, newest first, after `now` turned out to be all fixtures.
  *
- * Walks back through the part of the season ESPN just named, then into the
- * preseason if the regular season has not started — which is exactly the gap
- * at the end of August, where "now" is week 1 of a season nobody has played
- * and the results everyone wants are the preseason's.
+ * Walks back through the part of the season ESPN just named, and no further.
+ *
+ * It used to cross into the preseason from regular-season week 1, on the
+ * reasoning that in the gap at the end of August the only results anybody had
+ * were the preseason's. That reasoning expires the moment week 1 is on the
+ * board: on the Wednesday before the opener the ticker was showing August
+ * friendlies — teams resting starters, in games nobody in the league has an
+ * interest in — instead of the fixtures and kickoff times of the week about to
+ * start. A slate of upcoming games with times on it is not a failure to find
+ * results; for the week ahead it is the more useful of the two.
  */
-function stepsBack(from: { seasonType: SeasonType; week: number }): {
+export function stepsBack(from: { seasonType: SeasonType; week: number }): {
   seasonType: SeasonType;
   week: number;
 }[] {
   const out: { seasonType: SeasonType; week: number }[] = [];
-
   for (let w = from.week - 1; w >= 1; w--) out.push({ seasonType: from.seasonType, week: w });
-  if (from.seasonType === 2) {
-    for (let w = PRESEASON_WEEKS; w >= 1; w--) out.push({ seasonType: 1, week: w });
-  }
-
   return out.slice(0, MAX_STEPS_BACK);
 }
 
@@ -64,11 +62,10 @@ async function latestPlayed(year?: number): Promise<Game[]> {
  *
  * Asked for nothing in particular, it asks ESPN for nothing in particular:
  * whatever is on right now. `?prefer=results` instead returns the most recent
- * slate that has actually been played, which is what the ticker wants — in
- * the week between the last preseason game and the opener, "now" is a list of
- * fixtures and the results are the preseason's. Naming a `week` or a
- * `seasontype` pins it exactly: `?seasontype=1&week=3` is preseason week
- * three, played or not.
+ * slate that has actually been played, which is what the ticker wants on a
+ * Monday — but only within the run of games it is already showing, never back
+ * across the start of the season. Naming a `week` or a `seasontype` pins it
+ * exactly: `?seasontype=1&week=3` is preseason week three, played or not.
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);

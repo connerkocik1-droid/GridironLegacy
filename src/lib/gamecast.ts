@@ -56,6 +56,26 @@ export interface Gamecast {
   notable: OwnedPlayer[];
   scoring: ScoringPlay[];
   plays: GamecastPlay[];
+  /** The actual football box score, by team, in ESPN's own columns. */
+  box: BoxTeam[];
+}
+
+/** One player's line in one stat group. Values are parallel to the labels. */
+export interface BoxRow {
+  name: string;
+  values: string[];
+}
+
+/** "passing", "rushing", "receiving"… with the columns ESPN gave it. */
+export interface BoxGroup {
+  group: string;
+  labels: string[];
+  rows: BoxRow[];
+}
+
+export interface BoxTeam {
+  team: string;
+  groups: BoxGroup[];
 }
 
 /** Who holds whom, by the league's own spelling. */
@@ -144,7 +164,58 @@ export function gamecast(
         homeScore: p.homeScore,
         awayScore: p.awayScore,
       })),
+    box: boxscore(stats),
   };
+}
+
+/**
+ * The actual football box score, grouped as ESPN groups it.
+ *
+ * Deliberately not curated. Every other section of this screen is the game
+ * read through a fantasy roster; this one is the game itself, and the moment
+ * it starts choosing which columns matter it stops being a box score and
+ * becomes another opinion. So it carries ESPN's own groups, in ESPN's own
+ * order, with ESPN's own column headings — and the screen scrolls a table
+ * sideways rather than dropping a column somebody was looking for.
+ *
+ * Labels are collected across the group's players rather than taken from the
+ * first one, in first-seen order. They are the same for everybody in practice,
+ * but a missing column in row one must not silently truncate row two.
+ */
+export function boxscore(stats: PlayerStat[]): BoxTeam[] {
+  const teams = new Map<string, Map<string, { labels: string[]; rows: BoxRow[] }>>();
+
+  for (const stat of stats) {
+    if (!stat.team || !stat.group) continue;
+
+    let groups = teams.get(stat.team);
+    if (!groups) teams.set(stat.team, (groups = new Map()));
+
+    let group = groups.get(stat.group);
+    if (!group) groups.set(stat.group, (group = { labels: [], rows: [] }));
+
+    for (const label of Object.keys(stat.stats)) {
+      if (!group.labels.includes(label)) group.labels.push(label);
+    }
+
+    group.rows.push({ name: stat.name, values: [] });
+  }
+
+  // Second pass for the values, so every row is as wide as the group's final
+  // label list however late a column turned up.
+  for (const stat of stats) {
+    const group = teams.get(stat.team)?.get(stat.group);
+    if (!group) continue;
+    const row = group.rows.find((r) => r.name === stat.name && r.values.length === 0);
+    if (row) row.values = group.labels.map((label) => stat.stats[label] ?? "—");
+  }
+
+  return [...teams].map(([team, groups]) => ({
+    team,
+    groups: [...groups]
+      .filter(([, g]) => g.rows.length > 0 && g.labels.length > 0)
+      .map(([group, g]) => ({ group, labels: g.labels, rows: g.rows })),
+  }));
 }
 
 /**

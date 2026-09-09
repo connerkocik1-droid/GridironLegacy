@@ -7,6 +7,9 @@
  * screen at once, which is the sort of thing that costs somebody a Sunday.
  */
 import { toHealth, worthShowing, HEALTH_LABEL, HEALTH_SHORT } from "../health";
+import { healthOf } from "../use-player-health";
+import { normalizeName } from "../player-names";
+import { POOL } from "../../data/league-data";
 
 let failed = 0;
 const eq = (label: string, got: unknown, want: unknown) => {
@@ -66,6 +69,39 @@ for (const s of ["active", "questionable", "out", "ir", "suspended"] as const) {
 eq("active has no short badge", HEALTH_SHORT.active, "");
 for (const s of ["questionable", "out", "ir", "suspended"] as const) {
   ok(`${s} has a short badge`, HEALTH_SHORT[s].length > 0 && HEALTH_SHORT[s].length <= 3);
+}
+
+console.log("\n--- and a badge only for somebody actually on the report ---");
+
+/**
+ * The bug: healthOf used to fall back to the draft pool's `q` column whenever
+ * the injury report said nothing, which is the normal case for a fit player.
+ * The column is a snapshot from months before the season, so the fallback
+ * fired constantly and never expired — 138 of 944 players wore a permanent Q,
+ * Christian McCaffrey and Puka Nacua among them.
+ */
+{
+  const report = {
+    [normalizeName("Puka Nacua")]: { status: "out" as const, detail: "Out", note: "ankle" },
+  };
+
+  eq("somebody on the report gets what the report says",
+    healthOf(report, "Puka Nacua")?.status, "out");
+
+  // He is flagged in the pool. He is not on the report. He is fit.
+  const flagged = POOL.find((p) => p.q);
+  ok(`the pool still remembers a draft-season designation (${flagged?.n})`, Boolean(flagged));
+  eq("but it is not today's status", healthOf({}, flagged!.n), null);
+
+  eq("and nobody unknown to either is anything", healthOf({}, "Somebody Nobody Signed"), null);
+
+  // The whole point, stated as a number: with an empty report, nobody wears a
+  // badge. Anything else is furniture that hides the names that matter.
+  const wearing = POOL.filter((p) => healthOf({}, p.n) !== null).length;
+  eq(`no report means no badges, for all ${POOL.length} of them`, wearing, 0);
+
+  eq("a spelling the feed uses still finds him",
+    healthOf(report, "Puka Nacua ")?.status, "out");
 }
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");

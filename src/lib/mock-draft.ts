@@ -239,8 +239,10 @@ export function chooseFor(
     }
   }
 
-  // Every one of them blocked — a roster full at every position it is allowed
-  // to fill. Take the best available rather than stalling the draft.
+  // Every one of them blocked — a roster full at every position it would
+  // sensibly fill. Take the best available rather than stalling the draft.
+  // HARD_CAP is taste rather than a league rule, so the worst this can produce
+  // is an unusual roster, never a pick the database refuses.
   return best ?? ranked[0] ?? null;
 }
 

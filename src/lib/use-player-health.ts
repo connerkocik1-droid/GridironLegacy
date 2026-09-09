@@ -2,8 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { normalizeName } from "./player-names";
-import { toHealth, type Health } from "./health";
-import { find } from "@/data/league-data";
+import { type Health } from "./health";
 
 /**
  * Every player's fitness, asked for once per page rather than once per row.
@@ -64,19 +63,25 @@ export function useHealthReport(): Report {
 }
 
 /**
- * One player's fitness.
+ * One player's fitness, from today's injury report and nothing else.
  *
- * The injury report first, because it is today's. The draft pool's own
- * questionable flag second, so a league whose ESPN feed is unreachable still
- * shows the designation it was drafted with rather than nothing at all.
+ * This used to fall back to the draft pool's own questionable flag whenever
+ * the report said nothing, so that a league with an unreachable ESPN feed
+ * "still shows the designation it was drafted with rather than nothing at
+ * all". That was the wrong trade and it showed: an injury designation is a
+ * statement about one week, and a column in a static table cannot make it.
+ * The flag was a snapshot taken once, months before the season, and the
+ * report says nothing about a healthy player — which is the normal case — so
+ * the fallback fired constantly and never expired.
+ *
+ * A hundred and thirty-eight players out of nine hundred and forty-four wore
+ * a permanent Q, Christian McCaffrey and Puka Nacua among them. A badge that
+ * is on one name in seven is not information; it is furniture, and it hides
+ * the two names that actually matter this Sunday.
+ *
+ * So: no report, no badge. If the feed is unreachable the app says nothing
+ * about anybody's fitness, which is exactly what it knows.
  */
 export function healthOf(report: Report, name: string): HealthEntry | null {
-  const reported = report[normalizeName(name)];
-  if (reported) return reported;
-
-  const pooled = find(name);
-  if (pooled?.q) {
-    return { status: toHealth("questionable"), detail: "Questionable", note: "" };
-  }
-  return null;
+  return report[normalizeName(name)] ?? null;
 }

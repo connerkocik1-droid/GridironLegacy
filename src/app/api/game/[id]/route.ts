@@ -135,6 +135,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         notable: [],
         scoring: [],
         plays: [],
+        box: [],
         teamTotals: {},
         error: "Live coverage is unavailable right now.",
         fetchedAt: null,
