@@ -1,6 +1,5 @@
 import { slotsOf, targetsOf } from "@/data/league-sim";
 import type { Player, Position } from "@/data/league-data";
-import { positionCaps, type CapShape } from "./draft-caps";
 import type { LeagueShape } from "./roster";
 
 /**
@@ -76,25 +75,6 @@ function startingNeed(league: LeagueShape): Record<string, number> {
 
 function countAt(roster: Player[], position: Position): number {
   return roster.filter((p) => p.p === position).length;
-}
-
-/**
- * The positions this roster is not allowed to add to.
- *
- * Not the same thing as HARD_CAP below, and the difference is the whole reason
- * this exists. HARD_CAP is taste — nobody sensibly carries three quarterbacks,
- * so the mock's opponents do not. This is law: the league's own limit, the one
- * make_pick enforces inside its lock. A pick that breaks it is not a strange
- * pick, it is a pick the database refuses, and an autodrafter that returns one
- * does not draft badly, it fails to draft at all.
- */
-function cappedOut(ctx: PickContext): Set<string> {
-  const caps = positionCaps(ctx.league as CapShape);
-  const full = new Set<string>();
-  for (const [position, cap] of Object.entries(caps)) {
-    if (countAt(ctx.roster, position as Position) >= cap) full.add(position);
-  }
-  return full;
 }
 
 /**
@@ -227,13 +207,7 @@ export function chooseFor(
   rng: () => number,
   window = 40,
 ): Player | null {
-  // Filtered before anything else, so that the last-resort return at the
-  // bottom of this function cannot reach past the league's limit either. That
-  // fallback is what put a fifth quarterback on three rosters in a simulated
-  // draft: every candidate on the board was blocked by taste, so it took the
-  // best available and ignored the block.
-  const full = cappedOut(ctx);
-  const ranked = [...available].filter((p) => !full.has(p.p)).sort((a, b) => a.adp - b.adp);
+  const ranked = [...available].sort((a, b) => a.adp - b.adp);
   const board = ranked.slice(0, window);
 
   // Plus the best left at every position the lineup still demands, wherever
@@ -265,9 +239,10 @@ export function chooseFor(
     }
   }
 
-  // Every one of them blocked by taste — a roster full at every position it
-  // would sensibly fill. Take the best available rather than stalling the
-  // draft; `ranked` already excludes anyone the league forbids.
+  // Every one of them blocked — a roster full at every position it would
+  // sensibly fill. Take the best available rather than stalling the draft.
+  // HARD_CAP is taste rather than a league rule, so the worst this can produce
+  // is an unusual roster, never a pick the database refuses.
   return best ?? ranked[0] ?? null;
 }
 
