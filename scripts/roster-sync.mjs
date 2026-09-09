@@ -140,6 +140,7 @@ export async function load() {
       draftClub: r.draft_club,
       draftPick: Number(r.draft_number) || null,
       college: r.college,
+      espnId: r.espn_id || null,
       ir: r.status === "RES",
       squad: r.status === "DEV",
     }));
@@ -437,6 +438,32 @@ export function write(built, data) {
   const merged = [...pool, ...built].sort((a, b) => a.adp - b.adp);
   lines[at] = `export const POOL = ${JSON.stringify(merged)};`;
   fs.writeFileSync(file, lines.join("\n"));
+
+  // Faces.
+  //
+  // The pool's own headshots are ESPN CDN URLs keyed by that player's ESPN id,
+  // and the roster feed carries the id — so the men this script adds can have
+  // the same picture from the same place as the ones already here, rather than
+  // a grey silhouette. Four hundred and thirty-eight of nine hundred and
+  // forty-four had none, three hundred and fifty-nine of them added by this
+  // script, and a roster of blank circles is a roster nobody can read at a
+  // glance.
+  //
+  // The rest are free agents, who are on nobody's roster and so in no feed, and
+  // the team defences, which are a crest rather than a face.
+  const shotsFile = path.join(ROOT, "src/data/headshots.state.json");
+  const shots = JSON.parse(fs.readFileSync(shotsFile, "utf8"));
+  const byName = new Map(data.nfl.map((r) => [key(r.name), r]));
+  let faces = 0;
+  for (const p of merged) {
+    if (shots[p.n] || p.p === "D/ST") continue;
+    const id = byName.get(key(p.n))?.espnId;
+    if (!id) continue;
+    shots[p.n] = `https://a.espncdn.com/i/headshots/nfl/players/full/${id}.png`;
+    faces++;
+  }
+  fs.writeFileSync(shotsFile, JSON.stringify(shots) + "\n");
+  console.log(`  headshots filled in: ${faces}`);
 
   // The snapshot pool-coverage.test.mts checks against, so the guarantee
   // holds in CI with no network and no CSV.

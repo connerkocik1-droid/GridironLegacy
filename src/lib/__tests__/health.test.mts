@@ -10,6 +10,7 @@ import { toHealth, worthShowing, HEALTH_LABEL, HEALTH_SHORT } from "../health";
 import { healthOf } from "../use-player-health";
 import { normalizeName } from "../player-names";
 import { POOL } from "../../data/league-data";
+import { reportFrom } from "../../app/api/player-status/route";
 
 let failed = 0;
 const eq = (label: string, got: unknown, want: unknown) => {
@@ -28,7 +29,6 @@ for (const [espn, want] of [
   ["Questionable", "questionable"],
   ["questionable", "questionable"],
   ["Doubtful", "questionable"],
-  ["Day-To-Day", "questionable"],
   ["Out", "out"],
   ["Injured Reserve", "ir"],
   ["IR", "ir"],
@@ -38,6 +38,15 @@ for (const [espn, want] of [
   ["Physically Unable to Perform", "out"],
   ["PUP", "out"],
   ["Active", "active"],
+
+  // Not game designations, and the reason a Q stopped meaning anything.
+  // Limited is a Wednesday practice participation; probable was abolished by
+  // the league in 2016; day-to-day is a reporter's phrase ESPN leaves on a
+  // player for weeks after he is fine. A manager reading a badge wants to
+  // know there is a decision to make on Sunday.
+  ["Day-To-Day", "active"],
+  ["Probable", "active"],
+  ["Limited Participation", "active"],
 ] as const) {
   eq(`"${espn}"`, toHealth(espn), want);
 }
@@ -102,6 +111,39 @@ console.log("\n--- and a badge only for somebody actually on the report ---");
 
   eq("a spelling the feed uses still finds him",
     healthOf(report, "Puka Nacua ")?.status, "out");
+}
+
+console.log("\n--- and who makes it onto the report at all ---");
+{
+  // ESPN's injury feed is the whole league's, hundreds deep, and it carries
+  // entries with an empty status, a practice note, or a phrase nobody has
+  // seen. Every one of them used to be forced to questionable.
+  const report = reportFrom([
+    { name: "Puka Nacua", status: "Questionable", detail: "knee" },
+    { name: "James Cook", status: "Out", detail: "ankle" },
+    { name: "Trey McBride", status: "Injured Reserve", detail: "" },
+    { name: "Somebody Fine", status: "", detail: "" },
+    { name: "Somebody Practising", status: "Limited Participation", detail: "" },
+    { name: "Somebody Knocked", status: "Day-To-Day", detail: "" },
+    { name: "Somebody Odd", status: "Sore After Wednesday", detail: "" },
+  ]);
+
+  eq("only the real designations get through", Object.keys(report).length, 3);
+  eq("questionable stays questionable", report[normalizeName("Puka Nacua")]?.status, "questionable");
+  eq("out stays out", report[normalizeName("James Cook")]?.status, "out");
+  eq("and reserve is reserve", report[normalizeName("Trey McBride")]?.status, "ir");
+
+  for (const name of ["Somebody Fine", "Somebody Practising", "Somebody Knocked", "Somebody Odd"]) {
+    eq(`"${name}" is not given a designation he does not have`,
+      report[normalizeName(name)], undefined);
+  }
+
+  eq("a nameless entry cannot key anything",
+    Object.keys(reportFrom([{ name: "  ", status: "Out" }])).length, 0);
+
+  // The word ESPN used is kept beside our five, because it is more precise.
+  eq("ESPN's own word is carried through",
+    report[normalizeName("Trey McBride")]?.detail, "Injured Reserve");
 }
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");
