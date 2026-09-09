@@ -259,7 +259,12 @@ export function buildEntry(r, market, byes) {
     f: market.overall != null ? Math.round(market.overall) : null,
     s: null,
     rost: market.owned ?? 0,
-    q: r.ir,
+    // Not set from injured reserve, which was a category error: `q` means the
+    // market had a questionable designation on him at the time of the export,
+    // and being on IR is neither questionable nor a market opinion. That it
+    // was ever true of anybody today is the injury report's business, and the
+    // reserve is already said in his own words below.
+    q: false,
     marketStat: market.posRank
       ? `${market.posRank} · ROST ${market.owned ?? 0}%`
       : "Undrafted · no consensus rank",

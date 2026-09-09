@@ -118,6 +118,24 @@ await page.waitForTimeout(700);
 ok("while your own team still offers its one decision",
   (await page.locator('button:has-text("IR"), button:has-text("ACTIVATE")').count()) > 0);
 
+console.log("\n--- and a Q only for somebody on the injury report ---");
+// healthOf used to fall back to the pool's own questionable column whenever
+// the report said nothing, which is the normal case for a fit player. The
+// column is a snapshot from before the season, so 138 of 944 players wore a
+// permanent Q. Christian McCaffrey is on this roster carrying that flag and
+// on no report.
+await page.goto(`${BASE}/lineup`, { waitUntil: "networkidle" });
+await page.waitForTimeout(800);
+const roster = await page.locator("body").innerText();
+ok("the report's own players still wear their badge", /\bQ\b/.test(roster));
+{
+  const mcc = await page.locator('text=/Christian McCaffrey/').first();
+  const row = mcc.locator("xpath=ancestor::*[self::div][2]");
+  const text = (await row.count()) ? await row.innerText() : "";
+  ok(`a stale draft-season flag draws nothing (${JSON.stringify(text.slice(0, 40))})`,
+    !/\bQ\b/.test(text.replace(/Christian McCaffrey/g, "")));
+}
+
 console.log("\n--- and every franchise named is a way in ---");
 for (const [where, sel] of [["the standings", "/standings"], ["the league page", "/league"]]) {
   await page.goto(`${BASE}${sel}`, { waitUntil: "networkidle" });

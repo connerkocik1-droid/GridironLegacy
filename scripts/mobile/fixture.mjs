@@ -35,6 +35,11 @@ const ROSTER = [
   ["James Cook III", "FLEX"], ["Marvin Harrison Jr.", "FLEX"],
   ["Brandon Aubrey", "K"], ["Baltimore Ravens D/ST", "D/ST"],
   ["Rome Odunze", "BENCH"], ["Tank Bigsby", "BENCH"], ["Trey McBride", "BENCH"],
+  // Carries the draft pool's questionable flag and is on no injury report.
+  // He is here so the audit can see a badge that should not be drawn: the
+  // roster used to hold nobody in this state, which is why nothing caught
+  // healthOf falling back to that flag for a hundred and thirty-eight players.
+  ["Christian McCaffrey", "BENCH"],
 ];
 
 const SETTINGS = {

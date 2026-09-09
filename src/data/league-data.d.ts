@@ -11,6 +11,12 @@ export interface Player {
   f: number;
   s: number;
   rost: number;
+  /**
+   * The market had a questionable designation on him when this table was
+   * exported. A fact about draft season, not about this Sunday — whether
+   * anybody is fit today comes from the injury report, and nothing reads this
+   * as a live status. See use-player-health.ts.
+   */
   q: boolean;
   marketStat: string;
   ins: string;
