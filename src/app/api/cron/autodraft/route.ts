@@ -1,3 +1,4 @@
+import { find } from "@/data/league-data";
 import { autodraftPick } from "@/lib/autodraft";
 import { serviceClient } from "@/lib/supabase";
 
@@ -76,6 +77,9 @@ export async function GET(req: Request) {
   const { data, error } = await db.rpc("autodraft_expired", {
     p_league_id: leagueId,
     p_fallback: fallback,
+    // So the roster row records the position at once, and so the cap check
+    // inside the lock has something to check.
+    p_fallback_position: fallback ? (find(fallback)?.p ?? null) : null,
   });
 
   if (error) {

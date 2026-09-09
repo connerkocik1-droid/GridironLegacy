@@ -1,4 +1,4 @@
-import { POOL } from "@/data/league-data";
+import { POOL, find } from "@/data/league-data";
 import { normalizeName } from "@/lib/player-names";
 import { isConfigured, serverClient } from "@/lib/supabase";
 
@@ -105,9 +105,13 @@ export async function PUT(req: Request) {
     players.push(name);
   }
 
+  // What each of them plays, alongside the names. The autodraft reads a queue
+  // inside the lock that makes the pick, so it has to be able to skip past a
+  // position the roster is already full at without leaving to ask the app.
   const { data, error } = await db.rpc("set_draft_queue", {
     p_league_id: me.league_id,
     p_players: players,
+    p_positions: players.map((n) => find(n)?.p ?? ""),
   });
 
   if (error) return Response.json({ error: error.message }, { status: 400 });

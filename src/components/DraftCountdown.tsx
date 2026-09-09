@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * The waiting room: what a manager sees before the draft opens.
@@ -20,7 +20,6 @@ export default function DraftCountdown({
   onReady,
   hasIntro = false,
   onPrimeIntro,
-  onCountdownReached,
 }: {
   draftAt: string | null;
   skew: number;
@@ -35,18 +34,9 @@ export default function DraftCountdown({
   hasIntro?: boolean;
   /** Unlocks the film's sound on a real click. See markReady below. */
   onPrimeIntro?: () => void;
-  /** The clock has reached the hour. The room decides what to do about it. */
-  onCountdownReached?: () => void;
 }) {
   const [now, setNow] = useState(() => Date.now());
 
-  // Held in a ref so the tick below does not restart every time the room
-  // re-renders around it. Written from an effect rather than during render,
-  // which is the rule the compiler enforces.
-  const reached = useRef(onCountdownReached);
-  useEffect(() => {
-    reached.current = onCountdownReached;
-  }, [onCountdownReached]);
 
   /**
    * Ready does two things, and the second is the one that matters tonight.
@@ -64,27 +54,18 @@ export default function DraftCountdown({
   const target = draftAt ? new Date(draftAt).getTime() : null;
 
   useEffect(() => {
-    // The crossing of zero is noticed on the tick that already runs the
-    // countdown, not in an effect of its own. That way it is spotted the same
-    // way whether the page was open all along or opened a minute late, and
-    // there is one clock rather than two.
-    const timer = setInterval(() => {
-      const at = Date.now();
-      setNow(at);
-
-      if (target == null) return;
-
-      const since = at + skew - target;
-      // A window rather than an instant, so somebody who opened the page
-      // shortly after the hour still catches the opening titles. Past it the
-      // draft is under way and the film would be an interruption.
-      if (since < 0 || since > 5 * 60_000) return;
-
-      reached.current?.();
-    }, 1000);
-
+    // The clock counts and does nothing else.
+    //
+    // It used to start the opening film when it crossed zero. That is a draft
+    // that begins itself: the commissioner sets a time as a note to eleven
+    // people about when to be there, and the hour arriving is not the same
+    // thing as the room being ready — somebody is late, somebody is on a
+    // train, the commissioner is still on the phone. Reaching the hour is a
+    // reminder. Opening the room is a decision, and only the commissioner
+    // makes it.
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [target, skew]);
+  }, []);
 
   const remaining = target ? Math.max(0, target - (now + skew)) : null;
 

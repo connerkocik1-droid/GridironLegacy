@@ -725,7 +725,12 @@ export function routes(page, over = {}) {
       league: { state: draftState, currentPick: 3,
         pickStartedAt: new Date(Date.now() - secondsGone * 1000).toISOString(),
         pickSeconds: 90, pickClock: PICK_CLOCK, serverNow: new Date().toISOString(),
-        draftAt: null, cinematicRounds: 3, introVideo: null,
+        // The hour, and the film. over.draftAt puts the countdown in the past
+        // and over.introVideo gives the room something to play — together they
+        // are the case that used to start itself: the clock crossing zero on a
+        // pending draft nobody had opened.
+        draftAt: over.draftAt ?? null,
+        cinematicRounds: 3, introVideo: over.introVideo ?? null,
         starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, "D/ST": 1, K: 1 },
         lotteryOrder: MANAGERS.map((m) => m.slot), lotteryAt },
       onTheClock: over.myTurn ? { ...PICKS[2], manager_id: ME.id } : PICKS[2],
@@ -734,7 +739,13 @@ export function routes(page, over = {}) {
       // The route sends a name only for a franchise somebody has claimed, so
       // the fixture does too — otherwise the lottery reads "Open Team · Open"
       // here and nowhere else.
-      managers: MANAGERS.map((m) => ({ ...m, name: m.name === "Open" ? null : m.name })),
+      managers: MANAGERS.map((m) => ({
+        ...m,
+        name: m.name === "Open" ? null : m.name,
+        // over.everyoneReady is the second trigger that used to start the film
+        // without the commissioner: eleven people saying "I am here".
+        ready: over.everyoneReady === true ? true : m.ready,
+      })),
       available: [
         { name: "Ashton Jeanty", position: "RB", team: "LV", adp: 10, posRank: "RB6", bye: 10 },
         { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", adp: 22, posRank: "WR9", bye: 8 },
