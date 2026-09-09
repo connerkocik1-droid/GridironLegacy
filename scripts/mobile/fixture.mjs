@@ -673,17 +673,25 @@ export function routes(page, over = {}) {
 
   page.route("**/api/players**", json({
     me: ME, mode: "waivers", waiverDays: 1, capacity: 25, held: 13,
-    roster: ROSTER.map(([n, s]) => ({ player_name: n, lineup_slot: s })),
+    // One of them is on the field, so his drop button must be shut. Without a
+    // locked player on the fixture the audit measures a page where the rule
+    // never fires.
+    roster: ROSTER.map(([n, s]) => ({
+      player_name: n, lineup_slot: s, locked: n === "Jahmyr Gibbs",
+    })),
     claims: [{ id: "c1", add_player: "Ashton Jeanty", drop_player: "Tank Bigsby",
       claim_order: 1, status: "pending", reason: null }],
     wire: [
       { name: "Marvin Harrison Jr.", clearsAt: ago(-300), position: "WR", team: "ARI", mine: true },
       { name: "Jayden Reed", clearsAt: ago(-1800), position: "WR", team: "GB", mine: false },
     ],
-    total: 3, page: 0, hasMore: false,
+    total: 4, page: 0, hasMore: false,
     players: [
       { name: "Ashton Jeanty", position: "RB", team: "LV", adp: 10, posRank: "RB6",
         bye: 10, clearsAt: null },
+      // His club kicked off an hour ago: not a pickup this week.
+      { name: "Chris Godwin", position: "WR", team: "TB", adp: 44, posRank: "WR20",
+        bye: 9, clearsAt: null, locked: true },
       { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", adp: 22, posRank: "WR9",
         bye: 8, clearsAt: ago(-300) },
       { name: "Seattle Seahawks D/ST", position: "D/ST", team: "SEA", adp: 240,

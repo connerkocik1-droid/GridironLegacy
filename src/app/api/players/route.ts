@@ -1,5 +1,7 @@
 import { POOL } from "@/data/league-data";
+import { teamGames } from "@/lib/nfl-week";
 import { isConfigured, serverClient } from "@/lib/supabase";
+import { currentWeek } from "@/lib/week";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +40,7 @@ export async function GET(req: Request) {
 
   const [{ data: league }, { data: rostered }, { data: mine }, { data: claims }, { data: wire }] =
     await Promise.all([
-      db.from("leagues").select("settings").eq("id", me.league_id).single(),
+      db.from("leagues").select("season, settings").eq("id", me.league_id).single(),
       db.from("roster_slots").select("player_name, manager_id").eq("league_id", me.league_id),
       db.from("roster_slots").select("player_name, lineup_slot").eq("manager_id", me.id),
       db
@@ -52,6 +54,21 @@ export async function GET(req: Request) {
         .eq("league_id", me.league_id)
         .order("clears_at"),
     ]);
+
+  // Whose game has started. The database refuses these moves whatever the
+  // page says, but a button that always fails is worse than no button — a
+  // manager who cannot see why is a manager who thinks the app is broken.
+  const week = await currentWeek(db, me.league_id);
+  const { data: games } = await db
+    .from("nfl_games")
+    .select("home_team, away_team, starts_at, state")
+    .eq("season", league?.season ?? 0)
+    .eq("week", week ?? 0);
+  const byTeam = teamGames(games ?? []);
+  const started = (team: string) => {
+    const g = byTeam[team];
+    return g ? g.state !== "pre" : false;
+  };
 
   const taken = new Set((rostered ?? []).map((r) => r.player_name));
   const clears = new Map((wire ?? []).map((w) => [w.player_name, w.clears_at as string]));
@@ -85,7 +102,11 @@ export async function GET(req: Request) {
     waiverDays: Math.max(1, Number(settings.waiverDays ?? 1) || 1),
     capacity,
     held,
-    roster: mine ?? [],
+    // Each of your own, and whether he can still be dropped this week.
+    roster: (mine ?? []).map((r) => ({
+      ...r,
+      locked: started(POOL.find((p) => p.n === r.player_name)?.t ?? ""),
+    })),
     claims: claims ?? [],
     // The whole wire, not just this page of it: it is short, and it is the
     // one list a manager wants to see before the run rather than after.
@@ -95,6 +116,7 @@ export async function GET(req: Request) {
       position: POOL.find((p) => p.n === w.player_name)?.p ?? "",
       team: POOL.find((p) => p.n === w.player_name)?.t ?? "",
       mine: w.dropped_by === me.id,
+      locked: started(POOL.find((p) => p.n === w.player_name)?.t ?? ""),
     })),
     total: free.length,
     page,
@@ -107,6 +129,8 @@ export async function GET(req: Request) {
       posRank: p.posRank,
       bye: p.bye,
       clearsAt: clears.get(p.n) ?? null,
+      // His club is on the field, or has left it. Not a pickup this week.
+      locked: started(p.t),
     })),
   });
 }

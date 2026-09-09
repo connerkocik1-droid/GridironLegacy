@@ -6,7 +6,8 @@ import {
   type SeasonType,
 } from "./espn";
 import { NameIndex, defenseTeamName, isDefense } from "./player-names";
-import { positionsFor, syncRosterPositions } from "./roster-positions";
+import { POOL } from "@/data/league-data";
+import { positionsFor, syncNflPlayers, syncRosterPositions } from "./roster-positions";
 import { scoreGameDetail, type ScoringFormat, type StatLine } from "./scoring";
 import type { serviceClient } from "./supabase";
 
@@ -260,6 +261,11 @@ export async function refreshScores(
   // this is the one path that already holds both the roster and a box score,
   // and it runs whenever anything could have changed a roster.
   await syncRosterPositions(db, leagueId, positionsFor(rostered, pulled.scores));
+
+  // And which club everybody belongs to, which is what the kickoff lock reads.
+  // The whole pool rather than this league's rosters: a free agent is exactly
+  // the case that lock exists for, and he is on nobody's roster by definition.
+  await syncNflPlayers(db, POOL);
 
   if (!pulled.games.length) return { ...NOT_REFRESHED, note: "no games" };
 
