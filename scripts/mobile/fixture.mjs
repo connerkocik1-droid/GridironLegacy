@@ -588,8 +588,14 @@ export function routes(page, over = {}) {
     game: {
       id: "401671801", date: ago(96), week: 3, seasonType: 2, state: "in",
       completed: false, statusDetail: "3rd Quarter · 4:12",
-      home: { abbrev: "WSH", name: "Commanders", score: 21, homeAway: "home", winner: false, logo: "" },
-      away: { abbrev: "PHI", name: "Eagles", score: 17, homeAway: "away", winner: false, logo: "" },
+      home: { abbrev: "WSH", name: "Commanders", score: 21, homeAway: "home", winner: false, logo: "",
+        linescores: [7, 7, 7] },
+      away: { abbrev: "PHI", name: "Eagles", score: 17, homeAway: "away", winner: false, logo: "",
+        linescores: [3, 7, 7] },
+      // Where the ball is, which is what the pitch graphic draws. Only ever
+      // sent on a game in play.
+      situation: { possession: "PHI", downDistanceText: "2nd & 6 at WSH 34",
+        down: 2, distance: 6, yardLine: 66, lineToGain: 72 },
     },
     owned: [
       { name: "Jayden Daniels", team: "WSH", position: "QB", points: 22.4,
