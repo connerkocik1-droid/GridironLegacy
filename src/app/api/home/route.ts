@@ -1,7 +1,9 @@
+import { ageOf } from "@/data/league-data";
 import { freshenWeek } from "@/lib/live-refresh";
 import { player, proj } from "@/lib/roster";
 import { bestLineup, type Score } from "@/lib/matchup";
 import { rank, type Team } from "@/lib/power";
+import { outlookOf, winProbability } from "@/lib/win-probability";
 import { isConfigured, serverClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +15,9 @@ interface Fixture {
   final: boolean;
   home_manager: string;
   away_manager: string;
+  /** Null until the week is graded. */
+  home_points: number | null;
+  away_points: number | null;
 }
 
 /**
@@ -57,7 +62,7 @@ export async function GET() {
       db.from("roster_slots").select("manager_id, player_name, lineup_slot").eq("league_id", me.league_id),
       db
         .from("matchups")
-        .select("week, final, home_manager, away_manager")
+        .select("week, final, home_manager, away_manager, home_points, away_points")
         .eq("league_id", me.league_id)
         .order("week"),
       db.rpc("standings", { p_league_id: me.league_id }),
@@ -229,7 +234,147 @@ export async function GET() {
     };
   });
 
-  const power = rank(teams).map((t) => {
+  /**
+   * Where everybody stood before the most recent graded week.
+   *
+   * Movement is the whole point of a power ranking — a number that never moves
+   * is a table — and it cannot be read out of the standings, which only hold
+   * where everybody is now. So the same ranking is run twice: once on the
+   * season as it stands, and once on the season with its last graded week
+   * taken back off. Before anything has been graded there is no "before", and
+   * every row shows a dash rather than a made-up arrow.
+   */
+  const graded = schedule.filter((f) => f.final).map((f) => f.week);
+  const lastGraded = graded.length ? Math.max(...graded) : null;
+
+  const previous = (() => {
+    if (lastGraded == null) return undefined;
+    const before: Team[] = roster.map((m) => ({ id: m.id, wins: 0, losses: 0, ties: 0, pointsFor: 0 }));
+    const at = new Map(before.map((t) => [t.id, t]));
+
+    for (const f of schedule) {
+      if (!f.final || f.week >= lastGraded) continue;
+      const h = at.get(f.home_manager);
+      const a = at.get(f.away_manager);
+      if (!h || !a) continue;
+      const hp = Number(f.home_points ?? 0);
+      const ap = Number(f.away_points ?? 0);
+      h.pointsFor += hp;
+      a.pointsFor += ap;
+      if (hp > ap) { h.wins++; a.losses++; }
+      else if (hp < ap) { h.losses++; a.wins++; }
+      else { h.ties++; a.ties++; }
+    }
+
+    return new Map(rank(before).map((t) => [t.id, t.rank]));
+  })();
+
+  /**
+   * The average age of a roster, which is the one number that says what kind
+   * of team somebody is building without saying anything about this week.
+   *
+   * Skill players only: a team defence has no birthday, and counting it as a
+   * nought would drag every roster down by two years.
+   */
+  const ageOfRoster = (managerId: string) => {
+    const ages = held
+      .filter((s) => s.manager_id === managerId)
+      .map((s) => ageOf({ n: s.player_name }))
+      .filter((n): n is number => n != null);
+    if (!ages.length) return null;
+    return Math.round((ages.reduce((a, b) => a + b, 0) / ages.length) * 10) / 10;
+  };
+
+  /**
+   * The next five weeks, from this manager's side.
+   *
+   * The hero on the home page pages through these, so each one has to stand on
+   * its own: who, where, what both sides project, and what the season so far
+   * says about the two of them.
+   *
+   * The projection is the honest one for a week nobody has played — every
+   * roster's best arrangement of itself, scored on projections, which is the
+   * same rule the matchup page uses before kickoff. For the week in play it is
+   * the live total instead, because by then the projection is a worse answer
+   * than the scoreboard.
+   */
+  const projectedFor = (managerId: string) => {
+    const names = held
+      .filter((s) => s.manager_id === managerId && s.lineup_slot !== "IR")
+      .map((s) => s.player_name);
+    const rows = bestLineup(names, settings, new Map(), "projection");
+    return rows.map((r) => r.entry).filter((e): e is NonNullable<typeof e> => Boolean(e));
+  };
+
+  const projections = new Map(roster.map((m) => [m.id, projectedFor(m.id)]));
+
+  // Points scored so far, per franchise, for the gap between two of them.
+  const pfOf = (id: string) => Math.round((scoredFor.get(id) ?? 0) * 10) / 10;
+
+  const recordOf = (id: string) => {
+    const r = record.get(id);
+    return { w: r?.wins ?? 0, l: r?.losses ?? 0, t: r?.ties ?? 0 };
+  };
+
+  const upcoming = schedule
+    .filter((f) => !f.final && (f.home_manager === me.id || f.away_manager === me.id))
+    .sort((a, b) => a.week - b.week)
+    .slice(0, 5)
+    .map((f) => {
+      const atHome = f.home_manager === me.id;
+      const themId = atHome ? f.away_manager : f.home_manager;
+      const them = byId.get(themId);
+
+      const mineEntries = projections.get(me.id) ?? [];
+      const theirEntries = projections.get(themId) ?? [];
+      const mineOutlook = outlookOf(mineEntries.map((e) => ({ points: 0, projected: e.projected })));
+      const theirOutlook = outlookOf(theirEntries.map((e) => ({ points: 0, projected: e.projected })));
+
+      // The week being played has a real scoreboard; the rest have only a
+      // forecast, and saying so is the difference between the two.
+      const live = f.week === week && state.started;
+      const myTotal = live ? (totals.get(me.id) ?? 0) : Math.round(mineOutlook.projected * 10) / 10;
+      const theirTotal = live ? (totals.get(themId) ?? 0) : Math.round(theirOutlook.projected * 10) / 10;
+
+      return {
+        week: f.week,
+        atHome,
+        live,
+        opponent: {
+          id: themId,
+          franchise: them?.franchise ?? "",
+          name: them?.name ?? "",
+          record: recordOf(themId),
+        },
+        mine: { total: myTotal, record: recordOf(me.id) },
+        theirs: { total: theirTotal },
+        // Their season against yours, which is the one number that says
+        // whether this is a test or a week off.
+        pointsForGap: Math.round((pfOf(me.id) - pfOf(themId)) * 10) / 10,
+        margin: Math.round((myTotal - theirTotal) * 10) / 10,
+        winProbability: winProbability(mineOutlook, theirOutlook),
+      };
+    });
+
+  /**
+   * When the next NFL game starts, for the countdown.
+   *
+   * The league's own fixtures rather than a feed: they are already stored for
+   * the pick-'em, and a home page should not wait on ESPN to say what time it
+   * is. Null once everything this week has kicked off, which is when a
+   * countdown has nothing left to count.
+   */
+  const { data: nextGame } = await db
+    .from("nfl_games")
+    .select("starts_at")
+    .eq("season", league?.season ?? 0)
+    .eq("state", "pre")
+    .gt("starts_at", new Date().toISOString())
+    .order("starts_at")
+    .limit(1)
+    .maybeSingle();
+
+  const power = rank(teams, previous).map((t) => {
     const m = byId.get(t.id);
     return {
       id: t.id,
@@ -242,6 +387,11 @@ export async function GET() {
       losses: t.losses,
       ties: t.ties,
       pointsFor: t.pointsFor,
+      // Null before anything has been graded, and null for a franchise that
+      // has not moved. The row draws a dash for both, which is honest about
+      // each: nothing to compare, and nothing changed.
+      movement: t.movement,
+      avgAge: ageOfRoster(t.id),
       mine: t.id === me.id,
     };
   });
@@ -308,6 +458,8 @@ export async function GET() {
     leaders,
     leaderBasis: basis,
     power,
+    upcoming,
+    nextKickoff: nextGame?.starts_at ?? null,
     // Whether any week has actually been settled. The rankings say what they
     // are built on rather than implying a record nobody has yet.
     played: teams.some((t) => t.wins + t.losses + t.ties > 0),

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
+<script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
+<style>
+  body { margin:0; background:#0b0d16; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  a { color:#b5abfc; text-decoration:none; }
+  a:hover { color:#d2cefd; }
+  @keyframes pf-pulse { 0%,100% { opacity:.25; transform:scale(1);} 50% { opacity:1; transform:scale(1.3);} }
+  @keyframes pf-marquee { from { transform:translateX(0);} to { transform:translateX(-50%);} }
+  @keyframes pf-rise { from { opacity:0; transform:translateY(14px);} to { opacity:1; transform:none;} }
+  @keyframes pf-sweep { 0% { background-position:0% 50%;} 100% { background-position:200% 50%;} }
+  @keyframes pf-grow { from { width:0;} }
+</style>
+</helmet>
+
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+
+<div style="height:100%;display:flex;flex-direction:column;background:radial-gradient(560px 380px at 8% -6%, #23274a 0%, rgba(18,20,42,0) 62%), radial-gradient(420px 320px at 108% 10%, #2b1e3d 0%, rgba(18,20,42,0) 60%), #0f111c;color:var(--color-text);font-family:var(--font-body);font-variant-numeric:tabular-nums;overflow:hidden">
+
+  <div style="flex:1;overflow:auto">
+
+    <div style="display:flex;align-items:center;gap:12px;padding:60px 18px 12px;position:sticky;top:0;z-index:30;background:linear-gradient(180deg,rgba(15,17,28,.97) 66%,rgba(15,17,28,0));backdrop-filter:blur(14px)">
+      <div style="width:10px;height:21px;clip-path:polygon(28% 0,100% 0,72% 100%,0 100%);background:linear-gradient(180deg,#ffb066,#e0682a);box-shadow:0 0 16px rgba(224,104,42,.65)"></div>
+      <span style="font-family:var(--font-heading);font-size:13px;letter-spacing:.24em;text-transform:uppercase;font-weight:500">Pylon<span style="color:#b5abfc"> Fantasy</span></span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+        <div style="position:relative;width:34px;height:34px;border-radius:50%;border:1px solid rgba(145,132,217,.34);display:flex;align-items:center;justify-content:center">
+          <svg width="15" height="15" viewBox="0 0 256 256" fill="#b5abfc"><path d="M221.8 175.9c-5.6-9.7-13.8-37.1-13.8-71.9a80 80 0 1 0-160 0c0 34.8-8.2 62.2-13.8 71.9A16 16 0 0 0 48 200h40.8a40 40 0 0 0 78.4 0H208a16 16 0 0 0 13.8-24.1ZM128 216a24 24 0 0 1-22.6-16h45.2A24 24 0 0 1 128 216Z"></path></svg>
+          <span style="position:absolute;top:3px;right:4px;width:7px;height:7px;border-radius:50%;background:#ff8a4c;box-shadow:0 0 9px #ff8a4c;animation:pf-pulse 1.7s infinite"></span>
+        </div>
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(150deg,#b5abfc,#5d5294);border:1.5px solid rgba(181,171,252,.75);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:13px;color:#161826">C</div>
+      </div>
+    </div>
+
+    <div style="overflow:hidden;border-top:1px solid rgba(145,132,217,.16);border-bottom:1px solid rgba(145,132,217,.16);background:rgba(20,22,36,.72);padding:9px 0;position:relative">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:30px;z-index:2;background:linear-gradient(90deg,#141626,rgba(20,22,38,0))"></div>
+      <div style="position:absolute;right:0;top:0;bottom:0;width:30px;z-index:2;background:linear-gradient(270deg,#141626,rgba(20,22,38,0))"></div>
+      <div style="display:flex;width:max-content;animation:pf-marquee 34s linear infinite">
+        <sc-for list="{{ ticker }}" as="g" hint-placeholder-count="10">
+          <div style="display:flex;align-items:center;gap:7px;padding-right:22px;white-space:nowrap;font-size:11px;letter-spacing:.1em">
+            <span style="{{ g.dotStyle }}"></span>
+            <span style="color:#e9e9ed;font-family:var(--font-heading)">{{ g.match }}</span>
+            <span style="color:#75798c">{{ g.when }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="padding:20px 18px 8px;display:flex;align-items:center">
+      <span style="display:flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.2em;color:#ff9a5c">
+        <span style="width:5px;height:5px;border-radius:50%;background:#ff9a5c;box-shadow:0 0 8px #ff9a5c;animation:pf-pulse 1.4s infinite"></span>KICKOFF IN {{ countdown }}
+      </span>
+    </div>
+
+    <div style="margin:0 18px;border:1px solid rgba(145,132,217,.32);border-radius:16px;overflow:hidden;background:linear-gradient(160deg,rgba(38,32,64,.9),rgba(20,22,36,.86));box-shadow:0 22px 44px rgba(0,0,0,.45);position:relative;animation:pf-rise .5s ease">
+      <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 44%,rgba(181,171,252,.12) 50%,transparent 56%);background-size:220% 100%;animation:pf-sweep 6s linear infinite"></div>
+
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(145,132,217,.22);position:relative">
+        <span style="font-size:9px;letter-spacing:.22em;color:#b5abfc">WEEK 1</span>
+        <span style="font-size:9px;letter-spacing:.16em;color:#75798c">{{ subLabel }}</span>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+          <button onClick="{{ prev }}" style="cursor:pointer;width:28px;height:26px;border-radius:7px;border:1px solid rgba(145,132,217,.36);background:transparent;color:#b5abfc;font-size:13px;line-height:1">‹</button>
+          <span style="font-size:10px;color:#8f94a8;min-width:26px;text-align:center">{{ pager }}</span>
+          <button onClick="{{ next }}" style="cursor:pointer;width:28px;height:26px;border-radius:7px;border:1px solid rgba(145,132,217,.36);background:transparent;color:#b5abfc;font-size:13px;line-height:1">›</button>
+        </div>
+      </div>
+
+      <div style="padding:18px 16px 16px;position:relative">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:start;gap:10px">
+          <div>
+            <div style="font-family:var(--font-heading);font-size:18px;line-height:1.15;letter-spacing:-.02em;text-wrap:pretty">{{ meName }}</div>
+            <div style="font-size:11px;color:#75798c;margin-top:4px">{{ meOwner }}</div>
+            <div style="font-family:var(--font-heading);font-size:34px;line-height:1;color:#b5abfc;margin-top:12px">{{ meProj }}</div>
+            <div style="font-size:8px;letter-spacing:.2em;color:#595d6c;margin-top:4px">PROJECTED</div>
+          </div>
+          <div style="font-family:var(--font-heading);font-size:11px;letter-spacing:.16em;color:#595d6c;padding-top:4px">VS</div>
+          <div style="text-align:right">
+            <div style="font-family:var(--font-heading);font-size:18px;line-height:1.15;letter-spacing:-.02em;text-wrap:pretty">{{ oppName }}</div>
+            <div style="font-size:11px;color:#75798c;margin-top:4px">{{ oppOwner }}</div>
+            <div style="font-family:var(--font-heading);font-size:34px;line-height:1;color:#8f94a8;margin-top:12px">{{ oppProj }}</div>
+            <div style="font-size:8px;letter-spacing:.2em;color:#595d6c;margin-top:4px">PROJECTED</div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;height:6px;border-radius:99px;background:rgba(145,132,217,.16);overflow:hidden">
+          <div style="{{ meBarStyle }}"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:9px;letter-spacing:.16em;color:#75798c">
+          <span>{{ marginLabel }}</span>
+          <span>{{ winProb }}</span>
+        </div>
+
+        <div style="margin-top:16px;height:1px;background:linear-gradient(90deg,rgba(145,132,217,0),rgba(145,132,217,.34) 24px,rgba(145,132,217,.34) calc(100% - 24px),rgba(145,132,217,0))"></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px">
+          <sc-for list="{{ rivalryStats }}" as="s" hint-placeholder-count="3">
+            <div>
+              <div style="font-family:var(--font-heading);font-size:15px;line-height:1.1">{{ s.value }}</div>
+              <div style="font-size:8px;letter-spacing:.16em;color:#75798c;margin-top:5px;line-height:1.35">{{ s.label }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="margin-top:14px;padding:10px 12px;border-radius:10px;background:rgba(145,132,217,.12);border:1px solid rgba(145,132,217,.22);font-size:12px;line-height:1.5;color:#d2cefd;text-wrap:pretty">{{ stakes }}</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:baseline;padding:26px 18px 10px">
+      <span style="font-size:9px;letter-spacing:.34em;color:#75798c">POWER RANK</span>
+    </div>
+
+    <div style="margin:0 18px;border:1px solid rgba(145,132,217,.2);border-radius:14px;overflow:hidden;background:rgba(22,24,38,.72)">
+      <sc-for list="{{ power }}" as="t" hint-placeholder-count="5">
+        <div style="{{ t.rowStyle }}">
+          <span style="font-family:var(--font-heading);font-size:13px;color:#75798c;width:16px">{{ t.rank }}</span>
+          <div style="min-width:0;flex:1">
+            <div style="display:flex;align-items:baseline;gap:7px">
+              <span style="font-size:13px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ t.team }}</span>
+              <span style="font-size:11px;color:#8f94a8;white-space:nowrap">{{ t.owner }}</span>
+            </div>
+            <div style="height:3px;border-radius:99px;background:rgba(145,132,217,.14);margin-top:6px;overflow:hidden">
+              <div style="{{ t.barStyle }}"></div>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:6px;font-size:9px;letter-spacing:.12em;color:#75798c">
+              <span>AVG AGE {{ t.age }}</span>
+              <span>{{ t.pf }} PF</span>
+            </div>
+          </div>
+          <span style="{{ t.deltaStyle }}">{{ t.delta }}</span>
+        </div>
+      </sc-for>
+      <button onClick="{{ toggleAll }}" style="width:100%;cursor:pointer;background:rgba(145,132,217,.08);border:0;border-top:1px solid rgba(145,132,217,.18);color:#b5abfc;font-family:var(--font-body);font-size:10px;letter-spacing:.18em;padding:12px 0">{{ toggleLabel }}</button>
+    </div>
+
+    <div style="padding:26px 18px 10px;font-size:9px;letter-spacing:.34em;color:#75798c">MINI-GAMES</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:0 18px">
+      <sc-for list="{{ minis }}" as="g" hint-placeholder-count="3">
+        <a href="{{ g.href }}" style="display:block;padding:12px 11px;border-radius:12px;border:1px solid rgba(145,132,217,.26);background:linear-gradient(155deg,rgba(32,34,54,.9),rgba(22,24,38,.7));color:inherit" style-hover="border-color:rgba(181,171,252,.7);background:linear-gradient(155deg,rgba(44,40,74,.95),rgba(26,28,44,.8))">
+          <div style="font-family:var(--font-heading);font-size:13px;line-height:1.2;letter-spacing:-.01em">{{ g.title }}</div>
+          <div style="font-size:9px;color:#8f94a8;margin-top:5px;line-height:1.35">{{ g.note }}</div>
+          <div style="font-size:8px;letter-spacing:.16em;color:#b5abfc;margin-top:9px">{{ g.cta }}</div>
+        </a>
+      </sc-for>
+    </div>
+
+    <div style="height:28px"></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid rgba(145,132,217,.22);background:rgba(14,16,26,.96);backdrop-filter:blur(14px);padding-bottom:24px;position:relative;z-index:20">
+    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+      <button onClick="{{ t.onClick }}" style="{{ t.style }}">
+        <span style="{{ t.markStyle }}"></span>
+        <svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor"><path d="{{ t.path }}"></path></svg>
+        <span style="font-size:10px">{{ t.label }}</span>
+      </button>
+    </sc-for>
+  </div>
+</div>
+
+</x-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:940}}">
+const P = {
+  home: "M218.8 103.7 138.8 33a16 16 0 0 0-21.6 0l-80 70.7A16 16 0 0 0 32 115.7V208a16 16 0 0 0 16 16h48a8 8 0 0 0 8-8v-56h48v56a8 8 0 0 0 8 8h48a16 16 0 0 0 16-16v-92.3a16 16 0 0 0-5.2-12Z",
+  team: "M180 32h-24a8 8 0 0 0-8 8 20 20 0 0 1-40 0 8 8 0 0 0-8-8H76a8 8 0 0 0-4.4 1.3l-40 26.7A8 8 0 0 0 28 66.7v45.9a8 8 0 0 0 8 8h24V208a16 16 0 0 0 16 16h104a16 16 0 0 0 16-16v-87.4h24a8 8 0 0 0 8-8V66.7a8 8 0 0 0-3.6-6.7l-40-26.7A8 8 0 0 0 180 32Z",
+  league: "M40 68h176a8 8 0 0 0 0-16H40a8 8 0 0 0 0 16Zm176 52H40a8 8 0 0 0 0 16h176a8 8 0 0 0 0-16Zm0 68H40a8 8 0 0 0 0 16h176a8 8 0 0 0 0-16Z",
+  moves: "M221.7 82.3 189.7 50.3a8 8 0 0 0-11.4 11.4L196.7 80H40a8 8 0 0 0 0 16h156.7l-18.4 18.3a8 8 0 0 0 11.4 11.4l32-32a8 8 0 0 0 0-11.4ZM216 160H59.3l18.4-18.3a8 8 0 0 0-11.4-11.4l-32 32a8 8 0 0 0 0 11.4l32 32a8 8 0 0 0 11.4-11.4L59.3 176H216a8 8 0 0 0 0-16Z",
+  office: "M120 40V16a8 8 0 0 1 16 0v24a8 8 0 0 1-16 0Zm72 88a64 64 0 1 1-64-64 64 64 0 0 1 64 64Zm-84.4-68.3a8 8 0 0 0 11.3-11.3L102 31.5a8 8 0 0 0-11.3 11.3ZM48 120H24a8 8 0 0 0 0 16h24a8 8 0 0 0 0-16Zm59.6 76.3-17 17a8 8 0 0 0 11.4 11.3l17-17a8 8 0 0 0-11.4-11.3ZM128 208a8 8 0 0 0-8 8v24a8 8 0 0 0 16 0v-24a8 8 0 0 0-8-8Zm40.4-11.7a8 8 0 0 0-11.3 11.3l17 17a8 8 0 0 0 11.3-11.3ZM232 120h-24a8 8 0 0 0 0 16h24a8 8 0 0 0 0-16Zm-77.7-59.6a8 8 0 0 0 5.7-2.3l17-17a8 8 0 0 0-11.3-11.3l-17 17a8 8 0 0 0 5.6 13.6Z"
+};
+
+const MATCHUPS = [
+  { me: "Gettin Stribby Wit' It", meOwner: "Conner", op: "Manchester Poop Farmers", opOwner: "Angus",
+    mp: "118.4", op_: "111.2", meShare: 51.6, prob: "WIN PROB 57%", sub: "AT HOME",
+    stats: [["1-3","OPPONENT RECORD"],["+64.8","POINTS-FOR GAP, 2026"],["+7.2","PROJECTED MARGIN"]],
+    stakes: "Win it and you open 1-0 with the tiebreaker on a division rival." },
+  { me: "Gettin Stribby Wit' It", meOwner: "Conner", op: "Steel Cartel", opOwner: "Dev",
+    mp: "121.0", op_: "126.7", meShare: 48.8, prob: "WIN PROB 44%", sub: "ON THE ROAD",
+    stats: [["1-4","OPPONENT RECORD"],["-31.2","POINTS-FOR GAP, 2026"],["-5.7","PROJECTED MARGIN"]],
+    stakes: "The Cartel finished first in points last year. Week 2 is the schedule's hardest test on paper." },
+  { me: "Gettin Stribby Wit' It", meOwner: "Conner", op: "Blaze Syndicate", opOwner: "Marcus",
+    mp: "119.6", op_: "108.9", meShare: 52.3, prob: "WIN PROB 62%", sub: "AT HOME",
+    stats: [["3-1","OPPONENT RECORD"],["+18.4","POINTS-FOR GAP, 2026"],["+10.7","PROJECTED MARGIN"]],
+    stakes: "Marcus punted the offseason for picks. This is the soft landing between two divisional games." },
+  { me: "Gettin Stribby Wit' It", meOwner: "Conner", op: "Ravenous", opOwner: "Priya",
+    mp: "117.1", op_: "116.4", meShare: 50.2, prob: "WIN PROB 51%", sub: "ON THE ROAD",
+    stats: [["2-2","OPPONENT RECORD"],["+3.1","POINTS-FOR GAP, 2026"],["+0.7","PROJECTED MARGIN"]],
+    stakes: "Four meetings, four finishes inside a touchdown. Nothing separates these rosters on paper." },
+  { me: "Gettin Stribby Wit' It", meOwner: "Conner", op: "Apex Union", opOwner: "Tomas",
+    mp: "120.3", op_: "114.0", meShare: 51.3, prob: "WIN PROB 58%", sub: "AT HOME",
+    stats: [["4-1","OPPONENT RECORD"],["+41.6","POINTS-FOR GAP, 2026"],["+6.3","PROJECTED MARGIN"]],
+    stakes: "Apex owns your 2027 second. A week 5 win keeps that pick cheap at the deadline." }
+];
+
+const POWER = [
+  { team: "Steel Cartel", owner: "Dev", d: 2, s: 96, age: 25.8 },
+  { team: "Gettin Stribby Wit' It", owner: "Conner", d: 3, s: 91, me: true, age: 24.6 },
+  { team: "Ravenous", owner: "Priya", d: -1, s: 88, age: 26.9 },
+  { team: "Manchester Poop Farmers", owner: "Angus", d: -2, s: 85, age: 27.4 },
+  { team: "Nova Collective", owner: "Jules", d: 4, s: 81, age: 23.9 },
+  { team: "Apex Union", owner: "Tomas", d: 0, s: 78, age: 26.1 },
+  { team: "Helix Nine", owner: "Sam", d: -1, s: 74, age: 28.2 },
+  { team: "Voltage", owner: "Rae", d: 1, s: 71, age: 24.3 },
+  { team: "Onyx Row", owner: "Bex", d: -3, s: 67, age: 27.8 },
+  { team: "Blaze Syndicate", owner: "Marcus", d: -2, s: 63, age: 23.4 },
+  { team: "Flux Capital", owner: "Iggy", d: 0, s: 59, age: 26.5 },
+  { team: "Titanfall", owner: "Nas", d: -1, s: 54, age: 28.7 }
+];
+
+// 2026 points-for, accumulated as weeks are played. Empty before week 1, so
+// every gap below reads 0.0 until real scores land here.
+const SEASON_PF = {};
+// 2026 results per team, one entry per completed week: "W" or "L". Empty
+// before week 1, so every record below reads 0-0 until results land here.
+const RESULTS = {};
+const record = team => {
+  const r = RESULTS[team] || [];
+  const w = r.filter(x => x === "W").length;
+  return w + "-" + (r.length - w);
+};
+const pf = team => (SEASON_PF[team] || []).reduce((a, b) => a + b, 0);
+const gap = (a, b) => { const d = pf(a) - pf(b); return (d > 0 ? "+" : d < 0 ? "−" : "") + Math.abs(d).toFixed(1); };
+
+const GAMES = [
+  ["DAL @ PHI", "THU 8:20 PM"], ["KC @ BAL", "SUN 1:00 PM"], ["SF @ LAR", "SUN 4:25 PM"],
+  ["BUF @ MIA", "SUN 1:00 PM"], ["DET @ GB", "SUN 4:25 PM"], ["CIN @ CLE", "SUN 1:00 PM"],
+  ["HOU @ IND", "SUN 1:00 PM"], ["NYJ @ NE", "MON 8:15 PM"]
+];
+
+class Component extends DCLogic {
+  state = { i: 0, expanded: false, tab: "Home", left: 0 };
+
+  componentDidMount() {
+    const target = Date.now() + 2 * 86400e3 + 5 * 3600e3 + 42 * 60e3;
+    const tick = () => this.setState({ left: Math.max(0, target - Date.now()) });
+    tick();
+    this.timer = setInterval(tick, 1000);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+
+  renderVals() {
+    const m = MATCHUPS[this.state.i];
+    const ms = Math.floor(this.state.left / 1000);
+    const dd = Math.floor(ms / 86400), hh = Math.floor(ms % 86400 / 3600),
+          mm = Math.floor(ms % 3600 / 60), ss = ms % 60;
+    const pad = n => String(n).padStart(2, "0");
+
+    const rows = this.state.expanded ? POWER : POWER.slice(0, 5);
+
+    return {
+      countdown: dd + "D " + pad(hh) + ":" + pad(mm) + ":" + pad(ss),
+
+      ticker: GAMES.concat(GAMES).map(([match, when], i) => ({
+        match, when,
+        dotStyle: "width:4px;height:4px;border-radius:50%;background:" +
+          (i % 8 === 0 ? "#ff9a5c;box-shadow:0 0 7px #ff9a5c;animation:pf-pulse 1.6s infinite" : "rgba(145,132,217,.5)")
+      })),
+
+      subLabel: m.sub,
+      pager: (this.state.i + 1) + "/5",
+      prev: () => this.setState(s => ({ i: (s.i + 4) % 5 })),
+      next: () => this.setState(s => ({ i: (s.i + 1) % 5 })),
+
+      meName: m.me, meOwner: m.meOwner + " · you", oppName: m.op, oppOwner: m.opOwner,
+      meProj: m.mp, oppProj: m.op_,
+      meBarStyle: "height:100%;width:" + m.meShare + "%;border-radius:99px;background:linear-gradient(90deg,#5d5294,#b5abfc);box-shadow:0 0 12px rgba(181,171,252,.6);transition:width .6s cubic-bezier(.2,.8,.2,1);animation:pf-grow .9s cubic-bezier(.2,.8,.2,1)",
+      marginLabel: (m.meShare >= 50 ? "YOU FAVORED" : "UNDERDOG"),
+      winProb: m.prob,
+      rivalryStats: m.stats.map(([value, label]) => ({
+        value: label === "OPPONENT RECORD" ? record(m.op)
+             : label.indexOf("POINTS-FOR GAP") === 0 ? gap(m.me, m.op)
+             : value,
+        label
+      })),
+      stakes: m.stakes,
+
+      power: rows.map((t, i) => ({
+        rank: i + 1,
+        team: t.team,
+        owner: t.owner,
+        age: t.age.toFixed(1),
+        pf: pf(t.team).toFixed(1),
+        delta: t.d === 0 ? "—" : (t.d > 0 ? "▲" : "▼") + Math.abs(t.d),
+        rowStyle: "display:flex;align-items:center;gap:10px;padding:11px 13px;" +
+          (i ? "border-top:1px solid rgba(145,132,217,.14);" : "") +
+          (t.me ? "background:rgba(145,132,217,.13);" : ""),
+        barStyle: "height:100%;width:" + t.s + "%;border-radius:99px;animation:pf-grow .8s ease;background:" +
+          (t.me ? "linear-gradient(90deg,#5d5294,#b5abfc)" : "rgba(145,132,217,.42)"),
+        deltaStyle: "font-family:var(--font-heading);font-size:11px;width:30px;text-align:right;color:" +
+          (t.d > 0 ? "#7fd8a8" : t.d < 0 ? "#e07a7a" : "#595d6c")
+      })),
+      toggleAll: () => this.setState(s => ({ expanded: !s.expanded })),
+      toggleLabel: this.state.expanded ? "SHOW TOP 5" : "ALL 12 TEAMS",
+
+      minis: [
+        { title: "Pick-'Em", note: "16 games · 9 in", cta: "PLAY →", href: "#" },
+        { title: "20-0 Mode", note: "Perfect roster", cta: "SPIN →", href: "#" },
+        { title: "Mock Draft", note: "10-team SF", cta: "OPEN →", href: "#" }
+      ],
+
+      tabs: ["Home,home", "My Team,team", "League,league", "Moves,moves", "Office,office"].map(v => {
+        const [label, key] = v.split(",");
+        const on = this.state.tab === label;
+        return {
+          label, path: P[key],
+          onClick: () => this.setState({ tab: label }),
+          style: "cursor:pointer;background:" + (on ? "rgba(145,132,217,.12)" : "transparent") +
+            ";border:0;padding:11px 0 9px;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative;font-family:var(--font-body);color:" +
+            (on ? "#e9e9ed" : "#75798c"),
+          markStyle: "position:absolute;top:0;left:50%;transform:translateX(-50%);width:" + (on ? "34px" : "0") +
+            ";height:2px;border-radius:99px;background:#b5abfc;box-shadow:0 0 10px #b5abfc;transition:width .25s ease"
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

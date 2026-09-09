@@ -393,7 +393,29 @@ export function routes(page, over = {}) {
       id: m.id, slot: m.slot, franchise: m.franchise, name: m.name,
       rank: i + 1, rating: 90 - i * 6, wins: 12 - i, losses: i, ties: 0,
       pointsFor: 340 - i * 12, mine: i === 0,
+      // Up, down, and unmoved: all three chips have to be measured.
+      movement: i === 0 ? 2 : i === 1 ? -3 : i === 2 ? null : (i % 3) - 1,
+      avgAge: 24.6 + (i % 5) * 0.9,
     })),
+    // The next five weeks, which is what the hero pages through.
+    upcoming: [0, 1, 2, 3, 4].map((n) => ({
+      week: 3 + n,
+      atHome: n % 2 === 0,
+      live: n === 0,
+      opponent: {
+        id: MANAGERS[n + 1].id,
+        franchise: MANAGERS[n + 1].franchise,
+        name: MANAGERS[n + 1].name,
+        record: { w: 2 - (n % 3), l: n % 3, t: 0 },
+      },
+      mine: { total: 118.4 - n * 2.1, record: { w: 2, l: 1, t: 0 } },
+      theirs: { total: 111.2 + n * 3.4 },
+      pointsForGap: 64.8 - n * 24,
+      margin: 7.2 - n * 3.1,
+      winProbability: 0.57 - n * 0.05,
+    })),
+    // Two days out, so the countdown shows a day count as well as a clock.
+    nextKickoff: ago(-2880),
     played: true,
   }));
 

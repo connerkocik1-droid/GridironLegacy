@@ -37,7 +37,34 @@ export interface PowerRow {
   losses: number;
   ties: number;
   pointsFor: number;
+  /**
+   * Places gained since the last graded week — positive is up. Null before
+   * anything has been graded, and null for a franchise that has not moved.
+   */
+  movement: number | null;
+  /** The average age of the roster's skill players. Null for an empty one. */
+  avgAge: number | null;
   mine: boolean;
+}
+
+/** One of the next five weeks, from this manager's side. */
+export interface Upcoming {
+  week: number;
+  atHome: boolean;
+  /** The week is being played, so the totals are a scoreboard not a forecast. */
+  live: boolean;
+  opponent: {
+    id: string;
+    franchise: string;
+    name: string;
+    record: { w: number; l: number; t: number };
+  };
+  mine: { total: number; record: { w: number; l: number; t: number } };
+  theirs: { total: number };
+  /** Your season's points minus theirs. */
+  pointsForGap: number;
+  margin: number;
+  winProbability: number;
 }
 
 /** A trade it is this manager's turn to answer. */
@@ -78,5 +105,9 @@ export interface Home {
   leaders: Leader[];
   leaderBasis: "scored" | "projected";
   power: PowerRow[];
+  /** The next five fixtures, for the hero. */
+  upcoming: Upcoming[];
+  /** When the next NFL game starts, or null once they all have. */
+  nextKickoff: string | null;
   played: boolean;
 }

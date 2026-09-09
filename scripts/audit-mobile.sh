@@ -6,6 +6,7 @@
 #   ./scripts/audit-mobile.sh --shots  # and keep a screenshot of every page
 #   ./scripts/audit-mobile.sh --matchups  # does pressing a fixture open it?
 #   ./scripts/audit-mobile.sh --locks     # does a played player lock the buttons?
+#   ./scripts/audit-mobile.sh --home      # does the home page page across the season?
 #
 # Loads each page at 320px and 390px against a fixture of twelve franchises
 # with long names, and fails on anything that runs off the screen, is too small
@@ -33,6 +34,7 @@ CONSOLE=""
 PULL=""
 MATCHUPS=""
 LOCKS=""
+HOME_CHECK=""
 
 # --console is the other lens on the same app. The audit answers /api/* in the
 # browser from a fixture, which is right for measuring layout and means it
@@ -49,6 +51,7 @@ while [ $# -gt 0 ]; do
     --shots) SHOTS="$ROOT/.mobile-audit"; shift ;;
     --matchups) MATCHUPS="1"; shift ;;
     --locks) LOCKS="1"; shift ;;
+    --home) HOME_CHECK="1"; shift ;;
     --console) CONSOLE="1"; shift ;;
     --pull) PULL="1"; shift ;;
     --) shift; break ;;
@@ -130,7 +133,10 @@ if ! curl -fsS -o /dev/null "http://localhost:$PORT/" 2>/dev/null; then
   exit 1
 fi
 
-if [ -n "$LOCKS" ]; then
+if [ -n "$HOME_CHECK" ]; then
+  AUDIT_BASE="http://localhost:$PORT" \
+    node "$ROOT/scripts/mobile/home-check.mjs"
+elif [ -n "$LOCKS" ]; then
   AUDIT_BASE="http://localhost:$PORT" \
     node "$ROOT/scripts/mobile/lock-check.mjs"
 elif [ -n "$MATCHUPS" ]; then

@@ -10,6 +10,9 @@ import TradeAsks from "./TradeAsks";
 import TheLeagueButton from "./TheLeagueButton";
 import MiniGamesButton from "./MiniGamesButton";
 import ScoreTicker from "./ScoreTicker";
+import KickoffCountdown from "./KickoffCountdown";
+import MatchupHero from "./MatchupHero";
+import PowerRank from "./PowerRank";
 import { useRefreshable } from "@/lib/use-refresh";
 import type { Home } from "@/lib/home-types";
 
@@ -73,6 +76,11 @@ export default function HomeBoard() {
           about the actual football rather than the league. */}
       <ScoreTicker />
 
+      {/* How long until football. Under the ticker because it is the same
+          subject, and gone once the slate is under way — by then the ticker
+          above is the better answer. */}
+      <KickoffCountdown at={home?.nextKickoff ?? null} />
+
       {/* First of all, because on a Sunday it is the only question anybody
           has. Not collapsible: a band you can fold away is a band somebody
           folds away once and then wonders where their score went. */}
@@ -90,9 +98,40 @@ export default function HomeBoard() {
 
         {error && !home ? (
           <div style={{ fontSize: 12.5, color: "var(--warn)" }}>{error}</div>
+        ) : home?.upcoming?.length ? (
+          /* The next five weeks rather than only this one. A league is a
+             season, and on a Tuesday "what is coming" is the question — the
+             band below was the right answer on a Sunday and a dead card for
+             the other five days. */
+          <MatchupHero
+            upcoming={home.upcoming}
+            meFranchise={
+              home.power.find((t) => t.mine)?.franchise ?? "Your team"
+            }
+          />
         ) : (
           <MatchupBand home={home} />
         )}
+
+        {/* Who is actually good, and who is moving. Under the matchup because
+            it answers the question the matchup raises — how good is the team
+            you are about to play — and above the doors because it is a thing
+            to read rather than a place to go. */}
+        {home?.power?.length ? (
+          <div style={{ marginTop: 14 }}>
+            <div
+              style={{
+                fontSize: 10,
+                letterSpacing: ".28em",
+                color: "var(--text-dim)",
+                margin: "0 2px 8px",
+              }}
+            >
+              POWER RANK
+            </div>
+            <PowerRank power={home.power} />
+          </div>
+        ) : null}
 
         {/* Directly under the score, because a trade is the other thing that
             changes what that score will be — and because an offer nobody is
