@@ -33,6 +33,10 @@ const WRITE = process.argv.includes("--write");
 
 const ROSTERS = "https://github.com/nflverse/nflverse-data/releases/download/rosters/roster_2026.csv";
 const ECR = "https://raw.githubusercontent.com/dynastyprocess/data/master/files/db_fpecr_latest.csv";
+// Everybody nflverse has ever had a row for, which is the only place a free
+// agent's birthday can come from: he is on nobody's roster, so he is in no
+// roster feed.
+const PLAYERS = "https://github.com/nflverse/nflverse-data/releases/download/players/players.csv";
 
 /** The positions this league drafts individually. D/ST is a team, not a man. */
 const SKILL = new Set(["QB", "RB", "WR", "TE", "K"]);
@@ -119,10 +123,49 @@ async function fetchCsv(url, cache) {
 }
 
 export async function load() {
-  const [roster, ecr] = await Promise.all([
+  const [roster, ecr, everyone] = await Promise.all([
     fetchCsv(ROSTERS, "roster_2026.csv"),
     fetchCsv(ECR, "fpecr.csv"),
+    fetchCsv(PLAYERS, "players.csv"),
   ]);
+
+  /**
+   * Birthdays for anybody, on a roster or not.
+   *
+   * This release is every player nflverse has ever had a row for, which is the
+   * only place a free agent's birthday lives — and the reason it has to be
+   * read carefully. Names repeat across decades: taking the first row for
+   * "Justin Watson" made the Chiefs receiver fifty-one, because a different
+   * Justin Watson played in the nineties.
+   *
+   * So a name that appears more than once is only trusted when the rows agree
+   * on a birthday. Where they do not, the most recent career wins — and only
+   * if nothing else played as recently, because two men of the same name in
+   * the same decade is a coin toss and a coin toss is not a fact.
+   */
+  const seen = new Map();
+  for (const r of everyone) {
+    const d = r.birth_date ?? "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+    const k = key(r.display_name ?? "");
+    if (!k) continue;
+    if (!seen.has(k)) seen.set(k, []);
+    seen.get(k).push({ dob: d, last: Number(r.last_season) || 0, position: r.position ?? "" });
+  }
+
+  const born = new Map();
+  for (const [k, rows] of seen) {
+    const dates = new Set(rows.map((r) => r.dob));
+    if (dates.size === 1) { born.set(k, rows[0].dob); continue; }
+
+    const latest = Math.max(...rows.map((r) => r.last));
+    const leaders = rows.filter((r) => r.last === latest);
+    // One clear most-recent career, and the older namesakes are not close
+    // enough to be him. Otherwise this name gets no birthday at all.
+    if (leaders.length === 1 && rows.every((r) => r.last === latest || latest - r.last >= 5)) {
+      born.set(k, leaders[0].dob);
+    }
+  }
   // What the league feed says about everyone it mentions, on a club or not, so
   // write() can tell a man who was cut from one it simply has no row for.
   const status = new Map();
@@ -141,6 +184,8 @@ export async function load() {
       draftPick: Number(r.draft_number) || null,
       college: r.college,
       espnId: r.espn_id || null,
+      // The day he was born, which does not drift the way a listed age does.
+      born: /^\d{4}-\d{2}-\d{2}$/.test(r.birth_date ?? "") ? r.birth_date : null,
       ir: r.status === "RES",
       squad: r.status === "DEV",
     }));
@@ -158,7 +203,8 @@ export async function load() {
     const own = Number(r.player_owned_avg);
     if (Number.isFinite(own) && !owned.has(k)) owned.set(k, own);
   }
-  return { nfl, status, overall, positional, byes, owned, scraped: ecr[0]?.scrape_date ?? "unknown" };
+  return { nfl, status, born, overall, positional, byes, owned,
+           scraped: ecr[0]?.scrape_date ?? "unknown" };
 }
 
 /**
@@ -437,6 +483,37 @@ export function write(built, data) {
   // new entry drawn to the same pick.
   const merged = [...pool, ...built].sort((a, b) => a.adp - b.adp);
   lines[at] = `export const POOL = ${JSON.stringify(merged)};`;
+
+  // Everything below reads the feed by name.
+  const byName = new Map(data.nfl.map((r) => [key(r.name), r]));
+
+  // Birthdays.
+  //
+  // The pool carried a listed age for about half its players and nothing for
+  // the rest, and a listed age is right on the day it is written and wrong for
+  // the rest of the year. The feed carries the date of birth, which does not
+  // drift, so that is what is stored — ageOf does the arithmetic on the way
+  // out, against today.
+  const agesAt = lines.findIndex((l) => l.startsWith("export const AGES = "));
+  if (agesAt < 0) throw new Error("cannot find AGES in league-data.js");
+  const ages = JSON.parse(lines[agesAt].slice("export const AGES = ".length).replace(/;$/, ""));
+  let born = 0;
+  for (const p of merged) {
+    if (p.p === "D/ST") continue;
+    // His own roster row first, then the all-players release, which is the
+    // only place a free agent's birthday lives.
+    const dob = byName.get(key(p.n))?.born ?? data.born.get(key(p.n)) ?? null;
+    if (!dob) continue;
+    const held = ages[p.n] ?? {};
+    if (held.dob === dob) continue;
+    // The listed age is dropped once there is a birthday to work from. Keeping
+    // both invites the two to disagree, and only one of them can go stale.
+    ages[p.n] = { exp: held.exp ?? byName.get(key(p.n))?.exp ?? 0, dob };
+    born++;
+  }
+  lines[agesAt] = `export const AGES = ${JSON.stringify(ages)};`;
+  console.log(`  dates of birth recorded: ${born}`);
+
   fs.writeFileSync(file, lines.join("\n"));
 
   // Faces.
@@ -453,7 +530,6 @@ export function write(built, data) {
   // the team defences, which are a crest rather than a face.
   const shotsFile = path.join(ROOT, "src/data/headshots.state.json");
   const shots = JSON.parse(fs.readFileSync(shotsFile, "utf8"));
-  const byName = new Map(data.nfl.map((r) => [key(r.name), r]));
   let faces = 0;
   for (const p of merged) {
     if (shots[p.n] || p.p === "D/ST") continue;

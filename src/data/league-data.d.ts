@@ -40,7 +40,14 @@ export const TEAM_NAMES: Record<Slot, string>;
 export const NFL: Record<string, string>;
 export const POOL: Player[];
 
-export const AGES: Record<string, { age: number; exp: number }>;
+/**
+ * When each player was born, and how long he has played.
+ *
+ * A birthday rather than an age: an age is right for one day and wrong for
+ * the rest of the year. `age` survives only for the men the feed has no
+ * birthday for. See ageOf.
+ */
+export const AGES: Record<string, { dob?: string; age?: number; exp: number }>;
 export const ROLES: Record<string, { role: string; ahead: string | null; depth: number; team: string }>;
 export const FIN25: Record<string, { pos: string; posRank: number; overall: number; ttl: number; avg: number; gp: number }>;
 export const DEFENSE: Record<string, Record<string, string | number>>;
@@ -77,7 +84,8 @@ export function headshot(name: string): string;
 // These take the player object, not the name.
 export function statLine(p: Pick<Player, "n" | "p" | "t">): string;
 export function roleOf(p: Pick<Player, "n" | "p" | "t">): string;
-export function ageOf(p: Pick<Player, "n">): number | null;
+/** His age today, from his date of birth. `on` pins the day, for tests. */
+export function ageOf(p: Pick<Player, "n">, on?: string | number | Date): number | null;
 export function expOf(p: Pick<Player, "n">): number | null;
 export function byeOf(p: { n: string; bye?: number | null }): number | null;
 

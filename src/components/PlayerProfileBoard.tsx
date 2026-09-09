@@ -160,6 +160,9 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
               </span>
             ) : null}
             {profile.bye ? <span>bye {profile.bye}</span> : null}
+            {/* Worked out from his date of birth against today, so it is right
+                in March as well as in August. */}
+            {profile.age != null ? <span>{profile.age} years old</span> : null}
 
             {/* Always, and always in the same place. Active says nothing,
                 because everybody not on a report is fit and a page of ticks

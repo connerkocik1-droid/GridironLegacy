@@ -1,4 +1,4 @@
-import { POOL, find, headshot, logo, type Player } from "@/data/league-data";
+import { POOL, ageOf, find, headshot, logo, type Player } from "@/data/league-data";
 import { POOLS, ERA_LABELS, type Season } from "@/data/twenty-zero-data";
 import { normalizeName } from "./player-names";
 
@@ -34,6 +34,12 @@ export interface PlayerProfile {
   bye: number | null;
   headshot: string;
   teamLogo: string;
+
+  /**
+   * How old he is today, from his date of birth rather than a listed age.
+   * Null only for the handful nobody has a birthday for, and for a defence.
+   */
+  age: number | null;
 
   /** Where the market had him, when the pool was built. */
   adp: number | null;
@@ -105,6 +111,7 @@ export function profileFor(name: string): PlayerProfile {
     position: pooled?.p ?? career[0]?.position ?? "",
     team: pooled?.t ?? career[0]?.team ?? "",
     bye: pooled?.bye ?? null,
+    age: ageOf({ n: pooled?.n ?? name }),
     headshot: headshot(pooled?.n ?? name),
     teamLogo: logo(pooled?.t ?? career[0]?.team ?? ""),
     adp: pooled?.adp ?? null,
