@@ -1,0 +1,8 @@
+{
+  "_": "Players the sources spell as two different men. Each group is one person, confirmed by position and team. Read by src/lib/player-names.ts at runtime and by scripts/roster-sync.mjs when it diffs the pool against the NFL, so the two can never disagree about who is who.",
+  "groups": [
+    ["Josh Palmer", "Joshua Palmer"],
+    ["Marquise Brown", "Hollywood Brown"],
+    ["Andrew Ogletree", "Drew Ogletree"]
+  ]
+}
