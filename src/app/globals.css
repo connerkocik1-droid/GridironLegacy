@@ -192,22 +192,30 @@ a:hover {
   .gl-matchup-head > * > * {
     min-width: 0;
   }
-  /* One line each, cut off with an ellipsis rather than wrapping to four rows
-     or pushing the score off the screen. */
-  .gl-matchup-head > :nth-child(1) > :nth-child(2),
-  .gl-matchup-head > :nth-child(3) > :nth-child(2),
-  .gl-matchup-head select {
+  /* Named rather than counted. These used to be nth-child selectors reaching
+     into the header's exact shape, which meant the stylesheet broke silently
+     the moment a crest was added to it. */
+  .gl-mhead-name {
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 15px !important;
+    font-size: 14px !important;
   }
   /* The scores are what the screen is for, so they keep their weight while
      everything around them gives. */
-  .gl-matchup-head > :nth-child(1) > :last-child,
-  .gl-matchup-head > :nth-child(3) > :last-child {
-    font-size: 30px !important;
+  .gl-mhead-score {
+    font-size: 27px !important;
+  }
+  /* The crests stay — they are how the two sides are told apart at a glance —
+     but they give up size first, because the scores are the screen. */
+  .gl-mhead-top > :first-child {
+    width: 32px !important;
+    height: 32px !important;
+    flex: 0 0 32px !important;
+  }
+  .gl-mhead-top {
+    gap: 7px !important;
   }
   .gl-matchup-head select {
     padding-left: 0 !important;

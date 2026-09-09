@@ -52,7 +52,21 @@ const SETTINGS = {
   regularWeeks: 16, waiverDays: 1, tradeDeadlineWeek: 14,
 };
 
-const side = (m, points) => ({ ...m, claimed: m.name !== "Open", points });
+// A side of a fixture, as api/schedule sends one: the score, where the week is
+// expected to finish, how much football is left, and the record under the name.
+const side = (m, points, extra = {}) => ({
+  ...m,
+  claimed: m.name !== "Open",
+  points,
+  record: { w: 2, l: 1, t: 0 },
+  projected: null,
+  yetToPlay: null,
+  inPlay: null,
+  ...extra,
+});
+/** A side in the week being played, which is the only week with an outlook. */
+const livingSide = (m, points, projected, yetToPlay, inPlay = 0) =>
+  side(m, points, { projected, yetToPlay, inPlay });
 const ago = (mins) => new Date(Date.now() - mins * 60_000).toISOString();
 
 export function routes(page, over = {}) {
@@ -383,11 +397,21 @@ export function routes(page, over = {}) {
     weeks: [1, 2, 3], liveWeek: 3,
     games: [
       { week: 1, final: true, divisional: true, live: false, mine: true,
-        home: side(MANAGERS[0], 120.4), away: side(MANAGERS[3], 98.0) },
+        home: side(MANAGERS[0], 120.4), away: side(MANAGERS[3], 98.0),
+        winProbability: 1 },
       { week: 1, final: true, divisional: false, live: false, mine: false,
-        home: side(MANAGERS[2], 61.2), away: side(MANAGERS[5], 88.0) },
+        home: side(MANAGERS[2], 61.2), away: side(MANAGERS[5], 88.0),
+        winProbability: 0 },
       { week: 3, final: false, divisional: false, live: true, mine: true,
-        home: side(MANAGERS[0], 44.1), away: side(MANAGERS[7], 30.0) },
+        home: livingSide(MANAGERS[0], 44.1, 113.7, 5, 2),
+        away: livingSide(MANAGERS[7], 30.0, 125.1, 6, 1),
+        winProbability: 0.44 },
+      // Two other franchises, which is the case the card exists for: pressing
+      // it must open their game and not the reader's own.
+      { week: 3, final: false, divisional: true, live: true, mine: false,
+        home: livingSide(MANAGERS[4], 51.8, 108.2, 4, 1),
+        away: livingSide(MANAGERS[9], 66.3, 118.9, 3, 2),
+        winProbability: 0.37 },
     ],
   }));
 
@@ -486,13 +510,19 @@ export function routes(page, over = {}) {
     return r.fulfill({ json: asHome && asHome !== "m0"
       ? { week: 3, scheduled: true, final: false, live: true, started: true, weekPhase: "live",
           mine: false,
-          home: { id: "m4", slot: "T05", franchise: "Thunderbolts", total: 88.4 },
-          away: { id: "m7", slot: "T08", franchise: "Gold Coast Gladiators", total: 91.2 },
+          winProbability: 0.42,
+          home: { id: "m4", slot: "T05", name: "Priya Raghunathan", franchise: "Thunderbolts",
+            total: 88.4, projected: 108.2, yetToPlay: 4, inPlay: 1, record: { w: 2, l: 1, t: 0 } },
+          away: { id: "m7", slot: "T08", name: "Bartholomew Winterbottom",
+            franchise: "Gold Coast Gladiators", total: 91.2, projected: 118.9,
+            yetToPlay: 3, inPlay: 2, record: { w: 1, l: 2, t: 0 } },
           rows: ROSTER.filter(([, slot]) => slot !== "BENCH").map(([n, slot]) => ({ slot,
             home: { name: n, position: slot, team: "WSH", points: 12.1, projected: 12,
-              live: true, statLine: lineFor(slot === "FLEX" ? "RB" : slot) },
+              live: true, statLine: lineFor(slot === "FLEX" ? "RB" : slot),
+              game: { state: "in", opponent: "PHI", away: false, startsAt: ago(60) } },
             away: { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", points: 13.4,
-              projected: 13, live: true, statLine: LINES.WR } })),
+              projected: 13, live: true, statLine: LINES.WR,
+              game: { state: "post", opponent: "SEA", away: true, startsAt: ago(240) } } })),
           managers: MANAGERS }
       : MATCHUP });
   });
@@ -500,13 +530,21 @@ export function routes(page, over = {}) {
   const MATCHUP = {
     week: 3, scheduled: true, final: false, live: true, started: true, weekPhase: "live",
     mine: true,
-    home: { id: "m0", slot: "T01", franchise: "Steel Cartel", total: 104.6 },
-    away: { id: "m3", slot: "T04", franchise: "Kim's Very Long Franchise Name", total: 98.2 },
+    winProbability: 0.56,
+    home: { id: "m0", slot: "T01", name: "Conner Kocik", franchise: "Steel Cartel",
+      total: 104.6, projected: 125.1, yetToPlay: 3, inPlay: 2, record: { w: 2, l: 1, t: 0 } },
+    away: { id: "m3", slot: "T04", name: "Kimberley Vandenberghe-Whitlock",
+      franchise: "Kim's Very Long Franchise Name", total: 98.2, projected: 113.7,
+      yetToPlay: 4, inPlay: 1, record: { w: 1, l: 2, t: 0 } },
     rows: ROSTER.filter(([, slot]) => slot !== "BENCH").map(([n, slot]) => ({ slot,
       home: { name: n, position: slot, team: "WSH", points: 18.2, projected: 17,
-        live: true, statLine: lineFor(slot === "FLEX" ? "RB" : slot) },
-      away: { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", points: 22.1,
-        projected: 22, live: true, statLine: LINES.WR } })),
+        live: true, statLine: lineFor(slot === "FLEX" ? "RB" : slot),
+        game: { state: "in", opponent: "PHI", away: false, startsAt: ago(60) } },
+      // Not kicked off: no stat line, so the row has to say who he plays and
+      // when instead — which is the whole reason the game is hung on him.
+      away: { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", points: 0,
+        projected: 22, live: false, statLine: "",
+        game: { state: "pre", opponent: "LV", away: true, startsAt: ago(-180) } } })),
     managers: MANAGERS,
   };
   // The slate the ticker rides on. Without it the strip renders nothing, so

@@ -4,6 +4,7 @@
 #
 #   ./scripts/audit-mobile.sh          # or: npm run audit:mobile
 #   ./scripts/audit-mobile.sh --shots  # and keep a screenshot of every page
+#   ./scripts/audit-mobile.sh --matchups  # does pressing a fixture open it?
 #
 # Loads each page at 320px and 390px against a fixture of twelve franchises
 # with long names, and fails on anything that runs off the screen, is too small
@@ -29,6 +30,7 @@ STUB_PORT=${STUB_PORT:-54399}
 SHOTS=""
 CONSOLE=""
 PULL=""
+MATCHUPS=""
 
 # --console is the other lens on the same app. The audit answers /api/* in the
 # browser from a fixture, which is right for measuring layout and means it
@@ -43,6 +45,7 @@ PULL=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --shots) SHOTS="$ROOT/.mobile-audit"; shift ;;
+    --matchups) MATCHUPS="1"; shift ;;
     --console) CONSOLE="1"; shift ;;
     --pull) PULL="1"; shift ;;
     --) shift; break ;;
@@ -124,7 +127,10 @@ if ! curl -fsS -o /dev/null "http://localhost:$PORT/" 2>/dev/null; then
   exit 1
 fi
 
-if [ -n "$PULL" ]; then
+if [ -n "$MATCHUPS" ]; then
+  AUDIT_BASE="http://localhost:$PORT" \
+    node "$ROOT/scripts/mobile/matchup-check.mjs"
+elif [ -n "$PULL" ]; then
   AUDIT_BASE="http://localhost:$PORT" \
     node "$ROOT/scripts/mobile/pull-check.mjs"
 elif [ -n "$CONSOLE" ]; then

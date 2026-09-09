@@ -5,8 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import TeamMark from "./TeamMark";
 import Skeleton from "./Skeleton";
 import LiveNumber from "./LiveNumber";
-import ScoreBar from "./ScoreBar";
+import TeamCrest from "./TeamCrest";
+import WinProbability from "./WinProbability";
+import { gameLabel } from "@/lib/nfl-week";
 import { headshot } from "@/data/league-data";
+import { useLogos } from "@/lib/use-logos";
 import PlayerName from "./PlayerName";
 import { useRefreshable } from "@/lib/use-refresh";
 import type { MatchupRow, SideEntry } from "@/lib/matchup";
@@ -14,8 +17,15 @@ import type { MatchupRow, SideEntry } from "@/lib/matchup";
 interface Side {
   id: string;
   slot: string;
+  /** Whoever holds the franchise. */
+  name?: string;
   franchise: string;
   total: number;
+  /** Where the week is expected to finish, banked points included. */
+  projected?: number;
+  yetToPlay?: number;
+  inPlay?: number;
+  record?: { w: number; l: number; t: number };
 }
 
 /** A week this manager sits out. There is no fixture, so there is no board. */
@@ -40,6 +50,8 @@ interface Board {
   managers: { id: string; slot: string; franchise: string }[];
   /** Whether the left-hand column is the person reading it. */
   mine?: boolean;
+  /** The chance the left-hand side wins. See win-probability.ts. */
+  winProbability?: number | null;
 }
 
 const BLANK =
@@ -59,6 +71,9 @@ function PlayerCell({
   leading: boolean;
 }) {
   const reverse = align === "right";
+  // His own game, not the league's week: at one o'clock half a lineup has
+  // finished and half has not kicked off.
+  const started = entry ? (entry.game ? entry.game.state !== "pre" : entry.live) : false;
 
   if (!entry) {
     return (
@@ -136,6 +151,12 @@ function PlayerCell({
         className="gl-mcell-pts"
         style={{ flex: "0 0 auto", textAlign: align === "left" ? "right" : "left", width: 46 }}
       >
+        {/* What he has scored, and under it what he was expected to. Both,
+            always, because either alone is unreadable: a bare 0.0 could be a
+            disaster or a kickoff four hours away, and a bare projection hides
+            the afternoon that has actually happened. A dash rather than 0.0
+            until his game starts, because he has not scored nothing — he has
+            not played. */}
         <div
           style={{
             fontFamily: "var(--font-heading)",
@@ -143,11 +164,11 @@ function PlayerCell({
             color: leading ? "var(--accent-text)" : "var(--text-3)",
           }}
         >
-          <LiveNumber key={entry.name} value={entry.live ? entry.points : entry.projected} />
+          {started ? <LiveNumber key={entry.name} value={entry.points} /> : "–"}
         </div>
-        {!entry.live ? (
-          <div style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--text-faint)" }}>PROJ</div>
-        ) : null}
+        <div style={{ fontSize: 11, color: "var(--text-dim)", fontVariantNumeric: "tabular-nums" }}>
+          {entry.projected.toFixed(2)}
+        </div>
       </div>
 
       {/* Wraps rather than clips. These columns are narrow and a quarterback's
@@ -164,8 +185,121 @@ function PlayerCell({
           textAlign: align,
         }}
       >
-        {entry.statLine || `${entry.position}${entry.team ? ` · ${entry.team}` : ""}`}
+        {/* Before kickoff the useful thing is who he plays and when; once
+            there is a stat line, that is. Falls back to the position and team
+            for a man whose game the league does not know about. */}
+        {entry.statLine ||
+          gameLabel(entry.game) ||
+          `${entry.position}${entry.team ? ` · ${entry.team}` : ""}`}
       </div>
+    </div>
+  );
+}
+
+/** "0-0", or "0-0-1" only once somebody has actually tied. */
+function recordText(record?: { w: number; l: number; t: number }): string {
+  if (!record) return "";
+  return `${record.w}-${record.l}${record.t ? `-${record.t}` : ""}`;
+}
+
+/** Who they are and how their year has gone, under the score. */
+function SideFooter({ side, align }: { side: Side; align: "left" | "right" }) {
+  const who = [side.name, side.record ? recordText(side.record) : ""].filter(Boolean).join(" · ");
+  return (
+    <div style={{ textAlign: align, minWidth: 0 }}>
+      {who ? (
+        <div
+          style={{
+            fontSize: 10.5,
+            color: "var(--text-dim)",
+            marginTop: 3,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {who}
+        </div>
+      ) : null}
+      {/* How much football is left, which is what turns a scoreline into a
+          state of play. Hidden before anybody kicks off, when every side in
+          the league says the same thing. */}
+      {side.yetToPlay != null && (side.yetToPlay > 0 || (side.inPlay ?? 0) > 0) ? (
+        <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
+          {side.inPlay ? `${side.inPlay} in play · ` : ""}
+          {side.yetToPlay} to play
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** One half of the header: crest, score, projection, name, record. */
+function HeadSide({
+  side,
+  logo,
+  align,
+  leading,
+  eyebrow,
+}: {
+  side: Side;
+  logo: string | null;
+  align: "left" | "right";
+  leading: boolean;
+  eyebrow: string;
+}) {
+  const right = align === "right";
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div
+        className="gl-mhead-top"
+        style={{
+          display: "flex",
+          flexDirection: right ? "row-reverse" : "row",
+          alignItems: "center",
+          gap: 10,
+          minWidth: 0,
+        }}
+      >
+        <TeamCrest franchise={side.franchise} logo={logo} size={44} shape="circle" />
+        <div style={{ minWidth: 0, textAlign: align }}>
+          <div
+            className="gl-mhead-score"
+            style={{
+              fontFamily: "var(--font-heading)",
+              fontSize: 38,
+              lineHeight: 1.05,
+              fontVariantNumeric: "tabular-nums",
+              color: leading ? "var(--accent-text)" : "var(--text)",
+            }}
+          >
+            <LiveNumber key={side.id} value={side.total} />
+          </div>
+          {side.projected != null ? (
+            <div style={{ fontSize: 12, color: "var(--text-dim)", fontVariantNumeric: "tabular-nums" }}>
+              {side.projected.toFixed(1)}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div style={{ textAlign: align, marginTop: 8, minWidth: 0 }}>
+        <div style={{ fontSize: 10, letterSpacing: ".24em", color: "var(--text-dim)" }}>{eyebrow}</div>
+        <div
+          className="gl-mhead-name"
+          style={{
+            fontFamily: "var(--font-heading)",
+            fontSize: 16,
+            marginTop: 2,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {side.franchise}
+        </div>
+      </div>
+      <SideFooter side={side} align={align} />
     </div>
   );
 }
@@ -178,6 +312,7 @@ export default function MatchupBoard() {
   // and without this there is no way back to your own game.
   const [scheduled, setScheduled] = useState<{ id: string; franchise: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const logos = useLogos();
   // Seeded from the address, once, as the initial value rather than in an
   // effect — an effect would render the scheduled fixture first and then
   // replace it, which is a flash of the wrong game and a wasted request.
@@ -195,6 +330,14 @@ export default function MatchupBoard() {
     typeof window === "undefined"
       ? ""
       : (new URLSearchParams(window.location.search).get("home") ?? ""),
+  );
+  // Which week is being read. Also from the address only: the matchups list
+  // shows a whole season, and without this every card in it opened the week
+  // in play instead of the week drawn on the card.
+  const [asWeek] = useState(() =>
+    typeof window === "undefined"
+      ? ""
+      : (new URLSearchParams(window.location.search).get("week") ?? ""),
   );
 
   /**
@@ -230,6 +373,7 @@ export default function MatchupBoard() {
     try {
       const params = new URLSearchParams();
       if (asHome) params.set("home", asHome);
+      if (asWeek) params.set("week", asWeek);
       if (opponent) params.set("opponent", opponent);
       const query = params.toString() ? `?${params}` : "";
       const res = await fetch(`/api/matchup${query}`, { cache: "no-store" });
@@ -270,7 +414,7 @@ export default function MatchupBoard() {
     } catch {
       setError("Could not load this week's matchup.");
     }
-  }, [opponent, asHome]);
+  }, [opponent, asHome, asWeek]);
 
   // Answers a pull-to-refresh as well as its own timer.
   useRefreshable(load);
@@ -296,118 +440,189 @@ export default function MatchupBoard() {
   const homeLeads = board.home.total > board.away.total;
   const awayLeads = board.away.total > board.home.total;
 
+  // "Up" and "down" mean nothing about somebody else's Sunday, so a game the
+  // reader is not in is stated rather than taken personally.
+  const gap = Math.abs(board.home.total - board.away.total);
+
   // Two other franchises, opened from a fixture on the home page. The header
   // cannot say "YOU" over somebody else's team, and the opponent dropdown
   // would mean "swap who they are playing", which is not a question anybody
   // has. So both become plain names, and there is a way back to your own week.
   const mine = board.mine !== false;
 
+  const leader = homeLeads ? board.home.franchise : board.away.franchise;
+  const margin =
+    !board.started || gap < 0.05
+      ? ""
+      : mine
+        ? `${homeLeads ? "up" : "down"} ${gap.toFixed(1)}`
+        : `${leader} by ${gap.toFixed(1)}`;
+
   return (
     <>
+      <div style={{ margin: "8px 20px 0", paddingTop: 22, borderTop: "1px solid rgb(var(--accent-rgb) / .18)" }}>
+        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>
+          {mine ? "THIS WEEK" : "ELSEWHERE IN THE LEAGUE"}
+        </div>
+        <h2
+          style={{
+            fontFamily: "var(--font-heading)",
+            fontSize: 22,
+            letterSpacing: "-.02em",
+            fontWeight: 500,
+            margin: "5px 0 0",
+          }}
+        >
+          {/* It said "Your matchup" over two other franchises, because it was
+              printed by the page above this one, which cannot know. */}
+          {mine ? "Your matchup" : `${board.home.franchise} vs ${board.away.franchise}`}
+        </h2>
+      </div>
+
       {/* The two totals face each other across the header, the same axis the
           rows below are built on. */}
+      {/* The two totals face each other across the header, the same axis the
+          rows below are built on: crest, score, and under it where the week is
+          expected to finish. The projection is the number that makes a live
+          score mean anything — 0.0 against 0.0 is every game in the league at
+          noon on Sunday, and 113.7 against 125.1 is a reason to watch. */}
       <div
         className="gl-matchup-head"
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr auto 1fr",
-          alignItems: "center",
-          gap: 18,
-          padding: "24px 26px 16px",
+          gridTemplateColumns: "minmax(0,1fr) auto minmax(0,1fr)",
+          alignItems: "start",
+          gap: 14,
+          padding: "22px 20px 14px",
         }}
       >
-        <div>
+        <HeadSide
+          side={board.home}
+          logo={logos[board.home.id] ?? null}
+          align="left"
+          leading={homeLeads}
+          eyebrow={mine ? "YOU" : board.home.slot}
+        />
+
+        <div style={{ textAlign: "center", paddingTop: 8 }}>
           <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>
-            {mine ? "YOU" : board.home.slot}
-          </div>
-          <div style={{ fontFamily: "var(--font-heading)", fontSize: 22, marginTop: 4 }}>
-            {board.home.franchise}
+            WEEK {board.week}
           </div>
           <div
             style={{
               fontFamily: "var(--font-heading)",
-              fontSize: 40,
-              color: homeLeads ? "var(--accent-text)" : "var(--text)",
-              marginTop: 2,
+              fontSize: 12,
+              color: "var(--accent-link)",
+              margin: "6px 0",
             }}
           >
-            <LiveNumber key={board.home.id} value={board.home.total} />
-          </div>
-        </div>
-
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>
-            WEEK {board.week}
-          </div>
-          <div style={{ fontFamily: "var(--font-heading)", fontSize: 13, color: "var(--accent-link)", margin: "6px 0" }}>
             VS
           </div>
-          <div style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--text-dim)" }}>
+          <div style={{ fontSize: 10, letterSpacing: ".14em", color: board.live ? "var(--good)" : "var(--text-dim)" }}>
             {board.live ? "LIVE" : board.started ? "SCORED" : "PROJECTED"}
           </div>
         </div>
 
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>
-            {mine ? "OPPONENT" : board.away.slot}
-          </div>
-          {!mine ? (
-            <div style={{ fontFamily: "var(--font-heading)", fontSize: 22, marginTop: 4 }}>
-              {board.away.franchise}
+        {/* The right-hand side is a dropdown when it is your own week, because
+            this board can put you beside anybody. Opened as somebody else's
+            fixture it is a plain name: "swap who they are playing" is not a
+            question anybody has. */}
+        {mine ? (
+          <div style={{ minWidth: 0 }}>
+            <div
+              className="gl-mhead-top"
+              style={{
+                display: "flex",
+                flexDirection: "row-reverse",
+                alignItems: "center",
+                gap: 10,
+                minWidth: 0,
+              }}
+            >
+              <TeamCrest
+                franchise={board.away.franchise}
+                logo={logos[board.away.id] ?? null}
+                size={44}
+                shape="circle"
+              />
+              <div style={{ minWidth: 0, textAlign: "right" }}>
+                <div
+                  className="gl-mhead-score"
+                  style={{
+                    fontFamily: "var(--font-heading)",
+                    fontSize: 38,
+                    lineHeight: 1.05,
+                    fontVariantNumeric: "tabular-nums",
+                    color: awayLeads ? "var(--accent-text)" : "var(--text)",
+                  }}
+                >
+                  <LiveNumber key={board.away.id} value={board.away.total} />
+                </div>
+                {board.away.projected != null ? (
+                  <div style={{ fontSize: 12, color: "var(--text-dim)", fontVariantNumeric: "tabular-nums" }}>
+                    {board.away.projected.toFixed(1)}
+                  </div>
+                ) : null}
+              </div>
             </div>
-          ) : null}
-          {mine ? (
-          <select
-            value={opponent}
-            aria-label="Opponent"
-            onChange={(e) => choose(e.target.value)}
-            style={{
-              fontFamily: "var(--font-heading)",
-              fontSize: 22,
-              marginTop: 4,
-              padding: "2px 6px",
-              background: "transparent",
-              color: "var(--text)",
-              border: "1px solid transparent",
-              borderRadius: "var(--radius-sm)",
-              // The native arrow anchors to the control's own right edge, which
-              // leaves it stranded when the box is wider than the text.
-              appearance: "none",
-              textAlign: "right",
-              textAlignLast: "right",
-              cursor: "pointer",
-            }}
-          >
-            {/* The list has to contain whatever is selected, or the control
-                renders empty. It used to hold "" for the fixture and then
-                every manager except the one on screen — so the moment you
-                picked somebody, the value was an id that no option carried
-                and the name above the score went blank. The scheduled
-                opponent is the "" option; everybody else is themselves; and
-                on a bye there is no "" option because there is no fixture. */}
-            {(scheduled ? [{ value: "", label: scheduled.franchise }] : []).concat(
-              board.managers
-                .filter((m) => m.id !== board.home.id && m.id !== scheduled?.id)
-                .map((m) => ({ value: m.id, label: m.franchise })),
-            ).map((choice) => (
-              <option key={choice.value || "scheduled"} value={choice.value}>
-                {choice.label}
-              </option>
-            ))}
-          </select>
-          ) : null}
-          <div
-            style={{
-              fontFamily: "var(--font-heading)",
-              fontSize: 40,
-              color: awayLeads ? "var(--accent-text)" : "var(--text)",
-              marginTop: 2,
-            }}
-          >
-            <LiveNumber key={board.away.id} value={board.away.total} />
+
+            <select
+              value={opponent}
+              aria-label="Opponent"
+              onChange={(e) => choose(e.target.value)}
+              className="gl-mhead-name"
+              style={{
+                fontFamily: "var(--font-heading)",
+                fontSize: 16,
+                marginTop: 8,
+                maxWidth: "100%",
+                padding: "2px 0",
+                background: "transparent",
+                color: "var(--text)",
+                border: "1px solid transparent",
+                borderRadius: "var(--radius-sm)",
+                appearance: "none",
+                textAlign: "right",
+                textAlignLast: "right",
+                cursor: "pointer",
+              }}
+            >
+              {/* The list has to contain whatever is selected, or the control
+                  renders empty. The scheduled opponent is the "" option;
+                  everybody else is themselves; and on a bye there is no ""
+                  option because there is no fixture. */}
+              {(scheduled ? [{ value: "", label: scheduled.franchise }] : []).concat(
+                board.managers
+                  .filter((m) => m.id !== board.home.id && m.id !== scheduled?.id)
+                  .map((m) => ({ value: m.id, label: m.franchise })),
+              ).map((choice) => (
+                <option key={choice.value || "scheduled"} value={choice.value}>
+                  {choice.label}
+                </option>
+              ))}
+            </select>
+            <SideFooter side={board.away} align="right" />
           </div>
-        </div>
+        ) : (
+          <HeadSide
+            side={board.away}
+            logo={logos[board.away.id] ?? null}
+            align="right"
+            leading={awayLeads}
+            eyebrow={board.away.slot}
+          />
+        )}
       </div>
+
+      {/* The question the numbers above do not answer. The margin rides on the
+          same line: this screen used to draw a second bar under this one for
+          the share of the points, which said "DOWN 2.8" over a game the reader
+          was not playing in. */}
+      {board.winProbability != null ? (
+        <div style={{ padding: "0 20px 14px" }}>
+          <WinProbability p={board.winProbability} final={board.final} note={margin} />
+        </div>
+      ) : null}
 
       {/* The way out of somebody else's game. Without it the only way back is
           the browser's own back button, which is not a thing a tab bar app
@@ -428,15 +643,6 @@ export default function MatchupBoard() {
           >
             ‹ YOUR OWN MATCHUP
           </Link>
-        </div>
-      ) : null}
-
-      {/* The gap, drawn. This is the screen a manager sits on during a game,
-          so it is the screen where the distance between the two numbers is
-          worth more than either of them. */}
-      {board.started ? (
-        <div style={{ padding: "0 10px" }}>
-          <ScoreBar mine={board.home.total} theirs={board.away.total} final={board.final} />
         </div>
       ) : null}
 
