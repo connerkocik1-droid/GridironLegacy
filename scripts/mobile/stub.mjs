@@ -98,6 +98,20 @@ createServer((req, res) => {
   if (url.pathname === "/rest/v1/managers") {
     const byAuth = url.searchParams.get("auth_user_id");
     const wantsLeague = url.searchParams.get("league_id");
+    const byId = url.searchParams.get("id");
+
+    // One franchise by id, which is how a page asks for somebody else's team.
+    // Without this the two-row list below came back for a single-row query and
+    // .maybeSingle() failed it — a 404 that said "no such franchise" about one
+    // that was right there.
+    if (byId) {
+      const id = byId.replace(/^eq\./, "");
+      const found = [MANAGER, { ...MANAGER, id: "m1", slot: "T02", name: "Alex",
+        franchise: "Bay Area Brawlers" }].find((m) => m.id === id);
+      if (!found) return res.end("[]");
+      if (wantsLeague && wantsLeague !== `eq.${found.league_id}`) return res.end("[]");
+      return res.end(JSON.stringify([found]));
+    }
 
     // The league-wide franchise list the signed-out page asks for.
     if (!byAuth) {

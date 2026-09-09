@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Skeleton from "./Skeleton";
 import Bracket from "./Bracket";
@@ -229,7 +230,22 @@ export default function Standings() {
                       }}
                     >
                       <td style={{ padding: "8px 15px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                        {/* The table is a list of teams, so every row is a way
+                            into one. Standings answer who is winning; the
+                            question they raise is what the team above you
+                            actually has. */}
+                        <Link
+                          href={mine ? "/lineup" : `/team/${encodeURIComponent(f.id)}`}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 9,
+                            minWidth: 0,
+                            textDecoration: "none",
+                            color: "inherit",
+                            minHeight: 40,
+                          }}
+                        >
                           <span
                             style={{
                               flex: "0 0 auto",
@@ -269,7 +285,7 @@ export default function Standings() {
                             </div>
                             <Form results={f.form ?? []} />
                           </div>
-                        </div>
+                        </Link>
                       </td>
                       <td style={td}>
                         {r ? `${r.wins}-${r.losses}${r.ties ? `-${r.ties}` : ""}` : "—"}

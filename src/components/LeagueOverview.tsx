@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import type { Home } from "@/lib/home-types";
@@ -150,8 +151,11 @@ export default function LeagueOverview({ home }: { home: Home }) {
         </div>
 
         {power.map((t, i) => (
-          <div
+          // Ranked twelfth is a fact; what the team ranked first is holding is
+          // the reason anybody reads a power ranking.
+          <Link
             key={t.id}
+            href={t.mine ? "/lineup" : `/team/${encodeURIComponent(t.id)}`}
             style={{
               display: "flex",
               alignItems: "center",
@@ -159,6 +163,9 @@ export default function LeagueOverview({ home }: { home: Home }) {
               padding: "9px 15px",
               borderTop: i === 0 ? "none" : "1px solid rgb(var(--accent-rgb) / .1)",
               background: t.mine ? "rgb(var(--accent-rgb) / .1)" : undefined,
+              textDecoration: "none",
+              color: "inherit",
+              minHeight: 44,
             }}
           >
             <div
@@ -215,7 +222,7 @@ export default function LeagueOverview({ home }: { home: Home }) {
                 {t.rating.toFixed(1)}
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>

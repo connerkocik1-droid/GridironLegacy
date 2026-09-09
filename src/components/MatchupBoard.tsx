@@ -205,22 +205,18 @@ function recordText(record?: { w: number; l: number; t: number }): string {
 /** Who they are and how their year has gone, under the score. */
 function SideFooter({ side, align }: { side: Side; align: "left" | "right" }) {
   const who = [side.name, side.record ? recordText(side.record) : ""].filter(Boolean).join(" · ");
+  const line: React.CSSProperties = {
+    display: "block",
+    fontSize: 10.5,
+    color: "var(--text-dim)",
+    marginTop: 3,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  };
   return (
     <div style={{ textAlign: align, minWidth: 0 }}>
-      {who ? (
-        <div
-          style={{
-            fontSize: 10.5,
-            color: "var(--text-dim)",
-            marginTop: 3,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {who}
-        </div>
-      ) : null}
+      {who ? <div style={line}>{who}</div> : null}
       {/* How much football is left, which is what turns a scoreline into a
           state of play. Hidden before anybody kicks off, when every side in
           the league says the same thing. */}
@@ -241,12 +237,14 @@ function HeadSide({
   align,
   leading,
   eyebrow,
+  href,
 }: {
   side: Side;
   logo: string | null;
   align: "left" | "right";
   leading: boolean;
   eyebrow: string;
+  href: string;
 }) {
   const right = align === "right";
   return (
@@ -283,7 +281,25 @@ function HeadSide({
         </div>
       </div>
 
-      <div style={{ textAlign: align, marginTop: 8, minWidth: 0 }}>
+      {/* Straight into their roster. This screen shows the seven or eight men
+          filling slots today; the question it raises is what else they have,
+          and that used to mean opening a trade with them to find out.
+          
+          One link over the whole block rather than one on the name and another
+          on the manager: they go to the same place, and two 16px-tall targets
+          stacked is neither of them thumb-sized. */}
+      <Link
+        href={href}
+        style={{
+          display: "block",
+          textAlign: align,
+          marginTop: 8,
+          minWidth: 0,
+          minHeight: 44,
+          textDecoration: "none",
+          color: "inherit",
+        }}
+      >
         <div style={{ fontSize: 10, letterSpacing: ".24em", color: "var(--text-dim)" }}>{eyebrow}</div>
         <div
           className="gl-mhead-name"
@@ -298,8 +314,8 @@ function HeadSide({
         >
           {side.franchise}
         </div>
-      </div>
-      <SideFooter side={side} align={align} />
+        <SideFooter side={side} align={align} />
+      </Link>
     </div>
   );
 }
@@ -502,6 +518,7 @@ export default function MatchupBoard() {
           align="left"
           leading={homeLeads}
           eyebrow={mine ? "YOU" : board.home.slot}
+          href={mine ? "/lineup" : `/team/${encodeURIComponent(board.home.id)}`}
         />
 
         <div style={{ textAlign: "center", paddingTop: 8 }}>
@@ -601,7 +618,18 @@ export default function MatchupBoard() {
                 </option>
               ))}
             </select>
-            <SideFooter side={board.away} align="right" />
+            <Link
+              href={`/team/${encodeURIComponent(board.away.id)}`}
+              style={{
+                display: "block",
+                minHeight: 36,
+                paddingTop: 2,
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
+              <SideFooter side={board.away} align="right" />
+            </Link>
           </div>
         ) : (
           <HeadSide
@@ -610,6 +638,7 @@ export default function MatchupBoard() {
             align="right"
             leading={awayLeads}
             eyebrow={board.away.slot}
+            href={`/team/${encodeURIComponent(board.away.id)}`}
           />
         )}
       </div>

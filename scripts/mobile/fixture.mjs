@@ -487,13 +487,24 @@ export function routes(page, over = {}) {
     ]),
   );
 
-  page.route("**/api/lineup**", json({
-    week: 3, me: ME, settings: SETTINGS,
-    roster: ROSTER.map(([n]) => n).filter((n) => !STASHED.includes(n)),
-    injuredReserve: STASHED,
-    live: true, started: true, weekPhase: "live", final: false,
-    scores: SCORES,
-  }));
+  // Anybody's roster: ?manager= names whose, and somebody else's comes back
+  // with mine:false so the board has nothing to press.
+  page.route("**/api/lineup**", (r) => {
+    const asked = new URL(r.request().url()).searchParams.get("manager");
+    const theirs = asked && asked !== ME.id;
+    return r.fulfill({ json: {
+      week: 3,
+      me: theirs
+        ? { id: asked, slot: "T05", name: "Priya Raghunathan", franchise: "Thunderbolts" }
+        : ME,
+      mine: !theirs,
+      settings: SETTINGS,
+      roster: ROSTER.map(([n]) => n).filter((n) => !STASHED.includes(n)),
+      injuredReserve: STASHED,
+      live: true, started: true, weekPhase: "live", final: false,
+      scores: SCORES,
+    } });
+  });
 
   page.route("**/api/scores", json({ week: 3, scores: Object.fromEntries(
     ROSTER.map(([n, slot], i) => [

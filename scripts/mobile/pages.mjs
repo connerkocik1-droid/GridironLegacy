@@ -17,6 +17,10 @@ export const PAGES = [
   ["/watchlist", "watchlist"],
   ["/player/Puka%20Nacua", "player-profile"],
   ["/lineup", "lineup"],
+  // Somebody else's team, read-only. Measured as its own page because it is a
+  // different layout from your own: no buttons in the rows, a manager's name
+  // where the format usually goes.
+  ["/team/m1", "team-theirs"],
   ["/matchups", "matchups"],
   ["/standings", "standings"],
   ["/rankings", "rankings"],

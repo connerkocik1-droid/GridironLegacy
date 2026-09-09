@@ -100,6 +100,32 @@ ok("a player who has not kicked off shows who he plays and when",
 ok("and a dash rather than a nought he has not scored", mine.includes("–"));
 ok("with his projection beside it", /22\.00/.test(mine));
 
+console.log("\n--- and any team's roster, in full ---");
+// The rosters were never private; there was simply no page that asked, so the
+// only way to see what a rival held was to open a trade with them.
+await page.goto(`${BASE}/team/m4`, { waitUntil: "networkidle" });
+await page.waitForTimeout(700);
+const team = await page.locator("body").innerText();
+ok("somebody else's roster opens", /Thunderbolts/.test(team));
+ok("under their manager's name rather than the league format",
+  /PRIYA RAGHUNATHAN/i.test(team) && !/DYNASTY · BEST BALL/i.test(team));
+ok("with the whole roster on it, bench included", /BENCH|Injured reserve/i.test(team));
+ok("and nothing on it can be pressed",
+  (await page.locator('button:has-text("IR"), button:has-text("ACTIVATE")').count()) === 0);
+
+await page.goto(`${BASE}/lineup`, { waitUntil: "networkidle" });
+await page.waitForTimeout(700);
+ok("while your own team still offers its one decision",
+  (await page.locator('button:has-text("IR"), button:has-text("ACTIVATE")').count()) > 0);
+
+console.log("\n--- and every franchise named is a way in ---");
+for (const [where, sel] of [["the standings", "/standings"], ["the league page", "/league"]]) {
+  await page.goto(`${BASE}${sel}`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(600);
+  const links = await page.locator('a[href^="/team/"]').count();
+  ok(`${where} leads to a roster (${links} of them)`, links > 0);
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);
