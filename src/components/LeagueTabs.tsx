@@ -69,6 +69,9 @@ function Board() {
 
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [totals, setTotals] = useState<Record<string, { total: number; games: number }>>({});
+  // Who holds whom. The Best Value card is about somebody's drafting coming
+  // off, so a free agent cannot win it.
+  const [rostered, setRostered] = useState<Record<string, string>>({});
   const [navHeight, setNavHeight] = useState(0);
   const [strip, setStrip] = useState({ left: false, right: false });
   const [stripEl, setStripEl] = useState<HTMLDivElement | null>(null);
@@ -86,6 +89,7 @@ function Board() {
     ]);
     if (sched) setSchedule(sched as Schedule);
     if (ranks?.points) setTotals(ranks.points);
+    if (ranks?.rostered) setRostered(ranks.rostered);
   }, []);
 
   useRefreshable(load);
@@ -154,7 +158,7 @@ function Board() {
       final: g.final,
     }));
 
-    const players = seasonPlayers(totals);
+    const players = seasonPlayers(totals, rostered);
 
     return {
       rows: standings([...seen.values()], fixtures),
@@ -166,7 +170,7 @@ function Board() {
       // the fixtures, because scoring is what it is counting.
       scored: players.reduce((n, p) => Math.max(n, p.games), 0),
     };
-  }, [schedule, totals]);
+  }, [schedule, totals, rostered]);
 
   const go = (next: Tab) => {
     const query = next === "Overview" ? "" : `?tab=${slugOf(next)}`;

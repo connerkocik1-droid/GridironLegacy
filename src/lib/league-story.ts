@@ -147,6 +147,8 @@ export interface PlayerSeason {
   games: number;
   /** Where he came off the board at his position, from the draft pool. */
   preRank: number | null;
+  /** The franchise holding him, or null for a free agent. */
+  franchise: string | null;
 }
 
 /**
@@ -159,6 +161,7 @@ export interface PlayerSeason {
  */
 export function seasonPlayers(
   totals: Record<string, { total: number; games: number }>,
+  rostered: Record<string, string> = {},
 ): PlayerSeason[] {
   const out: PlayerSeason[] = [];
 
@@ -174,6 +177,7 @@ export function seasonPlayers(
       points: Math.round(Number(row.total) * 10) / 10,
       games: Number(row.games) || 0,
       preRank: Number.isFinite(rank) && rank > 0 ? rank : null,
+      franchise: rostered[name] ?? null,
     });
   }
 
@@ -200,14 +204,24 @@ export interface Value {
 }
 
 /**
- * The largest gain against where he was drafted.
+ * The largest gain against where he was drafted, among players somebody owns.
  *
- * Only players who were ranked at all: a man with no draft rank cannot have
- * climbed from it, and letting him in would hand the card to whichever
- * undrafted tight end scored twice.
+ * Three conditions, and each rules out a different way of being wrong.
+ *
+ * Ranked at all: a man with no draft slot cannot have climbed from one.
+ *
+ * Owned: this card is about somebody's drafting having come off, so a free
+ * agent cannot win it. Once the whole pool started being scored — which it
+ * had to, so that free agents have points at all — the best "value" in the
+ * league was liable to be a man nobody thought worth a roster spot, which is
+ * a fact about the waiver wire rather than about the draft.
+ *
+ * Scoring: a player on nought has not risen, he has simply not played.
  */
 export function bestValue(players: PlayerSeason[], weeks: number): Value | null {
-  const ranked = players.filter((p) => p.preRank != null && p.pos);
+  const ranked = players.filter(
+    (p) => p.preRank != null && p.pos && p.franchise != null && p.points > 0,
+  );
   if (!ranked.length) return null;
 
   let best: Value | null = null;
@@ -239,9 +253,21 @@ export function bestValue(players: PlayerSeason[], weeks: number): Value | null 
   return best;
 }
 
-/** The highest scorers in the league, longest first. */
+/**
+ * The highest scorers in the league, most first.
+ *
+ * Owned players only, for the same reason Best Value is. This card meant "the
+ * league's top scorers" back when the league only scored what it held; once
+ * the whole pool started being scored, "league-wide" quietly came to include
+ * men nobody has ever started, and a free agent was liable to head the MVP
+ * card on a fantasy league's own page. Restricting it restores what it always
+ * meant rather than changing it.
+ */
 export function topScorers(players: PlayerSeason[], count = 3): PlayerSeason[] {
-  return players.slice().sort((a, b) => b.points - a.points).slice(0, count);
+  return players
+    .filter((p) => p.franchise != null && p.points > 0)
+    .sort((a, b) => b.points - a.points)
+    .slice(0, count);
 }
 
 export type Grade = "STEAL" | "SHARP" | "EVEN" | "RISKY";
