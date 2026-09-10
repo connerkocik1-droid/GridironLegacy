@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
+<script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
+<script src="./image-slot.js"></script>
+<style>
+  body { margin:0; background:#0b0d16; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  a { color:#b5abfc; text-decoration:none; }
+  a:hover { color:#d2cefd; }
+  @keyframes mt-pulse { 0%,100% { opacity:.25; transform:scale(1);} 50% { opacity:1; transform:scale(1.3);} }
+  @keyframes mt-rise { from { opacity:0; transform:translateY(10px);} to { opacity:1; transform:none;} }
+  @keyframes mt-grow { from { width:0;} }
+  @keyframes mt-sweep { 0% { background-position:0% 50%;} 100% { background-position:200% 50%;} }
+</style>
+</helmet>
+
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+
+<div style="height:100%;display:flex;flex-direction:column;background:radial-gradient(560px 380px at 8% -6%, #23274a 0%, rgba(18,20,42,0) 62%), radial-gradient(420px 320px at 108% 10%, #2b1e3d 0%, rgba(18,20,42,0) 60%), #0f111c;color:var(--color-text);font-family:var(--font-body);font-variant-numeric:tabular-nums;overflow:hidden">
+
+  <div style="flex:1;overflow:auto">
+
+    <div style="padding:60px 18px 0;position:sticky;top:0;z-index:30;background:linear-gradient(180deg,rgba(15,17,28,.97) 84%,rgba(15,17,28,0));backdrop-filter:blur(14px)">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(150deg,#b5abfc,#5d5294);border:1.5px solid rgba(181,171,252,.7);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:12px;letter-spacing:.06em;color:#161826;flex:0 0 auto">{{ abbrev }}</div>
+        <div style="min-width:0;flex:1">
+          <div style="font-family:var(--font-heading);font-size:21px;line-height:1.15;letter-spacing:-.025em;margin-top:4px;text-wrap:pretty">{{ teamName }}</div>
+          <div style="font-size:10px;color:#75798c;margin-top:4px">Conner</div>
+        </div>
+        <button onClick="{{ goEdit }}" style="cursor:pointer;flex:0 0 auto;width:34px;height:34px;border-radius:9px;border:1px solid rgba(145,132,217,.34);background:transparent;color:#b5abfc;display:flex;align-items:center;justify-content:center" style-hover="background:rgba(145,132,217,.16)">
+          <svg width="15" height="15" viewBox="0 0 256 256" fill="currentColor"><path d="m227.3 73.4-44.7-44.7a16 16 0 0 0-22.6 0l-120 120A15.9 15.9 0 0 0 35.3 160v44.7a16 16 0 0 0 16 16H96a15.9 15.9 0 0 0 11.3-4.7l120-120a16 16 0 0 0 0-22.6ZM92.7 204.7H51.3V163.3l84-84 41.4 41.4Z"></path></svg>
+        </button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px">
+        <sc-for list="{{ headStats }}" as="s" hint-placeholder-count="4">
+          <div>
+            <div style="{{ s.valueStyle }}">{{ s.value }}</div>
+            <div style="font-size:8px;letter-spacing:.14em;color:#75798c;margin-top:3px">{{ s.label }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;gap:4px;margin-top:14px;overflow-x:auto;padding-bottom:1px">
+        <sc-for list="{{ subtabs }}" as="t" hint-placeholder-count="6">
+          <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+      <div style="height:1px;background:rgba(145,132,217,.2)"></div>
+    </div>
+
+    <div style="padding:14px 18px 24px">
+
+      <sc-if value="{{ isRoster }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:2px 0 14px;font-size:11px;line-height:1.55;color:#8f94a8;text-wrap:pretty">{{ bestBallNote }}</div>
+
+        <sc-for list="{{ groups }}" as="g" hint-placeholder-count="6">
+          <div style="margin-bottom:14px">
+            <div style="display:flex;align-items:baseline;gap:8px;padding-bottom:8px">
+              <span style="font-family:var(--font-heading);font-size:11px;letter-spacing:.2em;color:#b5abfc">{{ g.pos }}</span>
+              <span style="font-size:9px;letter-spacing:.14em;color:#75798c">{{ g.count }}</span>
+              <span style="margin-left:auto;font-size:9px;letter-spacing:.14em;color:#595d6c">{{ g.starts }}</span>
+            </div>
+            <div style="border:1px solid rgba(145,132,217,.2);border-radius:14px;overflow:hidden;background:rgba(22,24,38,.72)">
+              <sc-for list="{{ g.players }}" as="p" hint-placeholder-count="3">
+                <div style="{{ p.rowStyle }}">
+                  <div style="min-width:0;flex:1">
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <span style="font-family:var(--font-heading);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ p.name }}</span>
+                      <sc-for list="{{ p.flags }}" as="f" hint-placeholder-count="0">
+                        <span style="{{ f.style }}">{{ f.label }}</span>
+                      </sc-for>
+                    </div>
+                    <div style="font-size:10px;color:#75798c;margin-top:3px">{{ p.line }}</div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:7px">
+                      <div style="flex:1;height:3px;border-radius:99px;background:rgba(145,132,217,.14);overflow:hidden">
+                        <div style="{{ p.barStyle }}"></div>
+                      </div>
+                      <span style="font-size:9px;letter-spacing:.1em;color:#75798c;flex:0 0 auto">{{ p.startRate }} START RATE</span>
+                    </div>
+                  </div>
+                  <div style="text-align:right;flex:0 0 auto">
+                    <div style="font-family:var(--font-heading);font-size:15px;color:#b5abfc">{{ p.proj }}</div>
+                    <div style="font-size:7px;letter-spacing:.16em;color:#595d6c">PROJ</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </sc-if>
+
+      <sc-if value="{{ isMatchup }}" hint-placeholder-val="{{ false }}">
+        <div style="border:1px solid rgba(145,132,217,.3);border-radius:16px;overflow:hidden;background:linear-gradient(160deg,rgba(38,32,64,.9),rgba(20,22,36,.86));position:relative">
+          <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 44%,rgba(181,171,252,.1) 50%,transparent 56%);background-size:220% 100%;animation:mt-sweep 6s linear infinite"></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid rgba(145,132,217,.22);position:relative">
+            <span style="font-size:9px;letter-spacing:.2em;color:#b5abfc">WEEK 1</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:9px;letter-spacing:.14em;color:#ff9a5c">
+              <span style="width:5px;height:5px;border-radius:50%;background:#ff9a5c;box-shadow:0 0 8px #ff9a5c;animation:mt-pulse 1.5s infinite"></span>KICKOFF THU 8:20
+            </span>
+          </div>
+          <div style="padding:16px 14px;position:relative">
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:start;gap:8px">
+              <div>
+                <div style="font-family:var(--font-heading);font-size:16px;line-height:1.15;text-wrap:pretty">{{ teamName }}</div>
+                <div style="font-family:var(--font-heading);font-size:30px;color:#b5abfc;margin-top:8px">{{ meProj }}</div>
+              </div>
+              <div style="font-family:var(--font-heading);font-size:10px;letter-spacing:.16em;color:#595d6c;padding-top:3px">VS</div>
+              <div style="text-align:right">
+                <div style="font-family:var(--font-heading);font-size:16px;line-height:1.15;text-wrap:pretty">{{ oppName }}</div>
+                <div style="font-family:var(--font-heading);font-size:30px;color:#8f94a8;margin-top:8px">{{ oppProj }}</div>
+              </div>
+            </div>
+            <div style="margin-top:14px;height:6px;border-radius:99px;background:rgba(145,132,217,.16);overflow:hidden">
+              <div style="{{ meBarStyle }}"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:7px;font-size:9px;letter-spacing:.14em;color:#75798c">
+              <span>{{ marginLabel }}</span><span>{{ winProb }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:baseline;gap:8px;padding:20px 0 10px">
+          <span style="font-size:9px;letter-spacing:.28em;color:#75798c">PROJECTED OPTIMAL</span>
+          <span style="margin-left:auto;font-size:9px;letter-spacing:.14em;color:#595d6c">SLOT BY SLOT</span>
+        </div>
+        <div style="border:1px solid rgba(145,132,217,.2);border-radius:14px;overflow:hidden;background:rgba(22,24,38,.72)">
+          <sc-for list="{{ slotBattle }}" as="s" hint-placeholder-count="10">
+            <div style="{{ s.rowStyle }}">
+              <div style="min-width:0;flex:1">
+                <div style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.mine }}</div>
+                <div style="font-family:var(--font-heading);font-size:13px;color:#b5abfc;margin-top:2px">{{ s.myProj }}</div>
+              </div>
+              <span style="font-family:var(--font-heading);font-size:9px;letter-spacing:.12em;color:#75798c;width:38px;text-align:center;flex:0 0 auto">{{ s.slot }}</span>
+              <div style="min-width:0;flex:1;text-align:right">
+                <div style="font-size:12px;color:#b2b6ca;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.theirs }}</div>
+                <div style="font-family:var(--font-heading);font-size:13px;color:#8f94a8;margin-top:2px">{{ s.theirProj }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isNews }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:6px;padding-bottom:12px;overflow-x:auto">
+          <sc-for list="{{ newsFilters }}" as="f" hint-placeholder-count="3">
+            <button onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</button>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <sc-for list="{{ news }}" as="n" hint-placeholder-count="5">
+            <div style="border:1px solid rgba(145,132,217,.2);border-radius:12px;background:rgba(22,24,38,.72);padding:13px 14px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="{{ n.tagStyle }}">{{ n.tag }}</span>
+                <span style="font-family:var(--font-heading);font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ n.player }}</span>
+                <span style="margin-left:auto;font-size:9px;letter-spacing:.12em;color:#595d6c;flex:0 0 auto">{{ n.when }}</span>
+              </div>
+              <div style="font-size:12px;line-height:1.5;color:#c8ccdb;margin-top:8px;text-wrap:pretty">{{ n.head }}</div>
+              <div style="font-size:10px;color:#75798c;margin-top:7px">{{ n.src }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isWatch }}" hint-placeholder-val="{{ false }}">
+        <div style="font-size:11px;color:#8f94a8;line-height:1.55;padding-bottom:12px;text-wrap:pretty">{{ watchNote }}</div>
+        <div style="border:1px solid rgba(145,132,217,.2);border-radius:14px;overflow:hidden;background:rgba(22,24,38,.72)">
+          <sc-for list="{{ watchlist }}" as="w" hint-placeholder-count="5">
+            <div style="{{ w.rowStyle }}">
+              <div style="min-width:0;flex:1">
+                <div style="display:flex;align-items:center;gap:7px">
+                  <span style="font-family:var(--font-heading);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ w.name }}</span>
+                  <span style="font-size:9px;letter-spacing:.1em;color:#75798c;flex:0 0 auto">{{ w.posTeam }}</span>
+                </div>
+                <div style="font-size:10px;color:#75798c;margin-top:4px;line-height:1.4">{{ w.note }}</div>
+              </div>
+              <button onClick="{{ w.onClick }}" style="{{ w.btnStyle }}">{{ w.btnLabel }}</button>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isTrades }}" hint-placeholder-val="{{ false }}">
+        <div style="font-size:9px;letter-spacing:.28em;color:#b5abfc;padding-bottom:10px">OFFERS</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <sc-for list="{{ offers }}" as="o" hint-placeholder-count="2">
+            <div style="border:1px solid rgba(145,132,217,.28);border-radius:14px;background:linear-gradient(155deg,rgba(34,30,56,.9),rgba(20,22,36,.8));padding:14px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="{{ o.stateStyle }}">{{ o.state }}</span>
+                <span style="font-size:12px;color:#c8ccdb">{{ o.from }}</span>
+                <span style="margin-left:auto;font-size:9px;letter-spacing:.12em;color:#595d6c">{{ o.when }}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin-top:12px">
+                <div>
+                  <div style="font-size:8px;letter-spacing:.16em;color:#75798c">YOU GET</div>
+                  <div style="font-size:12px;line-height:1.45;margin-top:5px;text-wrap:pretty">{{ o.get }}</div>
+                </div>
+                <span style="font-family:var(--font-heading);font-size:14px;color:#595d6c">⇄</span>
+                <div style="text-align:right">
+                  <div style="font-size:8px;letter-spacing:.16em;color:#75798c">YOU GIVE</div>
+                  <div style="font-size:12px;line-height:1.45;margin-top:5px;text-wrap:pretty">{{ o.give }}</div>
+                </div>
+              </div>
+              <div style="margin-top:12px;padding:9px 11px;border-radius:9px;background:rgba(145,132,217,.1);font-size:11px;line-height:1.5;color:#d2cefd;text-wrap:pretty">{{ o.verdict }}</div>
+              <div style="display:flex;gap:8px;margin-top:12px">
+                <button style="flex:1;cursor:pointer;font-family:var(--font-body);font-size:10px;letter-spacing:.14em;padding:9px 0;border-radius:8px;border:1px solid rgba(181,171,252,.6);background:transparent;color:#b5abfc" style-hover="background:rgba(145,132,217,.18)">ACCEPT</button>
+                <button style="flex:1;cursor:pointer;font-family:var(--font-body);font-size:10px;letter-spacing:.14em;padding:9px 0;border-radius:8px;border:1px solid rgba(145,132,217,.28);background:transparent;color:#8f94a8" style-hover="border-color:rgba(224,122,122,.5);color:#e07a7a">DECLINE</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="font-size:9px;letter-spacing:.28em;color:#75798c;padding:22px 0 10px">TRADE BLOCK</div>
+        <div style="font-size:11px;color:#8f94a8;line-height:1.55;padding-bottom:11px;text-wrap:pretty">{{ blockNote }}</div>
+        <div style="border:1px solid rgba(145,132,217,.2);border-radius:14px;overflow:hidden;background:rgba(22,24,38,.72)">
+          <sc-for list="{{ blockList }}" as="b" hint-placeholder-count="6">
+            <div style="{{ b.rowStyle }}">
+              <div style="min-width:0;flex:1">
+                <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ b.name }}</div>
+                <div style="font-size:10px;color:#75798c;margin-top:3px">{{ b.posTeam }}</div>
+              </div>
+              <button onClick="{{ b.onClick }}" style="{{ b.btnStyle }}">{{ b.btnLabel }}</button>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isEdit }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="border:1px solid rgba(145,132,217,.2);border-radius:14px;background:rgba(22,24,38,.72);padding:16px 14px">
+            <div style="font-size:9px;letter-spacing:.24em;color:#b5abfc">IDENTITY</div>
+            <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+              <label style="display:block">
+                <span style="font-size:9px;letter-spacing:.14em;color:#75798c">TEAM NAME</span>
+                <input value="{{ teamName }}" onChange="{{ onName }}" style="display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:11px 12px;border-radius:9px;border:1px solid rgba(145,132,217,.3);background:rgba(15,17,28,.8);color:#e9e9ed;font-family:var(--font-body);font-size:14px" />
+              </label>
+              <div style="display:flex;gap:10px">
+                <label style="flex:0 0 100px">
+                  <span style="font-size:9px;letter-spacing:.14em;color:#75798c">ABBREV</span>
+                  <input value="{{ abbrev }}" onChange="{{ onAbbrev }}" maxLength="4" style="display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:11px 12px;border-radius:9px;border:1px solid rgba(145,132,217,.3);background:rgba(15,17,28,.8);color:#e9e9ed;font-family:var(--font-heading);font-size:14px;letter-spacing:.1em" />
+                </label>
+                <label style="flex:1;min-width:0">
+                  <span style="font-size:9px;letter-spacing:.14em;color:#75798c">MANAGER</span>
+                  <input value="Conner" readOnly="{{ true }}" style="display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:11px 12px;border-radius:9px;border:1px solid rgba(145,132,217,.16);background:rgba(15,17,28,.5);color:#75798c;font-family:var(--font-body);font-size:14px" />
+                </label>
+              </div>
+              <div>
+                <span style="font-size:9px;letter-spacing:.14em;color:#75798c">TEAM PHOTO</span>
+                <image-slot id="pylon-team-photo" style="width:100%;height:150px;margin-top:8px" shape="rounded" radius="14" placeholder="Drop your team photo"></image-slot>
+                <div style="font-size:10px;color:#75798c;line-height:1.5;margin-top:8px;text-wrap:pretty">Shows beside your team name across the league.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="border:1px solid rgba(145,132,217,.2);border-radius:14px;background:rgba(22,24,38,.72);padding:16px 14px">
+            <div style="font-size:9px;letter-spacing:.24em;color:#b5abfc">SECURITY</div>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
+              <div style="min-width:0;flex:1">
+                <div style="font-size:13px">Manager PIN</div>
+                <div style="font-size:10px;color:#75798c;margin-top:3px;line-height:1.4;text-wrap:pretty">{{ pinNote }}</div>
+              </div>
+              <button onClick="{{ onChangePin }}" style="cursor:pointer;flex:0 0 auto;font-family:var(--font-body);font-size:10px;letter-spacing:.14em;padding:9px 12px;border-radius:8px;border:1px solid rgba(181,171,252,.6);background:transparent;color:#b5abfc" style-hover="background:rgba(145,132,217,.18)">CHANGE PIN</button>
+            </div>
+            <sc-for list="{{ pinFields }}" as="p" hint-placeholder-count="0">
+              <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(145,132,217,.14)">
+                <label style="display:block">
+                  <span style="font-size:9px;letter-spacing:.14em;color:#75798c">CURRENT PIN</span>
+                  <input type="password" placeholder="••••" style="display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:11px 12px;border-radius:9px;border:1px solid rgba(145,132,217,.3);background:rgba(15,17,28,.8);color:#e9e9ed;font-family:var(--font-body);font-size:14px;letter-spacing:.3em" />
+                </label>
+                <label style="display:block">
+                  <span style="font-size:9px;letter-spacing:.14em;color:#75798c">NEW PIN</span>
+                  <input type="password" placeholder="••••" style="display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:11px 12px;border-radius:9px;border:1px solid rgba(145,132,217,.3);background:rgba(15,17,28,.8);color:#e9e9ed;font-family:var(--font-body);font-size:14px;letter-spacing:.3em" />
+                </label>
+                <div style="display:flex;gap:8px">
+                  <button style="flex:1;cursor:pointer;font-family:var(--font-body);font-size:10px;letter-spacing:.14em;padding:10px 0;border-radius:8px;border:1px solid rgba(181,171,252,.6);background:transparent;color:#b5abfc" style-hover="background:rgba(145,132,217,.18)">SET PIN</button>
+                  <button onClick="{{ p.cancel }}" style="flex:0 0 auto;cursor:pointer;font-family:var(--font-body);font-size:10px;letter-spacing:.14em;padding:10px 14px;border-radius:8px;border:1px solid rgba(145,132,217,.26);background:transparent;color:#8f94a8">CANCEL</button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="border:1px solid rgba(145,132,217,.2);border-radius:14px;background:rgba(22,24,38,.72);padding:16px 14px">
+            <div style="font-size:9px;letter-spacing:.24em;color:#b5abfc">ALERTS</div>
+            <sc-for list="{{ toggles }}" as="t" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid rgba(145,132,217,.12)">
+                <div style="min-width:0;flex:1">
+                  <div style="font-size:13px">{{ t.label }}</div>
+                  <div style="font-size:10px;color:#75798c;margin-top:3px;line-height:1.4;text-wrap:pretty">{{ t.note }}</div>
+                </div>
+                <button onClick="{{ t.onClick }}" style="{{ t.trackStyle }}">
+                  <span style="{{ t.knobStyle }}"></span>
+                </button>
+              </div>
+            </sc-for>
+          </div>
+
+          <button style="cursor:pointer;font-family:var(--font-body);font-size:11px;letter-spacing:.18em;padding:13px 0;border-radius:10px;border:1px solid rgba(181,171,252,.6);background:transparent;color:#b5abfc" style-hover="background:rgba(145,132,217,.18)">SAVE CHANGES</button>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid rgba(145,132,217,.22);background:rgba(14,16,26,.96);backdrop-filter:blur(14px);padding-bottom:24px;position:relative;z-index:20">
+    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+      <button onClick="{{ t.onClick }}" style="{{ t.style }}">
+        <span style="{{ t.markStyle }}"></span>
+        <svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor"><path d="{{ t.path }}"></path></svg>
+        <span style="font-size:10px">{{ t.label }}</span>
+      </button>
+    </sc-for>
+  </div>
+</div>
+
+</x-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:940}}">
+const P = {
+  home: "M218.8 103.7 138.8 33a16 16 0 0 0-21.6 0l-80 70.7A16 16 0 0 0 32 115.7V208a16 16 0 0 0 16 16h48a8 8 0 0 0 8-8v-56h48v56a8 8 0 0 0 8 8h48a16 16 0 0 0 16-16v-92.3a16 16 0 0 0-5.2-12Z",
+  team: "M180 32h-24a8 8 0 0 0-8 8 20 20 0 0 1-40 0 8 8 0 0 0-8-8H76a8 8 0 0 0-4.4 1.3l-40 26.7A8 8 0 0 0 28 66.7v45.9a8 8 0 0 0 8 8h24V208a16 16 0 0 0 16 16h104a16 16 0 0 0 16-16v-87.4h24a8 8 0 0 0 8-8V66.7a8 8 0 0 0-3.6-6.7l-40-26.7A8 8 0 0 0 180 32Z",
+  league: "M40 68h176a8 8 0 0 0 0-16H40a8 8 0 0 0 0 16Zm176 52H40a8 8 0 0 0 0 16h176a8 8 0 0 0 0-16Zm0 68H40a8 8 0 0 0 0 16h176a8 8 0 0 0 0-16Z",
+  moves: "M221.7 82.3 189.7 50.3a8 8 0 0 0-11.4 11.4L196.7 80H40a8 8 0 0 0 0 16h156.7l-18.4 18.3a8 8 0 0 0 11.4 11.4l32-32a8 8 0 0 0 0-11.4ZM216 160H59.3l18.4-18.3a8 8 0 0 0-11.4-11.4l-32 32a8 8 0 0 0 0 11.4l32 32a8 8 0 0 0 11.4-11.4L59.3 176H216a8 8 0 0 0 0-16Z",
+  office: "M128 64a64 64 0 1 0 64 64 64 64 0 0 0-64-64Zm0 112a48 48 0 1 1 48-48 48 48 0 0 1-48 48Zm0-136a8 8 0 0 0 8-8V16a8 8 0 0 0-16 0v16a8 8 0 0 0 8 8Zm0 176a8 8 0 0 0-8 8v16a8 8 0 0 0 16 0v-16a8 8 0 0 0-8-8ZM40 128a8 8 0 0 0-8-8H16a8 8 0 0 0 0 16h16a8 8 0 0 0 8-8Zm200-8h-16a8 8 0 0 0 0 16h16a8 8 0 0 0 0-16ZM58.3 47a8 8 0 0 0-11.3 11.3l11.3 11.3A8 8 0 0 0 69.6 58.3Zm128.1 139.4a8 8 0 0 0-11.3 11.3l11.3 11.3a8 8 0 0 0 11.3-11.3Zm0-116.8 11.3-11.3A8 8 0 0 0 186.4 47l-11.3 11.3a8 8 0 0 0 11.3 11.3ZM58.3 186.4 47 197.7a8 8 0 0 0 11.3 11.3l11.3-11.3a8 8 0 0 0-11.3-11.3Z"
+};
+
+// Roster as the league's own tables carry it (STARTERS / BENCH / IR in
+// league-data.js). `sr` is start rate: the share of simulated weeks the player
+// lands in the optimal lineup — in best ball you never set one, so this is what
+// decides whether a roster spot is earning anything.
+const ROSTER = [
+  { pos: "QB", n: "Lamar Jackson", t: "BAL", proj: 25.3, sr: 44, line: "QB depth" },
+  { pos: "QB", n: "Jayden Daniels", t: "WSH", proj: 24.1, sr: 38, line: "QB1" },
+  { pos: "QB", n: "Drake Maye", t: "NE", proj: 21.8, sr: 18, line: "Devy" },
+  { pos: "RB", n: "Bijan Robinson", t: "ATL", proj: 20.8, sr: 66, line: "RB1" },
+  { pos: "RB", n: "Jonathan Taylor", t: "IND", proj: 20.0, sr: 58, line: "Win-now" },
+  { pos: "RB", n: "Jahmyr Gibbs", t: "DET", proj: 19.9, sr: 56, line: "RB1" },
+  { pos: "RB", n: "Saquon Barkley", t: "PHI", proj: 19.4, sr: 46, line: "Win-now" },
+  { pos: "RB", n: "Ashton Jeanty", t: "LV", proj: 16.2, sr: 20, line: "Rookie" },
+  { pos: "RB", n: "Chase Brown", t: "CIN", proj: 12.6, sr: 8, line: "Stash" },
+  { pos: "RB", n: "Trey Benson", t: "ARI", proj: 11.9, sr: 4, line: "Depth" },
+  { pos: "WR", n: "Ja'Marr Chase", t: "CIN", proj: 21.4, sr: 66, line: "WR1" },
+  { pos: "WR", n: "Justin Jefferson", t: "MIN", proj: 20.2, sr: 58, line: "Bye wk 6" },
+  { pos: "WR", n: "Malik Nabers", t: "NYG", proj: 19.6, sr: 46, line: "Buy-low" },
+  { pos: "WR", n: "Puka Nacua", t: "LAR", proj: 18.3, sr: 34, line: "WR1", flag: "Q" },
+  { pos: "WR", n: "Nico Collins", t: "HOU", proj: 17.5, sr: 24, line: "WR1", flag: "Q" },
+  { pos: "WR", n: "George Pickens", t: "DAL", proj: 14.1, sr: 8, line: "Depth" },
+  { pos: "WR", n: "Zay Flowers", t: "BAL", proj: 13.7, sr: 4, line: "Depth" },
+  { pos: "TE", n: "Brock Bowers", t: "LV", proj: 16.8, sr: 62, line: "TE1" },
+  { pos: "TE", n: "Trey McBride", t: "ARI", proj: 15.4, sr: 34, line: "TE1" },
+  { pos: "TE", n: "Colston Loveland", t: "CHI", proj: 8.5, sr: 4, line: "TE depth" },
+  { pos: "K", n: "Brandon Aubrey", t: "DAL", proj: 11.0, sr: 100, line: "Kicker" },
+  { pos: "D/ST", n: "Seattle Seahawks D/ST", t: "SEA", proj: 10.5, sr: 58, line: "Wk 5 stream" },
+  { pos: "D/ST", n: "Baltimore Ravens D/ST", t: "BAL", proj: 8.4, sr: 42, line: "Team unit" },
+  { pos: "IR", n: "Christian McCaffrey", t: "SF", proj: 0, sr: 0, line: "Calf — out wk 6" },
+  { pos: "IR", n: "Rashee Rice", t: "KC", proj: 0, sr: 0, line: "Knee — designated to return" }
+];
+
+const ORDER = ["QB", "RB", "WR", "TE", "K", "D/ST", "IR"];
+const STARTS = { QB: "1 START", RB: "2 START", WR: "2 START", TE: "1 START", K: "1 START", "D/ST": "1 START", IR: "2 SLOTS" };
+
+const NEWS = [
+  { player: "Puka Nacua", tag: "INJURY", kind: "inj", when: "18M", head: "Questionable tag holds into Thursday. Rams listed him limited for a second straight session.", src: "ESPN" },
+  { player: "Nico Collins", tag: "INJURY", kind: "inj", when: "2H", head: "Carries a designation into week 1 and the market has not moved off him.", src: "NFL.com" },
+  { player: "Christian McCaffrey", tag: "INJURY", kind: "inj", when: "6H", head: "Calf keeps him on IR through week 6. Eligible to return the following Sunday.", src: "The Athletic" },
+  { player: "Ashton Jeanty", tag: "ROLE", kind: "role", when: "9H", head: "Taking first-team reps in Las Vegas. Beat writers expect a full workload out of the gate.", src: "Las Vegas Review-Journal" },
+  { player: "Rashee Rice", tag: "ROLE", kind: "role", when: "YDAY", head: "Designated to return. Chiefs have twenty-one days to activate him.", src: "Kansas City Star" },
+  { player: "Trey Benson", tag: "MATCHUP", kind: "match", when: "YDAY", head: "Cardinals open against a front that finished 30th against the run last year.", src: "Pylon Research" }
+];
+
+const WATCH = [
+  { n: "Tyler Allgeier", pt: "RB · ATL", note: "Direct handcuff to Bijan. Unrostered in 8 of 12." },
+  { n: "Jauan Jennings", pt: "WR · SF", note: "Free agent. Target share hit 26% in the games he led the room." },
+  { n: "Tank Bigsby", pt: "RB · JAX", note: "Jumps to starter volume if Etienne misses time." },
+  { n: "Cade Otton", pt: "TE · TB", note: "Tight end insurance behind Bowers and McBride." },
+  { n: "Jordan Whittington", pt: "WR · LAR", note: "Deep stash in an offense that throws 38 times a game." }
+];
+
+const OFFERS = [
+  { from: "Steel Cartel · Dev", when: "3H", state: "PENDING", kind: "pending",
+    get: "Jahmyr Gibbs", give: "Justin Jefferson + 2027 3rd",
+    verdict: "Adds a fourth back above 50% start rate but costs your second receiver. The WR room drops to two." },
+  { from: "Nova Collective · Jules", when: "1D", state: "COUNTERED", kind: "counter",
+    get: "Malik Nabers + 2027 2nd", give: "Drake Maye",
+    verdict: "Maye starts 18% of weeks behind Jackson and Daniels. The pick is the real return here." }
+];
+
+const BLOCK = [
+  { n: "Drake Maye", pt: "QB · NE" },
+  { n: "Trey Benson", pt: "RB · ARI" },
+  { n: "Chase Brown", pt: "RB · CIN" },
+  { n: "Zay Flowers", pt: "WR · BAL" },
+  { n: "George Pickens", pt: "WR · DAL" },
+  { n: "Colston Loveland", pt: "TE · CHI" }
+];
+
+const OPP = [
+  ["QB", "Josh Allen", 24.6], ["RB", "Derrick Henry", 19.1], ["RB", "De'Von Achane", 17.4],
+  ["WR", "CeeDee Lamb", 19.8], ["WR", "Amon-Ra St. Brown", 18.0], ["TE", "Sam LaPorta", 13.2],
+  ["FLEX", "Garrett Wilson", 15.5], ["FLEX", "Kenneth Walker III", 13.9],
+  ["K", "Jake Bates", 9.4], ["D/ST", "Philadelphia Eagles D/ST", 8.7]
+];
+
+class Component extends DCLogic {
+  state = {
+    tab: "Roster", newsFilter: "All", nav: "My Team", pinOpen: false,
+    teamName: "Gettin Stribby Wit' It", abbrev: "GSWI",
+    block: { "Drake Maye": true, "Trey Benson": true },
+    watch: {},
+    alerts: { injury: true, wire: true, trade: true, recap: false }
+  };
+
+  // Best ball: the lineup is whatever scores most, so the optimal set is
+  // derived from projections rather than chosen by the manager.
+  optimal() {
+    const active = ROSTER.filter(p => p.pos !== "IR");
+    const by = pos => active.filter(p => p.pos === pos).slice().sort((a, b) => b.proj - a.proj);
+    const used = {}, out = [];
+    const take = (pos, slot, n) => {
+      by(pos).forEach(p => {
+        if (out.filter(o => o.slot === slot).length >= n || used[p.n]) return;
+        used[p.n] = 1; out.push({ slot, p });
+      });
+    };
+    take("QB", "QB", 1); take("RB", "RB", 2); take("WR", "WR", 2); take("TE", "TE", 1);
+    active.filter(p => ["RB", "WR", "TE"].indexOf(p.pos) > -1 && !used[p.n])
+      .sort((a, b) => b.proj - a.proj).slice(0, 2)
+      .forEach(p => { used[p.n] = 1; out.push({ slot: "FLEX", p }); });
+    take("K", "K", 1); take("D/ST", "D/ST", 1);
+    return out;
+  }
+
+  renderVals() {
+    const S = this.state, self = this;
+    const opt = this.optimal();
+    const meProj = opt.reduce((s, o) => s + o.p.proj, 0);
+    const oppProj = OPP.reduce((s, o) => s + o[2], 0);
+    const share = meProj / (meProj + oppProj) * 100;
+    const blockCount = Object.keys(S.block).filter(k => S.block[k]).length;
+    const watchCount = WATCH.filter(w => S.watch[w.n] !== false).length;
+
+    const rowBase = i => "display:flex;align-items:center;gap:11px;padding:11px 13px;" +
+      (i ? "border-top:1px solid rgba(145,132,217,.13);" : "");
+
+    const pill = (label, on, onClick) => ({
+      label, onClick,
+      style: "cursor:pointer;flex:0 0 auto;font-family:var(--font-body);font-size:10px;letter-spacing:.08em;padding:8px 9px;border-radius:8px 8px 0 0;border:0;background:" +
+        (on ? "rgba(145,132,217,.18)" : "transparent") + ";color:" + (on ? "#e9e9ed" : "#75798c") +
+        ";box-shadow:" + (on ? "inset 0 -2px 0 #b5abfc" : "none")
+    });
+
+    return {
+      teamName: S.teamName,
+      abbrev: S.abbrev,
+      pinNote: "Set when you claimed this franchise. Four digits, used to sign in on a new device.",
+      onChangePin: () => this.setState({ pinOpen: !S.pinOpen }),
+      pinFields: S.pinOpen ? [{ cancel: () => self.setState({ pinOpen: false }) }] : [],
+
+      headStats: [
+        { value: meProj.toFixed(1), label: "PROJECTED" },
+        { value: ROSTER.length, label: "ON ROSTER" },
+        { value: "0-0", label: "RECORD" },
+        { value: "0.0", label: "POINTS FOR" }
+      ].map(s => Object.assign({}, s, {
+        valueStyle: "font-family:var(--font-heading);font-size:19px;line-height:1;color:" + (s.label === "PROJECTED" ? "#b5abfc" : "#e9e9ed")
+      })),
+
+      subtabs: ["Roster", "Matchup", "News", "Watch", "Trades", "Edit"]
+        .map(t => pill(t, S.tab === t, () => self.setState({ tab: t }))),
+      goEdit: () => this.setState({ tab: "Edit" }),
+
+      isRoster: S.tab === "Roster", isMatchup: S.tab === "Matchup", isNews: S.tab === "News",
+      isWatch: S.tab === "Watch", isTrades: S.tab === "Trades", isEdit: S.tab === "Edit",
+
+      bestBallNote: "Best ball — the highest-scoring legal lineup is taken for you every week. Highlighted players are the ones it would take right now; start rate is how often they land in it.",
+
+      // Best ball takes the top scorer at each slot, so the roster highlights
+      // whoever the optimal lineup would take right now — projections before
+      // kickoff, live points once the week is running.
+      groups: ORDER.map(pos => {
+        const players = ROSTER.filter(p => p.pos === pos).sort((a, b) => b.proj - a.proj);
+        const seat = {};
+        opt.forEach(o => { seat[o.p.n] = o.slot; });
+        const counts = {};
+        return {
+          pos, count: players.length + (players.length === 1 ? " PLAYER" : " PLAYERS"),
+          starts: STARTS[pos],
+          players: players.map((p, i) => {
+            const slot = seat[p.n];
+            const label = slot === "RB" || slot === "WR"
+              ? slot + (counts[slot] = (counts[slot] || 0) + 1)
+              : slot;
+            const flags = [];
+            if (label) flags.push({
+              label,
+              style: "font-size:8px;letter-spacing:.1em;padding:2px 6px;border-radius:3px;flex:0 0 auto;border:1px solid rgba(181,171,252,.7);background:rgba(145,132,217,.24);color:#d2cefd"
+            });
+            if (p.flag) flags.push({
+              label: p.flag,
+              style: "font-size:8px;letter-spacing:.1em;padding:2px 5px;border-radius:3px;flex:0 0 auto;border:1px solid rgba(224,181,115,.55);color:#e0b573"
+            });
+            return {
+              name: p.n,
+              line: p.t + " · " + p.line,
+              proj: pos === "IR" ? "—" : p.proj.toFixed(1),
+              startRate: pos === "IR" ? "OUT" : p.sr + "%",
+              flags,
+              rowStyle: rowBase(i) + (label
+                ? "background:rgba(145,132,217,.12);box-shadow:inset 2px 0 0 #b5abfc;"
+                : pos === "IR" ? "opacity:.6;" : ""),
+              barStyle: "height:100%;width:" + p.sr + "%;border-radius:99px;animation:mt-grow .8s ease;background:" +
+                (label ? "linear-gradient(90deg,#5d5294,#b5abfc)" : p.sr >= 30 ? "rgba(181,171,252,.45)" : "rgba(145,132,217,.28)")
+            };
+          })
+        };
+      }),
+
+      oppName: "Manchester Poop Farmers",
+      meProj: meProj.toFixed(1),
+      oppProj: oppProj.toFixed(1),
+      meBarStyle: "height:100%;width:" + share.toFixed(1) + "%;border-radius:99px;background:linear-gradient(90deg,#5d5294,#b5abfc);box-shadow:0 0 12px rgba(181,171,252,.6);animation:mt-grow .9s cubic-bezier(.2,.8,.2,1)",
+      marginLabel: share >= 50 ? "YOU FAVORED" : "UNDERDOG",
+      winProb: "WIN PROB " + Math.round(share + (share - 50) * 0.9) + "%",
+      slotBattle: opt.map((o, i) => {
+        const them = OPP[i] || ["", "—", 0];
+        return {
+          slot: o.slot, mine: o.p.n, myProj: o.p.proj.toFixed(1),
+          theirs: them[1], theirProj: them[2] ? them[2].toFixed(1) : "—",
+          rowStyle: rowBase(i)
+        };
+      }),
+
+      newsFilters: ["All", "Injury", "Role", "Matchup"].map(f => ({
+        label: f,
+        onClick: () => self.setState({ newsFilter: f }),
+        style: "cursor:pointer;flex:0 0 auto;font-family:var(--font-body);font-size:10px;letter-spacing:.12em;padding:7px 12px;border-radius:99px;border:1px solid " +
+          (S.newsFilter === f ? "rgba(181,171,252,.6);background:rgba(145,132,217,.18);color:#e9e9ed" : "rgba(145,132,217,.24);background:transparent;color:#75798c")
+      })),
+      news: NEWS.filter(n => S.newsFilter === "All" || n.tag === S.newsFilter.toUpperCase()).map(n => ({
+        player: n.player, head: n.head, src: n.src, when: n.when, tag: n.tag,
+        tagStyle: "font-size:8px;letter-spacing:.14em;padding:3px 6px;border-radius:3px;flex:0 0 auto;border:1px solid " +
+          (n.kind === "inj" ? "rgba(224,181,115,.5);color:#e0b573"
+           : n.kind === "role" ? "rgba(181,171,252,.5);color:#b5abfc"
+           : "rgba(143,148,168,.5);color:#8f94a8")
+      })),
+
+      watchNote: watchCount + " players tracked. Adds and drops on any of them push an alert.",
+      watchlist: WATCH.map((w, i) => {
+        const on = S.watch[w.n] !== false;
+        return {
+          name: w.n, posTeam: w.pt, note: w.note,
+          rowStyle: rowBase(i) + "align-items:flex-start;",
+          btnLabel: on ? "TRACKING" : "TRACK",
+          onClick: () => self.setState({ watch: Object.assign({}, S.watch, { [w.n]: !on }) }),
+          btnStyle: "cursor:pointer;flex:0 0 auto;font-family:var(--font-body);font-size:9px;letter-spacing:.12em;padding:7px 9px;border-radius:7px;border:1px solid " +
+            (on ? "rgba(181,171,252,.55);background:rgba(145,132,217,.16);color:#b5abfc" : "rgba(145,132,217,.26);background:transparent;color:#75798c")
+        };
+      }),
+
+      offers: OFFERS.map(o => Object.assign({}, o, {
+        stateStyle: "font-size:8px;letter-spacing:.14em;padding:3px 7px;border-radius:3px;flex:0 0 auto;border:1px solid " +
+          (o.kind === "pending" ? "rgba(181,171,252,.55);color:#b5abfc" : "rgba(224,181,115,.5);color:#e0b573")
+      })),
+      blockNote: blockCount
+        ? blockCount + (blockCount === 1 ? " player" : " players") + " listed. Every manager in the league can see them."
+        : "Nothing listed. Blocking a player tells the league you will listen; it commits you to nothing.",
+      blockList: BLOCK.map((b, i) => {
+        const on = !!S.block[b.n];
+        return {
+          name: b.n, posTeam: b.pt, rowStyle: rowBase(i),
+          btnLabel: on ? "LISTED" : "LIST",
+          onClick: () => self.setState({ block: Object.assign({}, S.block, { [b.n]: !on }) }),
+          btnStyle: "cursor:pointer;flex:0 0 auto;font-family:var(--font-body);font-size:9px;letter-spacing:.12em;padding:7px 10px;border-radius:7px;border:1px solid " +
+            (on ? "rgba(127,216,168,.5);background:rgba(30,54,44,.5);color:#7fd8a8" : "rgba(145,132,217,.26);background:transparent;color:#75798c")
+        };
+      }),
+
+      onName: e => this.setState({ teamName: e.target.value }),
+      onAbbrev: e => this.setState({ abbrev: e.target.value.toUpperCase() }),
+      toggles: [
+        { k: "injury", label: "Injury news", note: "Any designation change on a rostered player." },
+        { k: "wire", label: "Watchlist moves", note: "When a tracked player is added or dropped." },
+        { k: "trade", label: "Trade offers", note: "New offers and counters." },
+        { k: "recap", label: "Weekly recap", note: "Monday summary of what your optimal lineup scored." }
+      ].map(t => {
+        const on = S.alerts[t.k];
+        return {
+          label: t.label, note: t.note,
+          onClick: () => self.setState({ alerts: Object.assign({}, S.alerts, { [t.k]: !on }) }),
+          trackStyle: "cursor:pointer;flex:0 0 auto;width:44px;height:26px;border-radius:99px;padding:0 3px;display:flex;align-items:center;justify-content:" +
+            (on ? "flex-end" : "flex-start") + ";border:1px solid " +
+            (on ? "rgba(181,171,252,.6);background:rgba(145,132,217,.28)" : "rgba(145,132,217,.24);background:rgba(15,17,28,.7)"),
+          knobStyle: "display:block;width:18px;height:18px;border-radius:50%;background:" +
+            (on ? "#b5abfc;box-shadow:0 0 10px rgba(181,171,252,.7)" : "#595d6c") + ";transition:all .2s ease"
+        };
+      }),
+
+      tabs: ["Home,home", "My Team,team", "League,league", "Moves,moves", "Office,office"].map(v => {
+        const [label, key] = v.split(",");
+        const on = S.nav === label;
+        return {
+          label, path: P[key],
+          onClick: () => self.setState({ nav: label }),
+          style: "cursor:pointer;background:" + (on ? "rgba(145,132,217,.12)" : "transparent") +
+            ";border:0;padding:11px 0 9px;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative;font-family:var(--font-body);color:" +
+            (on ? "#e9e9ed" : "#75798c"),
+          markStyle: "position:absolute;top:0;left:50%;transform:translateX(-50%);width:" + (on ? "34px" : "0") +
+            ";height:2px;border-radius:99px;background:#b5abfc;box-shadow:0 0 10px #b5abfc;transition:width .25s ease"
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import Nav from "@/components/Nav";
-import MyTeamHub from "@/components/MyTeamHub";
+import MyTeamBoard from "@/components/MyTeamBoard";
 
 export const metadata = { title: "My Team · Pylon Fantasy" };
 
@@ -13,7 +13,7 @@ export default function MyTeamPage() {
       }}
     >
       <Nav current="/my-team" />
-      <MyTeamHub />
+      <MyTeamBoard />
     </div>
   );
 }

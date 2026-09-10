@@ -320,7 +320,13 @@ function HeadSide({
   );
 }
 
-export default function MatchupBoard() {
+/**
+ * `embedded` drops the small heading above the scoreline. Under the My Team
+ * screen the sub-tab already says "Matchup" over a header that already names
+ * the franchise, and a second "Your matchup" under both is a label repeating
+ * itself.
+ */
+export default function MatchupBoard({ embedded = false }: { embedded?: boolean } = {}) {
   const [board, setBoard] = useState<Board | null>(null);
   const [bye, setBye] = useState<Bye | null>(null);
   // Who the schedule says you are playing, remembered from the load that had
@@ -476,7 +482,12 @@ export default function MatchupBoard() {
 
   return (
     <>
-      <div style={{ margin: "8px 20px 0", paddingTop: 22, borderTop: "1px solid rgb(var(--accent-rgb) / .18)" }}>
+      {/* Kept when the game on screen is somebody else's, because then the
+          heading is the only thing saying whose it is. */}
+      <div
+        hidden={embedded && mine}
+        style={{ margin: "8px 20px 0", paddingTop: 22, borderTop: "1px solid rgb(var(--accent-rgb) / .18)" }}
+      >
         <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>
           {mine ? "THIS WEEK" : "ELSEWHERE IN THE LEAGUE"}
         </div>

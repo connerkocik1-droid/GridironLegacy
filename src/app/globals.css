@@ -997,3 +997,14 @@ button[disabled]:active {
     animation: none;
   }
 }
+
+/* A strip that scrolls sideways rather than wrapping — the My Team sub-tabs,
+   the same trick the nav above them uses. The bar itself is hidden because it
+   would sit across the row it belongs to; the fade at the right edge, applied
+   where the strip is, is what says there is more. */
+.gl-noscrollbar {
+  scrollbar-width: none;
+}
+.gl-noscrollbar::-webkit-scrollbar {
+  display: none;
+}
