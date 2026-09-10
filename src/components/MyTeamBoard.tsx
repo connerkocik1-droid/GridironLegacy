@@ -176,24 +176,43 @@ function Board() {
     void load();
   }, [load]);
 
-  const projected = useMemo(() => {
+  /**
+   * What this roster is worth this week, and whether that is a score yet.
+   *
+   * A nought before anything has been played is not a score, it is a week that
+   * has not happened — and the two are told apart by whether the league has
+   * written down a single number, not by whether the week is flagged as begun.
+   * The flag turns over when the first fixture is due; the scores arrive when
+   * somebody actually plays. In the hours between, this said "0.0 SCORED" over
+   * a full roster, which reads as a catastrophe rather than as a Sunday
+   * morning.
+   */
+  const tally = useMemo(() => {
     const roster = feed?.roster ?? [];
     if (!roster.length) return null;
 
-    // Once the slate is running the honest number is what has been scored;
-    // before it, what the best arrangement of this roster projects. The same
-    // rule the roster below and the matchup page both follow.
-    if (feed?.started) {
-      const slots = optimalLineup(roster, feed.settings ?? null);
-      let total = 0;
-      for (const name of slots.keys()) total += feed.scores?.[name]?.points ?? 0;
-      return total;
-    }
+    // Recorded at all, rather than recorded as nought: a man who has taken the
+    // field and not scored is a real nought and belongs in the total, while a
+    // week with nothing written down at all has not happened yet.
+    const recorded = roster.some((name) => feed?.scores?.[name] != null);
+    const live = Boolean(feed?.started) && recorded;
 
-    const slots = optimalLineup(roster, feed?.settings ?? null);
+    // The basis first, then the lineup from it. This is the whole of the bug
+    // this replaces: the lineup was chosen by projection and the live points
+    // were then summed over whoever projection had picked. Best ball does not
+    // work that way — the slots fill with whoever is actually scoring. On a
+    // Thursday night, when one man on the roster has played and he is not in
+    // the projected eleven, that arithmetic returns nought over a roster that
+    // has six points on the board.
+    const values = new Map<string, number>(
+      roster.map((name) => [name, live ? (feed?.scores?.[name]?.points ?? 0) : proj(name)]),
+    );
+
+    const slots = optimalLineup(roster, feed?.settings ?? null, values);
+
     let total = 0;
-    for (const name of slots.keys()) total += proj(name);
-    return total;
+    for (const name of slots.keys()) total += values.get(name) ?? 0;
+    return { value: total, scored: live };
   }, [feed]);
 
   const manager = me.status === "signed-in" ? me.manager : null;
@@ -228,8 +247,8 @@ function Board() {
 
   const stats: { value: string; label: string; accent?: boolean }[] = [
     {
-      value: projected == null ? "—" : projected.toFixed(1),
-      label: feed?.started ? "SCORED" : "PROJECTED",
+      value: tally == null ? "—" : tally.value.toFixed(1),
+      label: tally?.scored ? "SCORED" : "PROJECTED",
       accent: true,
     },
     { value: onRoster ? String(onRoster) : "—", label: "ON ROSTER" },

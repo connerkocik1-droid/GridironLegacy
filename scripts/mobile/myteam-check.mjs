@@ -121,6 +121,53 @@ console.log("\n--- the roster ---");
   ok("and no slot the league does not field", !(await page.locator('text="RB3"').count()));
 }
 
+console.log("\n--- before anybody has played ---");
+{
+  // The week is flagged as begun and no score exists yet — the hour before
+  // the first kickoff. The header said "0.0 SCORED" over a full roster and
+  // every row read 0.0 PTS, which looks like a disaster rather than a Sunday
+  // morning. A nought before anything is played is not a score.
+  await page.goto(`${BASE}/my-team?nothingplayed=1`, { waitUntil: "networkidle" });
+  await page
+    .waitForFunction(() => /START RATE/.test(document.body.innerText), undefined, { timeout: 20000 })
+    .catch(() => {});
+  const t = await page.locator("body").innerText();
+
+  ok("the header does not claim a score", !/\bSCORED\b/.test(t));
+  ok("it offers the projection instead", /PROJECTED/.test(t));
+
+  const headline = t.match(/([\d.]+)\nPROJECTED/)?.[1];
+  ok(`and the projection is a real number (${headline})`, Number(headline) > 0);
+
+  ok("the rows are projections too", /PROJ/.test(t) && !/\bPTS\b/.test(t));
+  ok("and none of them reads nought",
+    !/(^|\n)0\.0(\n|$)/.test(t));
+
+  await page.goto(`${BASE}/my-team`, { waitUntil: "networkidle" });
+  await page
+    .waitForFunction(() => /START RATE/.test(document.body.innerText), undefined, { timeout: 20000 })
+    .catch(() => {});
+  ok("while a week with scores in it still says so",
+    /\bSCORED\b/.test(await page.locator("body").innerText()));
+}
+
+console.log("\n--- when one man has played and the rest have not ---");
+{
+  // Thursday night. One player on the roster has scored six; nobody else has
+  // taken the field. Best ball fills the slots with whoever is actually
+  // scoring, so the roster is worth six — but the header chose its lineup by
+  // projection and then summed live points over whoever projection had
+  // picked, and the man who played was not among them. It read 0.0.
+  await page.goto(`${BASE}/my-team?thursday=1`, { waitUntil: "networkidle" });
+  await page
+    .waitForFunction(() => /START RATE/.test(document.body.innerText), undefined, { timeout: 20000 })
+    .catch(() => {});
+  const t = await page.locator("body").innerText();
+
+  ok("it counts the man who played", /6\.0\nSCORED/.test(t));
+  ok("rather than nought", !/0\.0\nSCORED/.test(t));
+}
+
 console.log("\n--- the reserve ---");
 {
   const t = await body();

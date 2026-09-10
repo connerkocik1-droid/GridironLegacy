@@ -433,6 +433,15 @@ export function routes(page, over = {}) {
       { week: 1, final: true, divisional: false, live: false, mine: false,
         home: side(MANAGERS[2], 61.2), away: side(MANAGERS[5], 88.0),
         winProbability: 0 },
+      // A second graded week, so somebody is on a run of two. With one week
+      // played every streak is one, and the Overview's streak card has
+      // nothing to say — which is how it went untested.
+      { week: 2, final: true, divisional: false, live: false, mine: true,
+        home: side(MANAGERS[0], 131.6), away: side(MANAGERS[2], 92.4),
+        winProbability: 1 },
+      { week: 2, final: true, divisional: false, live: false, mine: false,
+        home: side(MANAGERS[5], 104.9), away: side(MANAGERS[3], 77.1),
+        winProbability: 1 },
       { week: 3, final: false, divisional: false, live: true, mine: true,
         home: livingSide(MANAGERS[0], 44.1, 113.7, 5, 2),
         away: livingSide(MANAGERS[7], 30.0, 125.1, 6, 1),
@@ -531,6 +540,18 @@ export function routes(page, over = {}) {
   page.route("**/api/lineup**", (r) => {
     const asked = new URL(r.request().url()).searchParams.get("manager");
     const theirs = asked && asked !== ME.id;
+    // The hour before the first kickoff: the week is flagged as begun and not
+    // a single score exists yet. Keyed off the page's own address rather than
+    // the request's, because the app asks for /api/lineup with no parameters
+    // and a route nobody can reach tests nothing. Nothing held this state
+    // before, which is how "0.0 SCORED" over a full roster shipped.
+    const nothingPlayed = page.url().includes("nothingplayed=1");
+    // Thursday night: exactly one man on the roster has played, and he is the
+    // worst projected player on it — so he is nowhere near the lineup
+    // projection would pick. Best ball fills the slots with whoever is
+    // actually scoring, so the roster is worth his six points and not nought.
+    // Reached with ?thursday=1.
+    const thursday = page.url().includes("thursday=1");
     return r.fulfill({ json: {
       week: 3,
       me: theirs
@@ -553,8 +574,12 @@ export function routes(page, over = {}) {
       rosterCount: ROSTER.length - STASHED.length
         + STASHED.filter((n) => !IR_ELIGIBLE.includes(n)).length,
       rosterLimit: ROSTER.length - STASHED.length,
-      live: true, started: true, weekPhase: "live", final: false,
-      scores: SCORES,
+      live: !nothingPlayed, started: true, weekPhase: "live", final: false,
+      scores: nothingPlayed
+        ? {}
+        : thursday
+          ? { "Rome Odunze": { points: 6, statLine: "4 rec · 61 rec yds" } }
+          : SCORES,
     } });
   });
 
@@ -613,14 +638,18 @@ export function routes(page, over = {}) {
   // The slate the ticker rides on. Without it the strip renders nothing, so
   // every audit run measured a home page with the top rail missing — and the
   // link into the gamecast lives inside that rail.
+  //
+  // The kickoff times differ so the games page has something to sort and
+  // something to group: one slate with every game at the same minute is one
+  // heading, which proves nothing about either.
   const SLATE = [
-    ["401671801", "PHI", "Eagles", 17, "WSH", "Commanders", 21, "in", "3rd Quarter · 4:12"],
-    ["401671802", "KC", "Chiefs", 28, "BUF", "Bills", 24, "post", "Final"],
-    ["401671803", "SF", "49ers", 0, "SEA", "Seahawks", 0, "pre", "Sun 1:00 PM"],
+    ["401671801", "PHI", "Eagles", 17, "WSH", "Commanders", 21, "in", "3rd Quarter · 4:12", 60],
+    ["401671802", "KC", "Chiefs", 28, "BUF", "Bills", 24, "post", "Final", 60 * 26],
+    ["401671803", "SF", "49ers", 0, "SEA", "Seahawks", 0, "pre", "Sun 1:00 PM", -180],
   ];
   page.route("**/api/scoreboard**", json({
-    games: SLATE.map(([id, aa, an, as_, ha, hn, hs, state, detail]) => ({
-      id, date: ago(60), week: 3, seasonType: 2, state,
+    games: SLATE.map(([id, aa, an, as_, ha, hn, hs, state, detail, when]) => ({
+      id, date: ago(when), week: 3, seasonType: 2, state,
       completed: state === "post", statusDetail: detail,
       away: { abbrev: aa, name: an, score: as_, homeAway: "away", winner: as_ > hs, logo: "" },
       home: { abbrev: ha, name: hn, score: hs, homeAway: "home", winner: hs > as_, logo: "" },
@@ -716,7 +745,26 @@ export function routes(page, over = {}) {
     fetchedAt: new Date().toISOString(),
   }));
 
-  page.route("**/api/rankings", json({ points: {}, rostered: {}, basis: "2025" }));
+  // What the league has scored each player this season. Rome Odunze is the
+  // point of it: drafted WR28 and now the highest-scoring receiver in the
+  // league, which is the largest climb against a draft slot and therefore the
+  // Overview's Best Value card. Without real numbers here every generated
+  // sentence on that screen has nothing to be generated from.
+  page.route("**/api/rankings", json({
+    points: {
+      "Rome Odunze": { total: 61.4, games: 2 },
+      "Ja'Marr Chase": { total: 48.2, games: 2 },
+      "Puka Nacua": { total: 41.9, games: 2 },
+      "Marvin Harrison Jr.": { total: 22.6, games: 2 },
+      "Jahmyr Gibbs": { total: 55.8, games: 2 },
+      "Tank Bigsby": { total: 18.4, games: 2 },
+      "Brock Bowers": { total: 37.1, games: 2 },
+      "Trey McBride": { total: 29.5, games: 2 },
+      "Jayden Daniels": { total: 52.3, games: 2 },
+    },
+    rostered: {},
+    basis: "league",
+  }));
 
   page.route("**/api/players**", json({
     me: ME, mode: "waivers", waiverDays: 1, capacity: 25, held: 13,

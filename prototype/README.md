@@ -1,85 +1,120 @@
-# Handoff: Pylon Fantasy — mobile My Team
+# Handoff: Pylon Fantasy — mobile League
 
 ## Overview
 
-The redesigned mobile My Team screen, pre-week (Week 1, 2026, nothing played yet). Six sections behind a sub-tab strip: Roster, Matchup, News, Watch, Trades, Edit.
+The mobile League screen. Seven sections behind a sub-tab strip, ordered by use: **Overview, Standings, Chat, Moves, News, Ranks, Rules**.
 
-The league is **best ball**, so there is no lineup setting. The roster groups by position rather than starters/bench, and each player carries a **start rate** — the share of simulated weeks they land in the optimal lineup. The players the optimal lineup would take right now are highlighted with an accent edge and a slot chip (QB, RB1, RB2, WR1, WR2, TE, FLEX, K, D/ST). Ordering is by projection before kickoff and should switch to live points once a week is running.
+The defining property of this screen: **almost nothing is authored prose**. Headlines, trade grades, matchup reads and the three rotating Overview cards are all generated from two tables (weekly scores, player scoring vs. draft position). Pushing a real week of results into those tables rewrites the page. Treat the generators as the spec — they are the part worth porting carefully.
+
+State of the season in the prototype: **Week 4, three weeks graded.**
 
 ## About the design files
 
-`Pylon My Team.dc.html` is a **Design Component** in the same format as the existing files in `prototype/` — same `support.js` runtime, same `<x-dc>` template + `class Component extends DCLogic` structure, same Nocturne stylesheet path (`_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/`). It is a working prototype, not production code: data lives in inline constants, not API calls.
-
-Two ways to land it:
-
-**A — drop it into `prototype/` as-is.** It runs unmodified next to the existing `My Team.dc.html` (which is the wide desktop version).
-
-**B — port it into `src/`** as the real mobile My Team, using the repo's components and data layer. Treat this file as the spec.
+`Pylon League.dc.html` is a **Design Component** in the same format as the files in `prototype/` — same `support.js` runtime, same `<x-dc>` template + `class Component extends DCLogic` structure, same Nocturne stylesheet path (`_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/`). It runs unmodified in `prototype/`; port into `src/` using this file as the spec.
 
 Fidelity: **high**. Colors, type, spacing and motion are final.
 
 ## Files in this bundle
 
-- `Pylon My Team.dc.html` — the screen. Template + logic in one file.
-- `ios-frame.jsx` — iPhone bezel wrapper (`IOSDevice`). **Presentation only** — drop it when porting and let the screen fill the viewport.
-- `image-slot.js` — drag-and-drop image placeholder used for the team photo on the Edit tab. Replace with a real upload control.
+- `Pylon League.dc.html` — the screen. Template + logic in one file.
+- `ios-frame.jsx` — iPhone bezel wrapper (`IOSDevice`). **Presentation only** — drop it when porting.
+- `image-slot.js` — drag-and-drop image placeholder standing in for player headshots. Replace with your real headshot source, keyed by player id.
 
 Not bundled (already in the repo): `prototype/support.js`, `_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css` and `_ds_bundle.js`.
 
-## Structure
+## The two source tables
 
-**Header (sticky)** — abbreviation tile, team name, manager name, pencil button jumping to Edit. Beneath it a four-stat row (Projected, On roster, Record, Points for), then the sub-tab strip.
+Everything derives from these. In the real app they are queries, not constants.
 
-**Roster** — one card per position group (QB, RB, WR, TE, K, D/ST, IR), sorted by projection. Each row: name, slot chip if in the optimal lineup, injury flag, team + role note, a start-rate bar, and the projection. Highlighted rows carry a 2px accent inset edge. IR rows read "OUT" and dim to 60%.
+**`SCHEDULE`** — array of weeks, each an array of `[teamIndex, teamIndex]` pairings. `WEEK` marks the current (unplayed) week.
 
-**Matchup** — projected total vs. opponent with a share bar and win probability, then the projected optimal lineup slot by slot against theirs.
+**`SCORES`** — per franchise, an array of weekly point totals for graded weeks.
 
-**News** — filter chips (All / Injury / Role / Matchup) over cards tagged by kind, tinted amber for injury, accent for role, neutral for matchup.
+**`PLAYERS`** — per player: `n` (name), `pos`, `t` (NFL team), `pre` (preseason positional rank), `wk` (weekly fantasy points).
 
-**Watch** — tracked players with a TRACK / TRACKING toggle.
+**`TEAMS`** — franchise, owner, division, power score. From `supabase/seed.sql`.
 
-**Trades** — incoming offers with a get/give split, a one-line verdict, and Accept / Decline; below that the trade block with LIST / LISTED toggles.
+### Derived helpers
 
-**Edit** — team name, abbreviation, read-only manager, a full-width team photo drop slot; an Alerts card with four toggles; a Security card with a Change PIN button that expands current/new PIN fields; Save.
+| Function | What it returns |
+| --- | --- |
+| `total(p)` | Player's season points |
+| `currentRank(p)` | Player's current positional rank, by points |
+| `table()` | Per franchise: results array, W/L, active streak + kind, points for |
+| `slotId(name)` | Stable headshot slot id (`hs-zay-flowers`) |
 
-**Tab bar** — Home / My Team / League / Moves / Office, Phosphor icons, glowing accent mark on the active tab.
+## Section by section
 
-## Data notes
+### Overview
 
-- `ROSTER` is transcribed from `src/data/league-data.js` (`STARTERS`, `BENCH`, `IR`) — same players, teams and projections. When porting, read that module directly rather than re-typing it.
-- `sr` (start rate) is **authored prototype data**, not derived. Real implementation should compute it from simulated weeks.
-- `optimal()` builds the best-ball lineup from projections: QB 1, RB 2, WR 2, TE 1, FLEX 2, K 1, D/ST 1 — matching `settings.starters` in `supabase/seed.sql`. IR players are excluded.
-- Record and points-for read `0-0` / `0.0` pre-week-1.
-- News, watchlist, trade offers and the block are prototype content built around the real roster.
-- Edit-tab state (name, abbreviation, alert toggles, PIN panel) is local component state; wire to the `managers` table. The PIN flow is UI only.
+**Three rotating cards**, auto-advancing every 6.5s, dots to jump. All computed:
+
+1. **Best Value** — the player with the largest gain against preseason positional rank. Large headshot, `WR31 → WR3 ▲28`, points / per-game / overall rank, and a generated sentence.
+2. **Hot Streak** — every team tied at the longest *active* win streak (handles ties and the single-leader case in one code path). W/L pips per week, record, points for.
+3. **MVP** — top three scorers league-wide as compact rows with gold / silver / bronze medals, headshot, points tinted to the medal.
+
+Below: a **live wire ticker** of recent moves, then the **week 4 slate** — tap any game to expand a win-probability bar, the spread, and a generated read that differs for tight / normal / lopsided gaps. The user's own matchup is highlighted.
+
+### Standings
+
+Toggles **Divisions** (North / South, ordered by record then points for) and **Power** (league-wide power score). Records, PF and bars all come from `table()`.
+
+### Chat
+
+Bubbles, own messages right-aligned, tap-to-toggle reactions with live counts, typing indicator, working input.
+
+### Moves
+
+A move record is only `{kind, who, when, player, side, cost}`. The grade and write-up are **generated**: the player's rank movement decides `STEAL` (≥10 spots to the acquirer) / `SHARP` (≥3) / `EVEN` / `RISKY` (≤−3), and the sentence states points scored, current rank, draft rank and which side the value moved toward. Filterable by kind.
+
+### News
+
+Five item types, each generated from the week's numbers: highest single week, biggest riser, longest streak, points-for leader, and any winless teams. No authored headlines.
+
+### Ranks
+
+Consensus board, position-filterable, sorted by projection, with ▲▼ movement against board order.
+
+### Rules
+
+Accordion — the one place authored text is correct, since league rules don't fluctuate. Drawn from `DRAFT-PICKS.md` and `supabase/seed.sql` settings.
+
+## What to wire when porting
+
+1. **`SCORES` / `SCHEDULE`** → real matchup and scoring tables. Everything else follows.
+2. **`PLAYERS.pre`** → preseason positional rank from your draft board (`src/data/board-leaders.js` has ADP for the top of the board). `wk` → weekly fantasy points.
+3. **Headshots** → replace `<image-slot>` with your image source, keyed by the same `slotId(name)` scheme.
+4. **Chat** → real messages and reactions; the prototype keeps them in component state.
+5. **Moves** → your transaction log; keep the record thin and let the generator write the copy.
+6. **Power score** → currently authored per franchise in `TEAMS`; compute it from roster projection, depth and age.
+
+## Behaviour worth preserving
+
+- Every generated sentence branches on the data (ties, single leaders, winless teams, lopsided vs. tight games). Don't collapse those branches into one string.
+- Overview rotation pauses implicitly when the user is on another tab (the interval checks `tab === "Overview"`).
+- Records read `0-0` and points `0.0` when no weeks are graded — the empty state is already handled.
 
 ## State
 
-- `tab` — active sub-section
-- `newsFilter` — All / Injury / Role / Matchup
-- `nav` — active bottom tab
-- `teamName`, `abbrev` — Edit fields
-- `block`, `watch` — per-player toggle maps
-- `alerts` — four booleans
-- `pinOpen` — PIN panel expanded
+`tab`, `nav`, `standingsMode`, `moveFilter`, `posFilter`, `openRule`, `openGame`, `story` (rotation index), `reacts`, `draft`, `sent`.
 
 ## Design tokens
 
-Nocturne, dark. Off the stylesheet where possible (`var(--color-text)`, `var(--font-heading)`, `var(--font-body)`).
+Nocturne, dark. Use `var(--color-text)`, `var(--font-heading)`, `var(--font-body)` where available.
 
-- Ground `#0f111c` with two radial washes: `#23274a` top-left, `#2b1e3d` top-right
-- Surfaces `rgba(22,24,38,.72)`; matchup hero `linear-gradient(160deg, rgba(38,32,64,.9), rgba(20,22,36,.86))`
-- Accent `#b5abfc`; deeper `#5d5294`; accent tints `rgba(145,132,217,.08–.36)`
-- Muted text `#8f94a8`, dim `#75798c`, dimmest `#595d6c`
-- Warning / injury `#e0b573`; live `#ff9a5c`; positive `#7fd8a8`; negative `#e07a7a`
-- Radii: 16px hero, 14px cards, 12px news, 9px inputs, 8px buttons
-- Gutter 18px; card padding 14–16px; row padding 11px 13px
-- Type: uppercase micro-labels 8–10px with .1–.28em tracking; body 10–13px; team name 21px; scores 30px. `font-variant-numeric: tabular-nums` on the root.
+- Ground `#0f111c` with radial washes `#23274a` top-left, `#2b1e3d` top-right
+- Surfaces `rgba(22,24,38,.72)`; hero card `linear-gradient(160deg, rgba(38,32,64,.92), rgba(20,22,36,.86))`
+- Accent `#b5abfc`, deeper `#5d5294`, tints `rgba(145,132,217,.06–.36)`
+- Muted `#a8adc0` / `#8f94a8` / `#75798c` / `#595d6c`
+- Positive `#7fd8a8`, negative `#e07a7a`, warning `#e0b573`, live `#ff9a5c`
+- Medals: gold `#e8c56a` (`#f0d488→#b8892f`), silver `#c4cad6` (`#d8dde7→#8b93a3`), bronze `#cd9060` (`#e0a878→#96603a`)
+- Radii 16 hero / 14 cards / 12 items / 10 rows / 8 buttons; gutter 18px
+- Micro-labels 8–10px at .1–.28em tracking; body 11–13px; `tabular-nums` on the root
 
 ## Motion
 
-CSS keyframes in `<helmet>`: `mt-pulse` (live dot), `mt-rise` (entrance), `mt-grow` (bars from zero), `mt-sweep` (diagonal sheen on the matchup card). Toggles transition over .2s; tab mark width over .25s.
+`lg-pulse` (live dots), `lg-rise` (card and row entrances), `lg-grow` (bars from zero), `lg-sweep` (sheen across the hero), `lg-marquee` (wire ticker, 30s), `lg-blink` (typing dots).
 
 ## Suggested prompt for Claude Code
 
-> This bundle contains a Design Component prototype of a redesigned mobile My Team screen for this repo (same format as `prototype/My Team.dc.html`). Read `README.md` first. Land it as-is in `prototype/`, then plan the port into `src/` against the real league data — see "Data notes" for what is grounded in `src/data/league-data.js` and what is prototype-only. The league is best ball: there is no lineup setting. Do not ship the `ios-frame.jsx` bezel into the app. Show me the plan before writing app code.
+> This bundle contains a Design Component prototype of the mobile League screen for this repo (same format as `prototype/`). Read `README.md` first. Land it in `prototype/` unchanged, then plan the port into `src/`. The important part is that headlines, trade grades and the three rotating Overview cards are GENERATED from two data tables, not authored — see "The two source tables" and "What to wire when porting". Preserve the generators and their branching. Do not ship `ios-frame.jsx`. Show me the plan before writing app code.

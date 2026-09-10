@@ -1,5 +1,5 @@
 import Nav from "@/components/Nav";
-import LeagueHub from "@/components/LeagueHub";
+import LeagueTabs from "@/components/LeagueTabs";
 
 export const metadata = { title: "The League · Pylon Fantasy" };
 
@@ -13,7 +13,7 @@ export default function TheLeaguePage() {
       }}
     >
       <Nav current="/the-league" />
-      <LeagueHub />
+      <LeagueTabs />
     </div>
   );
 }

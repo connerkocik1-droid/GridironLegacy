@@ -200,6 +200,43 @@ ok("the report's own players still wear their badge", /\bQ\b/.test(roster));
     !/\bQ\b/.test(text.replace(/Christian McCaffrey/g, "")));
 }
 
+console.log("\n--- the week's real football ---");
+{
+  await open("/games", /NFL Gamecast/);
+  const t = await page.locator("body").innerText();
+
+  ok("it names the week", /WEEK 3/.test(t));
+  ok("every fixture on the slate is there",
+    /PHI/.test(t) && /WSH/.test(t) && /KC/.test(t) && /BUF/.test(t) && /SF/.test(t) && /SEA/.test(t));
+
+  const cards = page.locator('a[href^="/game/"]');
+  const count = await cards.count();
+  ok(`each one opens its own gamecast (${count} of them)`, count === 3);
+
+  const hrefs = await cards.evaluateAll((els) => els.map((e) => e.getAttribute("href")));
+  ok(`and each names a different game (${hrefs.join(", ")})`,
+    new Set(hrefs).size === hrefs.length);
+
+  ok("a finished game says so", /FINAL/.test(t));
+  ok("and one still running says where it is", /3RD QUARTER/i.test(t));
+
+  // The reason this is not just a scoreboard: any of a dozen apps will say
+  // Buffalo are up ten, and none of them knows four of your eighteen are on
+  // that field. The fixture roster has players in all three games.
+  const stakes = (t.match(/OF YOURS/g) ?? []).length;
+  ok(`it says how many of your own are in each game (${stakes} of 3)`, stakes === 3);
+
+  // Sorted by kickoff and grouped by day, which is why the fixture's three
+  // games are deliberately hours apart.
+  const days = await page.locator("section").count();
+  ok(`grouped by day (${days} headings)`, days >= 2);
+
+  // And the way in from the home page.
+  await open("/", /NFL Gamecast/);
+  ok("with a door to it on the home page",
+    (await page.locator('a[href="/games"]').count()) > 0);
+}
+
 console.log("\n--- and every franchise named is a way in ---");
 for (const [where, sel] of [["the standings", "/standings"], ["the league page", "/league"]]) {
   await open(sel, /\/team\/|Steel Cartel/);

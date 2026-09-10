@@ -82,7 +82,11 @@ function winPct(r: Record_): number {
   return games ? (r.wins + r.ties * 0.5) / games : 0;
 }
 
-export default function Standings() {
+/**
+ * `embedded` drops the page title. Under the League screen the sub-tab
+ * already says "Standings" over a header that already names the league.
+ */
+export default function Standings({ embedded = false }: { embedded?: boolean } = {}) {
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
   const logos = useLogos();
@@ -148,19 +152,21 @@ export default function Standings() {
   }
 
   return (
-    <div style={{ padding: "24px 26px 40px" }}>
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>THE TABLE</div>
-      <h1
-        style={{
-          fontFamily: "var(--font-heading)",
-          fontSize: 40,
-          letterSpacing: "-.035em",
-          margin: "8px 0 6px",
-          fontWeight: 500,
-        }}
-      >
-        Standings
-      </h1>
+    <div style={{ padding: embedded ? "0 18px 24px" : "24px 26px 40px" }}>
+      <div hidden={embedded}>
+        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>THE TABLE</div>
+        <h1
+          style={{
+            fontFamily: "var(--font-heading)",
+            fontSize: 40,
+            letterSpacing: "-.035em",
+            margin: "8px 0 6px",
+            fontWeight: 500,
+          }}
+        >
+          Standings
+        </h1>
+      </div>
       <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 18px" }}>
         {board.played
           ? "Ordered by record, then by points scored."
