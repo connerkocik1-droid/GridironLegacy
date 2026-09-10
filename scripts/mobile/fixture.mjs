@@ -423,7 +423,26 @@ export function routes(page, over = {}) {
     played: true,
   }));
 
-  page.route("**/api/schedule", json({
+  // Week one, in play, nothing settled — the state the league is actually in
+  // on the first Sunday, and the one that had the Overview showing "nothing
+  // has been graded yet" all week. Reached with ?ungraded=1.
+  page.route("**/api/schedule", (r) => {
+    if (page.url().includes("ungraded=1")) {
+      return r.fulfill({ json: {
+        meId: "m0", league: { name: "Pylon Fantasy", season: 2026 },
+        weeks: [1], liveWeek: 1,
+        games: [
+          { week: 1, final: false, divisional: false, live: true, mine: true,
+            home: livingSide(MANAGERS[0], 44.1, 113.7, 5, 2),
+            away: livingSide(MANAGERS[7], 30.0, 125.1, 6, 1),
+            winProbability: 0.44 },
+        ],
+      } });
+    }
+    return r.fulfill({ json: SEASON_SO_FAR });
+  });
+
+  const SEASON_SO_FAR = {
     meId: "m0", league: { name: "Pylon Fantasy", season: 2026 },
     weeks: [1, 2, 3], liveWeek: 3,
     games: [
@@ -453,7 +472,7 @@ export function routes(page, over = {}) {
         away: livingSide(MANAGERS[9], 66.3, 118.9, 3, 2),
         winProbability: 0.37 },
     ],
-  }));
+  };
 
   page.route("**/api/league", json({
     meId: "m0", league: { name: "Pylon Fantasy", season: 2026, settings: SETTINGS },

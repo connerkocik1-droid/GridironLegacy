@@ -107,6 +107,35 @@ console.log("\n--- the overview writes itself ---");
   }
 }
 
+console.log("\n--- week one, in play, nothing settled ---");
+{
+  // The state the league is actually in on the first Sunday. Players have
+  // scored since Thursday; no week has been graded, because grading happens
+  // when the last game ends. The Overview waited for the wrong event and sat
+  // on its empty state for the whole of every week.
+  await page.goto(`${BASE}/the-league?ungraded=1`, { waitUntil: "networkidle" });
+  await page
+    .waitForFunction(() => /Overview/.test(document.body.innerText), undefined, { timeout: 20000 })
+    .catch(() => {});
+  await page.waitForTimeout(800);
+  const t = await body();
+
+  // Either wording of the empty state, so this keeps guarding if the copy
+  // changes again.
+  ok("it does not claim there is nothing to say",
+    !/Nobody has scored yet|Nothing has been graded yet/.test(t));
+  ok("the scoring cards are there", /BEST VALUE|MVP/.test(t));
+  // A streak is made of results, and there are none — so that one card, and
+  // only that one, stays away.
+  ok("and the streak card is not, because no week has been settled",
+    !/HOT STREAK/.test(t));
+
+  await page.goto(`${BASE}/the-league`, { waitUntil: "networkidle" });
+  await page
+    .waitForFunction(() => /Overview/.test(document.body.innerText), undefined, { timeout: 20000 })
+    .catch(() => {});
+}
+
 console.log("\n--- the news is read off the table too ---");
 {
   await open("News");

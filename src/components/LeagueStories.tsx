@@ -60,31 +60,46 @@ const kicker: React.CSSProperties = {
 export default function LeagueStories({
   rows,
   players,
-  weeks,
+  graded,
+  scored,
 }: {
   rows: Standing[];
   players: PlayerSeason[];
-  weeks: number;
+  /** Weeks the league has settled into records. Streaks need these. */
+  graded: number;
+  /** Weeks anybody has been scored in. Players need these. */
+  scored: number;
 }) {
   const stories = useMemo(() => {
     const out: { key: string; label: string; node: React.ReactNode }[] = [];
-    if (!weeks) return out;
 
-    const value = bestValue(players, weeks);
+    // Scoring and grading are not the same event, and this used to wait for
+    // the wrong one. A week is graded when its last game ends; players are
+    // scored from the first Thursday kickoff. Gating all three cards on
+    // grading meant the screen sat on "nothing has been graded yet" for the
+    // whole of every week, including the week everybody was watching.
+    const value = scored ? bestValue(players, scored) : null;
     if (value && value.gain > 0) {
-      out.push({ key: "value", label: "BEST VALUE", node: <ValueCard value={value} weeks={weeks} /> });
+      out.push({
+        key: "value",
+        label: "BEST VALUE",
+        node: <ValueCard value={value} weeks={scored} />,
+      });
     }
 
-    const { best, teams } = hotStreaks(rows);
-    if (best > 1) {
-      out.push({ key: "streak", label: "HOT STREAK", node: <StreakCard best={best} teams={teams} /> });
+    // The one card that does need a settled week: a streak is made of results.
+    if (graded) {
+      const { best, teams } = hotStreaks(rows);
+      if (best > 1) {
+        out.push({ key: "streak", label: "HOT STREAK", node: <StreakCard best={best} teams={teams} /> });
+      }
     }
 
     const top = topScorers(players);
     if (top.length) out.push({ key: "mvp", label: "MVP", node: <MvpCard top={top} /> });
 
     return out;
-  }, [rows, players, weeks]);
+  }, [rows, players, graded, scored]);
 
   const [at, setAt] = useState(0);
 
@@ -103,8 +118,9 @@ export default function LeagueStories({
       <div style={{ ...card, minHeight: 0, display: "grid", gap: 6 }}>
         <div style={kicker}>THE SEASON</div>
         <p style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.6, margin: 0 }}>
-          Nothing has been graded yet. Once a week is in the books this fills with who is
-          running hot, who has beaten their draft slot, and who is scoring most.
+          Nobody has scored yet. From the first kickoff this fills with who has beaten their
+          draft slot and who is scoring most, and it picks up the streaks once a week has
+          been settled.
         </p>
       </div>
     );

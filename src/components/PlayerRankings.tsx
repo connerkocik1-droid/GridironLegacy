@@ -106,7 +106,10 @@ export default function PlayerRankings() {
   }, [load]);
 
   // Ranking the whole pool is real work; it should not happen on a keystroke.
-  const rows = useMemo(() => rank(league, rostered), [league, rostered]);
+  const rows = useMemo(
+    () => rank(league, rostered, basis === "league"),
+    [league, rostered, basis],
+  );
 
   const visible = useMemo(() => {
     const inGroup = filter(rows, group);
@@ -137,7 +140,7 @@ export default function PlayerRankings() {
       </h1>
       <p style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 16px", maxWidth: "68ch" }}>
         {basis === "league"
-          ? "Points are what this league has actually awarded. "
+          ? "Points are what this league has awarded this season, and nothing else — a player it has not scored reads nought rather than last year's total. "
           : "Points are last season's finish, until this league has played a week. "}
         Every other column is a 2025 statistic, per game played rather than per
         game on the calendar.

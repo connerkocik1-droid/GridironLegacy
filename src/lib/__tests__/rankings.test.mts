@@ -123,12 +123,33 @@ console.log("\n--- this league's own scoring wins when it exists ---");
 }
 
 {
-  // A player the league has rostered but never scored falls back rather than
-  // being shown as a zero.
+  // Before this league has played, last season's finish is the only honest
+  // answer, so a player it has not scored falls back rather than reading nought.
   const zero = rank({ "Matthew Stafford": { total: 0, games: 0 } });
   const qb = zero.find((r) => r.name === "Matthew Stafford");
   ok("a player with no league games keeps last season's total",
     (qb?.total ?? 0) > 100);
+}
+
+console.log("\n--- but once it has played, the board is one season only ---");
+{
+  // The board used to mix them: this league's points where it had any, last
+  // season's everywhere else, sorted against each other in one column. After
+  // one week the top was whoever finished well last year and the men actually
+  // scoring were buried under them. A board with two bases ranks nothing.
+  const mixed = rank({ "Matthew Stafford": { total: 40, games: 1 } }, {}, true);
+  const scored = mixed.find((r) => r.name === "Matthew Stafford");
+  eq("a player this league has scored shows this league's points", scored?.total, 40);
+
+  const unscored = mixed.filter((r) => r.name !== "Matthew Stafford");
+  ok("and everybody it has not scored reads nought, not last year's total",
+    unscored.every((r) => r.total === 0));
+
+  ok("so the only man who has played is top of the board", mixed[0]?.name === "Matthew Stafford");
+
+  // The football columns are 2025's either way — they are context, not the
+  // thing being ranked, and blanking them would lose the whole table.
+  near("the statistics beside him are still last season's", scored?.stats.pypg, 276.9, 0.1);
 }
 
 console.log("\n--- players with no 2025 to speak of ---");

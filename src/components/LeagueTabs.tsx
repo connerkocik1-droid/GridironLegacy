@@ -125,7 +125,7 @@ function Board() {
     return () => observer.disconnect();
   }, [stripEl, measureStrip, tab]);
 
-  const { rows, players, graded } = useMemo(() => {
+  const { rows, players, graded, scored } = useMemo(() => {
     const games = schedule?.games ?? [];
 
     // One entry per franchise, taken off the fixtures rather than fetched
@@ -154,10 +154,17 @@ function Board() {
       final: g.final,
     }));
 
+    const players = seasonPlayers(totals);
+
     return {
       rows: standings([...seen.values()], fixtures),
-      players: seasonPlayers(totals),
+      players,
+      // Settled into records. What a streak is made of.
       graded: new Set(games.filter((g) => g.final).map((g) => g.week)).size,
+      // Weeks anybody has been scored in, which starts on Thursday and does
+      // not wait for the week to be graded. Read off the players rather than
+      // the fixtures, because scoring is what it is counting.
+      scored: players.reduce((n, p) => Math.max(n, p.games), 0),
     };
   }, [schedule, totals]);
 
@@ -258,7 +265,7 @@ function Board() {
             {!schedule ? (
               <Skeleton rows={4} />
             ) : (
-              <LeagueStories rows={rows} players={players} weeks={graded} />
+              <LeagueStories rows={rows} players={players} graded={graded} scored={scored} />
             )}
           </div>
         ) : null}
@@ -274,7 +281,7 @@ function Board() {
 
         {tab === "News" ? (
           <div style={{ padding: "0 18px" }}>
-            <LeagueNewsWire rows={rows} players={players} weeks={graded} />
+            <LeagueNewsWire rows={rows} players={players} weeks={Math.max(graded, scored)} />
           </div>
         ) : null}
 

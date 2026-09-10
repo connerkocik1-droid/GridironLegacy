@@ -136,11 +136,22 @@ function pointsFor(
   position: string,
   team: string,
   league: LeaguePoints,
+  thisSeason: boolean,
 ): { total: number; ppg: number; games: number } {
   const mine = league[name];
   if (mine && mine.games > 0) {
     return { total: mine.total, ppg: mine.total / mine.games, games: mine.games };
   }
+
+  // Once this league has scored a week, the board is this league's — and a
+  // player it has not scored has nought, not last year's three hundred.
+  //
+  // Falling through to 2025 here put two seasons in one column and then
+  // sorted them against each other, so after week one the top of the board
+  // was whoever finished well last year and the men actually scoring were
+  // buried under them. A board that mixes its bases is not a ranking of
+  // anything.
+  if (thisSeason) return { total: 0, ppg: 0, games: 0 };
 
   if (position === "D/ST") {
     const d = DEFENSE[team];
@@ -222,9 +233,11 @@ function statsFor(name: string, position: string, team: string): Record<string, 
 export function rank(
   league: LeaguePoints = {},
   rostered: Record<string, string> = {},
+  /** Whether this league has played a week, and so has a season of its own. */
+  thisSeason = false,
 ): Row[] {
   return POOL.map((p) => {
-    const points = pointsFor(p.n, p.p, p.t, league);
+    const points = pointsFor(p.n, p.p, p.t, league, thisSeason);
     return {
       name: p.n,
       position: p.p,

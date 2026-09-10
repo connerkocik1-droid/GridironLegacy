@@ -254,7 +254,24 @@ export async function refreshScores(
 
   const rostered = (rosterRows ?? []).map((r) => r.player_name);
 
-  const pulled = await pullWeek(rostered, format, { week: opts.week });
+  // Scored against the whole pool, not only what this league holds.
+  //
+  // This used to attribute box scores to rostered players alone, which was
+  // cheap and wrong in three visible ways: a free agent who played on Sunday
+  // had no stats on his own page, the rankings board could not be ordered by
+  // this season because most of the pool had no points in it, and the league
+  // screen could not name a riser it had never scored.
+  //
+  // Widening it costs nothing. The box scores are fetched per game — thirteen
+  // summaries on a Sunday — and every player in them already comes back; the
+  // index only decides which of them are kept. Throwing away nine hundred
+  // rows we already have in hand was the whole of the saving.
+  //
+  // Rosters first, so a waiver pickup from outside the original five hundred
+  // still scores, and deduped so a rostered player is not indexed twice.
+  const scorable = [...new Set([...rostered, ...POOL.map((p) => p.n)])];
+
+  const pulled = await pullWeek(scorable, format, { week: opts.week });
 
   // Best ball fills the slots from the database, so the database has to know
   // what everybody plays. Done here rather than on its own schedule because
@@ -271,16 +288,9 @@ export async function refreshScores(
 
   await mirrorSchedule(db, pulled.games, league.season);
 
-  if (!rostered.length) {
-    return {
-      refreshed: true,
-      week: pulled.week,
-      players: 0,
-      failed: pulled.failed.length,
-      state: pulled.state,
-      note: "no rosters yet",
-    };
-  }
+  // No early return for an undrafted league any more. The pool scores whether
+  // or not anybody owns it, which is what makes the rankings board real in
+  // week one rather than in whatever week the draft happens to run.
 
   const rows = [...pulled.scores].map(([player_name, score]) => ({
     league_id: leagueId,
