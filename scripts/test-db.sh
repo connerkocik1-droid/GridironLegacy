@@ -52,6 +52,7 @@ for _ in $(seq 1 20); do
 done
 
 psql() { command psql -h "$SOCK" -p "$PORT" -U postgres -d postgres "$@"; }
+bundle_psql() { command psql -h "$SOCK" -p "$PORT" -U postgres -d bundle "$@"; }
 
 # Stand-ins for what Supabase provides, so the migrations run unmodified.
 psql -q -v ON_ERROR_STOP=1 <<'SQL'
@@ -76,6 +77,52 @@ SQL
 
 for migration in "$ROOT"/supabase/migrations/*.sql; do
   psql -q -v ON_ERROR_STOP=1 -f "$migration"
+done
+
+# The file that actually reaches production.
+#
+# The loop above applies each migration on its own, at the top level, which is
+# not how any of this is ever run for real: all-migrations.sql wraps every
+# migration in a PL/pgSQL block, and statements that are perfectly good at the
+# top level are not always good inside one. A bare `select f();` is the example
+# that got through — valid above, "query has no destination for result data"
+# below, and nothing here would have known until it was pasted into the
+# Supabase editor.
+#
+# So the bundle is run too, on a database of its own, and run twice: it is
+# advertised as safe to re-run and that claim should cost something to break.
+echo "checking supabase/all-migrations.sql runs, twice…"
+psql -q -v ON_ERROR_STOP=1 -c 'create database bundle' >/dev/null
+
+# Roles are cluster-wide rather than per-database, so the ones the rule tests
+# created already exist by the time this runs.
+bundle_psql -q -v ON_ERROR_STOP=1 <<'SQL'
+create schema if not exists auth;
+create table auth.users (id uuid primary key default gen_random_uuid());
+do $roles$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+    create role authenticated;
+  end if;
+  if not exists (select 1 from pg_roles where rolname = 'anon') then
+    create role anon;
+  end if;
+end
+$roles$;
+create or replace function auth.uid() returns uuid language sql stable as $$
+  select nullif(current_setting('test.uid', true), '')::uuid;
+$$;
+grant usage on schema auth to authenticated, anon;
+grant execute on function auth.uid() to authenticated, anon;
+create publication supabase_realtime;
+SQL
+
+for pass in first second; do
+  if ! bundle_psql -q -v ON_ERROR_STOP=1 -f "$ROOT/supabase/all-migrations.sql"         > "$DATA/bundle.log" 2>&1; then
+    echo "all-migrations.sql failed on the $pass run:" >&2
+    grep -v '^NOTICE' "$DATA/bundle.log" | tail -20 >&2
+    exit 1
+  fi
 done
 
 OUTPUT=$(psql -q -f "$ROOT/supabase/tests/rules.sql" 2>&1)
