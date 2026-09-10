@@ -11297,7 +11297,15 @@ begin
 
     revoke all on function grandfather_reserves() from public;
 
-    select grandfather_reserves();
+    -- In a block of its own, because this file is run two ways. On its own, at the
+    -- top level, `perform` is a syntax error; inside all-migrations.sql, which
+    -- wraps every migration in a PL/pgSQL block, a bare `select` has nowhere to
+    -- put its result. A DO block is the one form that is valid in both.
+    do $grandfather$
+    begin
+      perform grandfather_reserves();
+    end
+    $grandfather$;
 
     /**
      * Writes the injury report.
