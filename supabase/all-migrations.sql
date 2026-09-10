@@ -11252,6 +11252,54 @@ begin
       'One of the five in src/lib/health.ts: active, questionable, out, ir, suspended. Null means the report has never mentioned him, which is the same as active.';
 
     /**
+     * Everybody already stashed keeps his place.
+     *
+     * The column starts empty, and empty means fit. Without this the migration
+     * would, in the instant it ran, decide that every player sitting on every
+     * reserve in the league was cleared to play — putting each of their managers
+     * one over the eighteen and refusing every add until somebody was dropped, on
+     * the strength of a report that has not been fetched yet.
+     *
+     * So the existing reserves are taken as true. They were placed under the old
+     * rule, which asked the same question of the same feed and only asked it in
+     * the browser. The nightly sync corrects any of them within a day, which is
+     * the right way round: a manager finds out his man is fit because the report
+     * says so, not because a migration ran.
+     *
+     * Guarded on injury_synced_at rather than on the status, because this file is
+     * re-runnable and the two are not the same test. A grandfathered player the
+     * report later clears ends up with a null status and a stamped sync — and a
+     * second run guarded on the status alone would put him straight back on IR,
+     * quietly undoing the report. Once the report has spoken about somebody, this
+     * never touches him again.
+     */
+    create or replace function grandfather_reserves()
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_seeded int;
+    begin
+      insert into nfl_players (name, team, position, injury_status, injury_synced_at)
+      select r.player_name, '', null, 'ir', null
+        from (select distinct player_name from roster_slots where lineup_slot = 'IR') r
+          on conflict (name) do update
+             set injury_status = 'ir'
+           where nfl_players.injury_status is null
+             and nfl_players.injury_synced_at is null;
+
+      get diagnostics v_seeded = row_count;
+      return v_seeded;
+    end;
+    $$;
+
+    revoke all on function grandfather_reserves() from public;
+
+    select grandfather_reserves();
+
+    /**
      * Writes the injury report.
      *
      * Service key only, like sync_nfl_players: this is ESPN speaking, not a

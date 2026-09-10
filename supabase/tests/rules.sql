@@ -4276,3 +4276,45 @@ select sync_player_health(array[]::text[], array[]::text[], array[]::text[]);
 \o
 
 select expect('nobody is cleared by silence', ir_eligible('Res Banned'), true);
+
+\echo ''
+\echo '--- and a migration re-run does not undo the report ---'
+--
+-- all-migrations.sql is pasted into the Supabase editor and is meant to be
+-- re-runnable, so the one clause in 0046 that writes to existing rows has to
+-- be safe to run twice. It grandfathers everybody already sitting on a reserve
+-- as genuinely on IR, because the column starts empty and empty means fit —
+-- without it the migration would decide, in the instant it ran, that every
+-- stashed player in the league was cleared, and put each of their managers one
+-- over the eighteen on the strength of a report not yet fetched.
+
+\o /dev/null
+-- Somebody stashed before any of this existed, whom the report has since
+-- cleared: null status, but a stamped sync saying so.
+insert into nfl_players (name, team, position, injury_status, injury_synced_at)
+values ('Res Grandfathered', 'SEA', 'WR', null, now())
+    on conflict (name) do update
+       set injury_status = null, injury_synced_at = now();
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'R', id, 'Res Grandfathered', 'IR'
+    from managers where league_id = :'R' and slot = 'AAA';
+
+-- And somebody the report has never mentioned at all.
+insert into nfl_players (name, team, position, injury_status, injury_synced_at)
+values ('Res Untouched', 'GB', 'TE', null, null)
+    on conflict (name) do update
+       set injury_status = null, injury_synced_at = null;
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'R', id, 'Res Untouched', 'IR'
+    from managers where league_id = :'R' and slot = 'AAA';
+
+select grandfather_reserves();
+\o
+
+select expect('a stashed player the report has never mentioned is taken as injured',
+  ir_eligible('Res Untouched'), true);
+
+select expect('but one the report has cleared is left cleared',
+  ir_eligible('Res Grandfathered'), false);
