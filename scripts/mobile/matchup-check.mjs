@@ -34,11 +34,26 @@ await ctx.addCookies([sessionCookie()]);
 const page = await ctx.newPage();
 await routes(page);
 
-console.log("--- the matchups list ---");
+console.log("--- the whole league, straight from a link ---");
+{
+  // The home page's card is a door into this, so the state it opens has to be
+  // reachable by address rather than by pressing a toggle. Without it "every
+  // game this week" is a page plus two taps.
+  await page.goto(`${BASE}/matchups?view=league&week=3`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(700);
+  const opened = await page.locator('a[aria-label^="Week"]').count();
+  ok(`it opens on the whole league (${opened} fixtures)`, opened >= 2);
+  ok("with the week already chosen",
+    (await page.locator("select").inputValue().catch(() => "")) === "3");
+}
+
+console.log("\n--- the matchups list ---");
 await page.goto(`${BASE}/matchups`, { waitUntil: "networkidle" });
 // The whole league, which is where somebody else's fixture appears at all.
 await page.getByRole("button", { name: "WHOLE LEAGUE" }).click();
-await page.waitForTimeout(400);
+await page.waitForTimeout(600);
+ok("and pressing the toggle says so in the address",
+  page.url().includes("view=league"));
 
 const cards = page.locator('a[aria-label^="Week"]');
 const count = await cards.count();
@@ -71,6 +86,12 @@ await page.waitForTimeout(600);
 const head = await page.locator("body").innerText();
 
 ok("it opens their game, not yours", !/\bYOU\b/.test(head.split("Best ball")[0] ?? head));
+// The tap said "show me Kim against Priya". It used to answer with eighteen
+// of the reader's own players and the game they asked for somewhere below.
+ok("and does not lead with the reader's own roster",
+  !/START RATE|DYNASTY · BEST BALL/.test(head));
+ok("nor offers the reader's own roster controls",
+  (await page.locator('button:has-text("ACTIVATE")').count()) === 0);
 ok("the heading names them rather than saying 'Your matchup'",
   /Thunderbolts vs Gold Coast Gladiators/.test(head) && !/Your matchup/.test(head));
 // "DOWN 2.8" over a game the reader is not playing in.

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import MatchupCard, { type CardGame } from "./MatchupCard";
 import Skeleton from "./Skeleton";
 import { useRefreshable } from "@/lib/use-refresh";
@@ -36,11 +37,41 @@ const tab = (active: boolean): React.CSSProperties => ({
 });
 
 export default function Matchups() {
+  // Which view and which week live in the address, which needs a boundary.
+  return (
+    <Suspense fallback={<Skeleton rows={4} />}>
+      <Board />
+    </Suspense>
+  );
+}
+
+function Board() {
+  const router = useRouter();
+  const params = useSearchParams();
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [wholeLeague, setWholeLeague] = useState(false);
   const logos = useLogos();
-  const [week, setWeek] = useState<number | null>(null);
+
+  // Both of these live in the address rather than in state, so the home page
+  // can send somebody straight to a particular week of the whole league —
+  // which is the only way "every fixture this week" can be a link rather than
+  // a page plus two taps.
+  const wholeLeague = params.get("view") === "league";
+  const askedWeek = Number(params.get("week"));
+  const week = Number.isInteger(askedWeek) && askedWeek > 0 ? askedWeek : null;
+
+  const go = useCallback(
+    (next: { view?: "league" | "mine"; week?: number | null }) => {
+      const q = new URLSearchParams();
+      const view = next.view ?? (wholeLeague ? "league" : "mine");
+      if (view === "league") q.set("view", "league");
+      const w = next.week === undefined ? week : next.week;
+      if (view === "league" && w) q.set("week", String(w));
+      const query = q.toString();
+      router.replace(`/matchups${query ? `?${query}` : ""}`, { scroll: false });
+    },
+    [router, wholeLeague, week],
+  );
 
   const load = useCallback(async () => {
     try {
@@ -128,14 +159,14 @@ export default function Matchups() {
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
         <button
-          onClick={() => setWholeLeague(false)}
+          onClick={() => go({ view: "mine" })}
           aria-current={!wholeLeague ? "page" : undefined}
           style={tab(!wholeLeague)}
         >
           MY SEASON
         </button>
         <button
-          onClick={() => setWholeLeague(true)}
+          onClick={() => go({ view: "league" })}
           aria-current={wholeLeague ? "page" : undefined}
           style={tab(wholeLeague)}
         >
@@ -148,7 +179,7 @@ export default function Matchups() {
           <select
             value={selected ?? ""}
             aria-label="Week"
-            onChange={(e) => setWeek(Number(e.target.value))}
+            onChange={(e) => go({ week: Number(e.target.value) })}
             style={{
               marginLeft: 6,
               padding: "7px 10px",
