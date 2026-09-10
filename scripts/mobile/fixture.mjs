@@ -531,6 +531,18 @@ export function routes(page, over = {}) {
   page.route("**/api/lineup**", (r) => {
     const asked = new URL(r.request().url()).searchParams.get("manager");
     const theirs = asked && asked !== ME.id;
+    // The hour before the first kickoff: the week is flagged as begun and not
+    // a single score exists yet. Keyed off the page's own address rather than
+    // the request's, because the app asks for /api/lineup with no parameters
+    // and a route nobody can reach tests nothing. Nothing held this state
+    // before, which is how "0.0 SCORED" over a full roster shipped.
+    const nothingPlayed = page.url().includes("nothingplayed=1");
+    // Thursday night: exactly one man on the roster has played, and he is the
+    // worst projected player on it — so he is nowhere near the lineup
+    // projection would pick. Best ball fills the slots with whoever is
+    // actually scoring, so the roster is worth his six points and not nought.
+    // Reached with ?thursday=1.
+    const thursday = page.url().includes("thursday=1");
     return r.fulfill({ json: {
       week: 3,
       me: theirs
@@ -553,8 +565,12 @@ export function routes(page, over = {}) {
       rosterCount: ROSTER.length - STASHED.length
         + STASHED.filter((n) => !IR_ELIGIBLE.includes(n)).length,
       rosterLimit: ROSTER.length - STASHED.length,
-      live: true, started: true, weekPhase: "live", final: false,
-      scores: SCORES,
+      live: !nothingPlayed, started: true, weekPhase: "live", final: false,
+      scores: nothingPlayed
+        ? {}
+        : thursday
+          ? { "Rome Odunze": { points: 6, statLine: "4 rec · 61 rec yds" } }
+          : SCORES,
     } });
   });
 

@@ -115,16 +115,28 @@ export default function MyTeamRoster() {
     return () => clearInterval(timer);
   }, [load]);
 
-  // Live points once the slate is running, projections before it — the same
-  // basis the slot chips and the start rates are both drawn on, so the three
-  // numbers on a row never disagree about which week they are describing.
+  // Whether the league has written down a single number this week.
+  //
+  // Not the same as the week being flagged as begun: the flag turns over when
+  // the first fixture is due, and the scores arrive when somebody actually
+  // plays. In the hours between, every row on a full roster read 0.0 PTS,
+  // which looks like a disaster rather than a Sunday morning.
+  //
+  // Whichever it is, it is the basis for all three numbers on a row — the
+  // points, the slot chips and the start rates — so they never disagree about
+  // which week they are describing.
+  const live = useMemo(
+    () => Boolean(feed?.started) && (feed?.roster ?? []).some((n) => feed?.scores?.[n] != null),
+    [feed],
+  );
+
   const values = useMemo(() => {
     const out = new Map<string, number>();
     for (const name of feed?.roster ?? []) {
-      out.set(name, feed?.started ? (feed.scores?.[name]?.points ?? 0) : proj(name));
+      out.set(name, live ? (feed?.scores?.[name]?.points ?? 0) : proj(name));
     }
     return out;
-  }, [feed]);
+  }, [feed, live]);
 
   const slots = useMemo(
     () => (feed ? optimalLineup(feed.roster, feed.settings, values) : new Map<string, string>()),
@@ -447,7 +459,7 @@ export default function MyTeamRoster() {
                       {/* --text-faint measures 2.86:1 against this card, which is
                           under the floor. The quietest tone that still reads. */}
                       <div style={{ ...MICRO, letterSpacing: ".16em", color: "var(--text-dim)" }}>
-                        {feed.started ? "PTS" : "PROJ"}
+                        {live ? "PTS" : "PROJ"}
                       </div>
                     </div>
                   </div>
