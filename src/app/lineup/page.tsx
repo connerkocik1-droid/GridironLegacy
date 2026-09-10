@@ -1,5 +1,4 @@
-import MatchupBoard from "@/components/MatchupBoard";
-import RosterBoard from "@/components/RosterBoard";
+import LineupScreen from "@/components/LineupScreen";
 import Nav from "@/components/Nav";
 
 export const metadata = { title: "My team · Pylon Fantasy" };
@@ -22,12 +21,7 @@ export default function LineupPage() {
       }}
     >
       <Nav current="/lineup" />
-      <RosterBoard />
-
-      {/* The heading lives inside the board, which is the only place that
-          knows whose game is being shown. Printed here it said "Your matchup"
-          over a fixture between two other franchises. */}
-      <MatchupBoard />
+      <LineupScreen />
     </div>
   );
 }

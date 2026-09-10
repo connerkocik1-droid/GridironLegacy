@@ -331,9 +331,13 @@ export default function MatchupBand({ home }: { home: Home | null }) {
             the week a navigation. */}
         <Link
           href={
+            // The week is named even though the band only ever shows the one
+            // in play. Without it the link means "this fixture, whenever you
+            // happen to open it", which is a different game the moment the
+            // week turns over while a tab is left open.
             game.mine
-              ? "/lineup"
-              : `/lineup?home=${encodeURIComponent(game.home.id)}&opponent=${encodeURIComponent(game.away.id)}`
+              ? `/lineup${home.week ? `?week=${home.week}` : ""}`
+              : `/lineup?home=${encodeURIComponent(game.home.id)}&opponent=${encodeURIComponent(game.away.id)}${home.week ? `&week=${home.week}` : ""}`
           }
           aria-label={`${game.home.franchise} against ${game.away.franchise}, player by player`}
           style={{ display: "block", textDecoration: "none", color: "inherit" }}

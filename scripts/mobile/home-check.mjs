@@ -54,26 +54,23 @@ console.log("\n--- the matchup hero ---");
     (await page.locator('a[href^="/lineup"]').count()) > 0);
 }
 
-console.log("\n--- and it pages across five weeks ---");
+console.log("\n--- and it opens the rest of the week ---");
 {
-  ok("it says which of them you are on", /1\/5/.test(await body()));
+  // It used to page across the reader's own next five fixtures, which is five
+  // taps to read five projections drawn before a ball was kicked. What a
+  // manager wants from this card is the eleven games they are not in.
+  ok("the five-week pager is gone",
+    (await page.getByRole("button", { name: "Next week" }).count()) === 0);
 
-  const weeks = new Set();
-  const scores = new Set();
-  for (let n = 0; n < 5; n++) {
-    const t = await body();
-    weeks.add(t.match(/WEEK (\d+)/)[1]);
-    scores.add(t.match(/(\d+\.\d)\n/)?.[1] ?? String(n));
-    await page.getByRole("button", { name: "Next week" }).click();
-    await page.waitForTimeout(300);
-  }
-  ok(`five different weeks (${[...weeks].join(", ")})`, weeks.size === 5);
-  ok("with different numbers on each", scores.size >= 4);
-  ok("and it wraps back round to the first", /1\/5/.test(await body()));
-
-  await page.getByRole("button", { name: "Previous week" }).click();
-  await page.waitForTimeout(300);
-  ok("going back works too", /5\/5/.test(await body()));
+  const whole = page.locator('a[href^="/matchups?view=league"]');
+  ok("and pressing through leads to every game in the week",
+    (await whole.count()) > 0);
+  ok("named by the week it will open",
+    /EVERY GAME IN WEEK \d/.test(await body()));
+  ok("with the week in the address, not left to the page to guess",
+    ((await whole.first().getAttribute("href")) ?? "").includes("week="));
+  ok("and the reader's own game is still one press away",
+    (await page.locator('a[href^="/lineup"]').count()) > 0);
 }
 
 console.log("\n--- the power rank ---");

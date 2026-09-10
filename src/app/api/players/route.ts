@@ -86,8 +86,24 @@ export async function GET(req: Request) {
     Object.values(starters).reduce((sum, n) => sum + Number(n || 0), 0) +
     Number(settings.bench ?? 0);
 
-  // IR sits outside the roster count, the same rule the database enforces.
-  const held = (mine ?? []).filter((r) => r.lineup_slot !== "IR").length;
+  // Everybody the injury report puts on IR or under suspension. Short — a few
+  // hundred across the whole league — and sent whole rather than per-player so
+  // the free-agent list can offer the reserve without a request per row.
+  const { data: hurt } = await db
+    .from("nfl_players")
+    .select("name")
+    .in("injury_status", ["ir", "suspended"]);
+
+  const stashable = new Set((hurt ?? []).map((r: { name: string }) => r.name));
+
+  // IR sits outside the roster count — but only while the man in it belongs
+  // there. The same rule roster_count() enforces since 0046: a stashed player
+  // the report has cleared is on the books where he sits.
+  const held = (mine ?? []).filter(
+    (r) => r.lineup_slot !== "IR" || !stashable.has(r.player_name),
+  ).length;
+
+  const irHeld = (mine ?? []).filter((r) => r.lineup_slot === "IR").length;
 
   const mode =
     settings.waiverMode === "open" || settings.waiverMode === "all"
@@ -102,6 +118,11 @@ export async function GET(req: Request) {
     waiverDays: Math.max(1, Number(settings.waiverDays ?? 1) || 1),
     capacity,
     held,
+    // What the reserve holds and how full it is, so the page can offer a free
+    // agent on IR the one add that does not cost a roster spot.
+    irLimit: Number(settings.ir ?? 0),
+    irHeld,
+    irEligible: [...stashable],
     // Each of your own, and whether he can still be dropped this week.
     roster: (mine ?? []).map((r) => ({
       ...r,

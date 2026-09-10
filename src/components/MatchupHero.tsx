@@ -1,20 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import WinProbability from "./WinProbability";
 import type { Upcoming } from "@/lib/home-types";
 
 /**
- * The next five weeks, one at a time.
+ * The game you are in, and a way into the eleven you are not.
  *
- * The home page used to show this week's fixture and nothing else, which is
- * the right answer on a Sunday and a dead card for the other five days. A
- * league is a season, and the question a manager actually has on a Tuesday is
- * not "what is the score" — it is "what is coming".
+ * This paged across the next five weeks, which answered a question nobody
+ * asked twice: a projection for week five, drawn before week one has been
+ * played, is arithmetic rather than news, and stepping through five of them
+ * is five taps to reach the same conclusion. What a manager does want from
+ * this card on a Sunday is the rest of the league — who else is playing, and
+ * who is about to lose.
  *
- * So it pages. Each week stands on its own: who, where, what both sides
- * project, what the season so far says about the two of them, and the odds.
+ * So the pager goes and the card becomes a door. It shows the week in play:
+ * who, where, what both sides project, what the season so far says about the
+ * two of them, and the odds. Pressing it opens every fixture in that week.
  * Every number is computed from the same league data the matchup page uses —
  * nothing here is written down.
  */
@@ -32,12 +34,11 @@ function recordOf(r: { w: number; l: number; t: number }): string {
 }
 
 export default function MatchupHero({ upcoming, meFranchise }: { upcoming: Upcoming[]; meFranchise: string }) {
-  const [at, setAt] = useState(0);
   if (!upcoming.length) return null;
 
-  const i = Math.min(at, upcoming.length - 1);
-  const g = upcoming[i];
-  const step = (by: number) => setAt((n) => (n + by + upcoming.length) % upcoming.length);
+  // The week in play, or the next one. The rest of what the feed sends is the
+  // schedule, and the schedule has a page.
+  const g = upcoming[0];
 
   const stats = [
     stat(recordOf(g.opponent.record), "OPP RECORD"),
@@ -64,25 +65,6 @@ export default function MatchupHero({ upcoming, meFranchise }: { upcoming: Upcom
         <span style={{ fontSize: 10, letterSpacing: ".18em", color: "var(--accent-link)" }}>
           {g.live ? "LIVE" : g.atHome ? "AT HOME" : "ON THE ROAD"}
         </span>
-
-        {/* Only where there is more than one week left to look at. */}
-        {upcoming.length > 1 ? (
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
-            <Pager label="Previous week" onClick={() => step(-1)}>‹</Pager>
-            <span
-              style={{
-                fontSize: 10.5,
-                color: "var(--text-dim)",
-                fontVariantNumeric: "tabular-nums",
-                minWidth: 26,
-                textAlign: "center",
-              }}
-            >
-              {i + 1}/{upcoming.length}
-            </span>
-            <Pager label="Next week" onClick={() => step(1)}>›</Pager>
-          </div>
-        ) : null}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto minmax(0,1fr)", gap: 10, alignItems: "start" }}>
@@ -137,49 +119,31 @@ export default function MatchupHero({ upcoming, meFranchise }: { upcoming: Upcom
         ))}
       </div>
 
-      <Link
-        href={`/lineup?week=${g.week}`}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          minHeight: 36,
-          marginTop: 10,
-          fontSize: 11.5,
-          letterSpacing: ".1em",
-          color: "var(--accent-link)",
-          textDecoration: "none",
-        }}
-      >
-        THE FULL HEAD TO HEAD ›
-      </Link>
+      {/* Two doors, because they answer different questions and one of them
+          used to be five taps of a pager. The first is this game in full; the
+          second is everybody else's, which on a Sunday is the one worth
+          having. */}
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 10 }}>
+        <Link href={`/lineup?week=${g.week}`} style={doorway}>
+          THE FULL HEAD TO HEAD ›
+        </Link>
+        <Link href={`/matchups?view=league&week=${g.week}`} style={doorway}>
+          EVERY GAME IN WEEK {g.week} ›
+        </Link>
+      </div>
     </div>
   );
 }
 
-function Pager({ children, label, onClick }: { children: React.ReactNode; label: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      style={{
-        width: 30,
-        height: 30,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        border: "1px solid rgb(var(--accent-rgb) / .3)",
-        borderRadius: 7,
-        background: "transparent",
-        color: "var(--accent-link)",
-        font: "inherit",
-        fontSize: 15,
-        cursor: "pointer",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
+const doorway: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  minHeight: 36,
+  fontSize: 11.5,
+  letterSpacing: ".1em",
+  color: "var(--accent-link)",
+  textDecoration: "none",
+};
 
 function SideName({
   franchise,

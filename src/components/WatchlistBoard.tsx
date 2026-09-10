@@ -61,7 +61,12 @@ function standing(w: Watched): { text: string; colour: string } {
   return { text: "Free agent", colour: "var(--accent-link)" };
 }
 
-export default function WatchlistBoard() {
+/**
+ * `embedded` drops the back link and the page title. Under the My Team screen
+ * the sub-tab strip is already the way back and already says "Watch"; a link
+ * to My Team from inside My Team leads nowhere.
+ */
+export default function WatchlistBoard({ embedded = false }: { embedded?: boolean } = {}) {
   const [watching, setWatching] = useState<Watched[] | null>(null);
   const [stories, setStories] = useState<Story[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -124,36 +129,38 @@ export default function WatchlistBoard() {
   );
 
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 18px 44px" }}>
-      <div style={{ margin: "26px 0 6px" }}>
-        <Link
-          href="/my-team"
+    <div style={{ maxWidth: 760, margin: "0 auto", padding: embedded ? "0 18px 24px" : "0 18px 44px" }}>
+      <div hidden={embedded}>
+        <div style={{ margin: "26px 0 6px" }}>
+          <Link
+            href="/my-team"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              minHeight: 34,
+              fontSize: 11.5,
+              color: "var(--accent-link)",
+              textDecoration: "none",
+            }}
+          >
+            ← My Team
+          </Link>
+        </div>
+
+        <div style={label}>KEEPING AN EYE ON</div>
+        <h1
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            minHeight: 34,
-            fontSize: 11.5,
-            color: "var(--accent-link)",
-            textDecoration: "none",
+            fontFamily: "var(--font-heading)",
+            fontSize: 28,
+            letterSpacing: "-.025em",
+            margin: "7px 0 10px",
+            fontWeight: 500,
+            color: "var(--text)",
           }}
         >
-          ← My Team
-        </Link>
+          Watchlist
+        </h1>
       </div>
-
-      <div style={label}>KEEPING AN EYE ON</div>
-      <h1
-        style={{
-          fontFamily: "var(--font-heading)",
-          fontSize: 28,
-          letterSpacing: "-.025em",
-          margin: "7px 0 10px",
-          fontWeight: 500,
-          color: "var(--text)",
-        }}
-      >
-        Watchlist
-      </h1>
       <p style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.65, margin: "0 0 18px" }}>
         Players you have not decided about yet. Watching one changes nothing and
         commits nothing — it only means their news reaches you.
