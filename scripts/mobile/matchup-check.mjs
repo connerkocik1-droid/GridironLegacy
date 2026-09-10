@@ -81,8 +81,36 @@ ok(`the percentages are whole numbers (${pcts.slice(0, 6).join(", ")})`, pcts.le
 console.log("\n--- pressing somebody else's game ---");
 const target = others[0];
 const params = new URLSearchParams(target.split("?")[1]);
-await page.goto(`${BASE}${target}`, { waitUntil: "networkidle" });
-await page.waitForTimeout(600);
+
+// Pressed, not navigated to.
+//
+// This block was called "pressing somebody else's game" and did not press
+// anything: it opened each fixture with page.goto, a full page load. That is
+// the one way of reaching the screen where window.location is already correct
+// when the board first renders, and the board read its parameters from
+// window.location. So a soft navigation — a click, which is how everybody
+// actually gets here — rendered before the address caught up, found no
+// opponent, and asked for the reader's own game. The check passed for a year
+// of the bug being live.
+//
+// Every request the board makes is watched too, because the visible symptom
+// and the cause are one layer apart: the address bar said the right thing
+// while the fetch behind it said /api/matchup?week=3.
+const asked = [];
+const watch = (r) => { if (r.url().includes("/api/matchup")) asked.push(r.url()); };
+page.on("request", watch);
+await page.locator(`a[href="${target}"]`).first().click();
+await page
+  .waitForFunction(() => /vs |Your matchup/.test(document.body.innerText), undefined, { timeout: 15000 })
+  .catch(() => {});
+await page.waitForTimeout(900);
+page.off("request", watch);
+
+ok(`the click lands on that fixture's address (${page.url().split("?")[1] ?? ""})`,
+  page.url().endsWith(target));
+ok(`and the board asks the server for that pair, not the reader's own game (${asked.length} calls)`,
+  asked.length > 0 && asked.every((u) => u.includes("home=") && u.includes("opponent=")));
+
 const head = await page.locator("body").innerText();
 
 ok("it opens their game, not yours", !/\bYOU\b/.test(head.split("Best ball")[0] ?? head));

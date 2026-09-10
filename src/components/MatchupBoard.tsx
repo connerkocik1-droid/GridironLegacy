@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import TeamMark from "./TeamMark";
 import Skeleton from "./Skeleton";
 import LiveNumber from "./LiveNumber";
@@ -335,32 +336,37 @@ export default function MatchupBoard({ embedded = false }: { embedded?: boolean 
   const [scheduled, setScheduled] = useState<{ id: string; franchise: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const logos = useLogos();
-  // Seeded from the address, once, as the initial value rather than in an
-  // effect — an effect would render the scheduled fixture first and then
-  // replace it, which is a flash of the wrong game and a wasted request.
-  // The server renders a skeleton here, so there is nothing to disagree with.
-  const [opponent, setOpponent] = useState(() =>
-    typeof window === "undefined"
-      ? ""
-      : (new URLSearchParams(window.location.search).get("opponent") ?? ""),
-  );
-  // The left-hand franchise, when it is not the person reading. Set only from
-  // the address and never from the dropdown: this is the case where a fixture
-  // between two other franchises was opened from the home page, and the way
-  // out of it is to go back to your own game rather than to swap a side.
-  const [asHome] = useState(() =>
-    typeof window === "undefined"
-      ? ""
-      : (new URLSearchParams(window.location.search).get("home") ?? ""),
-  );
-  // Which week is being read. Also from the address only: the matchups list
-  // shows a whole season, and without this every card in it opened the week
-  // in play instead of the week drawn on the card.
-  const [asWeek] = useState(() =>
-    typeof window === "undefined"
-      ? ""
-      : (new URLSearchParams(window.location.search).get("week") ?? ""),
-  );
+  const router = useRouter();
+  // The board is on two pages — /lineup and the Matchup tab of /my-team — so
+  // the dropdown has to write back to whichever one it is on. Hard-coding
+  // /lineup here would throw a My Team reader out of My Team.
+  const pathname = usePathname();
+  // Read from the router, not from window.location.
+  //
+  // These were lazy useState initialisers reading window.location.search, on
+  // the reasoning that the address is read once at mount and useSearchParams
+  // would cost a Suspense boundary. Both halves of that were wrong. A soft
+  // navigation — which is what pressing a fixture is — renders this component
+  // before window.location has caught up, so the initialiser read the *old*
+  // address, found no home and no opponent, and asked for the reader's own
+  // game. Then, because an initialiser never runs twice, it stayed wrong.
+  //
+  // It survived a browser check because the check opened each fixture with a
+  // full page load, which is the one case where window.location is already
+  // right. Nobody reaches the page that way.
+  const params = useSearchParams();
+
+  // The left-hand franchise, when it is not the person reading: a fixture
+  // between two others, opened from the list or the home page. The way out of
+  // it is back to your own game rather than swapping a side.
+  const asHome = params.get("home") ?? "";
+  // The matchups list shows a whole season, and without this every card in it
+  // opened the week in play instead of the week drawn on the card.
+  const asWeek = params.get("week") ?? "";
+  // Who you are being put beside. The dropdown writes it to the address and
+  // reads it back from there, so the address is the only copy — two copies
+  // are what let this disagree with itself in the first place.
+  const opponent = params.get("opponent") ?? "";
 
   /**
    * Choosing an opponent, and saying so in the address bar.
@@ -371,24 +377,25 @@ export default function MatchupBoard({ embedded = false }: { embedded?: boolean 
    * "you against them" a place rather than a state: the matchups list links
    * into it, a back button leaves it, and a reload keeps it.
    *
-   * replaceState rather than a route push: it is the same page showing a
-   * different pair, and stacking a history entry per dropdown fiddle would
-   * make the back button mean "undo my last comparison" eleven times over.
-   * Read back with URLSearchParams rather than useSearchParams, which would
-   * ask this whole page to be wrapped in a Suspense boundary for one value
-   * read once.
+   * replace rather than push: it is the same page showing a different pair,
+   * and stacking a history entry per dropdown fiddle would make the back
+   * button mean "undo my last comparison" eleven times over.
+   *
+   * Through the router rather than history.replaceState, because the address
+   * is now the only copy of which pair is on screen — a bare replaceState
+   * changes the bar without telling React, and the board would go on showing
+   * the previous game.
    */
-  const choose = useCallback((id: string) => {
-    setOpponent(id);
-    try {
-      const url = new URL(window.location.href);
-      if (id) url.searchParams.set("opponent", id);
-      else url.searchParams.delete("opponent");
-      window.history.replaceState(null, "", url);
-    } catch {
-      // The comparison still happens; the address just does not follow.
-    }
-  }, []);
+  const choose = useCallback(
+    (id: string) => {
+      const next = new URLSearchParams(params.toString());
+      if (id) next.set("opponent", id);
+      else next.delete("opponent");
+      const query = next.toString();
+      router.replace(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
+    },
+    [params, pathname, router],
+  );
 
 
   const load = useCallback(async () => {
