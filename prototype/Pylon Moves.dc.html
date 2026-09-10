@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
+<script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
+<style>
+  body { margin:0; background:#0b0d16; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  a { color:#b5abfc; text-decoration:none; }
+  a:hover { color:#d2cefd; }
+  @keyframes mv-pulse { 0%,100% { opacity:.25; transform:scale(1);} 50% { opacity:1; transform:scale(1.3);} }
+  @keyframes mv-rise { from { opacity:0; transform:translateY(9px);} to { opacity:1; transform:none;} }
+  @keyframes mv-grow { from { width:0;} }
+  @keyframes mv-sweep { 0% { background-position:0% 50%;} 100% { background-position:200% 50%;} }
+  @keyframes mv-marquee { from { transform:translateX(0);} to { transform:translateX(-50%);} }
+</style>
+</helmet>
+
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+
+<div style="height:100%;display:flex;flex-direction:column;background:radial-gradient(560px 380px at 8% -6%, #23274a 0%, rgba(18,20,42,0) 62%), radial-gradient(420px 320px at 108% 10%, #2b1e3d 0%, rgba(18,20,42,0) 60%), #0f111c;color:var(--color-text);font-family:var(--font-body);font-variant-numeric:tabular-nums;overflow:hidden">
+
+  <div style="flex:1;overflow:auto">
+
+    <div style="padding:60px 18px 0;position:sticky;top:0;z-index:30;background:linear-gradient(180deg,rgba(15,17,28,.97) 84%,rgba(15,17,28,0));backdrop-filter:blur(14px)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="min-width:0;flex:1">
+          <div style="font-family:var(--font-heading);font-size:21px;line-height:1.15;letter-spacing:-.025em">Moves</div>
+          <div style="font-size:10px;letter-spacing:.14em;color:#75798c;margin-top:5px">{{ rosterLine }}</div>
+        </div>
+        <div style="text-align:right;flex:0 0 auto">
+          <div style="font-family:var(--font-heading);font-size:17px;color:#b5abfc">{{ weekLabel }}</div>
+          <div style="display:flex;align-items:center;gap:5px;justify-content:flex-end;margin-top:3px">
+            <span style="width:4px;height:4px;border-radius:50%;background:#e0b573;box-shadow:0 0 7px #e0b573;animation:mv-pulse 1.8s infinite"></span>
+            <span style="font-size:8px;letter-spacing:.14em;color:#e0b573">{{ waiverLine }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:4px;margin-top:14px">
+        <sc-for list="{{ subtabs }}" as="t" hint-placeholder-count="3">
+          <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+      <div style="height:1px;background:rgba(145,132,217,.2)"></div>
+    </div>
+
+    <div style="padding:14px 18px 24px">
+
+      <sc-if value="{{ isFA }}" hint-placeholder-val="{{ true }}">
+        <div style="overflow:hidden;border:1px solid rgba(145,132,217,.18);border-radius:11px;background:rgba(20,22,36,.72);padding:8px 0;position:relative;margin-bottom:12px">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:24px;z-index:2;background:linear-gradient(90deg,#141626,rgba(20,22,38,0))"></div>
+          <div style="position:absolute;right:0;top:0;bottom:0;width:24px;z-index:2;background:linear-gradient(270deg,#141626,rgba(20,22,38,0))"></div>
+          <div style="display:flex;width:max-content;animation:mv-marquee 28s linear infinite">
+            <sc-for list="{{ trending }}" as="t" hint-placeholder-count="8">
+              <div style="display:flex;align-items:center;gap:6px;padding-right:18px;white-space:nowrap;font-size:10px;letter-spacing:.06em">
+                <span style="{{ t.dotStyle }}"></span>
+                <span style="color:#e9e9ed">{{ t.name }}</span>
+                <span style="{{ t.moveStyle }}">{{ t.move }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <sc-for list="{{ needs }}" as="n" hint-placeholder-count="1">
+          <div style="{{ n.wrapStyle }}">
+            <span style="{{ n.tagStyle }}">{{ n.tag }}</span>
+            <span style="font-size:11px;line-height:1.5;color:#c8ccdb;min-width:0;text-wrap:pretty">{{ n.text }}</span>
+          </div>
+        </sc-for>
+
+        <div style="display:flex;gap:5px;padding-bottom:10px;overflow-x:auto">
+          <sc-for list="{{ posFilters }}" as="f" hint-placeholder-count="6">
+            <button onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</button>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding-bottom:12px">
+          <span style="font-size:9px;letter-spacing:.16em;color:#595d6c">SORT</span>
+          <sc-for list="{{ sorts }}" as="s" hint-placeholder-count="3">
+            <button onClick="{{ s.onClick }}" style="{{ s.style }}">{{ s.label }}</button>
+          </sc-for>
+        </div>
+
+        <div style="border:1px solid rgba(145,132,217,.2);border-radius:14px;overflow:hidden;background:rgba(22,24,38,.72)">
+          <sc-for list="{{ freeAgents }}" as="p" hint-placeholder-count="8">
+            <div style="{{ p.rowStyle }}">
+              <div style="min-width:0;flex:1">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-family:var(--font-heading);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ p.name }}</span>
+                  <span style="font-size:9px;letter-spacing:.1em;color:#75798c;flex:0 0 auto">{{ p.posTeam }}</span>
+                  <span style="{{ p.trendStyle }}">{{ p.trend }}</span>
+                  <sc-for list="{{ p.fit }}" as="f" hint-placeholder-count="0">
+                    <span style="{{ f.style }}">{{ f.label }}</span>
+                  </sc-for>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:7px">
+                  <div style="display:flex;gap:3px;flex:0 0 auto">
+                    <sc-for list="{{ p.bars }}" as="b" hint-placeholder-count="3">
+                      <span style="{{ b.style }}"></span>
+                    </sc-for>
+                  </div>
+                  <span style="font-size:9px;letter-spacing:.1em;color:#75798c">{{ p.formLine }}</span>
+                </div>
+                <div style="font-size:9px;color:#595d6c;margin-top:5px">{{ p.status }}</div>
+              </div>
+              <div style="text-align:right;flex:0 0 auto">
+                <div style="font-family:var(--font-heading);font-size:15px;color:#b5abfc">{{ p.pts }}</div>
+                <div style="font-size:7px;letter-spacing:.14em;color:#595d6c;margin-top:2px">PTS</div>
+              </div>
+              <button onClick="{{ p.onClick }}" style="{{ p.btnStyle }}">{{ p.btnLabel }}</button>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isTrade }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:baseline;gap:8px;padding-bottom:9px">
+          <span style="font-size:9px;letter-spacing:.24em;color:#75798c">TRADE WITH</span>
+          <span style="margin-left:auto;font-size:9px;letter-spacing:.12em;color:#595d6c">BEST FIT FIRST</span>
+        </div>
+        <div style="display:flex;gap:6px;padding-bottom:14px;overflow-x:auto">
+          <sc-for list="{{ partners }}" as="t" hint-placeholder-count="5">
+            <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
+          </sc-for>
+        </div>
+
+        <div style="border:1px solid rgba(145,132,217,.32);border-radius:14px;overflow:hidden;background:linear-gradient(160deg,rgba(38,32,64,.9),rgba(20,22,36,.86));position:relative">
+          <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 44%,rgba(181,171,252,.1) 50%,transparent 56%);background-size:220% 100%;animation:mv-sweep 6s linear infinite"></div>
+          <div style="padding:14px;position:relative">
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px">
+              <div>
+                <div style="font-size:8px;letter-spacing:.16em;color:#75798c">YOU SEND</div>
+                <div style="font-family:var(--font-heading);font-size:24px;line-height:1;color:#b5abfc;margin-top:7px">{{ sendPts }}</div>
+              </div>
+              <span style="font-family:var(--font-heading);font-size:14px;color:#595d6c">⇄</span>
+              <div style="text-align:right">
+                <div style="font-size:8px;letter-spacing:.16em;color:#75798c">YOU GET</div>
+                <div style="font-family:var(--font-heading);font-size:24px;line-height:1;color:#8f94a8;margin-top:7px">{{ getPts }}</div>
+              </div>
+            </div>
+            <div style="margin-top:12px;height:6px;border-radius:99px;background:rgba(145,132,217,.16);overflow:hidden">
+              <div style="{{ balanceStyle }}"></div>
+            </div>
+            <div style="font-size:11px;line-height:1.5;color:#d2cefd;margin-top:11px;text-wrap:pretty">{{ verdict }}</div>
+            <sc-for list="{{ balancer }}" as="b" hint-placeholder-count="0">
+              <button onClick="{{ b.onClick }}" style="cursor:pointer;width:100%;margin-top:10px;display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:9px;font-family:var(--font-body);text-align:left;border:1px dashed rgba(127,216,168,.5);background:rgba(24,44,34,.4);color:#7fd8a8" style-hover="background:rgba(24,44,34,.7)">
+                <span style="font-size:8px;letter-spacing:.14em;flex:0 0 auto">EVEN IT</span>
+                <span style="font-size:11px;line-height:1.45;color:#c8ccdb;min-width:0">{{ b.text }}</span>
+              </button>
+            </sc-for>
+            <button onClick="{{ onSend }}" style="{{ sendBtnStyle }}">{{ sendLabel }}</button>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:baseline;gap:8px;padding:18px 0 9px">
+          <span style="font-size:9px;letter-spacing:.24em;color:#b5abfc">YOUR ROSTER</span>
+          <span style="margin-left:auto;font-size:9px;letter-spacing:.12em;color:#595d6c">{{ mineCount }}</span>
+        </div>
+        <div style="border:1px solid rgba(145,132,217,.2);border-radius:14px;overflow:hidden;background:rgba(22,24,38,.72)">
+          <sc-for list="{{ myRoster }}" as="p" hint-placeholder-count="8">
+            <div onClick="{{ p.onClick }}" style="{{ p.rowStyle }}">
+              <span style="{{ p.boxStyle }}">{{ p.check }}</span>
+              <div style="min-width:0;flex:1">
+                <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.name }}</div>
+                <div style="font-size:9px;letter-spacing:.1em;color:#75798c;margin-top:3px">{{ p.line }}</div>
+              </div>
+              <span style="font-family:var(--font-heading);font-size:14px;color:#b5abfc;flex:0 0 auto">{{ p.pts }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;align-items:baseline;gap:8px;padding:14px 0 8px">
+          <span style="font-size:9px;letter-spacing:.2em;color:#75798c">YOUR 2027 PICKS</span>
+          <span style="margin-left:auto;font-size:9px;letter-spacing:.12em;color:#595d6c">{{ pickNote }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
+          <sc-for list="{{ myPicks }}" as="k" hint-placeholder-count="5">
+            <button onClick="{{ k.onClick }}" style="{{ k.style }}">
+              <span style="font-family:var(--font-heading);font-size:13px;line-height:1">{{ k.round }}</span>
+              <span style="font-size:8px;letter-spacing:.08em;color:#75798c;margin-top:4px">{{ k.slot }}</span>
+              <span style="{{ k.valStyle }}">{{ k.value }}</span>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;align-items:baseline;gap:8px;padding:18px 0 9px">
+          <span style="font-size:9px;letter-spacing:.24em;color:#b5abfc">{{ partnerLabel }}</span>
+          <span style="margin-left:auto;font-size:9px;letter-spacing:.12em;color:#595d6c">{{ theirsCount }}</span>
+        </div>
+        <div style="border:1px solid rgba(145,132,217,.2);border-radius:14px;overflow:hidden;background:rgba(22,24,38,.72)">
+          <sc-for list="{{ theirRoster }}" as="p" hint-placeholder-count="5">
+            <div onClick="{{ p.onClick }}" style="{{ p.rowStyle }}">
+              <span style="{{ p.boxStyle }}">{{ p.check }}</span>
+              <div style="min-width:0;flex:1">
+                <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.name }}</div>
+                <div style="font-size:9px;letter-spacing:.1em;color:#75798c;margin-top:3px">{{ p.line }}</div>
+              </div>
+              <span style="font-family:var(--font-heading);font-size:14px;color:#8f94a8;flex:0 0 auto">{{ p.pts }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;align-items:baseline;gap:8px;padding:14px 0 8px">
+          <span style="font-size:9px;letter-spacing:.2em;color:#75798c">{{ theirPickLabel }}</span>
+          <span style="margin-left:auto;font-size:9px;letter-spacing:.12em;color:#595d6c">{{ theirPickNote }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
+          <sc-for list="{{ theirPicks }}" as="k" hint-placeholder-count="5">
+            <button onClick="{{ k.onClick }}" style="{{ k.style }}">
+              <span style="font-family:var(--font-heading);font-size:13px;line-height:1">{{ k.round }}</span>
+              <span style="font-size:8px;letter-spacing:.08em;color:#75798c;margin-top:4px">{{ k.slot }}</span>
+              <span style="{{ k.valStyle }}">{{ k.value }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isRecord }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:5px;padding-bottom:12px;overflow-x:auto">
+          <sc-for list="{{ txFilters }}" as="f" hint-placeholder-count="6">
+            <button onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</button>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding-bottom:14px">
+          <sc-for list="{{ txStats }}" as="s" hint-placeholder-count="4">
+            <div style="padding:9px 10px;border-radius:10px;border:1px solid rgba(145,132,217,.2);background:rgba(20,22,36,.6)">
+              <div style="{{ s.valueStyle }}">{{ s.value }}</div>
+              <div style="font-size:7px;letter-spacing:.12em;color:#75798c;margin-top:4px;line-height:1.3">{{ s.label }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-for list="{{ txDays }}" as="d" hint-placeholder-count="3">
+          <div style="margin-bottom:14px">
+            <div style="font-size:9px;letter-spacing:.2em;color:#595d6c;padding-bottom:8px">{{ d.label }}</div>
+            <div style="border:1px solid rgba(145,132,217,.18);border-radius:14px;overflow:hidden;background:rgba(22,24,38,.72)">
+              <sc-for list="{{ d.rows }}" as="t" hint-placeholder-count="4">
+                <div style="{{ t.rowStyle }}">
+                  <span style="{{ t.chipStyle }}">{{ t.kind }}</span>
+                  <div style="min-width:0;flex:1">
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <span style="font-family:var(--font-heading);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ t.player }}</span>
+                      <span style="font-size:9px;letter-spacing:.1em;color:#75798c;flex:0 0 auto">{{ t.posTeam }}</span>
+                    </div>
+                    <div style="font-size:10px;color:#8f94a8;margin-top:4px;text-wrap:pretty">{{ t.detail }}</div>
+                  </div>
+                  <span style="font-size:9px;letter-spacing:.1em;color:#595d6c;flex:0 0 auto">{{ t.when }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid rgba(145,132,217,.22);background:rgba(14,16,26,.96);backdrop-filter:blur(14px);padding-bottom:24px;position:relative;z-index:20">
+    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+      <button onClick="{{ t.onClick }}" style="{{ t.style }}">
+        <span style="{{ t.markStyle }}"></span>
+        <svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor"><path d="{{ t.path }}"></path></svg>
+        <span style="font-size:10px">{{ t.label }}</span>
+      </button>
+    </sc-for>
+  </div>
+</div>
+
+</x-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:940}}">
+const P = {
+  home: "M218.8 103.7 138.8 33a16 16 0 0 0-21.6 0l-80 70.7A16 16 0 0 0 32 115.7V208a16 16 0 0 0 16 16h48a8 8 0 0 0 8-8v-56h48v56a8 8 0 0 0 8 8h48a16 16 0 0 0 16-16v-92.3a16 16 0 0 0-5.2-12Z",
+  team: "M180 32h-24a8 8 0 0 0-8 8 20 20 0 0 1-40 0 8 8 0 0 0-8-8H76a8 8 0 0 0-4.4 1.3l-40 26.7A8 8 0 0 0 28 66.7v45.9a8 8 0 0 0 8 8h24V208a16 16 0 0 0 16 16h104a16 16 0 0 0 16-16v-87.4h24a8 8 0 0 0 8-8V66.7a8 8 0 0 0-3.6-6.7l-40-26.7A8 8 0 0 0 180 32Z",
+  league: "M40 68h176a8 8 0 0 0 0-16H40a8 8 0 0 0 0 16Zm176 52H40a8 8 0 0 0 0 16h176a8 8 0 0 0 0-16Zm0 68H40a8 8 0 0 0 0 16h176a8 8 0 0 0 0-16Z",
+  moves: "M221.7 82.3 189.7 50.3a8 8 0 0 0-11.4 11.4L196.7 80H40a8 8 0 0 0 0 16h156.7l-18.4 18.3a8 8 0 0 0 11.4 11.4l32-32a8 8 0 0 0 0-11.4ZM216 160H59.3l18.4-18.3a8 8 0 0 0-11.4-11.4l-32 32a8 8 0 0 0 0 11.4l32 32a8 8 0 0 0 11.4-11.4L59.3 176H216a8 8 0 0 0 0-16Z",
+  office: "M128 64a64 64 0 1 0 64 64 64 64 0 0 0-64-64Zm0 112a48 48 0 1 1 48-48 48 48 0 0 1-48 48Zm0-136a8 8 0 0 0 8-8V16a8 8 0 0 0-16 0v16a8 8 0 0 0 8 8Zm0 176a8 8 0 0 0-8 8v16a8 8 0 0 0 16 0v-16a8 8 0 0 0-8-8ZM40 128a8 8 0 0 0-8-8H16a8 8 0 0 0 0 16h16a8 8 0 0 0 8-8Zm200-8h-16a8 8 0 0 0 0 16h16a8 8 0 0 0 0-16ZM58.3 47a8 8 0 0 0-11.3 11.3l11.3 11.3A8 8 0 0 0 69.6 58.3Zm128.1 139.4a8 8 0 0 0-11.3 11.3l11.3 11.3a8 8 0 0 0 11.3-11.3Zm0-116.8 11.3-11.3A8 8 0 0 0 186.4 47l-11.3 11.3a8 8 0 0 0 11.3 11.3ZM58.3 186.4 47 197.7a8 8 0 0 0 11.3 11.3l11.3-11.3a8 8 0 0 0-11.3-11.3Z"
+};
+
+const WEEK = 4, PLAYED = WEEK - 1;
+const ME = 1;
+
+const OWNERS = {
+  0: "Steel Cartel · Dev", 1: "Gettin Stribby Wit' It · Conner", 2: "Ravenous · Priya",
+  3: "Manchester Poop Farmers · Angus", 4: "Nova Collective · Jules", 5: "Apex Union · Tomas",
+  6: "Helix Nine · Sam", 7: "Voltage · Rae", 8: "Onyx Row · Bex", 9: "Blaze Syndicate · Marcus"
+};
+
+// [name, pos, nflTeam, owner BEFORE the transaction log is applied (-1 = free
+//  agent), preseason positional rank, wk1, wk2, wk3, rostered%]
+// Current ownership and waiver status are DERIVED by replaying TX over this
+// base, so the three tabs cannot disagree with each other.
+const POOL = [
+  ["Lamar Jackson", "QB", "BAL", 1, 1, 28.4, 22.1, 31.6, 100],
+  ["Jayden Daniels", "QB", "WSH", 1, 3, 24.8, 26.2, 19.4, 100],
+  ["Drake Maye", "QB", "NE", 1, 12, 26.1, 23.8, 29.2, 96],
+  ["Bijan Robinson", "RB", "ATL", 1, 1, 22.4, 18.9, 25.1, 100],
+  ["Jahmyr Gibbs", "RB", "DET", 1, 2, 19.8, 24.2, 17.6, 100],
+  ["Ashton Jeanty", "RB", "LV", 1, 14, 18.2, 21.4, 23.8, 98],
+  ["Ja'Marr Chase", "WR", "CIN", 1, 1, 24.1, 19.6, 27.8, 100],
+  ["Justin Jefferson", "WR", "MIN", 1, 2, 18.4, 22.9, 20.1, 100],
+  ["Brock Bowers", "TE", "LV", 1, 1, 17.2, 14.8, 19.6, 100],
+  ["Trey McBride", "TE", "ARI", 1, 2, 13.4, 18.2, 15.1, 100],
+  ["Trey Benson", "RB", "ARI", 1, 34, 11.9, 14.2, 16.4, 52],
+
+  ["Josh Allen", "QB", "BUF", 0, 2, 27.2, 25.4, 24.8, 100],
+  ["Saquon Barkley", "RB", "PHI", 0, 5, 21.6, 16.4, 14.9, 100],
+  ["Derrick Henry", "RB", "BAL", 0, 8, 19.4, 22.1, 15.8, 100],
+  ["Amon-Ra St. Brown", "WR", "DET", 0, 5, 20.2, 17.4, 22.6, 100],
+  ["Sam LaPorta", "TE", "DET", 0, 4, 12.8, 15.4, 11.2, 94],
+  ["Chase Brown", "RB", "CIN", 0, 29, 14.6, 19.8, 22.4, 88],
+
+  ["Joe Burrow", "QB", "CIN", 2, 6, 22.4, 19.8, 26.1, 100],
+  ["De'Von Achane", "RB", "MIA", 2, 6, 17.8, 20.4, 19.2, 100],
+  ["CeeDee Lamb", "WR", "DAL", 2, 3, 19.6, 21.8, 17.2, 100],
+  ["Garrett Wilson", "WR", "NYJ", 2, 9, 15.4, 18.2, 16.8, 98],
+
+  ["Patrick Mahomes", "QB", "KC", 3, 4, 21.8, 24.2, 20.6, 100],
+  ["Kenneth Walker III", "RB", "SEA", 3, 12, 14.2, 18.6, 16.1, 96],
+  ["Nico Collins", "WR", "HOU", 3, 7, 17.5, 12.4, 20.8, 100],
+  ["Drake London", "WR", "ATL", 3, 11, 16.2, 19.4, 14.8, 98],
+  ["Cade Otton", "TE", "TB", 3, 22, 8.6, 10.2, 12.4, 17],
+
+  ["Caleb Williams", "QB", "CHI", 4, 14, 18.4, 21.2, 17.6, 82],
+  ["Malik Nabers", "WR", "NYG", 4, 4, 16.8, 14.2, 19.6, 100],
+  ["Puka Nacua", "WR", "LAR", 4, 6, 12.4, 21.8, 18.9, 100],
+  ["George Kittle", "TE", "SF", 4, 5, 11.4, 16.2, 13.8, 92],
+
+  ["Bo Nix", "QB", "DEN", 5, 11, 17.8, 20.4, 16.2, 78],
+  ["Kyren Williams", "RB", "LAR", 5, 9, 16.8, 13.4, 18.2, 96],
+  ["DK Metcalf", "WR", "PIT", 5, 14, 13.6, 16.8, 19.4, 92],
+  ["Dallas Goedert", "TE", "PHI", 5, 11, 9.8, 12.6, 14.2, 64],
+
+  ["Justin Herbert", "QB", "LAC", 6, 8, 20.6, 18.2, 22.4, 94],
+  ["Breece Hall", "RB", "NYJ", 6, 7, 15.8, 19.2, 13.6, 98],
+  ["Zay Flowers", "WR", "BAL", 6, 31, 16.2, 18.4, 21.1, 74],
+  ["Davante Adams", "WR", "LAR", 6, 13, 14.2, 12.8, 17.6, 90],
+
+  ["Jalen Hurts", "QB", "PHI", 7, 5, 23.6, 20.8, 25.4, 100],
+  ["Bucky Irving", "RB", "TB", 7, 16, 16.4, 14.8, 19.2, 94],
+  ["Brian Thomas Jr.", "WR", "JAX", 7, 8, 18.2, 15.6, 21.4, 100],
+  ["Tyreek Hill", "WR", "MIA", 7, 10, 14.8, 17.2, 12.6, 96],
+  ["Mark Andrews", "TE", "BAL", 7, 8, 10.4, 13.8, 15.2, 86],
+
+  ["Dak Prescott", "QB", "DAL", 8, 9, 19.4, 17.6, 21.8, 90],
+  ["James Cook", "RB", "BUF", 8, 10, 14.6, 17.8, 15.2, 96],
+  ["Terry McLaurin", "WR", "WAS", 8, 12, 15.8, 13.2, 18.6, 94],
+  ["Jordan Whittington", "WR", "LAR", 8, 58, 6.4, 8.8, 11.2, 6],
+
+  ["Baker Mayfield", "QB", "TB", 9, 10, 18.8, 16.4, 20.2, 86],
+  ["Omarion Hampton", "RB", "LAC", 9, 18, 13.8, 16.2, 14.4, 82],
+  ["Jaxon Smith-Njigba", "WR", "SEA", 9, 6, 17.4, 19.8, 15.6, 100],
+  ["Jonathan Taylor", "RB", "IND", 9, 4, 15.2, 12.8, 18.4, 64],
+
+  ["Tyler Allgeier", "RB", "ATL", -1, 42, 8.4, 11.2, 14.6, 28],
+  ["Jauan Jennings", "WR", "SF", -1, 38, 12.4, 9.8, 15.2, 34],
+  ["Jake Ferguson", "TE", "DAL", -1, 14, 9.4, 11.8, 13.2, 41],
+  ["Tank Bigsby", "RB", "JAX", -1, 45, 9.2, 13.4, 11.8, 22],
+  ["Rico Dowdle", "RB", "CAR", -1, 40, 11.8, 14.2, 9.6, 19],
+  ["Jalen McMillan", "WR", "TB", -1, 36, 10.2, 8.4, 14.8, 24],
+  ["Isaiah Likely", "TE", "BAL", -1, 20, 8.2, 11.6, 9.4, 15],
+  ["Dontayvion Wicks", "WR", "GB", -1, 48, 7.2, 12.6, 10.4, 11],
+  ["Chris Rodriguez", "RB", "WSH", -1, 62, 5.8, 9.4, 12.8, 8],
+  ["Elijah Moore", "WR", "BUF", -1, 54, 6.8, 7.4, 10.2, 5]
+];
+
+const PLAYERS = POOL.map(r => ({
+  n: r[0], pos: r[1], t: r[2], own: r[3], pre: r[4],
+  wk: [r[5], r[6], r[7]], ros: r[8], wv: null
+}));
+
+const total = p => p.wk.reduce((a, b) => a + b, 0);
+const find = n => PLAYERS.filter(p => p.n === n)[0];
+const rank = p => PLAYERS.filter(q => q.pos === p.pos).sort((a, b) => total(b) - total(a)).indexOf(p) + 1;
+
+// The transaction log — the single source of truth for who owns whom. Each row
+// records what happened and how many hours ago; timestamps, day grouping,
+// current ownership and waiver status are all derived from it.
+const TX = [
+  { kind: "RECEIVED", player: "Zay Flowers", by: 1, from: 6, h: 0.7 },
+  { kind: "SENT", player: "Trey Benson", by: 1, to: 2, h: 0.7 },
+  { kind: "ADDED", player: "Colston Loveland", by: 4, h: 1 },
+  { kind: "CLAIM", player: "Tank Bigsby", by: 9, h: 2 },
+  { kind: "DROP", player: "Jonathan Taylor", by: 9, h: 2 },
+  { kind: "ADDED", player: "Jalen McMillan", by: 8, h: 4 },
+  { kind: "RECEIVED", player: "Chase Brown", by: 4, from: 0, h: 20 },
+  { kind: "SENT", player: "Puka Nacua", by: 4, to: 5, h: 20 },
+  { kind: "CLAIM", player: "Jake Ferguson", by: 3, h: 27 },
+  { kind: "DROP", player: "Cade Otton", by: 3, h: 27 },
+  { kind: "ADDED", player: "Rico Dowdle", by: 6, h: 44 },
+  { kind: "DROP", player: "Jordan Whittington", by: 8, h: 44 }
+];
+
+// Colston Loveland is only in the log, so give him a row to land on.
+PLAYERS.push({ n: "Colston Loveland", pos: "TE", t: "CHI", own: -1, pre: 18, wk: [9.8, 12.4, 14.6], ros: 31, wv: null });
+
+// Replay the log oldest-first. A drop returns the player to the pool and puts
+// him on waivers until the next nightly run; a claim, add or trade moves him.
+TX.slice().sort((a, b) => b.h - a.h).forEach(t => {
+  const p = find(t.player);
+  if (!p) return;
+  if (t.kind === "DROP") { p.own = -1; p.wv = t.h < 24 ? Math.max(1, Math.round(24 - t.h)) : null; }
+  else if (t.kind === "SENT") { p.own = t.to; p.wv = null; }
+  else { p.own = t.by; p.wv = null; }
+});
+
+// 2027 picks, rounds 1-5, one per franchise per round. Draft order is the
+// inverse of the season so far — weakest roster picks first — so a pick's
+// worth is derived, never typed. Inaugural-season picks stay untradeable;
+// 2027 is the first open year.
+const ROUNDS = [1, 2, 3, 4, 5];
+
+function draftOrder() {
+  return Object.keys(OWNERS).map(Number)
+    .map(k => ({ k, pts: PLAYERS.filter(p => p.own === k).reduce((a, p) => a + total(p), 0) }))
+    .sort((a, b) => a.pts - b.pts)
+    .map(x => x.k);
+}
+
+function picksFor(owner) {
+  const slot = draftOrder().indexOf(owner) + 1;
+  return ROUNDS.map(r => ({
+    id: "pick:" + owner + ":2027:" + r,
+    round: "R" + r,
+    slot: "1." + String(slot).padStart(2, "0").slice(-2),
+    label: "2027 " + r + (r === 1 ? "st" : r === 2 ? "nd" : r === 3 ? "rd" : "th"),
+    // Round carries most of the weight; slot adjusts it.
+    value: ((6 - r) / 5) * (30 + (10 - slot) * 2.5)
+  })).map(p => ({ ...p, slot: "PK " + String(slot).padStart(2, "0") }));
+}
+
+const stamp = h => h < 1 ? Math.round(h * 60) + "M"
+  : h < 24 ? Math.round(h) + "H"
+  : h < 48 ? "YDAY" : "MON";
+const dayOf = h => h < 12 ? "TODAY" : h < 36 ? "YESTERDAY" : "EARLIER";
+
+const TX_TONE = {
+  DROP: ["rgba(224,122,122,.5)", "#e07a7a"],
+  SENT: ["rgba(143,148,168,.45)", "#8f94a8"],
+  RECEIVED: ["rgba(181,171,252,.6)", "#b5abfc"],
+  CLAIM: ["rgba(224,181,115,.55)", "#e0b573"],
+  ADDED: ["rgba(127,216,168,.55)", "#7fd8a8"]
+};
+
+const STARTERS = { QB: 1, RB: 2, WR: 2, TE: 1 };
+
+class Component extends DCLogic {
+  state = {
+    tab: "Free Agents", nav: "Moves", pos: "All", txFilter: "All", sort: "Points",
+    partner: 0, send: {}, get: {}, claimed: {}, offered: false, left: 0
+  };
+
+  componentDidMount() {
+    // Waivers run nightly at 3:00 AM; the countdown is real, not a label.
+    const tick = () => {
+      const now = new Date();
+      const next = new Date(now);
+      next.setHours(3, 0, 0, 0);
+      if (next <= now) next.setDate(next.getDate() + 1);
+      this.setState({ left: next - now });
+    };
+    tick();
+    this.timer = setInterval(tick, 1000);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+
+  renderVals() {
+    const S = this.state, self = this;
+
+    const rowBase = i => "display:flex;align-items:center;gap:10px;padding:11px 13px;" +
+      (i ? "border-top:1px solid rgba(145,132,217,.13);" : "");
+
+    const chip = (label, on, onClick, tone) => ({
+      label, onClick,
+      style: "cursor:pointer;flex:0 0 auto;font-family:var(--font-body);font-size:10px;letter-spacing:.08em;padding:7px 11px;border-radius:99px;border:1px solid " +
+        (on ? (tone || "rgba(181,171,252,.6)") + ";background:rgba(145,132,217,.18);color:#e9e9ed"
+            : "rgba(145,132,217,.24);background:transparent;color:#75798c")
+    });
+
+    const mine = PLAYERS.filter(p => p.own === ME);
+    const theirs = PLAYERS.filter(p => p.own === S.partner);
+    const myPickList = picksFor(ME), theirPickList = picksFor(S.partner);
+    const sendList = mine.filter(p => S.send[p.n]);
+    const getList = theirs.filter(p => S.get[p.n]);
+    const sendPicks = myPickList.filter(k => S.send[k.id]);
+    const getPicks = theirPickList.filter(k => S.get[k.id]);
+    const sendPts = sendList.reduce((a, p) => a + total(p), 0) + sendPicks.reduce((a, k) => a + k.value, 0);
+    const getPts = getList.reduce((a, p) => a + total(p), 0) + getPicks.reduce((a, k) => a + k.value, 0);
+    const diff = getPts - sendPts;
+    const any = sendList.length + getList.length + sendPicks.length + getPicks.length > 0;
+    const balance = any ? getPts / (getPts + sendPts || 1) * 100 : 50;
+
+    const fa = PLAYERS.filter(p => p.own === -1 && (S.pos === "All" || p.pos === S.pos));
+    const sorted = fa.slice().sort((a, b) =>
+      S.sort === "Points" ? total(b) - total(a)
+      : S.sort === "Trend" ? (b.wk[2] - (b.wk[0] + b.wk[1]) / 2) - (a.wk[2] - (a.wk[0] + a.wk[1]) / 2)
+      : b.ros - a.ros);
+
+    const partnerName = OWNERS[S.partner].split(" · ")[1];
+
+    // Positional strength: what my starters at each slot actually average, and
+    // where the free-agent pool could beat them.
+    const perGame = p => total(p) / PLAYED;
+    const myBest = pos => PLAYERS.filter(p => p.own === ME && p.pos === pos)
+      .sort((a, b) => total(b) - total(a));
+    const weakStarter = pos => {
+      const g = myBest(pos), n = STARTERS[pos] || 1;
+      return g.length >= n ? g[n - 1] : null;
+    };
+    const holes = Object.keys(STARTERS).filter(pos => myBest(pos).length < STARTERS[pos]);
+    // The realistic comparison on a full roster is the wire against the worst
+    // player you are actually holding, not against a starter.
+    const myWorst = mine.slice().sort((a, b) => perGame(a) - perGame(b))[0];
+    const upgrades = PLAYERS.filter(p => p.own === -1)
+      .filter(p => myWorst && perGame(p) > perGame(myWorst))
+      .sort((a, b) => perGame(b) - perGame(a));
+    const starterUpgrades = PLAYERS.filter(p => p.own === -1).filter(p => {
+      const w = weakStarter(p.pos);
+      return w && perGame(p) > perGame(w);
+    }).sort((a, b) => perGame(b) - perGame(a));
+
+    const ms = Math.floor(S.left / 1000);
+    const pad = n => String(n).padStart(2, "0");
+
+    // Which manager is the best trade partner: they hold surplus where I am
+    // thin, and I hold surplus where they are thin.
+    // Fit only counts when one side is genuinely SHORT at a slot and the other
+    // is genuinely DEEP there — surplus alone is not a fit.
+    const fitScore = k => {
+      let score = 0;
+      Object.keys(STARTERS).forEach(pos => {
+        const need = STARTERS[pos];
+        const theirs = PLAYERS.filter(p => p.own === k && p.pos === pos).length;
+        const me = myBest(pos).length;
+        if (me < need && theirs > need) score += Math.min(need - me, theirs - need);
+        if (theirs < need && me > need) score += Math.min(need - theirs, me - need);
+      });
+      return score;
+    };
+    const fits = Object.keys(OWNERS).map(Number).filter(k => k !== ME && PLAYERS.some(p => p.own === k));
+    const topFit = Math.max.apply(null, fits.map(fitScore));
+
+    // If the deal is uneven, find the smallest pick on the light side that
+    // would close the gap.
+    const closer = (() => {
+      if (!any || Math.abs(diff) < 5) return null;
+      const pool = diff > 0 ? myPickList.filter(k => !S.send[k.id]) : theirPickList.filter(k => !S.get[k.id]);
+      const target = Math.abs(diff);
+      // Only offer it if a single pick actually lands the deal near even.
+      const best = pool.slice().sort((a, b) =>
+        Math.abs(a.value - target) - Math.abs(b.value - target))[0];
+      if (!best || Math.abs(target - best.value) > 8) return null;
+      return {
+        pick: best, side: diff > 0 ? "send" : "get",
+        text: "Adding " + (diff > 0 ? "your " : partnerName + "'s ") + best.label +
+          " brings it within " + Math.abs(target - best.value).toFixed(1) + " points."
+      };
+    })();
+
+    return {
+      weekLabel: "WK " + WEEK,
+      rosterLine: mine.length + " rostered · " + fa.length + " available",
+      waiverLine: "WAIVERS " + Math.floor(ms / 3600) + ":" + pad(Math.floor(ms % 3600 / 60)) + ":" + pad(ms % 60),
+
+      trending: (() => {
+        // Most-moved players over the log window, newest weighted first.
+        const counts = {};
+        TX.forEach(t => {
+          counts[t.player] = counts[t.player] || { adds: 0, drops: 0 };
+          if (t.kind === "DROP" || t.kind === "SENT") counts[t.player].drops++;
+          else counts[t.player].adds++;
+        });
+        const list = Object.keys(counts).map(n => {
+          const c = counts[n], net = c.adds - c.drops;
+          return { name: n, net, adds: c.adds };
+        }).sort((a, b) => b.adds - a.adds || b.net - a.net);
+        return list.concat(list).map((x, i) => ({
+          name: x.name,
+          move: x.net > 0 ? "+" + x.net + " ADD" : x.net < 0 ? x.net + " DROP" : "MOVED",
+          dotStyle: "width:4px;height:4px;border-radius:50%;flex:0 0 auto;background:" +
+            (x.net > 0 ? "#7fd8a8" : x.net < 0 ? "#e07a7a" : "rgba(145,132,217,.5)") +
+            (i % 6 === 0 ? ";box-shadow:0 0 7px currentColor;animation:mv-pulse 1.6s infinite" : ""),
+          moveStyle: "font-family:var(--font-heading);font-size:9px;color:" +
+            (x.net > 0 ? "#7fd8a8" : x.net < 0 ? "#e07a7a" : "#75798c")
+        }));
+      })(),
+
+      needs: (() => {
+        if (holes.length) return [{
+          tag: "ROSTER HOLE", tone: "warn",
+          text: "You are short at " + holes.join(" and ") + ". " +
+            (upgrades.length ? upgrades[0].n + " is the best available fit." : "The pool is thin there this week.")
+        }];
+        if (starterUpgrades.length) {
+          const u = starterUpgrades[0], w = weakStarter(u.pos);
+          return [{
+            tag: "STARTER UPGRADE", tone: "warn",
+            text: u.n + " is averaging " + perGame(u).toFixed(1) + " a game, ahead of " + w.n +
+              " at " + perGame(w).toFixed(1) + " in your " + u.pos + " slot."
+          }];
+        }
+        if (upgrades.length) {
+          const u = upgrades[0];
+          return [{
+            tag: "BENCH UPGRADE", tone: "ok",
+            text: u.n + " (" + perGame(u).toFixed(1) + " PG) outscores " + myWorst.n +
+              " (" + perGame(myWorst).toFixed(1) + " PG), the weakest player you are holding."
+          }];
+        }
+        return [{
+          tag: "NO UPGRADES", tone: "flat",
+          text: "Nothing on the wire outscores anyone you are holding. Your worst roster spot is " +
+            myWorst.n + " at " + perGame(myWorst).toFixed(1) + " a game."
+        }];
+      })().map(n => {
+        const t = n.tone === "warn" ? ["rgba(224,181,115,.28)", "rgba(30,26,20,.5)", "rgba(224,181,115,.5)", "#e0b573"]
+          : n.tone === "ok" ? ["rgba(127,216,168,.28)", "rgba(22,36,30,.5)", "rgba(127,216,168,.5)", "#7fd8a8"]
+          : ["rgba(145,132,217,.22)", "rgba(20,22,36,.6)", "rgba(143,148,168,.4)", "#8f94a8"];
+        return Object.assign({}, n, {
+          wrapStyle: "display:flex;align-items:flex-start;gap:9px;padding:11px 12px;border-radius:11px;margin-bottom:12px;border:1px solid " +
+            t[0] + ";background:" + t[1],
+          tagStyle: "font-size:8px;letter-spacing:.14em;padding:3px 6px;border-radius:3px;flex:0 0 auto;white-space:nowrap;border:1px solid " +
+            t[2] + ";color:" + t[3]
+        });
+      }),
+
+      subtabs: ["Free Agents", "Trade Builder", "The Record"].map(t => ({
+        label: t,
+        onClick: () => self.setState({ tab: t }),
+        style: "cursor:pointer;flex:1;font-family:var(--font-body);font-size:10px;letter-spacing:.06em;padding:9px 4px;border-radius:8px 8px 0 0;border:0;background:" +
+          (S.tab === t ? "rgba(145,132,217,.18)" : "transparent") + ";color:" + (S.tab === t ? "#e9e9ed" : "#75798c") +
+          ";box-shadow:" + (S.tab === t ? "inset 0 -2px 0 #b5abfc" : "none")
+      })),
+      isFA: S.tab === "Free Agents", isTrade: S.tab === "Trade Builder", isRecord: S.tab === "The Record",
+
+      posFilters: ["All", "QB", "RB", "WR", "TE"].map(f => chip(f, S.pos === f, () => self.setState({ pos: f }))),
+      sorts: ["Points", "Trend", "Rostered"].map(f => ({
+        label: f,
+        onClick: () => self.setState({ sort: f }),
+        style: "cursor:pointer;flex:0 0 auto;font-family:var(--font-body);font-size:9px;letter-spacing:.1em;padding:5px 9px;border-radius:6px;border:0;background:" +
+          (S.sort === f ? "rgba(145,132,217,.22)" : "transparent") + ";color:" + (S.sort === f ? "#d2cefd" : "#75798c")
+      })),
+
+      freeAgents: sorted.map((p, i) => {
+        const t = total(p), recent = p.wk[2] - (p.wk[0] + p.wk[1]) / 2;
+        const max = Math.max.apply(null, PLAYERS.filter(q => q.own === -1).map(q => Math.max.apply(null, q.wk)));
+        const on = !!S.claimed[p.n];
+        return {
+          name: p.n, posTeam: p.pos + " · " + p.t,
+          pts: t.toFixed(1),
+          trend: recent >= 2 ? "▲" + recent.toFixed(1) : recent <= -2 ? "▼" + Math.abs(recent).toFixed(1) : "",
+          trendStyle: "font-family:var(--font-heading);font-size:10px;flex:0 0 auto;color:" +
+            (recent >= 2 ? "#7fd8a8" : recent <= -2 ? "#e07a7a" : "transparent"),
+          bars: p.wk.map(v => ({
+            style: "display:block;width:5px;height:" + Math.max(4, Math.round(v / max * 18)) +
+              "px;border-radius:2px;background:rgba(181,171,252,.55)"
+          })),
+          formLine: (t / PLAYED).toFixed(1) + " PG · " + p.ros + "% ROSTERED",
+          fit: (() => {
+            const box = c => "font-size:7px;letter-spacing:.1em;padding:2px 5px;border-radius:3px;flex:0 0 auto;border:1px solid " + c;
+            if (holes.indexOf(p.pos) > -1)
+              return [{ label: "FILLS " + p.pos, style: box("rgba(224,181,115,.6);color:#e0b573") }];
+            const w = weakStarter(p.pos);
+            if (w && perGame(p) > perGame(w))
+              return [{ label: "STARTER", style: box("rgba(224,181,115,.6);color:#e0b573") }];
+            if (myWorst && perGame(p) > perGame(myWorst))
+              return [{ label: "OVER " + myWorst.n.split(" ").slice(-1)[0].toUpperCase(), style: box("rgba(127,216,168,.6);color:#7fd8a8") }];
+            return [];
+          })(),
+          status: p.wv
+            ? "On waivers · clears in " + p.wv + "h"
+            : "Free agent · " + p.pos + rank(p) + " on the season, drafted " + p.pos + p.pre,
+          onClick: () => self.setState({ claimed: Object.assign({}, S.claimed, { [p.n]: !on }) }),
+          btnLabel: on ? (p.wv ? "CLAIMED" : "ADDED") : (p.wv ? "CLAIM" : "ADD"),
+          btnStyle: "cursor:pointer;flex:0 0 auto;font-family:var(--font-body);font-size:9px;letter-spacing:.1em;padding:8px 10px;border-radius:7px;border:1px solid " +
+            (on ? (p.wv ? "rgba(224,181,115,.6);background:rgba(46,38,20,.6);color:#e0b573"
+                        : "rgba(127,216,168,.6);background:rgba(24,44,34,.6);color:#7fd8a8")
+                : "rgba(145,132,217,.3);background:transparent;color:#b5abfc"),
+          rowStyle: rowBase(i) + "align-items:flex-start;" + (p.wv ? "box-shadow:inset 2px 0 0 rgba(224,181,115,.7);" : "")
+        };
+      }),
+
+      partners: fits.slice()
+        .sort((a, b) => fitScore(b) - fitScore(a))
+        .map(k => chip(OWNERS[k].split(" · ")[1] + (topFit > 0 && fitScore(k) === topFit ? " ◆" : ""),
+          S.partner === k, () => self.setState({ partner: k, get: {}, offered: false }))),
+      partnerLabel: partnerName.toUpperCase() + "'S ROSTER",
+
+      sendPts: sendPts.toFixed(1),
+      getPts: getPts.toFixed(1),
+      mineCount: sendList.length ? sendList.length + " SELECTED" : "TAP TO ADD",
+      theirsCount: getList.length ? getList.length + " SELECTED" : "TAP TO ADD",
+
+      pickNote: sendPicks.length ? sendPicks.length + " SELECTED" : "ROUNDS 1-5",
+      theirPickLabel: partnerName.toUpperCase() + "'S 2027 PICKS",
+      theirPickNote: getPicks.length ? getPicks.length + " SELECTED" : "ROUNDS 1-5",
+      myPicks: myPickList.map(k => {
+        const on = !!S.send[k.id];
+        return {
+          round: k.round, slot: k.slot, value: k.value.toFixed(0),
+          onClick: () => self.setState({ send: Object.assign({}, S.send, { [k.id]: !on }), offered: false }),
+          style: "cursor:pointer;display:flex;flex-direction:column;align-items:center;padding:9px 2px;border-radius:9px;font-family:var(--font-body);border:1px solid " +
+            (on ? "rgba(181,171,252,.7);background:rgba(145,132,217,.2);color:#e9e9ed"
+                : "rgba(145,132,217,.24);background:rgba(20,22,36,.6);color:#b2b6ca"),
+          valStyle: "font-family:var(--font-heading);font-size:10px;margin-top:5px;color:" + (on ? "#b5abfc" : "#595d6c")
+        };
+      }),
+      theirPicks: theirPickList.map(k => {
+        const on = !!S.get[k.id];
+        return {
+          round: k.round, slot: k.slot, value: k.value.toFixed(0),
+          onClick: () => self.setState({ get: Object.assign({}, S.get, { [k.id]: !on }), offered: false }),
+          style: "cursor:pointer;display:flex;flex-direction:column;align-items:center;padding:9px 2px;border-radius:9px;font-family:var(--font-body);border:1px solid " +
+            (on ? "rgba(181,171,252,.7);background:rgba(145,132,217,.2);color:#e9e9ed"
+                : "rgba(145,132,217,.24);background:rgba(20,22,36,.6);color:#b2b6ca"),
+          valStyle: "font-family:var(--font-heading);font-size:10px;margin-top:5px;color:" + (on ? "#b5abfc" : "#595d6c")
+        };
+      }),
+      balanceStyle: "height:100%;width:" + balance.toFixed(1) + "%;border-radius:99px;transition:width .4s cubic-bezier(.2,.8,.2,1);background:linear-gradient(90deg,#5d5294,#b5abfc);box-shadow:0 0 10px rgba(181,171,252,.5)",
+      verdict: !any
+        ? "Pick players or 2027 picks from either side. Player value is points scored this season; a pick is valued by round and by where the current standings place it."
+        : Math.abs(diff) < 5
+          ? "Within " + Math.abs(diff).toFixed(1) + " points. As even as trades get — this one comes down to roster fit."
+          : diff > 0
+            ? "You come out " + diff.toFixed(1) + " points ahead on the season. " + partnerName + " will want the gap closed."
+            : "You give up " + Math.abs(diff).toFixed(1) + " points of production. Worth it only if you are buying the schedule ahead.",
+      balancer: closer ? [{
+        text: closer.text,
+        onClick: () => {
+          const key = closer.side === "send" ? "send" : "get";
+          self.setState({ [key]: Object.assign({}, S[key], { [closer.pick.id]: true }), offered: false });
+        }
+      }] : [],
+      onSend: () => this.setState({ offered: any }),
+      sendLabel: S.offered ? "OFFER SENT" : any ? "SEND OFFER TO " + partnerName.toUpperCase() : "SELECT PLAYERS",
+      sendBtnStyle: "cursor:" + (any ? "pointer" : "default") + ";width:100%;margin-top:12px;font-family:var(--font-body);font-size:10px;letter-spacing:.14em;padding:11px 0;border-radius:9px;border:1px solid " +
+        (S.offered ? "rgba(127,216,168,.6);background:rgba(24,44,34,.6);color:#7fd8a8"
+         : any ? "rgba(181,171,252,.6);background:rgba(145,132,217,.14);color:#b5abfc"
+               : "rgba(145,132,217,.2);background:transparent;color:#595d6c"),
+
+      myRoster: mine.slice().sort((a, b) => total(b) - total(a)).map((p, i) => {
+        const on = !!S.send[p.n];
+        return {
+          name: p.n, line: p.pos + rank(p) + " · " + p.t, pts: total(p).toFixed(1),
+          check: on ? "✓" : "",
+          onClick: () => self.setState({ send: Object.assign({}, S.send, { [p.n]: !on }), offered: false }),
+          boxStyle: "width:18px;height:18px;flex:0 0 auto;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#161826;border:1px solid " +
+            (on ? "rgba(181,171,252,.8);background:#b5abfc" : "rgba(145,132,217,.35);background:transparent"),
+          rowStyle: rowBase(i) + "cursor:pointer;" + (on ? "background:rgba(145,132,217,.13);" : "")
+        };
+      }),
+
+      theirRoster: theirs.slice().sort((a, b) => total(b) - total(a)).map((p, i) => {
+        const on = !!S.get[p.n];
+        return {
+          name: p.n, line: p.pos + rank(p) + " · " + p.t, pts: total(p).toFixed(1),
+          check: on ? "✓" : "",
+          onClick: () => self.setState({ get: Object.assign({}, S.get, { [p.n]: !on }), offered: false }),
+          boxStyle: "width:18px;height:18px;flex:0 0 auto;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#161826;border:1px solid " +
+            (on ? "rgba(181,171,252,.8);background:#b5abfc" : "rgba(145,132,217,.35);background:transparent"),
+          rowStyle: rowBase(i) + "cursor:pointer;" + (on ? "background:rgba(145,132,217,.13);" : "")
+        };
+      }),
+
+      txFilters: ["All", "Added", "Claim", "Received", "Sent", "Drop"]
+        .map(f => chip(f, S.txFilter === f, () => self.setState({ txFilter: f }),
+          f === "Drop" ? "rgba(224,122,122,.6)" : f === "Claim" ? "rgba(224,181,115,.6)"
+          : f === "Added" ? "rgba(127,216,168,.6)" : "rgba(181,171,252,.6)")),
+
+      txStats: (() => {
+        const day = TX.filter(t => t.h < 24);
+        const busiest = {};
+        TX.forEach(t => { busiest[t.by] = (busiest[t.by] || 0) + 1; });
+        const top = Object.keys(busiest).sort((a, b) => busiest[b] - busiest[a])[0];
+        const trades = TX.filter(t => t.kind === "RECEIVED").length;
+        return [
+          { value: day.length, label: "MOVES · 24H" },
+          { value: trades, label: "TRADES" },
+          { value: TX.filter(t => t.kind === "CLAIM").length, label: "CLAIMS" },
+          { value: OWNERS[top].split(" · ")[1], label: "MOST ACTIVE", small: true }
+        ].map(s => Object.assign({}, s, {
+          valueStyle: "font-family:var(--font-heading);font-size:" + (s.small ? "12px" : "17px") +
+            ";line-height:1;color:" + (s.small ? "#e9e9ed" : "#b5abfc")
+        }));
+      })(),
+
+      txDays: (() => {
+        const want = S.txFilter === "All" ? null : S.txFilter.toUpperCase();
+        const rows = TX.filter(t => !want || t.kind === want);
+        const days = [];
+        rows.slice().sort((a, b) => a.h - b.h).forEach(t => {
+          const label = dayOf(t.h);
+          let d = days.filter(x => x.label === label)[0];
+          if (!d) { d = { label, rows: [] }; days.push(d); }
+          d.rows.push(t);
+        });
+        return days.map(d => ({
+          label: d.label,
+          rows: d.rows.map((t, i) => {
+            const p = find(t.player);
+            const tone = TX_TONE[t.kind];
+            const who = OWNERS[t.by].split(" · ")[1];
+            const other = t.from !== undefined ? OWNERS[t.from].split(" · ")[1]
+              : t.to !== undefined ? OWNERS[t.to].split(" · ")[1] : null;
+            const detail = t.kind === "RECEIVED" ? who + " received from " + other
+              : t.kind === "SENT" ? who + " sent to " + other
+              : t.kind === "CLAIM" ? who + " claimed off waivers"
+              : t.kind === "ADDED" ? who + " added from free agency"
+              : who + " dropped";
+            return {
+              kind: t.kind, player: p ? p.n : t.player,
+              posTeam: p ? p.pos + " · " + p.t : "",
+              when: stamp(t.h),
+              detail: detail + (p ? " · " + total(p).toFixed(1) + " pts, " + p.pos + rank(p) : ""),
+              chipStyle: "font-size:7px;letter-spacing:.12em;padding:4px 6px;border-radius:3px;flex:0 0 auto;width:56px;text-align:center;border:1px solid " +
+                tone[0] + ";color:" + tone[1],
+              rowStyle: rowBase(i) + "align-items:flex-start;box-shadow:inset 2px 0 0 " + tone[1] + ";"
+            };
+          })
+        }));
+      })(),
+
+      tabs: ["Home,home", "My Team,team", "League,league", "Moves,moves", "Office,office"].map(v => {
+        const [label, key] = v.split(",");
+        const on = S.nav === label;
+        return {
+          label, path: P[key],
+          onClick: () => self.setState({ nav: label }),
+          style: "cursor:pointer;background:" + (on ? "rgba(145,132,217,.12)" : "transparent") +
+            ";border:0;padding:11px 0 9px;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative;font-family:var(--font-body);color:" +
+            (on ? "#e9e9ed" : "#75798c"),
+          markStyle: "position:absolute;top:0;left:50%;transform:translateX(-50%);width:" + (on ? "34px" : "0") +
+            ";height:2px;border-radius:99px;background:#b5abfc;box-shadow:0 0 10px #b5abfc;transition:width .25s ease"
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

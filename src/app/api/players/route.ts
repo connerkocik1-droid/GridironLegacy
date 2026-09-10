@@ -118,6 +118,9 @@ export async function GET(req: Request) {
     waiverDays: Math.max(1, Number(settings.waiverDays ?? 1) || 1),
     capacity,
     held,
+    // What the league actually fields. The Moves advice is about starting
+    // slots, so it has to be the league's shape rather than a default.
+    starters,
     // What the reserve holds and how full it is, so the page can offer a free
     // agent on IR the one add that does not cost a roster spot.
     irLimit: Number(settings.ir ?? 0),
