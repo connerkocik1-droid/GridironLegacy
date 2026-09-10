@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
+<script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
+<script src="./image-slot.js"></script>
+<style>
+  body { margin:0; background:#0b0d16; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  a { color:#b5abfc; text-decoration:none; }
+  a:hover { color:#d2cefd; }
+  @keyframes lg-pulse { 0%,100% { opacity:.25; transform:scale(1);} 50% { opacity:1; transform:scale(1.3);} }
+  @keyframes lg-rise { from { opacity:0; transform:translateY(10px);} to { opacity:1; transform:none;} }
+  @keyframes lg-grow { from { width:0;} }
+  @keyframes lg-sweep { 0% { background-position:0% 50%;} 100% { background-position:200% 50%;} }
+  @keyframes lg-marquee { from { transform:translateX(0);} to { transform:translateX(-50%);} }
+  @keyframes lg-blink { 0%,60% { opacity:1;} 61%,100% { opacity:.15;} }
+</style>
+</helmet>
+
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+
+<div style="height:100%;display:flex;flex-direction:column;background:radial-gradient(560px 380px at 8% -6%, #23274a 0%, rgba(18,20,42,0) 62%), radial-gradient(420px 320px at 108% 10%, #2b1e3d 0%, rgba(18,20,42,0) 60%), #0f111c;color:var(--color-text);font-family:var(--font-body);font-variant-numeric:tabular-nums;overflow:hidden">
+
+  <div style="flex:1;overflow:auto">
+
+    <div style="padding:60px 18px 0;position:sticky;top:0;z-index:30;background:linear-gradient(180deg,rgba(15,17,28,.97) 84%,rgba(15,17,28,0));backdrop-filter:blur(14px)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="min-width:0;flex:1">
+          <div style="font-family:var(--font-heading);font-size:21px;line-height:1.15;letter-spacing:-.025em">Pylon Fantasy</div>
+        </div>
+        <div style="text-align:right;flex:0 0 auto">
+          <div style="font-family:var(--font-heading);font-size:17px;color:#b5abfc">{{ weekLabel }}</div>
+          <div style="font-size:8px;letter-spacing:.16em;color:#75798c;margin-top:2px">{{ seasonLabel }}</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:3px;margin-top:14px;overflow-x:auto;padding-bottom:1px">
+        <sc-for list="{{ subtabs }}" as="t" hint-placeholder-count="7">
+          <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+      <div style="height:1px;background:rgba(145,132,217,.2)"></div>
+    </div>
+
+    <div style="padding:14px 18px 24px">
+
+      <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:8px;padding:2px 2px 12px;animation:lg-rise .4s ease">
+          <span style="width:5px;height:5px;border-radius:50%;background:#7fd8a8;box-shadow:0 0 8px #7fd8a8;animation:lg-pulse 1.8s infinite"></span>
+          <span style="font-size:11px;letter-spacing:.12em;color:#8f94a8">{{ presence }}</span>
+        </div>
+
+        <div style="border:1px solid rgba(145,132,217,.32);border-radius:16px;overflow:hidden;background:linear-gradient(160deg,rgba(38,32,64,.92),rgba(20,22,36,.86));position:relative;box-shadow:0 18px 38px rgba(0,0,0,.4)">
+          <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 44%,rgba(181,171,252,.12) 50%,transparent 56%);background-size:220% 100%;animation:lg-sweep 6s linear infinite"></div>
+          <div style="padding:15px;position:relative">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="{{ story.kickerStyle }}">{{ story.kicker }}</span>
+              <div style="margin-left:auto;display:flex;gap:5px">
+                <sc-for list="{{ storyDots }}" as="d" hint-placeholder-count="4">
+                  <button onClick="{{ d.onClick }}" style="{{ d.style }}"></button>
+                </sc-for>
+              </div>
+            </div>
+            <div key="{{ story.key }}" style="animation:lg-rise .35s ease">
+
+              <sc-for list="{{ valueScreen }}" as="v" hint-placeholder-count="1">
+                <div style="display:flex;gap:14px;align-items:flex-start;margin-top:12px">
+                  <image-slot id="{{ v.slotId }}" style="width:88px;height:88px;flex:0 0 auto" shape="rounded" radius="12" placeholder="{{ v.first }}"></image-slot>
+                  <div style="min-width:0;flex:1">
+                    <div style="font-family:var(--font-heading);font-size:19px;line-height:1.15;letter-spacing:-.02em;text-wrap:pretty">{{ v.name }}</div>
+                    <div style="font-size:10px;letter-spacing:.12em;color:#75798c;margin-top:5px">{{ v.posTeam }}</div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+                      <span style="font-family:var(--font-heading);font-size:13px;color:#75798c;text-decoration:line-through">{{ v.was }}</span>
+                      <span style="color:#595d6c;font-size:11px">→</span>
+                      <span style="font-family:var(--font-heading);font-size:19px;color:#7fd8a8">{{ v.now }}</span>
+                      <span style="font-family:var(--font-heading);font-size:12px;color:#7fd8a8">▲{{ v.gain }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div style="font-size:12px;line-height:1.55;color:#a8adc0;margin-top:12px;text-wrap:pretty">{{ v.read }}</div>
+                <div style="display:flex;gap:16px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(145,132,217,.2)">
+                  <sc-for list="{{ v.stats }}" as="s" hint-placeholder-count="3">
+                    <div>
+                      <div style="font-family:var(--font-heading);font-size:17px;line-height:1;color:#b5abfc">{{ s.value }}</div>
+                      <div style="font-size:8px;letter-spacing:.14em;color:#75798c;margin-top:4px">{{ s.label }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+
+              <sc-for list="{{ streakScreen }}" as="k" hint-placeholder-count="0">
+                <div style="font-family:var(--font-heading);font-size:19px;line-height:1.2;letter-spacing:-.02em;margin-top:11px;text-wrap:pretty">{{ k.head }}</div>
+                <div style="display:flex;flex-direction:column;gap:9px;margin-top:13px">
+                  <sc-for list="{{ k.teams }}" as="t" hint-placeholder-count="2">
+                    <div style="{{ t.rowStyle }}">
+                      <div style="{{ t.tileStyle }}">{{ t.abbr }}</div>
+                      <div style="min-width:0;flex:1">
+                        <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.team }}</div>
+                        <div style="font-size:10px;color:#75798c;margin-top:3px">{{ t.line }}</div>
+                      </div>
+                      <div style="display:flex;gap:3px;flex:0 0 auto">
+                        <sc-for list="{{ t.pips }}" as="p" hint-placeholder-count="3">
+                          <span style="{{ p.style }}"></span>
+                        </sc-for>
+                      </div>
+                      <div style="font-family:var(--font-heading);font-size:19px;color:#7fd8a8;flex:0 0 auto">{{ t.streak }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="font-size:12px;line-height:1.55;color:#a8adc0;margin-top:12px;text-wrap:pretty">{{ k.read }}</div>
+              </sc-for>
+
+              <sc-for list="{{ mvpScreen }}" as="m" hint-placeholder-count="0">
+                <div style="font-family:var(--font-heading);font-size:19px;line-height:1.2;letter-spacing:-.02em;margin-top:11px;text-wrap:pretty">{{ m.head }}</div>
+                <div style="display:flex;flex-direction:column;gap:5px;margin-top:11px">
+                  <sc-for list="{{ m.players }}" as="p" hint-placeholder-count="3">
+                    <div style="{{ p.rowStyle }}">
+                      <span style="{{ p.medalStyle }}">{{ p.place }}</span>
+                      <image-slot id="{{ p.slotId }}" style="width:32px;height:32px;flex:0 0 auto" shape="rounded" radius="8" placeholder="{{ p.first }}"></image-slot>
+                      <div style="min-width:0;flex:1;display:flex;align-items:baseline;gap:6px">
+                        <span style="font-family:var(--font-heading);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ p.name }}</span>
+                        <span style="font-size:9px;letter-spacing:.08em;color:#75798c;flex:0 0 auto">{{ p.posTeam }}</span>
+                      </div>
+                      <span style="{{ p.ptsStyle }}">{{ p.pts }}</span>
+                      <span style="font-size:8px;letter-spacing:.1em;color:#595d6c;flex:0 0 auto;width:42px;text-align:right">{{ p.perGame }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="font-size:11px;line-height:1.5;color:#a8adc0;margin-top:10px;text-wrap:pretty">{{ m.read }}</div>
+              </sc-for>
+
+            </div>
+          </div>
+        </div>
+
+        <div style="height:14px"></div>
+
+        <div style="overflow:hidden;border:1px solid rgba(145,132,217,.18);border-radius:12px;background:rgba(20,22,36,.72);padding:9px 0;position:relative">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:26px;z-index:2;background:linear-gradient(90deg,#141626,rgba(20,22,38,0))"></div>
+          <div style="position:absolute;right:0;top:0;bottom:0;width:26px;z-index:2;background:linear-gradient(270deg,#141626,rgba(20,22,38,0))"></div>
+          <div style="display:flex;width:max-content;animation:lg-marquee 30s linear infinite">
+            <sc-for list="{{ wireTicker }}" as="w" hint-placeholder-count="8">
+              <div style="display:flex;align-items:center;gap:7px;padding-right:20px;white-space:nowrap;font-size:10px;letter-spacing:.08em">
+                <span style="{{ w.dotStyle }}"></span>
+                <span style="color:#e9e9ed">{{ w.who }}</span>
+                <span style="color:#75798c">{{ w.what }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="font-size:9px;letter-spacing:.28em;color:#75798c;padding:20px 0 10px">{{ slateLabel }}</div>
+        <div style="border:1px solid rgba(145,132,217,.2);border-radius:14px;overflow:hidden;background:rgba(22,24,38,.72)">
+          <sc-for list="{{ slate }}" as="g" hint-placeholder-count="5">
+            <div style="{{ g.wrapStyle }}">
+              <div onClick="{{ g.onClick }}" style="display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer">
+                <div style="min-width:0;flex:1">
+                  <div style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ g.a }}</div>
+                  <div style="font-size:12px;color:#b2b6ca;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px">{{ g.b }}</div>
+                </div>
+                <div style="text-align:right;flex:0 0 auto">
+                  <div style="font-family:var(--font-heading);font-size:13px;color:#b5abfc">{{ g.aProj }}</div>
+                  <div style="font-family:var(--font-heading);font-size:13px;color:#8f94a8;margin-top:4px">{{ g.bProj }}</div>
+                </div>
+                <span style="{{ g.tagStyle }}">{{ g.tag }}</span>
+              </div>
+              <sc-for list="{{ g.detail }}" as="d" hint-placeholder-count="0">
+                <div style="padding:0 13px 13px;animation:lg-rise .25s ease">
+                  <div style="height:6px;border-radius:99px;background:rgba(145,132,217,.16);overflow:hidden;display:flex">
+                    <div style="{{ d.barStyle }}"></div>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;letter-spacing:.12em;color:#75798c">
+                    <span>{{ d.left }}</span><span>{{ d.right }}</span>
+                  </div>
+                  <div style="font-size:11px;line-height:1.55;color:#a8adc0;margin-top:9px;text-wrap:pretty">{{ d.read }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isStandings }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:6px;padding-bottom:12px">
+          <sc-for list="{{ standingsModes }}" as="m" hint-placeholder-count="2">
+            <button onClick="{{ m.onClick }}" style="{{ m.style }}">{{ m.label }}</button>
+          </sc-for>
+        </div>
+        <sc-for list="{{ standingsGroups }}" as="grp" hint-placeholder-count="2">
+          <div style="margin-bottom:14px">
+            <div style="display:flex;align-items:baseline;gap:8px;padding-bottom:8px">
+              <span style="font-family:var(--font-heading);font-size:11px;letter-spacing:.2em;color:#b5abfc">{{ grp.title }}</span>
+              <span style="margin-left:auto;font-size:9px;letter-spacing:.14em;color:#595d6c">{{ grp.note }}</span>
+            </div>
+            <div style="border:1px solid rgba(145,132,217,.2);border-radius:14px;overflow:hidden;background:rgba(22,24,38,.72)">
+              <div style="display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid rgba(145,132,217,.2);background:rgba(145,132,217,.07);font-size:8px;letter-spacing:.16em;color:#75798c">
+                <span style="width:16px">#</span>
+                <span style="flex:1">TEAM</span>
+                <span style="width:34px;text-align:right">{{ colA }}</span>
+                <span style="width:44px;text-align:right">{{ colB }}</span>
+              </div>
+              <sc-for list="{{ grp.rows }}" as="t" hint-placeholder-count="6">
+                <div style="{{ t.rowStyle }}">
+                  <span style="font-family:var(--font-heading);font-size:12px;color:#75798c;width:16px;flex:0 0 auto">{{ t.rank }}</span>
+                  <div style="min-width:0;flex:1">
+                    <div style="display:flex;align-items:baseline;gap:6px">
+                      <span style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ t.team }}</span>
+                      <span style="font-size:10px;color:#8f94a8;flex:0 0 auto">{{ t.owner }}</span>
+                    </div>
+                    <div style="height:3px;border-radius:99px;background:rgba(145,132,217,.14);margin-top:6px;overflow:hidden">
+                      <div style="{{ t.barStyle }}"></div>
+                    </div>
+                  </div>
+                  <span style="font-family:var(--font-heading);font-size:12px;width:34px;text-align:right;flex:0 0 auto">{{ t.a }}</span>
+                  <span style="{{ t.bStyle }}">{{ t.b }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+        <div style="font-size:10px;color:#75798c;line-height:1.55;margin-top:12px;text-wrap:pretty">{{ standingsNote }}</div>
+      </sc-if>
+
+      <sc-if value="{{ isChat }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <sc-for list="{{ chat }}" as="c" hint-placeholder-count="6">
+            <div style="{{ c.wrapStyle }}">
+              <div style="{{ c.bubbleStyle }}">
+                <div style="{{ c.whoStyle }}">{{ c.who }}</div>
+                <div style="font-size:13px;line-height:1.5;text-wrap:pretty">{{ c.text }}</div>
+                <div style="{{ c.footStyle }}">
+                  <sc-for list="{{ c.reactions }}" as="r" hint-placeholder-count="0">
+                    <button onClick="{{ r.onClick }}" style="{{ r.style }}">{{ r.label }}</button>
+                  </sc-for>
+                  <span style="font-size:9px;color:#595d6c">{{ c.when }}</span>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+          <div style="display:flex;align-items:center;gap:8px;padding:2px 4px">
+            <span style="font-size:11px;color:#75798c">{{ typing }}</span>
+            <span style="display:flex;gap:3px">
+              <span style="width:4px;height:4px;border-radius:50%;background:#b5abfc;animation:lg-blink 1.2s infinite"></span>
+              <span style="width:4px;height:4px;border-radius:50%;background:#b5abfc;animation:lg-blink 1.2s .2s infinite"></span>
+              <span style="width:4px;height:4px;border-radius:50%;background:#b5abfc;animation:lg-blink 1.2s .4s infinite"></span>
+            </span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <input value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onKey }}" placeholder="Say something" style="flex:1;min-width:0;padding:12px 13px;border-radius:10px;border:1px solid rgba(145,132,217,.3);background:rgba(15,17,28,.8);color:#e9e9ed;font-family:var(--font-body);font-size:13px" />
+          <button onClick="{{ onSend }}" style="cursor:pointer;flex:0 0 auto;font-family:var(--font-body);font-size:10px;letter-spacing:.14em;padding:0 15px;border-radius:10px;border:1px solid rgba(181,171,252,.6);background:transparent;color:#b5abfc" style-hover="background:rgba(145,132,217,.18)">SEND</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isMoves }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:6px;padding-bottom:12px;overflow-x:auto">
+          <sc-for list="{{ moveFilters }}" as="f" hint-placeholder-count="4">
+            <button onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</button>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <sc-for list="{{ moves }}" as="m" hint-placeholder-count="6">
+            <div style="border:1px solid rgba(145,132,217,.2);border-radius:12px;background:rgba(22,24,38,.72);padding:12px 13px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="{{ m.kindStyle }}">{{ m.kind }}</span>
+                <span style="font-size:11px;color:#8f94a8;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.who }}</span>
+                <span style="margin-left:auto;font-size:9px;letter-spacing:.1em;color:#595d6c;flex:0 0 auto">{{ m.when }}</span>
+              </div>
+              <div style="font-size:12px;line-height:1.5;margin-top:8px;text-wrap:pretty">{{ m.body }}</div>
+              <div style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(145,132,217,.1)">
+                <span style="{{ m.gradeStyle }}">{{ m.grade }}</span>
+                <span style="font-size:11px;line-height:1.5;color:#a8adc0;min-width:0;text-wrap:pretty">{{ m.read }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isNews }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <sc-for list="{{ news }}" as="n" hint-placeholder-count="5">
+            <div style="{{ n.cardStyle }}">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="{{ n.tagStyle }}">{{ n.tag }}</span>
+                <span style="margin-left:auto;font-size:9px;letter-spacing:.1em;color:#595d6c">{{ n.when }}</span>
+              </div>
+              <div style="{{ n.headStyle }}">{{ n.head }}</div>
+              <div style="font-size:11px;line-height:1.55;color:#8f94a8;margin-top:7px;text-wrap:pretty">{{ n.body }}</div>
+              <div style="font-size:10px;color:#75798c;margin-top:8px">{{ n.src }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isRankings }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:5px;padding-bottom:12px;overflow-x:auto">
+          <sc-for list="{{ posFilters }}" as="f" hint-placeholder-count="6">
+            <button onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</button>
+          </sc-for>
+        </div>
+        <div style="border:1px solid rgba(145,132,217,.2);border-radius:14px;overflow:hidden;background:rgba(22,24,38,.72)">
+          <sc-for list="{{ rankings }}" as="p" hint-placeholder-count="10">
+            <div style="{{ p.rowStyle }}">
+              <span style="font-family:var(--font-heading);font-size:12px;color:#75798c;width:20px;flex:0 0 auto">{{ p.rank }}</span>
+              <div style="min-width:0;flex:1">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-family:var(--font-heading);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ p.name }}</span>
+                  <span style="font-size:9px;letter-spacing:.1em;color:#75798c;flex:0 0 auto">{{ p.posTeam }}</span>
+                </div>
+                <div style="font-size:10px;color:#8f94a8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.arch }}</div>
+                <div style="font-size:9px;color:#595d6c;margin-top:4px">{{ p.owner }}</div>
+              </div>
+              <div style="text-align:right;flex:0 0 auto">
+                <div style="font-family:var(--font-heading);font-size:14px;color:#b5abfc">{{ p.proj }}</div>
+                <div style="{{ p.deltaStyle }}">{{ p.delta }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isRules }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <sc-for list="{{ rules }}" as="r" hint-placeholder-count="6">
+            <div style="border:1px solid rgba(145,132,217,.2);border-radius:12px;background:rgba(22,24,38,.72);overflow:hidden">
+              <button onClick="{{ r.onClick }}" style="{{ r.headStyle }}">
+                <span style="font-family:var(--font-heading);font-size:13px;text-align:left;min-width:0;flex:1">{{ r.title }}</span>
+                <span style="{{ r.chevStyle }}">＋</span>
+              </button>
+              <sc-for list="{{ r.body }}" as="b" hint-placeholder-count="0">
+                <div style="padding:0 13px 13px;font-size:12px;line-height:1.6;color:#8f94a8;text-wrap:pretty">{{ b.text }}</div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid rgba(145,132,217,.22);background:rgba(14,16,26,.96);backdrop-filter:blur(14px);padding-bottom:24px;position:relative;z-index:20">
+    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+      <button onClick="{{ t.onClick }}" style="{{ t.style }}">
+        <span style="{{ t.markStyle }}"></span>
+        <svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor"><path d="{{ t.path }}"></path></svg>
+        <span style="font-size:10px">{{ t.label }}</span>
+      </button>
+    </sc-for>
+  </div>
+</div>
+
+</x-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:940}}">
+const P = {
+  home: "M218.8 103.7 138.8 33a16 16 0 0 0-21.6 0l-80 70.7A16 16 0 0 0 32 115.7V208a16 16 0 0 0 16 16h48a8 8 0 0 0 8-8v-56h48v56a8 8 0 0 0 8 8h48a16 16 0 0 0 16-16v-92.3a16 16 0 0 0-5.2-12Z",
+  team: "M180 32h-24a8 8 0 0 0-8 8 20 20 0 0 1-40 0 8 8 0 0 0-8-8H76a8 8 0 0 0-4.4 1.3l-40 26.7A8 8 0 0 0 28 66.7v45.9a8 8 0 0 0 8 8h24V208a16 16 0 0 0 16 16h104a16 16 0 0 0 16-16v-87.4h24a8 8 0 0 0 8-8V66.7a8 8 0 0 0-3.6-6.7l-40-26.7A8 8 0 0 0 180 32Z",
+  league: "M40 68h176a8 8 0 0 0 0-16H40a8 8 0 0 0 0 16Zm176 52H40a8 8 0 0 0 0 16h176a8 8 0 0 0 0-16Zm0 68H40a8 8 0 0 0 0 16h176a8 8 0 0 0 0-16Z",
+  moves: "M221.7 82.3 189.7 50.3a8 8 0 0 0-11.4 11.4L196.7 80H40a8 8 0 0 0 0 16h156.7l-18.4 18.3a8 8 0 0 0 11.4 11.4l32-32a8 8 0 0 0 0-11.4ZM216 160H59.3l18.4-18.3a8 8 0 0 0-11.4-11.4l-32 32a8 8 0 0 0 0 11.4l32 32a8 8 0 0 0 11.4-11.4L59.3 176H216a8 8 0 0 0 0-16Z",
+  office: "M128 64a64 64 0 1 0 64 64 64 64 0 0 0-64-64Zm0 112a48 48 0 1 1 48-48 48 48 0 0 1-48 48Zm0-136a8 8 0 0 0 8-8V16a8 8 0 0 0-16 0v16a8 8 0 0 0 8 8Zm0 176a8 8 0 0 0-8 8v16a8 8 0 0 0 16 0v-16a8 8 0 0 0-8-8ZM40 128a8 8 0 0 0-8-8H16a8 8 0 0 0 0 16h16a8 8 0 0 0 8-8Zm200-8h-16a8 8 0 0 0 0 16h16a8 8 0 0 0 0-16ZM58.3 47a8 8 0 0 0-11.3 11.3l11.3 11.3A8 8 0 0 0 69.6 58.3Zm128.1 139.4a8 8 0 0 0-11.3 11.3l11.3 11.3a8 8 0 0 0 11.3-11.3Zm0-116.8 11.3-11.3A8 8 0 0 0 186.4 47l-11.3 11.3a8 8 0 0 0 11.3 11.3ZM58.3 186.4 47 197.7a8 8 0 0 0 11.3 11.3l11.3-11.3a8 8 0 0 0-11.3-11.3Z"
+};
+
+// Franchises from supabase/seed.sql, claimed by the league's managers.
+const TEAMS = [
+  { team: "Steel Cartel", owner: "Dev", power: 96, proj: 121.4, div: "North" },
+  { team: "Gettin Stribby Wit' It", owner: "Conner", power: 91, proj: 118.4, me: true, div: "North" },
+  { team: "Ravenous", owner: "Priya", power: 88, proj: 116.9, div: "South" },
+  { team: "Manchester Poop Farmers", owner: "Angus", power: 85, proj: 111.2, div: "North" },
+  { team: "Nova Collective", owner: "Jules", power: 81, proj: 109.7, div: "South" },
+  { team: "Apex Union", owner: "Tomas", power: 78, proj: 108.3, div: "South" },
+  { team: "Helix Nine", owner: "Sam", power: 74, proj: 106.1, div: "North" },
+  { team: "Voltage", owner: "Rae", power: 71, proj: 104.8, div: "South" },
+  { team: "Onyx Row", owner: "Bex", power: 67, proj: 102.4, div: "North" },
+  { team: "Blaze Syndicate", owner: "Marcus", power: 63, proj: 100.6, div: "South" }
+];
+
+// Schedule by week, then the weekly score each franchise put up. Everything
+// downstream — records, streaks, points for, the standings table — is derived
+// from these two tables, so pushing a real week in updates the whole page.
+const SCHEDULE = [
+  [[1, 3], [0, 2], [4, 5], [6, 7], [8, 9]],
+  [[0, 1], [2, 4], [3, 6], [5, 8], [7, 9]],
+  [[0, 4], [1, 2], [3, 5], [6, 9], [7, 8]],
+  [[1, 3], [0, 2], [4, 5], [6, 7], [8, 9]]
+];
+const WEEK = 4;
+
+const SCORES = [
+  [128.4, 119.7, 134.2],
+  [124.6, 131.0, 118.9],
+  [130.2, 122.8, 127.4],
+  [131.8, 108.4, 121.6],
+  [109.5, 116.2, 112.7],
+  [118.0, 105.9, 124.1],
+  [112.3, 120.6, 99.8],
+  [118.9, 111.5, 117.2],
+  [112.0, 114.8, 108.3],
+  [107.6, 96.2, 103.5]
+];
+
+// Preseason positional rank against weekly fantasy points. Best Value and MVP
+// both fall out of this table.
+const PLAYERS = [
+  { n: "Lamar Jackson", pos: "QB", t: "BAL", pre: 1, wk: [28.4, 22.1, 31.6] },
+  { n: "Drake Maye", pos: "QB", t: "NE", pre: 12, wk: [26.1, 23.8, 29.2] },
+  { n: "Jayden Daniels", pos: "QB", t: "WSH", pre: 3, wk: [24.8, 26.2, 19.4] },
+  { n: "Bijan Robinson", pos: "RB", t: "ATL", pre: 1, wk: [22.4, 18.9, 25.1] },
+  { n: "Ashton Jeanty", pos: "RB", t: "LV", pre: 14, wk: [18.2, 21.4, 23.8] },
+  { n: "Jahmyr Gibbs", pos: "RB", t: "DET", pre: 2, wk: [19.8, 24.2, 17.6] },
+  { n: "Chase Brown", pos: "RB", t: "CIN", pre: 29, wk: [14.6, 19.8, 22.4] },
+  { n: "Saquon Barkley", pos: "RB", t: "PHI", pre: 5, wk: [21.6, 16.4, 14.9] },
+  { n: "Jonathan Taylor", pos: "RB", t: "IND", pre: 4, wk: [15.2, 12.8, 18.4] },
+  { n: "Ja'Marr Chase", pos: "WR", t: "CIN", pre: 1, wk: [24.1, 19.6, 27.8] },
+  { n: "Justin Jefferson", pos: "WR", t: "MIN", pre: 2, wk: [18.4, 22.9, 20.1] },
+  { n: "Zay Flowers", pos: "WR", t: "BAL", pre: 31, wk: [16.2, 18.4, 21.1] },
+  { n: "Puka Nacua", pos: "WR", t: "LAR", pre: 6, wk: [12.4, 21.8, 18.9] },
+  { n: "Malik Nabers", pos: "WR", t: "NYG", pre: 4, wk: [16.8, 14.2, 19.6] },
+  { n: "George Pickens", pos: "WR", t: "DAL", pre: 22, wk: [13.8, 11.2, 16.4] },
+  { n: "Brock Bowers", pos: "TE", t: "LV", pre: 1, wk: [17.2, 14.8, 19.6] },
+  { n: "Trey McBride", pos: "TE", t: "ARI", pre: 2, wk: [13.4, 18.2, 15.1] },
+  { n: "Colston Loveland", pos: "TE", t: "CHI", pre: 18, wk: [9.8, 12.4, 14.6] }
+];
+
+const total = p => p.wk.reduce((a, b) => a + b, 0);
+const slotId = n => "hs-" + n.toLowerCase().replace(/[^a-z]+/g, "-");
+
+// Current positional rank, by points scored so far.
+function currentRank(p) {
+  return PLAYERS.filter(q => q.pos === p.pos).sort((a, b) => total(b) - total(a)).indexOf(p) + 1;
+}
+
+// Records, streaks and points for, read off the schedule.
+function table() {
+  return TEAMS.map((t, i) => {
+    const res = [];
+    SCHEDULE.slice(0, WEEK - 1).forEach((wk, w) => {
+      wk.forEach(([x, y]) => {
+        if (x === i) res.push(SCORES[x][w] > SCORES[y][w] ? "W" : "L");
+        if (y === i) res.push(SCORES[y][w] > SCORES[x][w] ? "W" : "L");
+      });
+    });
+    let streak = 0;
+    for (let k = res.length - 1; k >= 0 && res[k] === res[res.length - 1]; k--) streak++;
+    const w = res.filter(r => r === "W").length;
+    return Object.assign({}, t, {
+      res, wins: w, losses: res.length - w,
+      streakKind: res[res.length - 1] || "",
+      streak,
+      pf: SCORES[i].slice(0, WEEK - 1).reduce((a, b) => a + b, 0)
+    });
+  });
+}
+
+const SCREENS = ["BEST VALUE", "HOT STREAK", "MVP"];
+
+const CHAT = [
+  { who: "Angus", text: "Three straight against Conner. I'm not saying it's a rivalry, I'm saying it's a routine.", when: "2h", react: { "🔥": 3 } },
+  { who: "Conner", me: true, text: "You drafted a kicker in the eleventh round. Sit down.", when: "2h", react: { "💀": 4, "🔥": 1 } },
+  { who: "Dev", text: "Both of you are projected under me. Enjoy week 1.", when: "1h", react: { "👀": 2 } },
+  { who: "Jules", text: "Anyone moving a QB? I have picks and a problem.", when: "48m", react: {} },
+  { who: "Priya", text: "Jules asks this every year and then drafts three tight ends.", when: "31m", react: { "💀": 5 } },
+  { who: "Conner", me: true, text: "Maye is on the block if the price is a 2027 second.", when: "12m", react: { "👀": 1 } }
+];
+
+// A move is the transaction record — who, what kind, which player. The grade
+// and the write-up are generated from how that player has actually scored.
+const MOVES = [
+  { kind: "TRADE", who: "Nova Collective ⇄ Helix Nine", when: "40M", player: "Zay Flowers", side: "in", cost: "a 2027 2nd" },
+  { kind: "ADD", who: "Voltage · Rae", when: "1H", player: "Colston Loveland", side: "in" },
+  { kind: "BLOCK", who: "Gettin Stribby Wit' It · Conner", when: "2H", player: "Drake Maye", side: "out" },
+  { kind: "ADD", who: "Onyx Row · Bex", when: "4H", player: "George Pickens", side: "in" },
+  { kind: "TRADE", who: "Steel Cartel ⇄ Apex Union", when: "YDAY", player: "Chase Brown", side: "out", cost: "a 2027 3rd" },
+  { kind: "DROP", who: "Blaze Syndicate · Marcus", when: "YDAY", player: "Jonathan Taylor", side: "out" }
+];
+
+// Consensus board — the four leaders and their 2025 finishes come from
+// src/data/board-leaders.js; projections for the rest come from the same
+// tables league-data.js reads. Ownership is deliberately not shown: the only
+// roster this prototype has is the user's own, so an owner column here would
+// read as if one franchise held the whole board.
+const RANKS = [
+  { name: "Jahmyr Gibbs", posTeam: "RB · DET", arch: "Explosive Slasher", proj: 19.9, fin: "ADP 1.5 · 2025 RB4 · OVR 15", pos: "RB" },
+  { name: "Bijan Robinson", posTeam: "RB · ATL", arch: "Swiss Army Knife", proj: 20.8, fin: "ADP 1.5 · 2025 RB3 · OVR 14", pos: "RB" },
+  { name: "Ja'Marr Chase", posTeam: "WR · CIN", arch: "Alpha Target Monopolist", proj: 21.4, fin: "ADP 4.5 · 2025 WR5 · OVR 49", pos: "WR" },
+  { name: "Christian McCaffrey", posTeam: "RB · SF", arch: "Receiving-Back Engine", proj: 18.6, fin: "ADP 4.5 · 2025 RB2 · OVR 7", pos: "RB" },
+  { name: "Lamar Jackson", posTeam: "QB · BAL", arch: "Dual-Threat Ceiling", proj: 25.3, fin: "", pos: "QB" },
+  { name: "Jayden Daniels", posTeam: "QB · WSH", arch: "Rushing Floor", proj: 24.1, fin: "", pos: "QB" },
+  { name: "Drake Maye", posTeam: "QB · NE", arch: "Second-Year Riser", proj: 21.8, fin: "", pos: "QB" },
+  { name: "Justin Jefferson", posTeam: "WR · MIN", arch: "Route Technician", proj: 20.2, fin: "", pos: "WR" },
+  { name: "Jonathan Taylor", posTeam: "RB · IND", arch: "Volume Back", proj: 20.0, fin: "", pos: "RB" },
+  { name: "Malik Nabers", posTeam: "WR · NYG", arch: "Target Hog", proj: 19.6, fin: "", pos: "WR" },
+  { name: "Saquon Barkley", posTeam: "RB · PHI", arch: "Every-Down Workhorse", proj: 19.4, fin: "", pos: "RB" },
+  { name: "Puka Nacua", posTeam: "WR · LAR", arch: "Alpha Target", proj: 18.3, fin: "", pos: "WR" },
+  { name: "Brock Bowers", posTeam: "TE · LV", arch: "Mismatch Tight End", proj: 16.8, fin: "", pos: "TE" },
+  { name: "Ashton Jeanty", posTeam: "RB · LV", arch: "Rookie Bellcow", proj: 16.2, fin: "", pos: "RB" },
+  { name: "Trey McBride", posTeam: "TE · ARI", arch: "Volume Tight End", proj: 15.4, fin: "", pos: "TE" },
+  { name: "George Pickens", posTeam: "WR · DAL", arch: "Field Stretcher", proj: 14.1, fin: "", pos: "WR" },
+  { name: "Zay Flowers", posTeam: "WR · BAL", arch: "Separator", proj: 13.7, fin: "", pos: "WR" },
+  { name: "Chase Brown", posTeam: "RB · CIN", arch: "Pass-Down Back", proj: 12.6, fin: "", pos: "RB" },
+  { name: "Trey Benson", posTeam: "RB · ARI", arch: "Downhill Runner", proj: 11.9, fin: "", pos: "RB" },
+  { name: "Brandon Aubrey", posTeam: "K · DAL", arch: "Range Kicker", proj: 11.0, fin: "", pos: "K" },
+  { name: "Colston Loveland", posTeam: "TE · CHI", arch: "Rookie Seam Threat", proj: 8.5, fin: "", pos: "TE" }
+];
+
+const RULES = [
+  { title: "Best ball, no lineups", text: "You never set a lineup. Every week the highest-scoring legal set of your players is taken automatically: one QB, two RB, two WR, one TE, two FLEX, one K, one D/ST. Bench points do not count, and there is nothing to forget on a Sunday morning." },
+  { title: "Season shape", text: "Thirteen regular-season weeks, then weeks 14 through 17 are the playoffs. Week 18 is never played." },
+  { title: "Rosters", text: "Ten starting slots, eight bench spots and two IR. PPR scoring. Waivers run nightly and a dropped player sits on the wire for one day before release." },
+  { title: "Draft picks", text: "Every franchise owns a pick in every round of every draft. Order is the inverse of the record — worst team picks first, ties broken by points scored, then by franchise slot. The same order is used in every round; a rookie draft is not a snake." },
+  { title: "Trading picks", text: "Picks for the inaugural season cannot be traded. Every later season can. The rule is enforced in the database, so it holds even for an offer made days earlier." },
+  { title: "Who owns what", text: "A pick keeps the record that places it. Charlie's 2027 1st stays Charlie's 2027 1st and falls where Charlie's season says it should, no matter how many times it changes hands." }
+];
+
+class Component extends DCLogic {
+  state = {
+    tab: "Overview", nav: "League", standingsMode: "Divisions",
+    moveFilter: "All", posFilter: "All", openRule: 0, openGame: -1,
+    story: 0, reacts: {}, draft: "", sent: []
+  };
+
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      if (this.state.tab === "Overview") this.setState(s => ({ story: (s.story + 1) % SCREENS.length }));
+    }, 6500);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+
+  react(i, emoji) {
+    const key = i + ":" + emoji;
+    const r = Object.assign({}, this.state.reacts);
+    r[key] = r[key] ? 0 : 1;
+    this.setState({ reacts: r });
+  }
+
+  send() {
+    const t = this.state.draft.trim();
+    if (!t) return;
+    this.setState({ draft: "", sent: this.state.sent.concat([{ who: "Conner", me: true, text: t, when: "now" }]) });
+  }
+
+  renderVals() {
+    const S = this.state, self = this;
+
+    const rowBase = i => "display:flex;align-items:center;gap:10px;padding:11px 13px;" +
+      (i ? "border-top:1px solid rgba(145,132,217,.13);" : "");
+
+    const pill = (label, on, onClick) => ({
+      label, onClick,
+      style: "cursor:pointer;flex:0 0 auto;font-family:var(--font-body);font-size:10px;letter-spacing:.04em;padding:8px 5px;border-radius:8px 8px 0 0;border:0;background:" +
+        (on ? "rgba(145,132,217,.18)" : "transparent") + ";color:" + (on ? "#e9e9ed" : "#75798c") +
+        ";box-shadow:" + (on ? "inset 0 -2px 0 #b5abfc" : "none")
+    });
+
+    const chip = (label, on, onClick) => ({
+      label, onClick,
+      style: "cursor:pointer;flex:0 0 auto;font-family:var(--font-body);font-size:10px;letter-spacing:.1em;padding:7px 12px;border-radius:99px;border:1px solid " +
+        (on ? "rgba(181,171,252,.6);background:rgba(145,132,217,.18);color:#e9e9ed" : "rgba(145,132,217,.24);background:transparent;color:#75798c")
+    });
+
+    const TBL = table();
+    const byRecord = TBL.slice().sort((a, b) => b.wins - a.wins || b.pf - a.pf);
+    const byPower = TBL.slice().sort((a, b) => b.power - a.power);
+    const proj = S.standingsMode === "Divisions";
+
+    // Best value: the largest gain against preseason positional rank.
+    const valued = PLAYERS.map(p => ({ p, now: currentRank(p), gain: p.pre - currentRank(p) }))
+      .sort((a, b) => b.gain - a.gain)[0];
+    // Hot streak: every team tied at the longest active win streak.
+    const best = Math.max.apply(null, TBL.map(t => t.streakKind === "W" ? t.streak : 0));
+    const hot = TBL.filter(t => t.streakKind === "W" && t.streak === best);
+    // MVP: the three highest scorers in the league.
+    const mvps = PLAYERS.slice().sort((a, b) => total(b) - total(a)).slice(0, 3);
+    const played = WEEK - 1;
+
+    return {
+      presence: "4 managers online",
+      seasonLabel: "2026 SEASON",
+
+      weekLabel: "WK " + WEEK,
+      slateLabel: "WEEK " + WEEK + " SLATE",
+
+      story: {
+        key: S.story,
+        kicker: SCREENS[S.story],
+        kickerStyle: "font-size:8px;letter-spacing:.2em;padding:4px 8px;border-radius:3px;border:1px solid " +
+          (S.story === 1 ? "rgba(127,216,168,.55);color:#7fd8a8" : "rgba(181,171,252,.55);color:#b5abfc")
+      },
+
+      valueScreen: S.story !== 0 ? [] : [(() => {
+        const p = valued.p, t = total(p);
+        return {
+          slotId: slotId(p.n), first: p.n.split(" ")[0], name: p.n,
+          posTeam: p.pos + " · " + p.t,
+          was: p.pos + p.pre, now: p.pos + valued.now, gain: valued.gain,
+          stats: [
+            { value: t.toFixed(1), label: "POINTS" },
+            { value: (t / played).toFixed(1), label: "PER GAME" },
+            { value: "#" + (PLAYERS.slice().sort((a, b) => total(b) - total(a)).indexOf(p) + 1), label: "OVERALL" }
+          ],
+          read: "Drafted as the " + p.pre + "th " + p.pos + " off the board. Three weeks in he is the " +
+            valued.now + (valued.now === 1 ? "st" : valued.now === 2 ? "nd" : valued.now === 3 ? "rd" : "th") +
+            ", a " + valued.gain + "-spot climb and the largest in the league."
+        };
+      })()],
+
+      streakScreen: S.story !== 1 ? [] : [{
+        head: hot.length > 1
+          ? hot.length + " teams are riding " + best + " straight."
+          : hot[0].owner + " has won " + best + " in a row.",
+        teams: hot.map((t, i) => ({
+          abbr: t.team.split(" ").map(w => w[0]).join("").slice(0, 3).toUpperCase(),
+          team: t.team,
+          line: t.owner + " · " + t.wins + "-" + t.losses + " · " + t.pf.toFixed(1) + " PF",
+          streak: "W" + t.streak,
+          rowStyle: "display:flex;align-items:center;gap:11px;padding:10px 11px;border-radius:11px;border:1px solid " +
+            (t.me ? "rgba(181,171,252,.5);background:rgba(145,132,217,.16)" : "rgba(127,216,168,.28);background:rgba(24,38,32,.5)"),
+          tileStyle: "width:34px;height:34px;border-radius:9px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:10px;letter-spacing:.04em;color:#12142a;background:linear-gradient(150deg,#7fd8a8,#2f7a58)",
+          pips: t.res.map(r => ({
+            style: "width:5px;height:5px;border-radius:50%;background:" + (r === "W" ? "#7fd8a8" : "rgba(145,132,217,.3)")
+          }))
+        })),
+        read: hot.length > 1
+          ? "Nobody in the league has separated yet. " + hot.map(t => t.owner).join(" and ") +
+            " are both unbeaten, and neither has met the other."
+          : hot[0].owner + " is the only unbeaten manager left."
+      }],
+
+      mvpScreen: S.story !== 2 ? [] : [{
+        head: "The three highest scorers in the league.",
+        players: mvps.map((p, i) => {
+          const medal = [
+            { ink: "#e8c56a", edge: "rgba(232,197,106,.55)", fill: "rgba(46,38,20,.55)", grad: "#f0d488,#b8892f" },
+            { ink: "#c4cad6", edge: "rgba(196,202,214,.45)", fill: "rgba(34,37,46,.6)", grad: "#d8dde7,#8b93a3" },
+            { ink: "#cd9060", edge: "rgba(205,144,96,.45)", fill: "rgba(44,32,24,.55)", grad: "#e0a878,#96603a" }
+          ][i];
+          return {
+            slotId: slotId(p.n), first: p.n.split(" ")[0], name: p.n,
+            posTeam: p.pos + " · " + p.t,
+            place: i + 1,
+            pts: total(p).toFixed(1),
+            perGame: (total(p) / played).toFixed(1) + " PG",
+            rowStyle: "display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:10px;border:1px solid " +
+              medal.edge + ";background:" + medal.fill,
+            medalStyle: "width:18px;height:18px;flex:0 0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:10px;color:#161826;background:linear-gradient(150deg," + medal.grad + ")",
+            ptsStyle: "font-family:var(--font-heading);font-size:15px;line-height:1;flex:0 0 auto;color:" + medal.ink
+          };
+        }),
+        read: mvps[0].n + " leads by " + (total(mvps[0]) - total(mvps[1])).toFixed(1) +
+          " over " + mvps[1].n.split(" ").slice(-1)[0] + ", with " +
+          mvps.filter(p => p.pos === "QB").length + " of the three at quarterback."
+      }],
+
+      storyDots: SCREENS.map((s, i) => ({
+        onClick: () => self.setState({ story: i }),
+        style: "cursor:pointer;padding:0;border:0;border-radius:99px;height:4px;transition:width .3s ease,background .3s ease;width:" +
+          (S.story === i ? "16px" : "4px") + ";background:" + (S.story === i ? "#b5abfc" : "rgba(145,132,217,.35)")
+      })),
+
+      subtabs: ["Overview", "Standings", "Chat", "Moves", "News", "Ranks", "Rules"]
+        .map(t => pill(t, S.tab === t, () => self.setState({ tab: t }))),
+      isOverview: S.tab === "Overview", isStandings: S.tab === "Standings", isChat: S.tab === "Chat",
+      isMoves: S.tab === "Moves", isNews: S.tab === "News", isRankings: S.tab === "Ranks", isRules: S.tab === "Rules",
+
+      wireTicker: MOVES.concat(MOVES).map((m, i) => ({
+        who: m.who.split(" · ")[0].split(" ⇄ ")[0],
+        what: m.body,
+        dotStyle: "width:4px;height:4px;border-radius:50%;flex:0 0 auto;background:" +
+          (m.tone === "trade" ? "#b5abfc" : m.tone === "add" ? "#7fd8a8" : m.tone === "drop" ? "#e07a7a" : "#e0b573") +
+          (i % 6 === 0 ? ";box-shadow:0 0 7px currentColor;animation:lg-pulse 1.6s infinite" : "")
+      })),
+
+      slate: SCHEDULE[WEEK - 1].map(([x, y], i) => {
+        const a = TBL[x], b = TBL[y];
+        const gap = Math.abs(a.proj - b.proj);
+        const mine = a.me || b.me;
+        const share = a.proj / (a.proj + b.proj) * 100;
+        const prob = Math.round(share + (share - 50) * 8);
+        const lead = a.proj >= b.proj ? a : b;
+        const open = S.openGame === i;
+        return {
+          a: a.team + " · " + a.owner, b: b.team + " · " + b.owner,
+          aProj: a.proj.toFixed(1), bProj: b.proj.toFixed(1),
+          tag: gap < 4 ? "TIGHT" : gap > 12 ? "LOPSIDED" : "",
+          tagStyle: "font-size:7px;letter-spacing:.14em;padding:3px 5px;border-radius:3px;flex:0 0 auto;width:44px;text-align:center;border:1px solid " +
+            (gap < 4 ? "rgba(224,181,115,.5);color:#e0b573" : gap > 12 ? "rgba(143,148,168,.35);color:#75798c" : "transparent;color:transparent"),
+          onClick: () => self.setState({ openGame: open ? -1 : i }),
+          wrapStyle: (i ? "border-top:1px solid rgba(145,132,217,.13);" : "") +
+            (mine ? "background:rgba(145,132,217,.12);box-shadow:inset 2px 0 0 #b5abfc;" : open ? "background:rgba(145,132,217,.06);" : ""),
+          detail: open ? [{
+            barStyle: "height:100%;width:" + share.toFixed(1) + "%;border-radius:99px;background:linear-gradient(90deg,#5d5294,#b5abfc);box-shadow:0 0 10px rgba(181,171,252,.5);animation:lg-grow .5s ease",
+            left: a.owner.toUpperCase() + " " + Math.max(prob, 100 - prob) + "%",
+            right: gap.toFixed(1) + " PT SPREAD",
+            read: gap < 4
+              ? "Nothing separates these two on paper. " + lead.owner + " projects ahead by " + gap.toFixed(1) + ", which is inside the noise of a single receiving line."
+              : gap > 12
+                ? lead.owner + " projects " + gap.toFixed(1) + " clear. Best ball narrows blowouts, but not this one."
+                : lead.owner + " carries a " + gap.toFixed(1) + " point edge. One ceiling week from the underdog flips it."
+          }] : []
+        };
+      }),
+
+      standingsModes: ["Divisions", "Power"].map(m => chip(m, S.standingsMode === m, () => self.setState({ standingsMode: m }))),
+      colA: proj ? "PF" : "SCORE",
+      colB: "REC",
+      // Standings run by division; power rankings are league-wide.
+      standingsGroups: (proj
+        ? [
+            { title: "NORTH", rows: byRecord.filter(t => t.div === "North") },
+            { title: "SOUTH", rows: byRecord.filter(t => t.div === "South") }
+          ]
+        : [{ title: "LEAGUE-WIDE", rows: byPower }]
+      ).map(g => ({
+        title: g.title,
+        note: g.rows.length + " TEAMS",
+        rows: g.rows.map((t, i) => ({
+          rank: i + 1, team: t.team, owner: t.owner,
+          a: proj ? t.pf.toFixed(0) : t.power,
+          b: t.wins + "-" + t.losses,
+          rowStyle: rowBase(i) + (t.me ? "background:rgba(145,132,217,.13);box-shadow:inset 2px 0 0 #b5abfc;" : ""),
+          bStyle: "font-family:var(--font-heading);font-size:12px;width:44px;text-align:right;flex:0 0 auto;color:#75798c",
+          barStyle: "height:100%;width:" + (proj ? (t.pf - 280) / 130 * 100 : t.power) + "%;border-radius:99px;animation:lg-grow .8s ease;background:" +
+            (t.me ? "linear-gradient(90deg,#5d5294,#b5abfc)" : "rgba(145,132,217,.42)")
+        }))
+      })),
+      standingsNote: proj
+        ? "Two divisions of five, ordered by record and broken by points for. Three weeks graded."
+        : "Power rankings are league-wide, blending roster projection, depth and age — not the same order as the divisional table.",
+
+      chat: CHAT.concat(S.sent).map((c, i) => {
+        const base = c.react || {};
+        const keys = Object.keys(base).length ? Object.keys(base) : ["🔥"];
+        return {
+          who: c.who, text: c.text, when: c.when,
+          wrapStyle: "display:flex;" + (c.me ? "justify-content:flex-end" : "justify-content:flex-start"),
+          bubbleStyle: "max-width:84%;padding:10px 12px;border-radius:" + (c.me ? "14px 14px 4px 14px" : "14px 14px 14px 4px") +
+            ";border:1px solid " + (c.me ? "rgba(181,171,252,.45);background:linear-gradient(155deg,rgba(46,40,78,.9),rgba(28,28,48,.85))" : "rgba(145,132,217,.2);background:rgba(22,24,38,.8)"),
+          whoStyle: "font-size:9px;letter-spacing:.14em;margin-bottom:5px;color:" + (c.me ? "#b5abfc" : "#8f94a8"),
+          footStyle: "display:flex;align-items:center;gap:6px;margin-top:8px;" + (c.me ? "justify-content:flex-end" : ""),
+          reactions: keys.map(e => {
+            const mineOn = !!S.reacts[i + ":" + e];
+            const n = (base[e] || 0) + (mineOn ? 1 : 0);
+            return {
+              label: n ? e + " " + n : e,
+              onClick: () => self.react(i, e),
+              style: "cursor:pointer;font-family:var(--font-body);font-size:10px;line-height:1;padding:4px 7px;border-radius:99px;border:1px solid " +
+                (mineOn ? "rgba(181,171,252,.7);background:rgba(145,132,217,.26);color:#e9e9ed" : "rgba(145,132,217,.22);background:rgba(15,17,28,.5);color:#8f94a8")
+            };
+          })
+        };
+      }),
+      typing: "Angus is typing",
+      draft: S.draft,
+      onDraft: e => this.setState({ draft: e.target.value }),
+      onKey: e => { if (e.key === "Enter") self.send(); },
+      onSend: () => this.send(),
+
+      moveFilters: ["All", "Trade", "Add", "Drop"].map(f => chip(f, S.moveFilter === f, () => self.setState({ moveFilter: f }))),
+      moves: MOVES.filter(m => S.moveFilter === "All" || m.kind === S.moveFilter.toUpperCase()).map(m => {
+        const p = PLAYERS.filter(q => q.n === m.player)[0];
+        const now = currentRank(p), gain = p.pre - now, pts = total(p);
+        const gaining = m.side === "in" ? gain : -gain;
+        const grade = gaining >= 10 ? "STEAL" : gaining >= 3 ? "SHARP" : gaining > -3 ? "EVEN" : "RISKY";
+        const who = m.who.split(" ⇄ ")[0].split(" · ").slice(-1)[0];
+        const verb = m.kind === "TRADE" ? (m.side === "in" ? "Acquired" : "Sent")
+          : m.kind === "ADD" ? "Added" : m.kind === "DROP" ? "Dropped" : "Listed";
+        const tone = m.kind === "TRADE" ? "trade" : m.kind === "ADD" ? "add" : m.kind === "DROP" ? "drop" : "block";
+        return {
+          kind: m.kind, who: m.who, when: m.when,
+          body: verb + " " + p.n + (m.cost ? " for " + m.cost : "") + ".",
+          grade,
+          read: p.n.split(" ").slice(-1)[0] + " has put up " + pts.toFixed(1) + " through " + played +
+            " weeks — " + p.pos + now + " on the season, drafted " + p.pos + p.pre + ". " +
+            (gaining >= 3
+              ? "That is " + Math.abs(gain) + " spots of value moving " + (m.side === "in" ? "toward " : "away from ") + who + "."
+              : gaining <= -3
+                ? "Losing " + Math.abs(gain) + " spots of value is the part " + who + " will hear about."
+                : "Roughly where the draft had him, so nobody won this one."),
+          gradeStyle: "font-size:8px;letter-spacing:.14em;padding:3px 6px;border-radius:3px;flex:0 0 auto;white-space:nowrap;border:1px solid " +
+            (grade === "STEAL" ? "rgba(127,216,168,.7);background:rgba(30,54,44,.6);color:#7fd8a8"
+             : grade === "SHARP" ? "rgba(127,216,168,.5);color:#7fd8a8"
+             : grade === "RISKY" ? "rgba(224,122,122,.5);color:#e07a7a"
+             : "rgba(143,148,168,.45);color:#8f94a8"),
+          kindStyle: "font-size:8px;letter-spacing:.14em;padding:3px 7px;border-radius:3px;flex:0 0 auto;border:1px solid " +
+            (tone === "trade" ? "rgba(181,171,252,.55);color:#b5abfc"
+             : tone === "add" ? "rgba(127,216,168,.5);color:#7fd8a8"
+             : tone === "drop" ? "rgba(224,122,122,.5);color:#e07a7a"
+             : "rgba(224,181,115,.5);color:#e0b573")
+        };
+      }),
+
+      news: (() => {
+        // Every item is written from the week's own numbers.
+        const last = WEEK - 2;
+        const high = TBL.slice().sort((a, b) => SCORES[TEAMS.indexOf(
+          TEAMS.filter(x => x.team === b.team)[0])][last] - SCORES[TEAMS.indexOf(
+          TEAMS.filter(x => x.team === a.team)[0])][last])[0];
+        const highScore = SCORES[TEAMS.map(t => t.team).indexOf(high.team)][last];
+        const pfLeader = TBL.slice().sort((a, b) => b.pf - a.pf)[0];
+        const unlucky = TBL.slice().sort((a, b) => (b.pf / (b.wins + 1)) - (a.pf / (a.wins + 1)))[0];
+        const winless = TBL.filter(t => t.wins === 0);
+        const items = [
+          { tag: "SCORES", tone: "league", when: "18M",
+            head: high.owner + " dropped " + highScore.toFixed(1) + " in week " + (WEEK - 1),
+            body: "The highest single week anyone has posted this season. " + high.team + " sits " +
+              high.wins + "-" + high.losses + " with " + high.pf.toFixed(1) + " for.",
+            src: "League office" },
+          { tag: "VALUE", tone: "league", when: "2H",
+            head: valued.p.n + " is the league's biggest riser",
+            body: "Drafted " + valued.p.pos + valued.p.pre + ", now " + valued.p.pos + valued.now +
+              " on " + total(valued.p).toFixed(1) + " points. A " + valued.gain + "-spot climb in " + played + " weeks.",
+            src: "Pylon Research" },
+          { tag: "STREAK", tone: "league", when: "6H",
+            head: hot.length > 1
+              ? hot.map(t => t.owner).join(" and ") + " are both " + best + "-0"
+              : hot[0].owner + " is " + best + "-0 and alone at the top",
+            body: "Longest active run in the league. " +
+              (hot.length > 1 ? "They have not played each other yet." : "Nobody else is unbeaten."),
+            src: "League office" },
+          { tag: "POINTS", tone: "rules", when: "YDAY",
+            head: pfLeader.owner + " leads the league in points for",
+            body: pfLeader.pf.toFixed(1) + " through " + played + " weeks, " +
+              (pfLeader.pf - TBL.slice().sort((a, b) => b.pf - a.pf)[1].pf).toFixed(1) +
+              " clear of second. Record sits at " + pfLeader.wins + "-" + pfLeader.losses + ".",
+            src: "League office" }
+        ];
+        if (winless.length) items.push({
+          tag: "COLD", tone: "inj", when: "YDAY",
+          head: winless.map(t => t.owner).join(" and ") + " still looking for a first win",
+          body: winless.map(t => t.team + " has scored " + t.pf.toFixed(1)).join("; ") +
+            ". The wire is open nightly.",
+          src: "League office"
+        });
+        return items;
+      })().map(n => ({
+        tag: n.tag, when: n.when, head: n.head, body: n.body, src: n.src,
+        cardStyle: "border:1px solid " + (n.tone === "inj" ? "rgba(224,181,115,.26)" : "rgba(145,132,217,.2)") +
+          ";border-radius:12px;background:rgba(22,24,38,.72);padding:13px 14px",
+        tagStyle: "font-size:8px;letter-spacing:.14em;padding:3px 7px;border-radius:3px;flex:0 0 auto;border:1px solid " +
+          (n.tone === "inj" ? "rgba(224,181,115,.5);color:#e0b573"
+           : n.tone === "rules" ? "rgba(143,148,168,.45);color:#8f94a8"
+           : "rgba(181,171,252,.5);color:#b5abfc"),
+        headStyle: "font-family:var(--font-heading);font-size:15px;line-height:1.25;letter-spacing:-.01em;margin-top:9px;text-wrap:pretty"
+      })),
+
+      posFilters: ["All", "QB", "RB", "WR", "TE", "K"].map(f => chip(f, S.posFilter === f, () => self.setState({ posFilter: f }))),
+      rankings: RANKS
+        .filter(p => S.posFilter === "All" || p.pos === S.posFilter)
+        .slice().sort((a, b) => b.proj - a.proj)
+        .map((p, i) => {
+          // Movement against the consensus board's own order — where the
+          // market has him versus where this week's projection puts him.
+          const adp = RANKS.indexOf(p);
+          const d = adp - i;
+          return {
+            rank: i + 1, name: p.name, posTeam: p.posTeam, arch: p.arch,
+            owner: p.fin, proj: p.proj.toFixed(1),
+            delta: d === 0 ? "—" : (d > 0 ? "▲" : "▼") + Math.abs(d),
+            deltaStyle: "font-family:var(--font-heading);font-size:10px;margin-top:3px;color:" +
+              (d > 0 ? "#7fd8a8" : d < 0 ? "#e07a7a" : "#595d6c"),
+            rowStyle: rowBase(i)
+          };
+        }),
+
+      rules: RULES.map((r, i) => {
+        const open = S.openRule === i;
+        return {
+          title: r.title,
+          body: open ? [{ text: r.text }] : [],
+          onClick: () => self.setState({ openRule: open ? -1 : i }),
+          headStyle: "cursor:pointer;width:100%;display:flex;align-items:center;gap:10px;padding:13px;border:0;background:transparent;color:#e9e9ed;font-family:var(--font-body)",
+          chevStyle: "flex:0 0 auto;font-size:13px;color:#b5abfc;transition:transform .2s ease;transform:rotate(" + (open ? "45deg" : "0deg") + ")"
+        };
+      }),
+
+      tabs: ["Home,home", "My Team,team", "League,league", "Moves,moves", "Office,office"].map(v => {
+        const [label, key] = v.split(",");
+        const on = S.nav === label;
+        return {
+          label, path: P[key],
+          onClick: () => self.setState({ nav: label }),
+          style: "cursor:pointer;background:" + (on ? "rgba(145,132,217,.12)" : "transparent") +
+            ";border:0;padding:11px 0 9px;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative;font-family:var(--font-body);color:" +
+            (on ? "#e9e9ed" : "#75798c"),
+          markStyle: "position:absolute;top:0;left:50%;transform:translateX(-50%);width:" + (on ? "34px" : "0") +
+            ";height:2px;border-radius:99px;background:#b5abfc;box-shadow:0 0 10px #b5abfc;transition:width .25s ease"
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>
