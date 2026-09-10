@@ -99,7 +99,11 @@ const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 /** The plural of a count, without the "1 weeks" that gives a page away. */
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-export default function LeagueRules() {
+/**
+ * `embedded` drops the page title and the back link. Under the League screen
+ * the sub-tab strip is the way back and already says "Rules".
+ */
+export default function LeagueRules({ embedded = false }: { embedded?: boolean } = {}) {
   const [feed, setFeed] = useState<Feed | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -155,20 +159,22 @@ export default function LeagueRules() {
   const regularWeeks = Number(settings.regularWeeks ?? 16);
 
   return (
-    <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 18px 44px" }}>
-      <div style={{ ...eyebrow, margin: "26px 0 6px" }}>HOW THIS LEAGUE WORKS</div>
-      <h1
-        style={{
-          fontFamily: "var(--font-heading)",
-          fontSize: 28,
-          letterSpacing: "-.025em",
-          margin: "0 0 10px",
-          fontWeight: 500,
-          color: "var(--text)",
-        }}
-      >
-        {feed.league?.name ?? "The league"}
-      </h1>
+    <div style={{ maxWidth: 700, margin: "0 auto", padding: embedded ? "0 18px 24px" : "0 18px 44px" }}>
+      <div hidden={embedded}>
+        <div style={{ ...eyebrow, margin: "26px 0 6px" }}>HOW THIS LEAGUE WORKS</div>
+        <h1
+          style={{
+            fontFamily: "var(--font-heading)",
+            fontSize: 28,
+            letterSpacing: "-.025em",
+            margin: "0 0 10px",
+            fontWeight: 500,
+            color: "var(--text)",
+          }}
+        >
+          {feed.league?.name ?? "The league"}
+        </h1>
+      </div>
       <p style={{ ...body, marginBottom: 20 }}>
         {teams > 0 ? `${plural(teams, "manager")}, one franchise each. ` : ""}
         The {feed.league?.season ?? ""} season. Every number on this page is read
@@ -327,7 +333,10 @@ export default function LeagueRules() {
         </p>
       </div>
 
-      <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 18, fontSize: 11.5 }}>
+      <div
+        hidden={embedded}
+        style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 18, fontSize: 11.5 }}
+      >
         <Link
           href="/the-league"
           style={{ color: "var(--accent-link)", textDecoration: "none", display: "inline-flex", alignItems: "center", minHeight: 34 }}

@@ -433,6 +433,15 @@ export function routes(page, over = {}) {
       { week: 1, final: true, divisional: false, live: false, mine: false,
         home: side(MANAGERS[2], 61.2), away: side(MANAGERS[5], 88.0),
         winProbability: 0 },
+      // A second graded week, so somebody is on a run of two. With one week
+      // played every streak is one, and the Overview's streak card has
+      // nothing to say — which is how it went untested.
+      { week: 2, final: true, divisional: false, live: false, mine: true,
+        home: side(MANAGERS[0], 131.6), away: side(MANAGERS[2], 92.4),
+        winProbability: 1 },
+      { week: 2, final: true, divisional: false, live: false, mine: false,
+        home: side(MANAGERS[5], 104.9), away: side(MANAGERS[3], 77.1),
+        winProbability: 1 },
       { week: 3, final: false, divisional: false, live: true, mine: true,
         home: livingSide(MANAGERS[0], 44.1, 113.7, 5, 2),
         away: livingSide(MANAGERS[7], 30.0, 125.1, 6, 1),
@@ -736,7 +745,26 @@ export function routes(page, over = {}) {
     fetchedAt: new Date().toISOString(),
   }));
 
-  page.route("**/api/rankings", json({ points: {}, rostered: {}, basis: "2025" }));
+  // What the league has scored each player this season. Rome Odunze is the
+  // point of it: drafted WR28 and now the highest-scoring receiver in the
+  // league, which is the largest climb against a draft slot and therefore the
+  // Overview's Best Value card. Without real numbers here every generated
+  // sentence on that screen has nothing to be generated from.
+  page.route("**/api/rankings", json({
+    points: {
+      "Rome Odunze": { total: 61.4, games: 2 },
+      "Ja'Marr Chase": { total: 48.2, games: 2 },
+      "Puka Nacua": { total: 41.9, games: 2 },
+      "Marvin Harrison Jr.": { total: 22.6, games: 2 },
+      "Jahmyr Gibbs": { total: 55.8, games: 2 },
+      "Tank Bigsby": { total: 18.4, games: 2 },
+      "Brock Bowers": { total: 37.1, games: 2 },
+      "Trey McBride": { total: 29.5, games: 2 },
+      "Jayden Daniels": { total: 52.3, games: 2 },
+    },
+    rostered: {},
+    basis: "league",
+  }));
 
   page.route("**/api/players**", json({
     me: ME, mode: "waivers", waiverDays: 1, capacity: 25, held: 13,
