@@ -46,7 +46,12 @@ const open = async (tab) => {
 };
 
 await page.goto(`${BASE}/my-team`, { waitUntil: "networkidle" });
-await page.waitForTimeout(1200);
+// Waited for rather than slept on. Everything below polls; this first load did
+// not, and a cold compile in dev is slower than any fixed pause worth writing
+// — which is how this check failed once and then passed seven times.
+await page
+  .waitForFunction(() => /START RATE/.test(document.body.innerText), undefined, { timeout: 20000 })
+  .catch(() => {});
 
 if (SHOTS) {
   await mkdir(SHOTS, { recursive: true });

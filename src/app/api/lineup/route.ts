@@ -118,7 +118,7 @@ export async function GET(req: Request) {
   // stashed — and read here rather than from the browser's own copy of the
   // report so the page and the database cannot disagree about a rule the
   // database is the one enforcing.
-  const { data: eligible } = await db
+  const { data: eligible, error: reportError } = await db
     .from("nfl_players")
     .select("name, injury_status")
     .in("name", [...roster, ...stashed]);
@@ -133,7 +133,13 @@ export async function GET(req: Request) {
   // Stashed players the report says are fit again. They count against the
   // eighteen where they sit, so a manager holding one may be over the limit
   // and has to drop somebody before adding anybody.
-  const irReturns = stashed.filter((name) => !irEligible[name]);
+  //
+  // Not knowing is not the same as knowing he is fit. If this read failed —
+  // a hiccup, or a database the migration has not reached yet — every stashed
+  // player would come back eligible for nothing and the page would tell each
+  // of their managers to drop somebody, on the strength of a question that
+  // was never answered. Silence leaves the reserve exactly as it is.
+  const irReturns = reportError ? [] : stashed.filter((name) => !irEligible[name]);
 
   // Whether this week is already in the books, which is what turns a lineup
   // that is still moving into one that is not.
