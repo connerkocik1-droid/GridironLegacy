@@ -780,8 +780,14 @@ export function routes(page, over = {}) {
       "Brock Bowers": { total: 37.1, games: 2 },
       "Trey McBride": { total: 29.5, games: 2 },
       "Jayden Daniels": { total: 52.3, games: 2 },
+      // Nobody owns him, and he is the biggest climb in the league by a
+      // distance: QB59 off the board, top of the position on points. Best
+      // Value is about somebody's draft coming off, so he must not win it.
+      "Kyle McCord": { total: 70.2, games: 2 },
     },
-    rostered: {},
+    rostered: Object.fromEntries(
+      ROSTER.map(([n]) => [n, "Steel Cartel"]),
+    ),
     basis: "league",
   }));
 

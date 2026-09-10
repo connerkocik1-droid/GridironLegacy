@@ -89,6 +89,10 @@ console.log("\n--- the overview writes itself ---");
     ok("and the sentence agrees with the number",
       /52-spot climb/.test(value) && /54th RB off the board/.test(value));
     ok("the louder scorer did not win it on volume", !/Rome Odunze/.test(value));
+    // Kyle McCord is unowned, QB59 off the board and top of the position on
+    // points — the biggest climb in the league by a distance. The card is
+    // about somebody's draft coming off, so a free agent cannot win it.
+    ok("and a free agent did not win it at all", !/Kyle McCord/.test(value));
 
     await page.getByRole("button", { name: "Show hot streak" }).click();
     await page.waitForTimeout(500);
@@ -104,6 +108,7 @@ console.log("\n--- the overview writes itself ---");
     ok(`the top three are the top three (${mvp.match(/61\.4|55\.8|52\.3/g)?.join(", ") ?? "—"})`,
       /61\.4/.test(mvp) && /55\.8/.test(mvp) && /52\.3/.test(mvp));
     ok("and nobody below them is on it", !/22\.6|18\.4/.test(mvp));
+    ok("nor the free agent outscoring all of them", !/Kyle McCord|70\.2/.test(mvp));
   }
 }
 

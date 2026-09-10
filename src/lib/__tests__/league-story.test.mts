@@ -153,10 +153,10 @@ console.log("\n--- the news turns over with the table ---");
 console.log("\n--- value against the draft ---");
 {
   const players: PlayerSeason[] = [
-    { name: "Riser", pos: "WR", team: "BUF", points: 300, games: 3, preRank: 31 },
-    { name: "Steady", pos: "WR", team: "MIA", points: 200, games: 3, preRank: 2 },
-    { name: "Faller", pos: "WR", team: "NYJ", points: 100, games: 3, preRank: 1 },
-    { name: "Undrafted", pos: "WR", team: "NE", points: 250, games: 3, preRank: null },
+    { name: "Riser", pos: "WR", team: "BUF", points: 300, games: 3, preRank: 31, franchise: "Alpha" },
+    { name: "Steady", pos: "WR", team: "MIA", points: 200, games: 3, preRank: 2, franchise: "Alpha" },
+    { name: "Faller", pos: "WR", team: "NYJ", points: 100, games: 3, preRank: 1, franchise: "Alpha" },
+    { name: "Undrafted", pos: "WR", team: "NE", points: 250, games: 3, preRank: null, franchise: "Alpha" },
   ];
 
   eq("rank is by points, not by draft slot", currentRank(players, "Riser"), 1);
@@ -174,8 +174,8 @@ console.log("\n--- value against the draft ---");
 
   // Somebody has to be the least bad, and "climbed −4 spots" is not English.
   const sinking: PlayerSeason[] = [
-    { name: "Less Bad", pos: "RB", team: "DAL", points: 200, games: 3, preRank: 1 },
-    { name: "Worse", pos: "RB", team: "PHI", points: 100, games: 3, preRank: 2 },
+    { name: "Less Bad", pos: "RB", team: "DAL", points: 200, games: 3, preRank: 1, franchise: "Alpha" },
+    { name: "Worse", pos: "RB", team: "PHI", points: 100, games: 3, preRank: 2, franchise: "Alpha" },
   ];
   const none = bestValue(sinking, 3)!;
   eq("with nobody ahead of their draft slot the gain is nought", none.gain, 0);
@@ -183,27 +183,58 @@ console.log("\n--- value against the draft ---");
     !/climb/.test(none.read));
 
   eq("no ranked players at all is null, not a crash", bestValue([], 3), null);
+
+  // Since the whole pool started being scored, the biggest climb in the league
+  // is quite likely a man nobody thought worth a roster spot. That is a fact
+  // about the waiver wire, not about anybody's draft.
+  const wire: PlayerSeason[] = [
+    { name: "Nobody Wanted Him", pos: "TE", team: "CHI", points: 400, games: 3, preRank: 40, franchise: null },
+    { name: "Actually Owned", pos: "TE", team: "GB", points: 200, games: 3, preRank: 9, franchise: "Bravo" },
+  ];
+  const owned = bestValue(wire, 3)!;
+  eq("a free agent cannot be the league's best value", owned.player.name, "Actually Owned");
+
+  // Nought is not a climb; it is a man who has not played.
+  const idle: PlayerSeason[] = [
+    { name: "Has Not Played", pos: "RB", team: "NE", points: 0, games: 0, preRank: 60, franchise: "Alpha" },
+    { name: "Has Played", pos: "RB", team: "NYJ", points: 90, games: 3, preRank: 20, franchise: "Alpha" },
+  ];
+  eq("nor can somebody who has not scored", bestValue(idle, 3)!.player.name, "Has Played");
+
+  eq("and a league where nobody owns a scorer has no card",
+    bestValue([wire[0]], 3), null);
 }
 
 console.log("\n--- the top three ---");
 {
   const players: PlayerSeason[] = [
-    { name: "One", pos: "RB", team: "A", points: 90, games: 3, preRank: 1 },
-    { name: "Two", pos: "WR", team: "B", points: 80, games: 3, preRank: 2 },
-    { name: "Three", pos: "TE", team: "C", points: 70, games: 3, preRank: 3 },
-    { name: "Four", pos: "QB", team: "D", points: 60, games: 3, preRank: 4 },
+    { name: "One", pos: "RB", team: "A", points: 90, games: 3, preRank: 1, franchise: "Alpha" },
+    { name: "Two", pos: "WR", team: "B", points: 80, games: 3, preRank: 2, franchise: "Alpha" },
+    { name: "Three", pos: "TE", team: "C", points: 70, games: 3, preRank: 3, franchise: "Alpha" },
+    { name: "Four", pos: "QB", team: "D", points: 60, games: 3, preRank: 4, franchise: "Alpha" },
   ];
   eq("three of them", topScorers(players).length, 3);
   eq("in order", topScorers(players).map((p) => p.name), ["One", "Two", "Three"]);
   eq("a short league gives what it has", topScorers(players.slice(0, 2)).length, 2);
+
+  // Same rule as Best Value, and for the same reason: on a fantasy league's
+  // own page the MVP is one of its players.
+  const withWire = [
+    { name: "Free Agent", pos: "WR", team: "SF", points: 999, games: 3, preRank: 50, franchise: null },
+    ...players,
+  ];
+  eq("a free agent is not the league's MVP", topScorers(withWire)[0].name, "One");
+  eq("and somebody who has not played is not either",
+    topScorers([{ name: "Idle", pos: "K", team: "LV", points: 0, games: 0, preRank: 1, franchise: "Alpha" }]).length,
+    0);
 }
 
 console.log("\n--- what a move turned out to be ---");
 {
   const players: PlayerSeason[] = [
-    { name: "Riser", pos: "WR", team: "BUF", points: 300, games: 3, preRank: 31 },
-    { name: "Steady", pos: "WR", team: "MIA", points: 200, games: 3, preRank: 2 },
-    { name: "Faller", pos: "WR", team: "NYJ", points: 100, games: 3, preRank: 1 },
+    { name: "Riser", pos: "WR", team: "BUF", points: 300, games: 3, preRank: 31, franchise: "Alpha" },
+    { name: "Steady", pos: "WR", team: "MIA", points: 200, games: 3, preRank: 2, franchise: "Alpha" },
+    { name: "Faller", pos: "WR", team: "NYJ", points: 100, games: 3, preRank: 1, franchise: "Alpha" },
   ];
 
   const got = gradeMove(
@@ -257,13 +288,15 @@ console.log("\n--- joined to the pool ---");
   const players = seasonPlayers({
     "Ja'Marr Chase": { total: 300, games: 3 },
     "Brock Bowers": { total: 200, games: 3 },
-  });
+  }, { "Ja'Marr Chase": "Steel Cartel" });
   eq("both come through", players.length, 2);
   ok("with their position from the pool", players.every((p) => p.pos.length > 0));
   ok("and a draft rank to be judged against",
     players.every((p) => p.preRank != null && p.preRank > 0),
     JSON.stringify(players.map((p) => [p.name, p.pos, p.preRank])));
   ok("highest scorer first", players[0].name === "Ja'Marr Chase");
+  eq("the franchise holding him comes through", players[0].franchise, "Steel Cartel");
+  eq("and a free agent has none", players[1].franchise, null);
 
   const unknown = seasonPlayers({ "Nobody At All": { total: 10, games: 1 } });
   eq("a player the pool has never heard of still counts", unknown.length, 1);
