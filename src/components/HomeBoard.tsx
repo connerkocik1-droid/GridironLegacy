@@ -11,6 +11,7 @@ import TheLeagueButton from "./TheLeagueButton";
 import MiniGamesButton from "./MiniGamesButton";
 import ScoreTicker from "./ScoreTicker";
 import KickoffCountdown from "./KickoffCountdown";
+import GamecastButton from "./GamecastButton";
 import MatchupHero from "./MatchupHero";
 import PowerRank from "./PowerRank";
 import { useRefreshable } from "@/lib/use-refresh";
@@ -165,6 +166,10 @@ export default function HomeBoard() {
           <MyTeamButton />
           <TheLeagueButton />
         </div>
+        {/* Above the mini-games because on a Sunday it is the more likely of
+            the two, and below the league doors because it is not about this
+            league at all. */}
+        <GamecastButton />
         <MiniGamesButton />
       </div>
     </div>

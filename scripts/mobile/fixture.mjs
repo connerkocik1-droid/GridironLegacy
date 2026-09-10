@@ -613,14 +613,18 @@ export function routes(page, over = {}) {
   // The slate the ticker rides on. Without it the strip renders nothing, so
   // every audit run measured a home page with the top rail missing — and the
   // link into the gamecast lives inside that rail.
+  //
+  // The kickoff times differ so the games page has something to sort and
+  // something to group: one slate with every game at the same minute is one
+  // heading, which proves nothing about either.
   const SLATE = [
-    ["401671801", "PHI", "Eagles", 17, "WSH", "Commanders", 21, "in", "3rd Quarter · 4:12"],
-    ["401671802", "KC", "Chiefs", 28, "BUF", "Bills", 24, "post", "Final"],
-    ["401671803", "SF", "49ers", 0, "SEA", "Seahawks", 0, "pre", "Sun 1:00 PM"],
+    ["401671801", "PHI", "Eagles", 17, "WSH", "Commanders", 21, "in", "3rd Quarter · 4:12", 60],
+    ["401671802", "KC", "Chiefs", 28, "BUF", "Bills", 24, "post", "Final", 60 * 26],
+    ["401671803", "SF", "49ers", 0, "SEA", "Seahawks", 0, "pre", "Sun 1:00 PM", -180],
   ];
   page.route("**/api/scoreboard**", json({
-    games: SLATE.map(([id, aa, an, as_, ha, hn, hs, state, detail]) => ({
-      id, date: ago(60), week: 3, seasonType: 2, state,
+    games: SLATE.map(([id, aa, an, as_, ha, hn, hs, state, detail, when]) => ({
+      id, date: ago(when), week: 3, seasonType: 2, state,
       completed: state === "post", statusDetail: detail,
       away: { abbrev: aa, name: an, score: as_, homeAway: "away", winner: as_ > hs, logo: "" },
       home: { abbrev: ha, name: hn, score: hs, homeAway: "home", winner: hs > as_, logo: "" },
