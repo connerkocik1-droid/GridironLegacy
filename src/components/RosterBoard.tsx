@@ -12,7 +12,6 @@ import { useRefreshable } from "@/lib/use-refresh";
 import { bestLineup, bubbleGaps, type Score } from "@/lib/matchup";
 import { flagColor, flagsFor, player, proj, type LeagueShape } from "@/lib/roster";
 import { useLogos } from "@/lib/use-logos";
-import { healthOf, useHealthReport } from "@/lib/use-player-health";
 
 const BLANK =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -20,14 +19,20 @@ const BLANK =
 /** How often a page left open on a Sunday goes and asks for the numbers. */
 const POLL_MS = 60_000;
 
-/** Who may be stashed: ruled out, not merely doubted. */
-const STASHABLE = ["out", "ir", "suspended"];
 
 interface Feed {
   week: number;
   me: { id: string; slot: string; name?: string; franchise: string };
   /** Whether the reader owns this roster. Absent on older responses. */
   mine?: boolean;
+  /**
+   * Who the injury report says may sit outside the eighteen — IR and
+   * suspension, not merely out for the week. Read from the server rather than
+   * from the browser's own copy of the report, because since 0046 the
+   * database is the one enforcing it and a button the server will refuse is
+   * worse than no button.
+   */
+  irEligible?: Record<string, boolean>;
   settings: LeagueShape | null;
   roster: string[];
   injuredReserve: string[];
@@ -64,7 +69,6 @@ interface Feed {
  */
 export default function RosterBoard({ manager }: { manager?: string } = {}) {
   const logos = useLogos();
-  const health = useHealthReport();
   const [feed, setFeed] = useState<Feed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -382,14 +386,15 @@ export default function RosterBoard({ manager }: { manager?: string } = {}) {
                   gap={gaps.get(name)}
                   nextIn={name === closest}
                   action={
-                    // Offered only to somebody the injury report has ruled
-                    // out, because that is the only case the server will
-                    // accept — a button that always refuses is worse than no
-                    // button. Questionable is not enough: he might play.
+                    // Offered only where the server will accept it. The
+                    // reserve is for IR and suspension, absences measured in
+                    // months; out for the week and questionable are not
+                    // enough, because a slot that holds those is a nineteenth
+                    // roster spot that refreshes every Sunday.
                     mine &&
                     stashLimit > 0 &&
                     feed.injuredReserve.length < stashLimit &&
-                    STASHABLE.includes(healthOf(health, name)?.status ?? "active")
+                    (feed.irEligible?.[name] ?? false)
                       ? { label: "IR", title: `Stash ${name} on injured reserve`,
                           busy: busy === name, onClick: () => void stash(name, true) }
                       : undefined

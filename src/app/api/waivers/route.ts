@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   const manager = await me(db);
   if (!manager) return Response.json({ error: "Not signed in" }, { status: 401 });
 
-  let body: { add?: unknown; drop?: unknown; claimOrder?: unknown };
+  let body: { add?: unknown; drop?: unknown; claimOrder?: unknown; ir?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -50,6 +50,22 @@ export async function POST(req: Request) {
   const add = typeof body.add === "string" ? body.add : "";
   const drop = typeof body.drop === "string" && body.drop ? body.drop : null;
   if (!add) return Response.json({ error: "Name the player to add" }, { status: 400 });
+
+  // Signing somebody straight into the reserve. Not a variant of an ordinary
+  // add: it spends a reserve slot rather than a roster spot, so it drops
+  // nobody, and the database refuses it for anybody the injury report does not
+  // put on IR or under suspension.
+  if (body.ir === true) {
+    const { data, error } = await db.rpc("add_player_to_ir", {
+      p_league_id: manager.league_id,
+      p_player: add,
+    });
+    if (error) {
+      const taken = error.code === "23505";
+      return Response.json({ error: error.message }, { status: taken ? 409 : 400 });
+    }
+    return Response.json({ ...data, mode: "now" });
+  }
 
   const [{ data: league }, { data: wired }] = await Promise.all([
     db.from("leagues").select("settings").eq("id", manager.league_id).single(),

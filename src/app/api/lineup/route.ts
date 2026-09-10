@@ -31,6 +31,17 @@ const NOT_CONFIGURED = Response.json(
  * make a trade, judge a waiver claim, or work out why you lost. The route
  * simply had no way to ask.
  */
+/**
+ * The eighteen, worked out the way roster_capacity() works it out: the
+ * starting slots plus the bench. Mirrored here only so the page can say what
+ * the limit is — the database is still the one that enforces it.
+ */
+function capacityOf(settings: unknown): number {
+  const s = (settings ?? {}) as { starters?: Record<string, number>; bench?: number };
+  const starters = Object.values(s.starters ?? {}).reduce((sum, n) => sum + Number(n || 0), 0);
+  return starters + Number(s.bench ?? 0);
+}
+
 export async function GET(req: Request) {
   if (!isConfigured()) return NOT_CONFIGURED;
 
@@ -101,6 +112,29 @@ export async function GET(req: Request) {
     .eq("week", week)
     .in("player_name", [...roster, ...stashed]);
 
+  // Who may sit outside the eighteen, straight from the injury report the
+  // cron writes. Sent for the whole roster rather than only the reserve,
+  // because the button that offers to stash somebody has to know before he is
+  // stashed — and read here rather than from the browser's own copy of the
+  // report so the page and the database cannot disagree about a rule the
+  // database is the one enforcing.
+  const { data: eligible } = await db
+    .from("nfl_players")
+    .select("name, injury_status")
+    .in("name", [...roster, ...stashed]);
+
+  const irEligible = Object.fromEntries(
+    (eligible ?? []).map((r: { name: string; injury_status: string | null }) => [
+      r.name,
+      r.injury_status === "ir" || r.injury_status === "suspended",
+    ]),
+  );
+
+  // Stashed players the report says are fit again. They count against the
+  // eighteen where they sit, so a manager holding one may be over the limit
+  // and has to drop somebody before adding anybody.
+  const irReturns = stashed.filter((name) => !irEligible[name]);
+
   // Whether this week is already in the books, which is what turns a lineup
   // that is still moving into one that is not.
   const { data: fixture } = await db
@@ -121,6 +155,14 @@ export async function GET(req: Request) {
     settings: league?.settings ?? null,
     roster,
     injuredReserve: stashed,
+    irEligible,
+    irReturns,
+    // The reserve's size, and how much of the eighteen is spoken for. Both
+    // computed the way the database computes them, so a button that will be
+    // refused is not offered.
+    irLimit: Number((league?.settings as { ir?: number } | null)?.ir ?? 0),
+    rosterCount: roster.length + irReturns.length,
+    rosterLimit: capacityOf(league?.settings ?? null),
     live: state.live,
     started: state.started,
     weekPhase: state.phase,

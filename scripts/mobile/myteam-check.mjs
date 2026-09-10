@@ -63,10 +63,24 @@ console.log("--- the header ---");
   ok("the record", /RECORD/.test(t));
   ok("and the points for", /POINTS FOR/.test(t));
 
-  // The four numbers are the point of the row; four labels over four dashes
-  // is a header that has failed and looks fine.
-  const dashes = (t.match(/—/g) ?? []).length;
-  ok(`with numbers under the labels, not dashes (${dashes} dashes)`, dashes < 3);
+  // The four numbers are the point of the row, and four labels over four
+  // dashes is a header that has failed and looks fine. Read off the labels
+  // themselves rather than counted across the page — an IR row draws a dash
+  // for its projection too, so a page-wide count measures the roster.
+  const stats = await page.evaluate(() =>
+    ["PROJECTED", "SCORED", "ON ROSTER", "RECORD", "POINTS FOR"].flatMap((label) => {
+      const cell = [...document.querySelectorAll("div")].find(
+        (el) => el.children.length === 0 && el.textContent?.trim() === label,
+      );
+      const value = cell?.previousElementSibling?.textContent?.trim();
+      return value == null ? [] : [[label, value]];
+    }),
+  );
+  ok(`all four stats found (${stats.map(([l]) => l).join(", ")})`, stats.length === 4);
+  ok(
+    `and every one of them is a number (${stats.map(([, v]) => v).join(" / ")})`,
+    stats.length === 4 && stats.every(([, v]) => v !== "—" && v.length > 0),
+  );
 }
 
 console.log("\n--- the roster ---");
@@ -100,6 +114,32 @@ console.log("\n--- the roster ---");
   // A league fielding two backs must chip two, not three: the slot the chip
   // claims has to be one the league actually has.
   ok("and no slot the league does not field", !(await page.locator('text="RB3"').count()));
+}
+
+console.log("\n--- the reserve ---");
+{
+  const t = await body();
+  ok("a stashed player sits in his own group", /\bIR\b/.test(t));
+
+  // The button that offers the reserve is offered only where the server will
+  // take it. Trey McBride is on the report; Christian McCaffrey carries the
+  // draft pool's questionable flag and is on no report at all, and used to be
+  // exactly the player a browser-side rule would have offered.
+  const stashable = await page
+    .locator('button[title*="injured reserve"]')
+    .evaluateAll((els) => els.map((e) => e.getAttribute("title")));
+  ok(`only the injured are offered the reserve (${stashable.length})`, stashable.length === 0);
+
+  const back = await page
+    .locator('button[title*="back onto your roster"]')
+    .evaluateAll((els) => els.map((e) => e.getAttribute("title")));
+  ok(`and both stashed players offer the way back (${back.length})`, back.length === 2);
+
+  // The demand, not the report: a cleared player is on the books where he
+  // sits, so a full roster is now over and nothing can be added until
+  // somebody goes.
+  ok("a cleared player is named, not merely counted", /Rashee Rice is cleared to play/.test(t));
+  ok("and the manager is told to drop somebody", /Drop somebody before you can add anybody/.test(t));
 }
 
 console.log("\n--- and every other section renders ---");

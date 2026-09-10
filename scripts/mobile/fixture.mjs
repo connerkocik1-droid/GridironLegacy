@@ -40,6 +40,10 @@ const ROSTER = [
   // roster used to hold nobody in this state, which is why nothing caught
   // healthOf falling back to that flag for a hundred and thirty-eight players.
   ["Christian McCaffrey", "BENCH"],
+  // Stashed on injured reserve and since cleared by the report — the case that
+  // puts a roster back over its limit. Nothing held this state before, which
+  // is why nothing caught a reserve that filled up and never emptied.
+  ["Rashee Rice", "BENCH"],
 ];
 
 const SETTINGS = {
@@ -503,10 +507,18 @@ export function routes(page, over = {}) {
   };
   const lineFor = (slot) => LINES[slot] ?? LINES.RB;
 
-  // Best ball: the roster, not a lineup. One man is stashed on injured
-  // reserve, because the reserve panel is the one part of this page with a
-  // control on it and an empty panel proves nothing about its layout.
-  const STASHED = ["Trey McBride"];
+  // Best ball: the roster, not a lineup. Two men are stashed on injured
+  // reserve, because the reserve is the one part of this page with a control
+  // on it and an empty panel proves nothing about its layout — and because
+  // the two cases differ. One is genuinely on IR and stays there; the other
+  // has been cleared by the report and is therefore back on the books, which
+  // is what puts the roster over the limit and raises the demand to drop
+  // somebody. Both states have to be drawable.
+  const STASHED = ["Trey McBride", "Rashee Rice"];
+  // Who the injury report puts on IR or under suspension. Trey McBride is on
+  // it; Rashee Rice is not, which is exactly why he is the returning player.
+  // Tyler Warren is a free agent on it, so the wire can offer the reserve.
+  const IR_ELIGIBLE = ["Trey McBride", "Tyler Warren"];
   const SCORES = Object.fromEntries(
     ROSTER.map(([n, slot], i) => [
       n,
@@ -528,6 +540,19 @@ export function routes(page, over = {}) {
       settings: SETTINGS,
       roster: ROSTER.map(([n]) => n).filter((n) => !STASHED.includes(n)),
       injuredReserve: STASHED,
+      irEligible: Object.fromEntries(
+        [...ROSTER.map(([n]) => n), ...STASHED].map((n) => [n, IR_ELIGIBLE.includes(n)]),
+      ),
+      irReturns: STASHED.filter((n) => !IR_ELIGIBLE.includes(n)),
+      irLimit: SETTINGS.ir,
+      // Exactly full before the cleared player counts, and one over after —
+      // which is the only state in which the demand to drop somebody appears,
+      // and therefore the only state worth fixing here. The limit is stated
+      // rather than derived from SETTINGS so the fixture stays full without
+      // needing eighteen names typed into it.
+      rosterCount: ROSTER.length - STASHED.length
+        + STASHED.filter((n) => !IR_ELIGIBLE.includes(n)).length,
+      rosterLimit: ROSTER.length - STASHED.length,
       live: true, started: true, weekPhase: "live", final: false,
       scores: SCORES,
     } });
@@ -695,6 +720,10 @@ export function routes(page, over = {}) {
 
   page.route("**/api/players**", json({
     me: ME, mode: "waivers", waiverDays: 1, capacity: 25, held: 13,
+    // The reserve holds two and one is taken, so a free agent on IR can still
+    // be signed to it — which is what puts an IR button beside Tyler Warren
+    // below and beside nobody else.
+    irLimit: SETTINGS.ir, irHeld: 1, irEligible: ["Tyler Warren"],
     // One of them is on the field, so his drop button must be shut. Without a
     // locked player on the fixture the audit measures a page where the rule
     // never fires.
@@ -707,7 +736,7 @@ export function routes(page, over = {}) {
       { name: "Marvin Harrison Jr.", clearsAt: ago(-300), position: "WR", team: "ARI", mine: true },
       { name: "Jayden Reed", clearsAt: ago(-1800), position: "WR", team: "GB", mine: false },
     ],
-    total: 4, page: 0, hasMore: false,
+    total: 5, page: 0, hasMore: false,
     players: [
       { name: "Ashton Jeanty", position: "RB", team: "LV", adp: 10, posRank: "RB6",
         bye: 10, clearsAt: null },
@@ -718,6 +747,10 @@ export function routes(page, over = {}) {
         bye: 8, clearsAt: ago(-300) },
       { name: "Seattle Seahawks D/ST", position: "D/ST", team: "SEA", adp: 240,
         posRank: "DST1", bye: 8, clearsAt: null },
+      // On IR, so he can be signed to the reserve without a roster spot. The
+      // one row on this page that offers the move.
+      { name: "Tyler Warren", position: "TE", team: "IND", adp: 96, posRank: "TE11",
+        bye: 11, clearsAt: null },
     ],
   }));
 

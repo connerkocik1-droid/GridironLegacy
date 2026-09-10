@@ -356,8 +356,14 @@ select expect('dropping someone you do not hold is refused',
 select expect('a rostered player cannot be added by someone else',
   refuses(format('select add_player(%L, %L)', :'W', 'Star Player')) like '%already rostered%', true);
 
--- IR does not count against capacity.
+-- IR does not count against capacity — for a player who belongs in it. Since
+-- 0046 that is a fact about the injury report rather than about the slot, so
+-- the report has to say so.
 \o /dev/null
+insert into nfl_players (name, team, position, injury_status)
+values ('Filler Two', 'CHI', 'RB', 'ir')
+    on conflict (name) do update set injury_status = 'ir';
+
 update roster_slots set lineup_slot = 'IR'
  where league_id = :'W' and player_name = 'Filler Two';
 \o
@@ -3353,6 +3359,16 @@ select expect('scoring does not depend on a settings flag being present',
 update leagues
    set settings = settings || '{"bench": 2, "ir": 1}'::jsonb
  where id = :'BB';
+
+-- Since 0046 the reserve is for players the injury report says cannot play,
+-- so the two this block stashes have to be on it. Clubs nothing else in this
+-- file has a fixture for, so the kickoff lock has no opinion about them.
+insert into nfl_players (name, team, position, injury_status) values
+  ('Back One', 'CHI', 'RB', 'ir'),
+  ('Passer',   'GB',  'QB', 'ir')
+    on conflict (name) do update
+       set team = excluded.team, injury_status = excluded.injury_status;
+
 select signin(:'BB1');
 \o
 
@@ -4097,3 +4113,166 @@ select expect('a trade whose players are no longer where they were is voided',
 select expect('and the half of it that was still good did not move either',
   (select m.slot from roster_slots r join managers m on m.id = r.manager_id
     where r.league_id = :'K' and r.player_name = 'Kick Playing'), 'AAA');
+
+\echo ''
+\echo '════════ injured reserve holds the injured ════════'
+--
+-- The reserve sits outside the eighteen, which makes it the one place on a
+-- best-ball roster where a player costs nothing. That is only safe while
+-- everybody in it genuinely cannot play, so these are the tests that the
+-- concession cannot be turned into a nineteenth roster spot.
+
+\o /dev/null
+\set R  '99999999-0000-0000-0000-0000000000ac'
+\set RU 'cd900000-1111-4000-8000-000000000001'
+
+insert into auth.users (id) values (:'RU');
+
+-- Season 2027, which nothing else in this file has a fixture for, so the
+-- kickoff lock has no opinion about anybody here. Two starters and a bench of
+-- one: a capacity of three, so "full" is reachable without typing eighteen
+-- names. A reserve of two, so its size can be tested too.
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'R', 'Reserve', 2027, 'AAA',
+        '{"starters":{"QB":1,"RB":1},"bench":1,"ir":2,"rounds":24,"waiverMode":"none"}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise, auth_user_id) values
+  (:'R', 'AAA', 'A', 'Alpha', :'RU');
+
+insert into nfl_players (name, team, position, injury_status) values
+  ('Res Torn',      'CHI', 'RB', 'ir'),
+  ('Res Banned',    'MIN', 'WR', 'suspended'),
+  ('Res Broken',    'TB',  'TE', 'ir'),
+  ('Res Wrecked',   'CAR', 'WR', 'ir'),
+  ('Res Doubt',     'ATL', 'TE', 'questionable'),
+  ('Res Sidelined', 'NO',  'WR', 'out'),
+  ('Res Fit',       'CLE', 'QB', null),
+  ('Res Spare',     'JAX', 'RB', null)
+on conflict (name) do update
+   set team = excluded.team, injury_status = excluded.injury_status;
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'R', id, n, 'BENCH'
+    from managers, unnest(array['Res Fit','Res Doubt','Res Torn']) as n
+   where managers.league_id = :'R' and managers.slot = 'AAA';
+
+select signin(:'RU');
+\o
+
+select expect('a torn knee may be stashed', ir_eligible('Res Torn'), true);
+select expect('so may a suspension', ir_eligible('Res Banned'), true);
+select expect('a doubt may not', ir_eligible('Res Doubt'), false);
+select expect('nor may out for the week', ir_eligible('Res Sidelined'), false);
+select expect('nor a fit player', ir_eligible('Res Fit'), false);
+select expect('nor one nobody has heard of', ir_eligible('Res Nobody'), false);
+
+\echo ''
+\echo '--- so only the injured may be stashed ---'
+
+\o /dev/null
+select set_injured_reserve('Res Torn', true);
+\o
+
+select expect('the torn knee goes to the reserve',
+  (select lineup_slot from roster_slots
+    where league_id = :'R' and player_name = 'Res Torn'), 'IR');
+
+select expect('a doubtful player is refused',
+  refuses($$select set_injured_reserve('Res Doubt', true)$$),
+  'The reserve is for players on IR or suspended — Res Doubt is not');
+
+select expect('and a fit one is refused',
+  refuses($$select set_injured_reserve('Res Fit', true)$$),
+  'The reserve is for players on IR or suspended — Res Fit is not');
+
+select expect('the refused player stayed on the bench',
+  (select lineup_slot from roster_slots
+    where league_id = :'R' and player_name = 'Res Doubt'), 'BENCH');
+
+select expect('a stashed player does not count against the roster',
+  roster_count((select id from managers where league_id = :'R' and slot = 'AAA')), 2);
+
+\echo ''
+\echo '--- a free agent on IR is signed without spending a spot ---'
+
+\o /dev/null
+select add_player_to_ir(:'R', 'Res Banned');
+\o
+
+select expect('he arrives in the reserve, not on the bench',
+  (select lineup_slot from roster_slots
+    where league_id = :'R' and player_name = 'Res Banned'), 'IR');
+
+select expect('and the roster is no fuller for it',
+  roster_count((select id from managers where league_id = :'R' and slot = 'AAA')), 2);
+
+select expect('a fit free agent cannot be signed to the reserve',
+  refuses(format('select add_player_to_ir(%L, %L)', :'R', 'Res Spare')),
+  'Only a player on IR or suspended can be signed to the reserve');
+
+select expect('and the reserve has a size',
+  refuses(format('select add_player_to_ir(%L, %L)', :'R', 'Res Broken')),
+  'Injured reserve holds 2');
+
+select expect('the man it would not take is still a free agent',
+  (select count(*)::int from roster_slots
+    where league_id = :'R' and player_name = 'Res Broken'), 0);
+
+\echo ''
+\echo '--- until the report says he is fit again ---'
+
+\o /dev/null
+-- ESPN clears the torn knee by leaving him off the report. Everybody else
+-- stays exactly where they were.
+select sync_player_health(
+  array['Res Banned', 'Res Doubt', 'Res Sidelined', 'Res Broken', 'Res Wrecked'],
+  array['suspended', 'questionable', 'out', 'ir', 'ir'],
+  array['Suspended', 'Questionable', 'Out', 'Injured Reserve', 'Injured Reserve']);
+\o
+
+select expect('the cleared player is no longer eligible', ir_eligible('Res Torn'), false);
+
+select expect('so he counts against the roster where he sits',
+  roster_count((select id from managers where league_id = :'R' and slot = 'AAA')), 3);
+
+select expect('and the app is told who to drop',
+  (select string_agg(x, ', ')
+     from ir_returns((select id from managers where league_id = :'R' and slot = 'AAA')) as x),
+  'Res Torn');
+
+select expect('the suspension the report repeated is untouched',
+  ir_eligible('Res Banned'), true);
+
+\echo ''
+\echo '--- which puts the roster at its limit ---'
+
+select expect('so nothing else can be added',
+  refuses(format('select add_player(%L, %L)', :'R', 'Res Spare')),
+  'Your roster is full at 3 — drop someone first');
+
+\o /dev/null
+select set_injured_reserve('Res Torn', false);
+\o
+
+select expect('but the cleared player may be moved to the bench',
+  (select lineup_slot from roster_slots
+    where league_id = :'R' and player_name = 'Res Torn'), 'BENCH');
+
+select expect('which does not change the count, because he was already in it',
+  roster_count((select id from managers where league_id = :'R' and slot = 'AAA')), 3);
+
+\o /dev/null
+select drop_player(:'R', 'Res Torn');
+\o
+
+select expect('and once somebody is dropped the roster takes players again',
+  (select (add_player(:'R', 'Res Spare') ->> 'ok')::boolean), true);
+
+\echo ''
+\echo '--- an empty report is a failed fetch, not a clean bill of health ---'
+
+\o /dev/null
+select sync_player_health(array[]::text[], array[]::text[], array[]::text[]);
+\o
+
+select expect('nobody is cleared by silence', ir_eligible('Res Banned'), true);

@@ -31,10 +31,18 @@ const ORDER = ["QB", "RB", "WR", "TE", "K", "D/ST"] as const;
 
 interface Feed {
   settings: LeagueShape | null;
+  mine?: boolean;
   roster: string[];
   injuredReserve: string[];
   started: boolean;
   scores: Record<string, { points: number; statLine: string }>;
+  /** Who the injury report says may sit outside the eighteen. */
+  irEligible?: Record<string, boolean>;
+  /** Stashed players it says are fit again — the ones now on the books. */
+  irReturns?: string[];
+  irLimit?: number;
+  rosterCount?: number;
+  rosterLimit?: number;
 }
 
 const MICRO: React.CSSProperties = { fontSize: 10, letterSpacing: ".14em" };
@@ -49,6 +57,7 @@ function startsLabel(pos: string, league: LeagueShape | null): string {
 export default function MyTeamRoster() {
   const [feed, setFeed] = useState<Feed | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -65,6 +74,34 @@ export default function MyTeamRoster() {
       setError("Could not load your roster.");
     }
   }, []);
+
+  // Stashing somebody, or bringing him back. A round trip rather than an
+  // optimistic move: the reserve has a size, the roster has a capacity, and
+  // both are decided in the database.
+  const stash = useCallback(
+    async (name: string, ir: boolean) => {
+      setBusy(name);
+      setError(null);
+      try {
+        const res = await fetch("/api/lineup", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ player: name, ir }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setError(typeof body.error === "string" ? body.error : "That did not work.");
+          return;
+        }
+        await load();
+      } catch {
+        setError("That did not work.");
+      } finally {
+        setBusy(null);
+      }
+    },
+    [load],
+  );
 
   useRefreshable(load);
 
@@ -145,8 +182,59 @@ export default function MyTeamRoster() {
     );
   }
 
+  const mine = feed.mine !== false;
+  const eligible = feed.irEligible ?? {};
+  const returns = feed.irReturns ?? [];
+  const irLimit = Number(feed.irLimit ?? feed.settings?.ir ?? 0);
+  const over =
+    feed.rosterCount != null && feed.rosterLimit != null && feed.rosterCount > feed.rosterLimit;
+
   return (
     <div style={{ padding: "0 18px" }}>
+      {/* The one thing on this page that is a demand rather than a report. A
+          stashed player the report has cleared is on the books where he sits,
+          so a manager who was full is now over — and nothing else can be
+          added until somebody goes. Named rather than merely counted: "your
+          roster is wrong somewhere" is not something anybody can act on. */}
+      {mine && returns.length ? (
+        <div
+          style={{
+            border: `1px solid ${over ? "var(--warn)" : "rgb(var(--accent-rgb) / .3)"}`,
+            borderRadius: "var(--radius-lg)",
+            background: over ? "rgb(var(--warn-rgb) / .1)" : "rgb(var(--surface-rgb) / .55)",
+            padding: "12px 14px",
+            margin: "0 0 14px",
+            fontSize: 12.5,
+            lineHeight: 1.6,
+            color: "var(--text-2)",
+          }}
+        >
+          <strong style={{ color: over ? "var(--warn)" : "var(--text)", fontWeight: 500 }}>
+            {returns.length === 1
+              ? `${returns[0]} is cleared to play.`
+              : `${returns.join(", ")} are cleared to play.`}
+          </strong>{" "}
+          {over
+            ? `The reserve only holds players who cannot play, so ${returns.length === 1 ? "he counts" : "they count"} against your ${feed.rosterLimit} again — you are at ${feed.rosterCount}. Drop somebody before you can add anybody.`
+            : `The reserve only holds players who cannot play, so ${returns.length === 1 ? "he is" : "they are"} back on your ${feed.rosterLimit} — you have room.`}
+        </div>
+      ) : null}
+
+      {error ? (
+        <div
+          style={{
+            border: "1px solid var(--warn)",
+            borderRadius: "var(--radius-lg)",
+            padding: "12px 14px",
+            margin: "0 0 14px",
+            fontSize: 12.5,
+            color: "var(--warn)",
+          }}
+        >
+          {error}
+        </div>
+      ) : null}
+
       <p
         style={{
           padding: "2px 0 14px",
@@ -202,6 +290,19 @@ export default function MyTeamRoster() {
                 const p = player(name);
                 const role = ROLES[name]?.role;
                 const line = [p?.t, role].filter(Boolean).join(" · ");
+
+                // Which way this row can move, if either. A stashed player
+                // always offers the way back — including, and especially, one
+                // the report has cleared, who is the whole reason the way back
+                // has to be there. A rostered player is offered the reserve
+                // only when he belongs in it and there is room.
+                const irButton = !mine
+                  ? null
+                  : ir
+                    ? "ACTIVATE"
+                    : eligible[name] && irLimit > 0 && feed.injuredReserve.length < irLimit
+                      ? "IR"
+                      : null;
 
                 return (
                   <div
@@ -300,6 +401,38 @@ export default function MyTeamRoster() {
                         </span>
                       </div>
                     </div>
+
+                    {/* Offered only where the database will accept it: the
+                        reserve is for players the injury report puts on IR or
+                        under suspension, and it has a size. A button that
+                        always refuses is worse than no button. */}
+                    {irButton ? (
+                      <button
+                        type="button"
+                        onClick={() => void stash(name, irButton === "IR")}
+                        disabled={busy === name}
+                        title={
+                          irButton === "IR"
+                            ? `Stash ${name} on injured reserve`
+                            : `Bring ${name} back onto your roster`
+                        }
+                        style={{
+                          cursor: busy === name ? "default" : "pointer",
+                          flex: "0 0 auto",
+                          fontFamily: "inherit",
+                          fontSize: 10,
+                          letterSpacing: ".1em",
+                          minHeight: 34,
+                          padding: "0 10px",
+                          borderRadius: 7,
+                          border: "1px solid rgb(var(--accent-rgb) / .4)",
+                          background: "transparent",
+                          color: busy === name ? "var(--text-off)" : "var(--accent-link)",
+                        }}
+                      >
+                        {busy === name ? "…" : irButton}
+                      </button>
+                    ) : null}
 
                     <div style={{ textAlign: "right", flex: "0 0 auto" }}>
                       <div

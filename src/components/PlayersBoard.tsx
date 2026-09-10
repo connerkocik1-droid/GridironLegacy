@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Skeleton from "./Skeleton";
 import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
@@ -50,6 +50,11 @@ interface Feed {
   waiverDays: number;
   capacity: number;
   held: number;
+  /** What the reserve holds, and how much of it is taken. */
+  irLimit?: number;
+  irHeld?: number;
+  /** Everybody the injury report puts on IR or under suspension. */
+  irEligible?: string[];
   roster: { player_name: string; lineup_slot: string; locked?: boolean }[];
   claims: Claim[];
   wire: Wired[];
@@ -191,6 +196,34 @@ export default function PlayersBoard() {
   }
 
   const full = feed != null && feed.held >= feed.capacity;
+
+  // Who could be signed straight into the reserve, and whether there is room.
+  // The one add that costs no roster spot, and the reason it is safe: he
+  // cannot play. Charging a best-ball spot — eighteen weeks of scoring — for a
+  // man who will score nothing means nobody ever makes the move, and a whole
+  // class of reasonable dynasty trade simply never happens.
+  const stashable = useMemo(() => new Set(feed?.irEligible ?? []), [feed]);
+  const irRoom = feed != null && Number(feed.irHeld ?? 0) < Number(feed.irLimit ?? 0);
+
+  async function addToIr(name: string) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/waivers", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ add: name, ir: true }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "That did not go through.");
+      else setNotice(`${name} is on your injured reserve. He costs you no roster spot.`);
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function add(name: string, drop: string | null) {
     if (busy) return;
@@ -572,6 +605,14 @@ export default function PlayersBoard() {
                 gap: 11,
                 padding: "9px 16px",
                 borderTop: "1px solid rgb(var(--accent-rgb) / .1)",
+                // A row carrying the reserve button as well as the ordinary
+                // add has three controls on it, which on a 320px screen leaves
+                // the name forty pixels and breaks it mid-word. Wrapping puts
+                // the buttons on their own line instead; the basis below is
+                // what decides when — wide enough for a name, so the rows that
+                // do not carry the extra button do not wrap at all.
+                flexWrap: "wrap",
+                rowGap: 8,
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -588,7 +629,7 @@ export default function PlayersBoard() {
                   flex: "0 0 auto",
                 }}
               />
-              <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ minWidth: 0, flex: "1 1 150px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <PlayerName name={p.name} style={{ fontFamily: "var(--font-heading)", fontSize: 14 }} />
                   <TeamMark team={p.team} />
@@ -650,6 +691,20 @@ export default function PlayersBoard() {
               >
                 {watching.has(p.name) ? "★" : "☆"}
               </button>
+
+              {/* Offered beside the ordinary add rather than instead of it:
+                  a manager with room may still want him playing every
+                  week, and one without room can have him anyway. */}
+              {stashable.has(p.name) && irRoom && !claimed && !p.locked ? (
+                <button
+                  onClick={() => void addToIr(p.name)}
+                  disabled={busy}
+                  title={`Sign ${p.name} to your injured reserve — he costs no roster spot`}
+                  style={button(!busy)}
+                >
+                  IR
+                </button>
+              ) : null}
 
               <button
                 onClick={() => (full ? setPendingAdd(p.name) : add(p.name, null))}
