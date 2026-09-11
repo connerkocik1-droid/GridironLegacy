@@ -44,13 +44,32 @@ export async function GET() {
   const me = await currentManager(db);
   if (!me) return Response.json({ error: "Not signed in" }, { status: 401 });
 
-  const { data: trades } = await db
+  // `voting_opened_at` arrived with a migration, and a deploy can reach a
+  // browser before its SQL reaches the database. Naming a column that is not
+  // there fails the whole select, and a failed select here is a trade desk
+  // that says there is nothing on the table — so the read falls back to the
+  // columns that have always existed rather than hiding somebody's offers.
+  const columns =
+    "id, from_manager, to_manager, offer, status, from_accepted, to_accepted, thread, created_at, executed_at";
+  const mine = `from_manager.eq.${me.id},to_manager.eq.${me.id}`;
+
+  let { data: trades, error: tradesError } = await db
     .from("trades")
-    .select(
-      "id, from_manager, to_manager, offer, status, from_accepted, to_accepted, thread, created_at, executed_at, voting_opened_at",
-    )
-    .or(`from_manager.eq.${me.id},to_manager.eq.${me.id}`)
+    .select(`${columns}, voting_opened_at`)
+    .or(mine)
     .order("created_at", { ascending: false });
+
+  if (tradesError) {
+    console.warn("[trades] reading the vote clock failed, falling back", tradesError.message);
+    const plain = await db
+      .from("trades")
+      .select(columns)
+      .or(mine)
+      .order("created_at", { ascending: false });
+    trades = plain.data as typeof trades;
+    tradesError = plain.error;
+    if (tradesError) console.error("[trades] could not read the trades", tradesError);
+  }
 
   // Where the league has got to on the ones still out for a vote. The desk
   // does not offer a vote — the two managers in a deal do not get one — but a
