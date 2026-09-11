@@ -34,6 +34,8 @@ interface Franchise {
   franchise: string;
   division: string | null;
   claimed: boolean;
+  /** Seen in the app within the last five minutes. */
+  online?: boolean;
   pointsFor: number;
   record: Record_ | null;
   /** The last few settled weeks, oldest first. Absent before any are played. */
@@ -120,6 +122,8 @@ export default function Standings({ embedded = false }: { embedded?: boolean } =
   // Grouped by division, each ordered the way a table is: record first, then
   // points scored. A league with no divisions set is one group called the
   // league, rather than a heading that says null.
+  const onlineNow = board?.franchises.filter((f) => f.online).length ?? 0;
+
   const divisions = useMemo(() => {
     if (!board) return [];
     const groups = new Map<string, Franchise[]>();
@@ -172,6 +176,37 @@ export default function Standings({ embedded = false }: { embedded?: boolean } =
           ? "Ordered by record, then by points scored."
           : "Nothing has been graded yet, so this is ordered by points scored."}
       </p>
+
+      {/* Who is about. A dynasty league is twelve people who are mostly not in
+          the room, and the most encouraging thing this page can say to
+          somebody who has just opened it is that they are not alone in it.
+          Silent when it is only you, because "1 manager here" is lonelier
+          than saying nothing. */}
+      {onlineNow > 1 ? (
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+            fontSize: 11,
+            letterSpacing: ".06em",
+            color: "var(--text-muted)",
+            margin: "0 0 16px",
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: "var(--good)",
+              boxShadow: "0 0 0 3px rgb(var(--good-rgb) / .2)",
+            }}
+          />
+          {onlineNow} managers here now
+        </div>
+      ) : null}
 
       {/* Above the table once there is one, because from the night the bracket
           is drawn it is the more urgent half of the same question. It draws
@@ -282,6 +317,23 @@ export default function Standings({ embedded = false }: { embedded?: boolean } =
                               }}
                             >
                               {f.franchise}
+                              {f.online ? (
+                                <span
+                                  role="img"
+                                  aria-label="Here now"
+                                  title="Here now"
+                                  style={{
+                                    display: "inline-block",
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: "50%",
+                                    marginLeft: 6,
+                                    verticalAlign: "middle",
+                                    background: "var(--good)",
+                                    boxShadow: "0 0 0 2.5px rgb(var(--good-rgb) / .2)",
+                                  }}
+                                />
+                              ) : null}
                               {mine ? (
                                 <span style={{ color: "var(--accent-link)", fontSize: 10 }}> · YOU</span>
                               ) : null}

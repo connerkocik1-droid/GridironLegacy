@@ -497,7 +497,16 @@ for (const width of WIDTHS) {
       // first reported dark text on a white card and called it a contrast
       // failure.
       await page.waitForTimeout(400);
-      return page.evaluate(measure);
+      try {
+        return await page.evaluate(measure);
+      } catch {
+        // A page that navigates under the measurement — a redirect arriving
+        // late, a service worker taking over — destroys the context mid-read.
+        // Settle and read again rather than taking the whole run down with it,
+        // which is what this did the one time it happened.
+        await page.waitForTimeout(1200);
+        return page.evaluate(measure);
+      }
     };
 
     const report = await inTheme("dark");

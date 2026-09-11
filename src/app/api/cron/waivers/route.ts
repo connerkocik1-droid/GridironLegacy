@@ -35,6 +35,14 @@ export async function GET(req: Request) {
     console.warn("[cron/waivers] scheduled trades not settled", settled.error.message);
   }
 
+  // And the deals the league was asked about and did not answer. Silence
+  // passes a trade, so something has to notice the silence — a vote that
+  // closed at three in the morning cannot wait for whoever next opens the app.
+  const voted = await db.rpc("settle_trade_votes", { p_league_id: leagueId });
+  if (voted.error) {
+    console.warn("[cron/waivers] trade votes not settled", voted.error.message);
+  }
+
   if (error) {
     console.error("[cron/waivers] failed", error);
     return Response.json({ error: error.message }, { status: 500 });

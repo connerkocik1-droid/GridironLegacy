@@ -28,7 +28,7 @@ interface Trade {
   from_manager: string;
   to_manager: string;
   offer: { give: string[]; get: string[]; givePicks?: string[]; getPicks?: string[] };
-  status: "open" | "countered" | "agreed" | "executed" | "declined" | "rescinded";
+  status: "open" | "countered" | "agreed" | "voting" | "executed" | "declined" | "rescinded";
   from_accepted: boolean;
   to_accepted: boolean;
   thread: { who: string; at: string; text: string }[];
@@ -37,12 +37,17 @@ interface Trade {
   awaitingMe: boolean;
   /** Your terms are on the table and they have not taken them yet. */
   canRescind: boolean;
+  /** Where the league's vote stands, once the deal is out for one. */
+  vetoes: number;
+  approvals: number;
+  voteBar: number;
+  closesAt: string | null;
 }
 
 interface Desk {
   /** What the league fields at each position. */
   starters?: Record<string, number>;
-  me: Manager & { league_id: string };
+  me: Manager & { league_id: string; is_commissioner?: boolean };
   managers: Manager[];
   block: { player_name: string; manager_id: string }[];
   picks: Pick[];
@@ -67,10 +72,22 @@ const card: React.CSSProperties = {
   background: "rgb(var(--surface-rgb) / .55)",
 };
 
+/** "12h left", or "closing now" once the window has run out. */
+function voteCloses(iso: string): string {
+  const ms = Date.parse(iso) - Date.now();
+  if (!Number.isFinite(ms)) return "";
+  if (ms <= 0) return "closing now";
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours >= 24) return `${Math.round(hours / 24)}d left`;
+  if (hours >= 1) return `${hours}h left`;
+  return `${Math.max(1, Math.round(ms / 60_000))}m left`;
+}
+
 const STATUS_COLOR: Record<Trade["status"], string> = {
   open: "var(--accent-link)",
   countered: "var(--warn)",
   agreed: "var(--good)",
+  voting: "var(--accent-link)",
   executed: "var(--good)",
   declined: "var(--text-dim)",
   rescinded: "var(--text-dim)",
@@ -362,7 +379,7 @@ export default function TradeDesk() {
     }
   }
 
-  async function respond(trade: Trade, action: "accept" | "decline" | "rescind") {
+  async function respond(trade: Trade, action: "accept" | "decline" | "rescind" | "force") {
     setBusy(true);
     try {
       const res = await fetch(`/api/trades/${trade.id}`, {
@@ -754,6 +771,31 @@ export default function TradeDesk() {
                   </div>
                 ) : t.status === "agreed" ? (
                   <div style={{ fontSize: 10, color: "var(--text-dim)" }}>Waiting on the other manager.</div>
+                ) : null}
+
+                {/* Out for a vote. Neither of the two in the deal has a say
+                    in it, so there is nothing to press here — only the count,
+                    and how long is left before silence puts it through. */}
+                {t.status === "voting" ? (
+                  <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 6 }}>
+                    With the league · {t.vetoes}/{t.voteBar} veto · {t.approvals}/{t.voteBar}{" "}
+                    approve
+                    {t.closesAt ? ` · ${voteCloses(t.closesAt)}` : ""}
+                  </div>
+                ) : null}
+
+                {/* The commissioner's override, and only theirs. The database
+                    is what actually refuses everybody else; this only decides
+                    whether to draw a button nobody else could use. */}
+                {desk.me.is_commissioner &&
+                (t.status === "voting" || t.status === "agreed") ? (
+                  <button
+                    onClick={() => respond(t, "force")}
+                    disabled={busy}
+                    style={{ ...smallButton("var(--accent-link)"), marginTop: 8 }}
+                  >
+                    Push it through
+                  </button>
                 ) : null}
               </div>
             );

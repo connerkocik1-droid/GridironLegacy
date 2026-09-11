@@ -20,6 +20,9 @@ interface Franchise {
   franchise: string;
   claimed: boolean;
   isCommissioner: boolean;
+  /** Seen in the app within the last five minutes. */
+  online: boolean;
+  lastSeen: string | null;
   pointsFor: number;
   record: { wins: number; losses: number; ties: number; pointsFor: number; pointsAgainst: number } | null;
   roster: { name: string; slot: string; acquired: string }[];
@@ -31,6 +34,41 @@ interface Feed {
   weeksScored: number;
   played: boolean;
   franchises: Franchise[];
+}
+
+/**
+ * How many managers are in the app right now.
+ *
+ * Silent when it is only you, because "1 manager here" is a lonelier sentence
+ * than saying nothing at all.
+ */
+function Present({ count }: { count: number }) {
+  if (count < 2) return null;
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
+        fontSize: 11,
+        letterSpacing: ".06em",
+        color: "var(--text-muted)",
+        margin: "0 0 14px",
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: "50%",
+          background: "var(--good)",
+          boxShadow: "0 0 0 3px rgb(var(--good-rgb) / .2)",
+        }}
+      />
+      {count} managers here now
+    </div>
+  );
 }
 
 export default function LeagueBoard() {
@@ -84,6 +122,8 @@ export default function LeagueBoard() {
   // Once weeks have been graded the table is the standings: wins first, then
   // points as the tiebreak. Before that there is nothing to stand on but
   // production, and the note below says as much.
+  const onlineNow = feed.franchises.filter((f) => f.online).length;
+
   const ranked = [...feed.franchises].sort((a, b) => {
     if (feed.played) {
       const w = (b.record?.wins ?? 0) - (a.record?.wins ?? 0);
@@ -108,6 +148,11 @@ export default function LeagueBoard() {
       >
         {feed.league?.name ?? "League"}
       </h1>
+      {/* Who is about. A dynasty league is twelve people who mostly are not
+          in the room, and the single most encouraging thing the app can tell
+          somebody who has just opened it is that they are not alone in it. */}
+      <Present count={onlineNow} />
+
       <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 20px", maxWidth: "70ch", lineHeight: 1.6 }}>
         {feed.played
           ? "Standings by record, with points as the tiebreak. A week counts once its games are over."
@@ -199,6 +244,21 @@ export default function LeagueBoard() {
                     <span style={{ fontFamily: "var(--font-heading)", fontSize: 16 }}>
                       {f.franchise}
                     </span>
+                    {f.online ? (
+                      <span
+                        role="img"
+                        aria-label="Here now"
+                        title="Here now"
+                        style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: "50%",
+                          background: "var(--good)",
+                          boxShadow: "0 0 0 3px rgb(var(--good-rgb) / .2)",
+                          flex: "0 0 auto",
+                        }}
+                      />
+                    ) : null}
                     {f.isCommissioner ? (
                       <span style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--accent-link)" }}>
                         COMMISSIONER

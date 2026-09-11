@@ -193,6 +193,18 @@ console.log("\n--- and no section repeats its own name at it ---");
   ok(`one heading, the league's (${heads.join(" / ")})`, heads.length === 1);
 }
 
+console.log("\n--- who is about ---");
+{
+  await open("Standings");
+  const t = await page.locator("body").innerText();
+  ok("the league says how many of it are here", /4 managers here now/.test(t));
+
+  // A dot per manager who is present, and none for the eight who are not.
+  // The count and the dots disagreeing is the failure worth catching.
+  const dots = await page.locator('[role="img"][aria-label="Here now"]').count();
+  ok(`and marks which four (${dots})`, dots === 4);
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);

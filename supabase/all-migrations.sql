@@ -12305,6 +12305,86 @@ begin
 
     grant execute on function touch_presence() to authenticated;
 
+    -- ------------------------------------------------------------ the telling ---
+
+    /**
+     * The same notices as before, with the vote in them.
+     *
+     * Two of the old lines became wrong the moment a trade could be killed by the
+     * league: a vetoed deal told the proposer "they declined your offer", which
+     * names the wrong person and the wrong reason, and told the other manager
+     * nothing at all even though it was their deal too. And the pair of them go
+     * from agreeing to waiting without a word.
+     *
+     * The other ten are told nothing here on purpose. A vote appears on their home
+     * page, where they will see it; eleven notices per trade in the week before
+     * the deadline is how a notice list becomes something nobody reads.
+     */
+    create or replace function notice_on_trade()
+    returns trigger
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_from    text;
+      v_to      text;
+      v_vetoed  boolean;
+    begin
+      select franchise into v_from from managers where id = new.from_manager;
+      select franchise into v_to   from managers where id = new.to_manager;
+
+      if tg_op = 'INSERT' then
+        perform notify_manager(new.league_id, new.to_manager, 'trade',
+          v_from || ' has offered you a trade.', '/trade-builder');
+        return new;
+      end if;
+
+      -- A counter is the other side sending it back with different terms, so the
+      -- news goes to whoever did not just change it.
+      if new.status = 'countered' and old.status is distinct from 'countered' then
+        perform notify_manager(new.league_id,
+          case when new.to_accepted then new.from_manager else new.to_manager end,
+          'trade', 'Your trade has been countered.', '/trade-builder');
+
+      elsif new.status = 'voting' and old.status is distinct from 'voting' then
+        perform notify_manager(new.league_id, new.from_manager, 'trade',
+          'Your trade with ' || v_to || ' is with the league.', '/trade-builder');
+        perform notify_manager(new.league_id, new.to_manager, 'trade',
+          'Your trade with ' || v_from || ' is with the league.', '/trade-builder');
+
+      elsif new.status = 'executed' and old.status is distinct from 'executed' then
+        perform notify_manager(new.league_id, new.from_manager, 'trade',
+          'Your trade with ' || v_to || ' has gone through.', '/lineup');
+        perform notify_manager(new.league_id, new.to_manager, 'trade',
+          'Your trade with ' || v_from || ' has gone through.', '/lineup');
+
+      elsif new.status = 'declined' and old.status is distinct from 'declined' then
+        -- Who killed it decides what to say. A deal that was out for a vote was
+        -- killed by the league, not by the manager it was offered to, and both of
+        -- them are owed the news rather than only the one who proposed it.
+        v_vetoed := old.status = 'voting';
+
+        if v_vetoed then
+          perform notify_manager(new.league_id, new.from_manager, 'trade',
+            'The league vetoed your trade with ' || v_to || '.', '/trade-builder');
+          perform notify_manager(new.league_id, new.to_manager, 'trade',
+            'The league vetoed your trade with ' || v_from || '.', '/trade-builder');
+        else
+          perform notify_manager(new.league_id, new.from_manager, 'trade',
+            v_to || ' declined your offer.', '/trade-builder');
+        end if;
+
+      elsif new.status = 'rescinded' and old.status is distinct from 'rescinded' then
+        perform notify_manager(new.league_id,
+          case when new.from_accepted then new.to_manager else new.from_manager end,
+          'trade', 'A trade offer was withdrawn.', '/trade-builder');
+      end if;
+
+      return new;
+    end;
+    $$;
+
     insert into schema_migrations (name) values ('0047_trade_votes_and_presence.sql');
     raise notice 'applied %', '0047_trade_votes_and_presence.sql';
   end if;

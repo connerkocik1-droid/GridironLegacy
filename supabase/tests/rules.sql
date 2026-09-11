@@ -4620,6 +4620,36 @@ select expect('changing your mind replaces your vote rather than adding one',
       (select id from managers where league_id = :'V' and slot = 'CCC')), 1);
 
 \echo ''
+\echo '--- and both managers are told what the league did ---'
+
+-- The old notice said "they declined your offer", which after a veto names
+-- the wrong person and the wrong reason, and told the manager who accepted
+-- nothing at all even though it was equally their deal.
+
+select expect('a veto is reported as the league, to the manager who proposed it',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where m.league_id = :'V' and m.slot = 'AAA'
+      and n.body = 'The league vetoed your trade with Bravo.'), 1);
+
+select expect('and to the manager who accepted it',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where m.league_id = :'V' and m.slot = 'BBB'
+      and n.body = 'The league vetoed your trade with Alpha.'), 1);
+
+select expect('nobody is told the other manager declined, because they did not',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where m.league_id = :'V' and n.body like '%declined your offer%'), 0);
+
+select expect('and going to the league is itself news to both of them',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where m.league_id = :'V' and n.body like '%is with the league.'), 8);
+
+-- Eleven notices a trade is how a notice list becomes something nobody reads.
+select expect('but the voters are told nothing — the vote is on their home page',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where m.league_id = :'V' and m.slot not in ('AAA','BBB')), 0);
+
+\echo ''
 \echo '--- and being present is something only you can claim ---'
 
 \o /dev/null

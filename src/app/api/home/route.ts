@@ -78,6 +78,29 @@ export async function GET() {
     .in("status", ["open", "countered"])
     .order("created_at", { ascending: false });
 
+  // Any vote whose window has run out settles here as well as on the nightly
+  // pass, so a trade that came due at three in the morning is done by the time
+  // the first manager opens the app rather than at the next cron.
+  await db.rpc("settle_trade_votes", { p_league_id: me.league_id });
+
+  // And the deals somebody else has struck that this manager gets a say on.
+  // Not on the trade desk, which is where your own trades live — a vote is
+  // something the league is waiting on you for, and a page you only open when
+  // you are shopping is not where you find out you are holding one up.
+  const [{ data: ballots }, { data: myVotes }] = await Promise.all([
+    db
+      .from("trades")
+      .select("id, from_manager, to_manager, offer, voting_opened_at")
+      .eq("league_id", me.league_id)
+      .eq("status", "voting")
+      .not("from_manager", "eq", me.id)
+      .not("to_manager", "eq", me.id)
+      .order("voting_opened_at", { ascending: true }),
+    db.from("trade_votes").select("trade_id").eq("manager_id", me.id),
+  ]);
+
+  const voted = new Set((myVotes ?? []).map((v) => v.trade_id as string));
+
   const roster = managers ?? [];
   const held = slots ?? [];
   const schedule = (fixtures ?? []) as Fixture[];
@@ -432,9 +455,67 @@ export async function GET() {
     };
   });
 
+  // The counts on the ballots this manager is still holding. One read for all
+  // of them rather than one each, because a league of twelve can have half a
+  // dozen deals out at once in the week before the deadline.
+  const openBallots = (ballots ?? []).filter((t) => !voted.has(t.id as string));
+  const { data: ballotVotes } = openBallots.length
+    ? await db
+        .from("trade_votes")
+        .select("trade_id, vote")
+        .in(
+          "trade_id",
+          openBallots.map((t) => t.id as string),
+        )
+    : { data: [] };
+
+  const voteSettings = (league?.settings ?? {}) as {
+    vetoVotes?: number;
+    tradeVoteHours?: number;
+  };
+  const bar = Math.max(1, voteSettings.vetoVotes ?? 4);
+  const voteHours = Math.max(1, voteSettings.tradeVoteHours ?? 48);
+
+  const tally = new Map<string, { vetoes: number; approvals: number }>();
+  for (const v of ballotVotes ?? []) {
+    const row = tally.get(v.trade_id as string) ?? { vetoes: 0, approvals: 0 };
+    if (v.vote === "veto") row.vetoes += 1;
+    else row.approvals += 1;
+    tally.set(v.trade_id as string, row);
+  }
+
+  const ballotCards = openBallots.map((t) => {
+    const offer = (t.offer ?? {}) as {
+      give?: string[];
+      get?: string[];
+      givePicks?: string[];
+      getPicks?: string[];
+    };
+    const counts = tally.get(t.id as string) ?? { vetoes: 0, approvals: 0 };
+    const opened = t.voting_opened_at as string | null;
+
+    return {
+      id: t.id as string,
+      // Named from the proposer outwards, the way the deal was written, so
+      // the two halves read as "Alpha sends / Alpha gets" rather than being
+      // silently flipped for a manager who is in neither.
+      from: franchiseOf.get(t.from_manager as string) ?? "Somebody",
+      to: franchiseOf.get(t.to_manager as string) ?? "Somebody",
+      fromGives: offer.give ?? [],
+      toGives: offer.get ?? [],
+      fromGivesPicks: (offer.givePicks ?? []).length,
+      toGivesPicks: (offer.getPicks ?? []).length,
+      vetoes: counts.vetoes,
+      approvals: counts.approvals,
+      bar,
+      closesAt: opened ? new Date(Date.parse(opened) + voteHours * 3600_000).toISOString() : null,
+    };
+  });
+
   return Response.json({
     meId: me.id,
     trades,
+    ballots: ballotCards,
     league: league
       ? {
           name: league.name,

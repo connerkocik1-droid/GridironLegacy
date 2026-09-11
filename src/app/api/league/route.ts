@@ -31,7 +31,7 @@ export async function GET() {
       db.from("leagues").select("name, season, settings").eq("id", me.league_id).single(),
       db
         .from("managers")
-        .select("id, slot, name, franchise, is_commissioner, pin_hash, division")
+        .select("id, slot, name, franchise, is_commissioner, pin_hash, division, last_seen_at")
         .eq("league_id", me.league_id)
         .order("slot"),
       db
@@ -122,6 +122,11 @@ export async function GET() {
       division: m.division,
       claimed: m.pin_hash != null,
       isCommissioner: m.is_commissioner,
+      // Five minutes, which is roughly how long somebody stays "here" before
+      // it is a lie. The app touches this on every page load and every return
+      // to the tab, so a manager reading a long page is still present.
+      online: m.last_seen_at != null && Date.now() - Date.parse(m.last_seen_at) < 5 * 60_000,
+      lastSeen: (m.last_seen_at as string | null) ?? null,
       pointsFor: Math.round((pointsFor.get(m.id) ?? 0) * 10) / 10,
       record: record.get(m.id) ?? null,
       form: form.get(m.id) ?? [],

@@ -7,7 +7,7 @@ const NOT_CONFIGURED = Response.json(
   { status: 503 },
 );
 
-type Action = "accept" | "decline" | "counter" | "rescind";
+type Action = "accept" | "decline" | "counter" | "rescind" | "force";
 
 function names(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -15,9 +15,10 @@ function names(value: unknown): string[] {
 }
 
 /**
- * Respond to a trade. Accepting when the other side has already accepted
- * executes it, which happens inside execute_trade so the roster moves are
- * atomic and validated against the rosters as they stand right now.
+ * Respond to a trade. Accepting when the other side has already accepted no
+ * longer executes it: it opens a vote of the rest of the league, which is
+ * where the deal actually settles. The commissioner may force one through
+ * from here, which is a separate action because it is a separate power.
  */
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   if (!isConfigured()) return NOT_CONFIGURED;
@@ -49,10 +50,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     action !== "accept" &&
     action !== "decline" &&
     action !== "counter" &&
-    action !== "rescind"
+    action !== "rescind" &&
+    action !== "force"
   ) {
     return Response.json(
-      { error: "action must be accept, decline, counter or rescind" },
+      { error: "action must be accept, decline, counter, rescind or force" },
       { status: 400 },
     );
   }
@@ -67,6 +69,20 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   const isFrom = trade.from_manager === me.id;
   const isTo = trade.to_manager === me.id;
+
+  if (action === "force") {
+    // The commissioner putting a deal through over the league's vote, or
+    // without waiting for one. Deliberately above the "not your trade" guard:
+    // forcing your own trade through is the one case this is not for. The
+    // database decides who may, so a manager cannot get here by guessing.
+    const { data: forced, error } = await db.rpc("force_trade", { p_trade_id: id });
+    if (error) {
+      console.error("[trades] force failed", error);
+      return Response.json({ error: error.message }, { status: 403 });
+    }
+    return Response.json({ ok: true, status: "executed", executed: true, result: forced });
+  }
+
   if (!isFrom && !isTo) return Response.json({ error: "Not your trade" }, { status: 403 });
 
   if (trade.status === "executed") {
@@ -189,14 +205,18 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return Response.json({ ok: true, status: "agreed", executed: false });
   }
 
-  const { data: result, error: execError } = await db.rpc("execute_trade", { p_trade_id: id });
+  // Both sides are agreed, so the deal goes to the league rather than through.
+  // Four vetoes kills it, four approvals sends it early, and silence sends it
+  // once the window closes — which is the half that matters, because a league
+  // where nobody votes must not be a league where nothing trades.
+  const { data: opened, error: voteError } = await db.rpc("open_trade_vote", { p_trade_id: id });
 
-  if (execError) {
-    // The rosters moved under the offer, or someone executed it first. The
-    // acceptance stands; the message says what actually blocked it.
-    console.error("[trades] execute failed", execError);
-    return Response.json({ error: execError.message, executed: false }, { status: 409 });
+  if (voteError) {
+    // The acceptance stands either way; the message says what blocked the vote.
+    console.error("[trades] opening the vote failed", voteError);
+    return Response.json({ error: voteError.message, executed: false }, { status: 409 });
   }
 
-  return Response.json({ ok: true, status: "executed", executed: true, result });
+  const closesAt = (opened as { closesAt?: string } | null)?.closesAt ?? null;
+  return Response.json({ ok: true, status: "voting", executed: false, closesAt });
 }

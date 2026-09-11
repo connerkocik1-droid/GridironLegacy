@@ -81,10 +81,35 @@ export interface TradeAsk {
   givePicks: number;
 }
 
+/**
+ * Somebody else's trade, waiting on this manager's vote.
+ *
+ * Written from the proposer outwards rather than flipped to suit the reader,
+ * because the reader is in neither half of it — "Alpha sends, Bravo sends" is
+ * how a bystander reads a deal.
+ */
+export interface TradeBallot {
+  id: string;
+  from: string;
+  to: string;
+  fromGives: string[];
+  toGives: string[];
+  fromGivesPicks: number;
+  toGivesPicks: number;
+  /** Where the count stands, and how many either way settles it. */
+  vetoes: number;
+  approvals: number;
+  bar: number;
+  /** When silence passes it, or null if the clock somehow never started. */
+  closesAt: string | null;
+}
+
 export interface Home {
   meId: string;
   /** Offers waiting on an answer from this manager. Newest first. */
   trades: TradeAsk[];
+  /** Other managers' deals this one still has a vote on. */
+  ballots?: TradeBallot[];
   /** Empty starting slots and bye-week starters, this week, for this manager. */
   league: {
     name: string;

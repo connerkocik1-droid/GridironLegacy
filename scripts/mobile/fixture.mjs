@@ -387,6 +387,25 @@ export function routes(page, over = {}) {
         get: ["Brock Bowers", "Tank Bigsby", "Trey McBride"], give: [],
         getPicks: 0, givePicks: 2 },
     ],
+    // Two other managers' deals, out for a vote this one has not cast. The
+    // longest franchise names in the league again, on both halves of the same
+    // card, because a ballot names two teams where an offer names one.
+    ballots: [
+      { id: "b1", from: "Kim's Very Long Franchise Name", to: "Gold Coast Gladiators",
+        fromGives: ["Jahmyr Gibbs"], toGives: ["Brock Bowers", "Tank Bigsby"],
+        fromGivesPicks: 2, toGivesPicks: 1,
+        vetoes: 3, approvals: 1, bar: 4,
+        // Half past the hour, so the card's rounding has an unambiguous
+        // answer and the check is not racing the page's own render.
+        closesAt: new Date(Date.now() + 14.5 * 3_600_000).toISOString() },
+      // One side sending nothing at all: the shape a league actually vetoes,
+      // and the one that reads as a broken card if an empty half goes blank.
+      { id: "b2", from: "Rust Belt Rhinos", to: "Bayou Bengals",
+        fromGives: [], toGives: ["Rome Odunze"],
+        fromGivesPicks: 0, toGivesPicks: 0,
+        vetoes: 0, approvals: 0, bar: 4,
+        closesAt: new Date(Date.now() + 40 * 60_000).toISOString() },
+    ],
     leaders: ["QB", "RB", "WR", "TE", "K", "D/ST"].map((position) => ({
       position,
       player: { name: "Marvin Harrison Jr.", team: "ARI", points: 88.4,
@@ -479,6 +498,10 @@ export function routes(page, over = {}) {
     weeksScored: 3, played: true,
     franchises: MANAGERS.map((m, i) => ({
       ...m, id: m.id, claimed: m.name !== "Open", isCommissioner: i === 0,
+      // Four of them are here, which is what the header counts and what the
+      // dots beside the franchise names have to line up with.
+      online: i < 4,
+      lastSeen: i < 4 ? new Date().toISOString() : null,
       pointsFor: 340 - i * 12,
       record: { wins: 12 - i, losses: i, ties: 0, divWins: 4, divLosses: 1,
         pointsFor: 340 - i * 12, pointsAgainst: 250 + i * 8 },

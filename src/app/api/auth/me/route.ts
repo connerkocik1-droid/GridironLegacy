@@ -19,6 +19,13 @@ export async function GET() {
 
   const db = await serverClient();
 
+  // Being here is itself worth recording. This route already runs on every
+  // page load, on coming back to the tab, and on the network returning, which
+  // is as good a definition of "using the app" as anything the client could
+  // invent — and it is a function rather than a policy, so the only row it
+  // can ever touch is this manager's own.
+  void db.rpc("touch_presence");
+
   // Their own crest comes along, so the button in the corner has something to
   // draw without a second round trip. Everyone else's is fetched only by the
   // pages that draw the whole league.

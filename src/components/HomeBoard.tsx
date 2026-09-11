@@ -7,6 +7,7 @@ import Section from "./Section";
 import SinceYouLooked from "./SinceYouLooked";
 import MyTeamButton from "./MyTeamButton";
 import TradeAsks from "./TradeAsks";
+import TradeBallots from "./TradeBallots";
 import TheLeagueButton from "./TheLeagueButton";
 import MiniGamesButton from "./MiniGamesButton";
 import ScoreTicker from "./ScoreTicker";
@@ -138,6 +139,13 @@ export default function HomeBoard() {
             changes what that score will be — and because an offer nobody is
             told about is an offer nobody answers. */}
         <TradeAsks trades={home?.trades ?? []} />
+
+        {/* And the deals two other managers have struck, which the league
+            settles. Below your own offers because an offer is a decision only
+            you can make and a vote is one eleven people share, but on this
+            page rather than the trade desk, because nobody opens the desk to
+            find out somebody is waiting on them. */}
+        <TradeBallots ballots={home?.ballots ?? []} onVoted={load} />
       </Section>
 
       {/* Three doors, directly under the score, because the score is what
