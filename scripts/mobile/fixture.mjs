@@ -808,6 +808,28 @@ export function routes(page, over = {}) {
       // Value is about somebody's draft coming off, so he must not win it.
       "Kyle McCord": { total: 70.2, games: 2 },
     },
+    // What they actually did on the field, this season, which is what the
+    // rate columns are worked out from. Two games each, and the receivers
+    // deliberately not in points order: a board sorted on catches must be
+    // visibly a different board from one sorted on points.
+    played: {
+      "Rome Odunze": {
+        line: { receptions: 9, targets: 14, recYards: 148, recTd: 2, carries: 0, rushYards: 0, rushTd: 0 },
+        games: { receptions: 2, targets: 2, recYards: 2, recTd: 2, carries: 2, rushYards: 2, rushTd: 2 },
+      },
+      "Ja'Marr Chase": {
+        line: { receptions: 18, targets: 26, recYards: 210, recTd: 1, carries: 0, rushYards: 0, rushTd: 0 },
+        games: { receptions: 2, targets: 2, recYards: 2, recTd: 2, carries: 2, rushYards: 2, rushTd: 2 },
+      },
+      "Puka Nacua": {
+        line: { receptions: 14, targets: 19, recYards: 166, recTd: 0, carries: 1, rushYards: 8, rushTd: 0 },
+        games: { receptions: 2, targets: 2, recYards: 2, recTd: 2, carries: 1, rushYards: 1, rushTd: 1 },
+      },
+      "Jayden Daniels": {
+        line: { passYards: 512, passTd: 5, attempts: 62, completions: 43 },
+        games: { passYards: 2, passTd: 2, attempts: 2, completions: 2 },
+      },
+    },
     rostered: Object.fromEntries(
       ROSTER.map(([n]) => [n, "Steel Cartel"]),
     ),

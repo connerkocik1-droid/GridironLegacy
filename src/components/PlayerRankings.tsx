@@ -7,8 +7,10 @@ import {
   COLUMNS,
   filter,
   rank,
+  sortRows,
   type Group,
   type LeaguePoints,
+  type PlayedSeason,
   type Row,
 } from "@/lib/rankings";
 
@@ -84,6 +86,13 @@ export default function PlayerRankings() {
   const [league, setLeague] = useState<LeaguePoints>({});
   const [rostered, setRostered] = useState<Record<string, string>>({});
   const [basis, setBasis] = useState<"league" | "2025">("2025");
+  const [played, setPlayed] = useState<PlayedSeason>({});
+  // Which column the board is ordered on. Points to begin with, because that
+  // is what a ranking is until somebody says otherwise.
+  const [sort, setSort] = useState<{ key: string; ascending: boolean }>({
+    key: "total",
+    ascending: false,
+  });
 
   const load = useCallback(async () => {
     try {
@@ -91,6 +100,7 @@ export default function PlayerRankings() {
       if (!res.ok) return;
       const body = await res.json();
       setLeague(body.points ?? {});
+      setPlayed(body.played ?? {});
       setRostered(body.rostered ?? {});
       setBasis(body.basis ?? "2025");
     } catch {
@@ -107,21 +117,39 @@ export default function PlayerRankings() {
 
   // Ranking the whole pool is real work; it should not happen on a keystroke.
   const rows = useMemo(
-    () => rank(league, rostered, basis === "league"),
-    [league, rostered, basis],
+    () => rank(league, rostered, basis === "league", played),
+    [league, rostered, basis, played],
   );
 
   const visible = useMemo(() => {
     const inGroup = filter(rows, group);
     const q = query.trim().toLowerCase();
-    return q ? inGroup.filter((r) => r.name.toLowerCase().includes(q)) : inGroup;
-  }, [rows, group, query]);
+    const matching = q ? inGroup.filter((r) => r.name.toLowerCase().includes(q)) : inGroup;
+    return sortRows(matching, sort.key, sort.ascending);
+  }, [rows, group, query, sort]);
 
   const columns = COLUMNS[group];
 
   function choose(next: Group) {
     setGroup(next);
     setShown(PAGE);
+    // A quarterback's completion percentage is not a column a receiver has, so
+    // a sort held across the toggle would silently become no sort at all.
+    if (!COLUMNS[next].some((c) => c.key === sort.key) && sort.key !== "name") {
+      setSort({ key: "total", ascending: false });
+    }
+  }
+
+  /**
+   * Pressing a column heading.
+   *
+   * The first press sorts it best-first, whichever column it is: on a
+   * rankings board the question is always who is best, and a first press that
+   * shows the worst is a press wasted. The second press turns it round.
+   */
+  function orderBy(key: string) {
+    setShown(PAGE);
+    setSort((s) => (s.key === key ? { key, ascending: !s.ascending } : { key, ascending: false }));
   }
 
   return (
@@ -199,12 +227,35 @@ export default function PlayerRankings() {
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 620 }}>
           <thead>
             <tr>
-              <th style={{ ...th, textAlign: "left", padding: "14px 15px 9px", width: "40%" }}>
-                {visible.length} {visible.length === 1 ? "PLAYER" : "PLAYERS"}
+              <th
+                style={{ ...th, textAlign: "left", padding: "14px 15px 9px", width: "40%" }}
+                aria-sort={sort.key === "name" ? (sort.ascending ? "ascending" : "descending") : "none"}
+              >
+                <SortButton
+                  label={`${visible.length} ${visible.length === 1 ? "PLAYER" : "PLAYERS"}`}
+                  title="Sort by name"
+                  active={sort.key === "name"}
+                  ascending={sort.ascending}
+                  onPress={() => orderBy("name")}
+                  align="left"
+                />
               </th>
               {columns.map((c) => (
-                <th key={c.key} style={{ ...th, paddingRight: 15 }} title={c.title}>
-                  {c.label}
+                <th
+                  key={c.key}
+                  style={{ ...th, paddingRight: 15 }}
+                  aria-sort={
+                    sort.key === c.key ? (sort.ascending ? "ascending" : "descending") : "none"
+                  }
+                >
+                  <SortButton
+                    label={c.label}
+                    title={`${c.title} — press to sort`}
+                    active={sort.key === c.key}
+                    ascending={sort.ascending}
+                    onPress={() => orderBy(c.key)}
+                    align="right"
+                  />
                 </th>
               ))}
             </tr>
@@ -243,6 +294,63 @@ export default function PlayerRankings() {
         </button>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * A column heading you can press.
+ *
+ * A whole heading rather than a little arrow beside one: the arrow is a 12px
+ * target on a phone, and the heading is the thing a reader is already aiming
+ * at. The caret only appears on the column actually in force, because twelve
+ * carets say nothing about which one is sorting.
+ */
+function SortButton({
+  label,
+  title,
+  active,
+  ascending,
+  onPress,
+  align,
+}: {
+  label: string;
+  title: string;
+  active: boolean;
+  ascending: boolean;
+  onPress: () => void;
+  align: "left" | "right";
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPress}
+      title={title}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: align === "left" ? "flex-start" : "flex-end",
+        gap: 4,
+        width: "100%",
+        // The visual box is the text; the tap target is a thumb. The negative
+        // margin gives back exactly what the padding took, so a heading that
+        // is now pressable does not push the table taller.
+        padding: "10px 0",
+        margin: "-10px 0",
+        border: "none",
+        background: "none",
+        font: "inherit",
+        letterSpacing: "inherit",
+        color: active ? "var(--accent-text)" : "inherit",
+        textAlign: align,
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+      <span aria-hidden style={{ fontSize: 9, opacity: active ? 1 : 0 }}>
+        {ascending ? "▲" : "▼"}
+      </span>
+    </button>
   );
 }
 

@@ -1,4 +1,4 @@
-import { COLUMNS, GROUPS, filter, rank } from "../rankings";
+import { COLUMNS, GROUPS, filter, rank, sortRows } from "../rankings";
 
 let failed = 0;
 const ok = (label: string, got: boolean, want = true) => {
@@ -147,9 +147,73 @@ console.log("\n--- but once it has played, the board is one season only ---");
 
   ok("so the only man who has played is top of the board", mixed[0]?.name === "Matthew Stafford");
 
-  // The football columns are 2025's either way — they are context, not the
-  // thing being ranked, and blanking them would lose the whole table.
-  near("the statistics beside him are still last season's", scored?.stats.pypg, 276.9, 0.1);
+  // And the football beside the points is this season's too, or it is not.
+  // The board used to carry last year's rates in a row headed by this year's
+  // points: a receiver with one touchdown in his one game read 0.59 TD/G,
+  // which is his 2025 rate and nobody's 2026 one.
+  eq("and last season's football does not come with them", scored?.stats.pypg, undefined);
+}
+
+console.log("\n--- the football is the season being ranked, not the one before ---");
+{
+  // One game, three hundred yards, two touchdowns.
+  const played = {
+    "Matthew Stafford": {
+      line: { passYards: 300, passTd: 2, attempts: 40, completions: 28 },
+      games: { passYards: 1, passTd: 1, attempts: 1, completions: 1 },
+    },
+  };
+  const board = rank({ "Matthew Stafford": { total: 24, games: 1 } }, {}, true, played);
+  const him = board.find((r) => r.name === "Matthew Stafford");
+
+  near("passing yards are this season's, per this season's games", him?.stats.pypg, 300);
+  near("and so are the touchdowns", him?.stats.tdpg, 2);
+  near("completion percentage is worked out, not looked up", him?.stats.compPct, 70);
+
+  // The reported bug, in the shape it was reported: one touchdown, one game.
+  const one = {
+    "Jaxon Smith-Njigba": {
+      line: { receptions: 6, targets: 9, recYards: 84, recTd: 1, carries: 0, rushYards: 0, rushTd: 0 },
+      games: { receptions: 1, targets: 1, recYards: 1, recTd: 1, carries: 1, rushYards: 1, rushTd: 1 },
+    },
+  };
+  const wr = rank({ "Jaxon Smith-Njigba": { total: 20, games: 1 } }, {}, true, one)
+    .find((r) => r.name === "Jaxon Smith-Njigba");
+  near("one touchdown in one game is one touchdown a game", wr?.stats.tdpg, 1);
+  near("and his catches are counted the same way", wr?.stats.recpg, 6);
+
+  // A man this league has not scored has no football either. Half a row from
+  // last season is how the two got mixed in the first place.
+  const others = board.filter((r) => r.name !== "Matthew Stafford");
+  ok("and a player it has not scored carries no rates at all",
+    others.every((r) => Object.keys(r.stats).length === 0));
+}
+
+console.log("\n--- ordering the board by any column ---");
+{
+  const qbs = filter(rows, "QB");
+
+  const byYards = sortRows(qbs, "pypg", false);
+  const yards = byYards.map((r) => r.stats.pypg).filter((v): v is number => v != null);
+  ok("the first press puts the best at the top",
+    yards.every((v, i) => i === 0 || yards[i - 1] >= v));
+
+  const asc = sortRows(qbs, "pypg", true);
+  const up = asc.map((r) => r.stats.pypg).filter((v): v is number => v != null);
+  ok("and pressing again turns it round", up.every((v, i) => i === 0 || up[i - 1] <= v));
+
+  // Absent is not zero. A quarterback with no passing line has not thrown
+  // badly, and floating him to the top of an ascending sort buries the answer
+  // under a column of dashes.
+  const firstBlank = asc.findIndex((r) => r.stats.pypg == null);
+  ok("a player with nothing in the column sinks, whichever way it is sorted",
+    firstBlank === -1 || asc.slice(firstBlank).every((r) => r.stats.pypg == null));
+
+  const byName = sortRows(qbs, "name", true);
+  ok("and the names sort alphabetically",
+    byName.every((r, i) => i === 0 || byName[i - 1].name.localeCompare(r.name) <= 0));
+
+  ok("sorting never loses or invents a row", sortRows(qbs, "ppg", false).length === qbs.length);
 }
 
 console.log("\n--- players with no 2025 to speak of ---");
