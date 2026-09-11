@@ -259,6 +259,54 @@ console.log("\n--- how old everybody is ---");
 
 }
 
+console.log("\n--- being told when the app is shut ---");
+{
+  await page.goto(`${BASE}/my-team/edit`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(900);
+
+  const opener = page.getByRole("button", { name: /Notify me on this device/ });
+  ok("the settings offer notifications", (await opener.count()) === 1);
+
+  await opener.click();
+  await page.waitForFunction(() => /Turn on notifications|cannot send notifications/.test(document.body.innerText),
+    null, { timeout: 8000 }).catch(() => {});
+
+  const t = await page.locator("body").innerText();
+
+  // Chromium here has no push service, so the panel lands on one of two
+  // honest states. Both are real; what must not happen is a dead switch.
+  const unsupported = /cannot send notifications/.test(t);
+  ok(`it says where it stands (${unsupported ? "unsupported" : "offering"})`,
+    unsupported || /Turn on notifications/.test(t));
+
+  if (!unsupported) {
+    ok("all four kinds are named", /Scoring updates/.test(t) && /Weekly recap/.test(t)
+      && /Injuries/.test(t) && /Weekly projections/.test(t));
+
+    // Each says what it will and will not wake you for, because "Injuries" on
+    // its own does not tell somebody whether every questionable tag buzzes.
+    ok("and each says what it will actually send", /lead in your matchup changes hands/.test(t)
+      && /A doubt is not worth waking you for/.test(t));
+
+    const boxes = page.locator('input[type="checkbox"]');
+    ok(`one switch each (${await boxes.count()})`, (await boxes.count()) === 4);
+    ok("and nothing is on to begin with",
+      (await boxes.evaluateAll((all) => all.every((b) => !b.checked))));
+
+    // A preference is the manager's, not the device's, so it saves whether or
+    // not this browser could ever receive one.
+    const before = page.locator("body");
+    await boxes.nth(1).check();
+    await page.waitForTimeout(400);
+    ok("a kind can be chosen before the device is signed up",
+      await boxes.nth(1).isChecked());
+    void before;
+
+    const row = await boxes.nth(1).locator("xpath=..").boundingBox();
+    ok(`a thumb can hit a row (${Math.round(row?.height ?? 0)}px)`, (row?.height ?? 0) >= 44);
+  }
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);

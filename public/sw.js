@@ -118,6 +118,97 @@ async function fromNetworkFirst(request, cacheName) {
   }
 }
 
+/*
+ * ---------------------------------------------------------------------------
+ * Being told something while the app is shut.
+ *
+ * The other half of what a worker is for. Everything above is about the app
+ * opening without a network; this is about the app reaching somebody who does
+ * not have it open at all.
+ *
+ * The payload is encrypted end to end — the push service carries it and cannot
+ * read it, and neither can anything until it arrives here. What comes out is
+ * the object the server put in.
+ */
+
+self.addEventListener("push", (event) => {
+  // A push with no data is a wake-up from a service, not from us. The
+  // specification requires that a subscription made with userVisibleOnly shows
+  // something for every message, so there is a fallback rather than a silent
+  // return: showing nothing is what gets a site's permission revoked.
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = {};
+  }
+
+  const title = payload.title || "Pylon Fantasy";
+  const options = {
+    body: payload.body || "Something happened in your league.",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/badge.png",
+    // Grouped by kind, so four scoring updates across an afternoon replace one
+    // another rather than stacking into a column of stale numbers. A recap and
+    // an injury are different tags and both stand.
+    tag: payload.tag || payload.kind || "pylon",
+    renotify: Boolean(payload.renotify),
+    timestamp: Date.now(),
+    data: { href: payload.href || "/" },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const href = (event.notification.data && event.notification.data.href) || "/";
+  const target = new URL(href, self.location.origin).href;
+
+  event.waitUntil(
+    (async () => {
+      // A window that is already open is the one to use. Opening a second copy
+      // of an installed app is how somebody ends up with four of them and the
+      // one they were reading is not the one that came forward.
+      const open = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+
+      for (const client of open) {
+        if (client.url === target) return client.focus();
+      }
+      for (const client of open) {
+        if ("navigate" in client) {
+          await client.focus();
+          return client.navigate(target);
+        }
+      }
+
+      return self.clients.openWindow(target);
+    })(),
+  );
+});
+
+/*
+ * A subscription can be rotated by the browser without anybody asking. When it
+ * is, the old endpoint stops working and the app would go quiet with nothing
+ * to show for it — so the new one is posted straight back.
+ */
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    (async () => {
+      const fresh =
+        event.newSubscription ||
+        (await self.registration.pushManager.subscribe(event.oldSubscription.options));
+
+      await fetch("/api/push", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(fresh),
+      }).catch(() => {});
+    })(),
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 

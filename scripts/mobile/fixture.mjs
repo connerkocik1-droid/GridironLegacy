@@ -936,6 +936,32 @@ export function routes(page, over = {}) {
 
   page.route("**/api/rosters**", json({ players: ROSTER.map(([n]) => n) }));
 
+  // Notifications. Configured, this device not signed up, nothing chosen —
+  // which is the state a manager opening the panel for the first time is in,
+  // and the one whose copy has to make sense.
+  let pushPrefs = { scores: false, recap: false, injuries: false, projections: false };
+  page.route("**/api/push**", (r) => {
+    const method = r.request().method();
+
+    if (method === "PATCH") {
+      pushPrefs = { ...pushPrefs, ...JSON.parse(r.request().postData() ?? "{}") };
+      return r.fulfill({ json: { ok: true } });
+    }
+    if (method === "POST" || method === "DELETE") {
+      return r.fulfill({ json: { ok: true } });
+    }
+
+    return r.fulfill({
+      json: {
+        configured: true,
+        publicKey: "BC9fkm3t34BiNNcRL8Zm5tGoVQMV0HmkzJ-y8VDDAnI3ac4NOv7BdfWrQbprpuR_yrM4DwWA_sCT4r5fVl_haNA",
+        subscribed: false,
+        devices: 0,
+        prefs: pushPrefs,
+      },
+    });
+  });
+
   const PICKS = MANAGERS.map((m, i) => ({
     overall: i + 1, round: 1, manager_id: m.id,
     player_name: i < 2 ? ROSTER[i][0] : null,

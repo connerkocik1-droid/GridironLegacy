@@ -1,8 +1,28 @@
 {
   "crons": [
-    { "path": "/api/cron/scores", "schedule": "0 8 * * *" },
-    { "path": "/api/cron/health", "schedule": "30 7 * * *" },
-    { "path": "/api/cron/waivers", "schedule": "0 8 * * *" },
-    { "path": "/api/cron/draft-picks", "schedule": "0 7 * * *" }
+    {
+      "path": "/api/cron/scores",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/health",
+      "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron/waivers",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/draft-picks",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/projections",
+      "schedule": "0 13 * * 4"
+    },
+    {
+      "path": "/api/cron/push",
+      "schedule": "*/10 * * * *"
+    }
   ]
 }

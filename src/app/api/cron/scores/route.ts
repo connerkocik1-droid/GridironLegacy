@@ -56,9 +56,25 @@ export async function GET(req: Request) {
   });
   if (playoffError) console.error("[cron/scores] playoffs failed", playoffError);
 
+  // What to tell the phones. Two different moments and both of them here,
+  // because this route is the one that knows a score has moved: while the week
+  // is live, whenever the lead in a matchup changes hands; once it is graded,
+  // how it finished. Both are deduplicated in the database, so calling them
+  // every few minutes all afternoon is what they are built for.
+  //
+  // Deliberately not fatal, and deliberately after the grading. A push service
+  // having a bad day must not stop a week being recorded.
+  const [scoreNews, recapNews] = await Promise.all([
+    db.rpc("push_score_news", { p_league_id: leagueId, p_week: result.week }),
+    db.rpc("push_recap_news", { p_league_id: leagueId, p_week: result.week }),
+  ]);
+  if (scoreNews.error) console.warn("[cron/scores] score news", scoreNews.error.message);
+  if (recapNews.error) console.warn("[cron/scores] recap news", recapNews.error.message);
+
   return Response.json({
     ...result,
     graded: !gradeError,
     postseason: postseason ?? null,
+    queued: (scoreNews.data ?? 0) + (recapNews.data ?? 0),
   });
 }

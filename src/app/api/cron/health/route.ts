@@ -96,5 +96,18 @@ export async function GET(req: Request) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ reported: names.length, changed: data, unmatched });
+  // And tell the managers who hold them. Reads the report as it now stands
+  // rather than what changed, because the dedupe key carries the designation:
+  // a man who is questionable for three weeks is announced once, and the
+  // morning he is downgraded to out is a second message. Not fatal — the
+  // report being in the database is the part that matters.
+  const leagueId = process.env.LEAGUE_ID;
+  let queued = 0;
+  if (leagueId) {
+    const news = await db.rpc("push_injury_news", { p_league_id: leagueId });
+    if (news.error) console.warn("[cron/health] injury news", news.error.message);
+    else queued = news.data ?? 0;
+  }
+
+  return Response.json({ reported: names.length, changed: data, unmatched, queued });
 }
