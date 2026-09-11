@@ -93,6 +93,46 @@ console.log("\n--- the power rank ---");
     (await page.locator('a[href^="/team/"]').count()) >= 5);
 }
 
+console.log("\n--- the ballots ---");
+{
+  const t = await body();
+  ok("somebody else's trade is on the front page", /LEAGUE VOTE/.test(t));
+  ok("naming both franchises", /Kim's Very Long Franchise Name/.test(t) && /Gold Coast Gladiators/.test(t));
+  ok("saying what leaves each of them", /Jahmyr Gibbs/.test(t) && /Brock Bowers/.test(t));
+  ok("counting picks rather than naming them", /1 draft pick\b/.test(t) && /2 draft picks/.test(t));
+  ok("and an empty half says so rather than going blank", /Nothing/.test(t));
+
+  // The count is the difference between an unpopular trade and an unnoticed
+  // one, and it is a number nobody can read off a progress bar.
+  ok("the count is out of the bar it has to reach", /3\/4 veto/.test(t) && /1\/4 approve/.test(t));
+  ok("with how long is left", /closes in 14h/.test(t));
+  ok("in hours or minutes, whichever reads", /closes in 40m/.test(t));
+
+  const votes = page.locator('div:has-text("LEAGUE VOTE")');
+  ok("both open ballots are there", (await page.getByRole("button", { name: "VETO" }).count()) === 2);
+
+  // Nothing about a vote reaches a phone if the buttons are 24px tall.
+  const box = await page.getByRole("button", { name: "APPROVE" }).first().boundingBox();
+  ok(`a thumb can hit approve (${Math.round(box?.height ?? 0)}px)`, (box?.height ?? 0) >= 40);
+  ok("and it does not run off the side", (box?.width ?? 0) + (box?.x ?? 0) <= 402);
+  void votes;
+
+  // The card has to leave when the vote is cast, or the manager cannot tell
+  // whether it went through and votes again.
+  await page.route("**/api/trades/b1/vote", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json",
+      body: JSON.stringify({ ok: true, vote: "veto", settled: "declined" }) }));
+
+  const before = await page.getByRole("button", { name: "VETO" }).count();
+  await page.getByRole("button", { name: "VETO" }).first().click();
+  await page.waitForFunction(
+    (n) => document.querySelectorAll("button").length > 0 &&
+      [...document.querySelectorAll("button")].filter((b) => b.textContent?.trim() === "VETO").length < n,
+    before, { timeout: 8000 }).catch(() => {});
+  ok(`the card leaves once you have voted (${before} then ${await page.getByRole("button", { name: "VETO" }).count()})`,
+    (await page.getByRole("button", { name: "VETO" }).count()) < before);
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);

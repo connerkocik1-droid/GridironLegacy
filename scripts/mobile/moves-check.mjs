@@ -97,6 +97,59 @@ console.log("\n--- the trade builder ---");
   ok("rather than calling nothing an even deal", !/As even as trades get/.test(t));
 }
 
+console.log("\n--- countering a received offer ---");
+{
+  // Between yes and no, which is where most trades in a league of twelve
+  // actually live. The offer on the fixture is two players out and one in.
+  const counter = page.getByRole("button", { name: "Counter" });
+  ok("a received offer can be countered", (await counter.count()) === 1);
+  ok("and an offer you sent cannot — there is nothing to answer",
+    (await page.getByRole("button", { name: "Accept" }).count()) === 1);
+
+  const box = await counter.first().boundingBox();
+  ok(`a thumb can hit it (${Math.round(box?.height ?? 0)}px)`, (box?.height ?? 0) >= 24);
+
+  await counter.first().click();
+  await page.waitForFunction(() => /Countering/.test(document.body.innerText), null,
+    { timeout: 8000 }).catch(() => {});
+
+  // The builder card, by the heading that names it, so "YOU SEND" is read off
+  // the form and not off one of the offers listed below it.
+  // Two levels up: the heading sits in a row with "Start again", and the card
+  // is that row's parent. Headings are uppercased in CSS, so every read of
+  // this text is case-insensitive.
+  const card = page.locator("h6", { hasText: /Countering|Build an offer/i })
+    .locator("xpath=../..");
+  const built = await card.innerText();
+
+  ok(`the builder says whose offer it is answering (${built.split("\n")[0]})`,
+    /countering kim/i.test(built));
+
+  // The whole point: their terms are already in, sides swapped, so changing
+  // one thing does not mean retyping the four you agreed on.
+  ok("what they asked for is loaded as yours to send",
+    /you send[\s\S]*ja'marr chase/i.test(built) && /tank bigsby/i.test(built));
+  ok("and what they offered is loaded as yours to get", /trey mcbride/i.test(built));
+
+  ok("the partner is set to them, not left blank",
+    (await page.locator("select").first().inputValue()) === "m3");
+  ok("and the button sends a counter rather than a new offer",
+    (await page.getByRole("button", { name: "Send counter" }).count()) === 1);
+
+  // A way out that is not reloading the page.
+  await page.getByRole("button", { name: "Start again" }).click();
+  await page.waitForTimeout(400);
+  const after = await card.innerText();
+  ok(`starting again drops the counter (${after.split("\n")[0]})`, !/countering/i.test(after));
+  // Ja'Marr Chase is on this manager's own roster, so his name is in the card
+  // either way — what has to go is the deal. Both sides read nought and the
+  // button has nothing to send.
+  ok(`and empties both sides of the deal (${(after.match(/you (?:send|get) · [\d.]+/gi) ?? []).join(", ")})`,
+    /you send · 0\.0/i.test(after) && /you get · 0\.0/i.test(after));
+  ok("so there is nothing left to send",
+    await page.getByRole("button", { name: "Send offer" }).isDisabled());
+}
+
 console.log("\n--- the record ---");
 {
   await open("The Record", "the-record", /add|drop|trade|claim|nothing/);

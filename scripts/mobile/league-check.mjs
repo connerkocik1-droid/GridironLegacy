@@ -193,6 +193,86 @@ console.log("\n--- and no section repeats its own name at it ---");
   ok(`one heading, the league's (${heads.join(" / ")})`, heads.length === 1);
 }
 
+console.log("\n--- ordering the board ---");
+{
+  await open("Ranks");
+
+  // The first cell is the rank, the headshot and then the name over two more
+  // lines, so the name is the first line that is not just a number.
+  const names = async () =>
+    (await page.locator("tbody tr td:first-child").allInnerTexts())
+      .map((t) => (t.split("\n").find((l) => l.trim() && !/^\d+$/.test(l.trim())) ?? "")
+        .replace(/\s+\d+$/, "").trim())
+      .slice(0, 6);
+
+  // ALL fields only points and points per game, so the position toggles are
+  // where the football columns live — and WR is where the fixture put the
+  // receivers.
+  await page.getByRole("button", { name: "WR", exact: true }).first().click();
+  await page.waitForTimeout(500);
+
+  const byPoints = await names();
+  ok(`points order to begin with (${byPoints[0]})`, byPoints.length > 0);
+
+  // REC/G is a column the board has never been orderable on, and the fixture
+  // puts the receivers deliberately out of points order so that a board
+  // sorted on catches is visibly a different board.
+  await page.getByRole("button", { name: /^REC\/G/ }).first().click();
+  await page.waitForTimeout(400);
+  const byCatches = await names();
+  ok(`pressing a column reorders it (${byCatches[0]})`,
+    byCatches.join("|") !== byPoints.join("|"));
+
+  // The first press is best-first. Ja'Marr Chase has eighteen catches in the
+  // fixture and Rome Odunze nine, and Odunze is the one at the top on points.
+  ok(`and it is best-first, not worst-first (${byCatches[0]})`, byCatches[0] === "Ja'Marr Chase");
+
+  await page.getByRole("button", { name: /^REC\/G/ }).first().click();
+  await page.waitForTimeout(400);
+  const turned = await names();
+  ok(`pressing again turns it round (${turned[0]})`, turned[0] !== byCatches[0]);
+
+  // Absent is not zero: a man with no catches has not caught badly, and
+  // floating two hundred of him to the top of an ascending sort buries the
+  // answer under a column of dashes. The board is still ascending here.
+  const top = await page.locator("tbody tr").first().innerText();
+  ok(`the first row has a real number in it, not a dash (${top.split("\t").pop()?.trim()})`,
+    !/—\s*$/.test(top));
+
+  const dashesFirst = (await page.locator("tbody tr").allInnerTexts())
+    .findIndex((t) => /—\s*$/.test(t));
+  ok(`and every blank is below every number (first blank at row ${dashesFirst + 1})`,
+    dashesFirst === -1 ||
+      (await page.locator("tbody tr").allInnerTexts()).slice(dashesFirst)
+        .every((t) => /—\s*$/.test(t)));
+
+  const header = await page.getByRole("button", { name: /^REC\/G/ }).first().boundingBox();
+  ok(`a thumb can hit the heading (${Math.round(header?.height ?? 0)}px)`,
+    (header?.height ?? 0) >= 32);
+}
+
+console.log("\n--- and the rates are this season's, not last season's ---");
+{
+  // The bug this fixes, in the shape it was reported: last year's rate in a
+  // row headed by this year's points. Rome Odunze has two touchdowns in two
+  // games here, so his TD/G is 1.00 and nothing else.
+  const row = await page.locator("tbody tr", { hasText: "Rome Odunze" }).first().innerText();
+  ok(`a man with two touchdowns in two games reads 1.00 TD/G (${row.replace(/\n/g, " ").slice(0, 90)})`,
+    /\b1\.00\b/.test(row));
+}
+
+console.log("\n--- who is about ---");
+{
+  await open("Standings");
+  const t = await page.locator("body").innerText();
+  ok("the league says how many of it are here", /4 managers here now/.test(t));
+
+  // A dot per manager who is present, and none for the eight who are not.
+  // The count and the dots disagreeing is the failure worth catching.
+  const dots = await page.locator('[role="img"][aria-label="Here now"]').count();
+  ok(`and marks which four (${dots})`, dots === 4);
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);

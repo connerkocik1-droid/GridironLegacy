@@ -1,6 +1,7 @@
 "use client";
+import { PlayerAge } from "./PlayerName";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TeamMark from "./TeamMark";
 import { player, proj } from "@/lib/roster";
 import { balancer, fitScore, pickValue, verdict, type Held } from "@/lib/moves-story";
@@ -28,7 +29,7 @@ interface Trade {
   from_manager: string;
   to_manager: string;
   offer: { give: string[]; get: string[]; givePicks?: string[]; getPicks?: string[] };
-  status: "open" | "countered" | "agreed" | "executed" | "declined" | "rescinded";
+  status: "open" | "countered" | "agreed" | "voting" | "executed" | "declined" | "rescinded";
   from_accepted: boolean;
   to_accepted: boolean;
   thread: { who: string; at: string; text: string }[];
@@ -37,12 +38,17 @@ interface Trade {
   awaitingMe: boolean;
   /** Your terms are on the table and they have not taken them yet. */
   canRescind: boolean;
+  /** Where the league's vote stands, once the deal is out for one. */
+  vetoes: number;
+  approvals: number;
+  voteBar: number;
+  closesAt: string | null;
 }
 
 interface Desk {
   /** What the league fields at each position. */
   starters?: Record<string, number>;
-  me: Manager & { league_id: string };
+  me: Manager & { league_id: string; is_commissioner?: boolean };
   managers: Manager[];
   block: { player_name: string; manager_id: string }[];
   picks: Pick[];
@@ -67,10 +73,22 @@ const card: React.CSSProperties = {
   background: "rgb(var(--surface-rgb) / .55)",
 };
 
+/** "12h left", or "closing now" once the window has run out. */
+function voteCloses(iso: string): string {
+  const ms = Date.parse(iso) - Date.now();
+  if (!Number.isFinite(ms)) return "";
+  if (ms <= 0) return "closing now";
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours >= 24) return `${Math.round(hours / 24)}d left`;
+  if (hours >= 1) return `${hours}h left`;
+  return `${Math.max(1, Math.round(ms / 60_000))}m left`;
+}
+
 const STATUS_COLOR: Record<Trade["status"], string> = {
   open: "var(--accent-link)",
   countered: "var(--warn)",
   agreed: "var(--good)",
+  voting: "var(--accent-link)",
   executed: "var(--good)",
   declined: "var(--text-dim)",
   rescinded: "var(--text-dim)",
@@ -143,6 +161,7 @@ function PlayerChip({ name, onRemove }: { name: string; onRemove?: () => void })
     >
       <TeamMark team={p?.t} size={14} opacity={1} />
       {name}
+      <PlayerAge name={name} />
       <span style={{ color: "var(--text-dim)", fontSize: 10 }}>{proj(name).toFixed(1)}</span>
       {onRemove ? (
         <button
@@ -188,6 +207,11 @@ export default function TradeDesk() {
   const [myRoster, setMyRoster] = useState<string[]>([]);
   const [theirRoster, setTheirRoster] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  // The trade being countered, if any. A counter is the same builder with the
+  // deal already in it — not a second screen — so all this holds is which
+  // offer the Send button should answer instead of opening a new one.
+  const [countering, setCountering] = useState<{ id: string; franchise: string } | null>(null);
+  const builder = useRef<HTMLDivElement>(null);
   // Season scoring and who holds whom, from one request. The rostered map is
   // every player in the league keyed to his franchise, which is enough to
   // rebuild all twelve rosters without asking for them one at a time.
@@ -337,23 +361,40 @@ export default function TradeDesk() {
     set(list.includes(name) ? list.filter((n) => n !== name) : [...list, name]);
   }
 
+  /** Empty the builder and step out of whatever it was answering. */
+  function clearBuilder() {
+    setGive([]);
+    setWant([]);
+    setGivePicks([]);
+    setGetPicks([]);
+    setCountering(null);
+  }
+
   async function send() {
     if (!partner || empty) return;
     setBusy(true);
     try {
-      const res = await fetch("/api/trades", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ to: partner, give, get: want, givePicks, getPicks }),
-      });
+      // A counter goes back to the offer it answers rather than opening a
+      // second one beside it. Two trades for one conversation is how a desk
+      // ends up with four live offers between the same two managers and
+      // nobody sure which one is the deal.
+      const res = countering
+        ? await fetch(`/api/trades/${countering.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action: "counter", give, get: want, givePicks, getPicks }),
+          })
+        : await fetch("/api/trades", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ to: partner, give, get: want, givePicks, getPicks }),
+          });
+
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(body.error ?? "Offer was not sent.");
+        setError(body.error ?? (countering ? "Counter was not sent." : "Offer was not sent."));
       } else {
-        setGive([]);
-        setWant([]);
-        setGivePicks([]);
-        setGetPicks([]);
+        clearBuilder();
         setError(null);
         await load();
       }
@@ -362,7 +403,34 @@ export default function TradeDesk() {
     }
   }
 
-  async function respond(trade: Trade, action: "accept" | "decline" | "rescind") {
+  /**
+   * Countering: the offer, loaded into the builder with the sides swapped.
+   *
+   * Not a blank form. A counter is almost always "this deal, but with one
+   * more thing", and starting from nothing means retyping the four names you
+   * already agreed on to change the fifth — which is how a counter becomes a
+   * decline in practice.
+   */
+  function startCounter(t: Trade) {
+    const other = t.incoming ? t.from_manager : t.to_manager;
+    setPartner(other);
+    // The stored offer is written from the proposer's point of view, so which
+    // half is yours depends on which end of it you are.
+    setGive(t.incoming ? t.offer.get : t.offer.give);
+    setWant(t.incoming ? t.offer.give : t.offer.get);
+    setGivePicks((t.incoming ? t.offer.getPicks : t.offer.givePicks) ?? []);
+    setGetPicks((t.incoming ? t.offer.givePicks : t.offer.getPicks) ?? []);
+    setCountering({
+      id: t.id,
+      franchise: desk?.managers.find((m) => m.id === other)?.franchise ?? "them",
+    });
+    setError(null);
+    // On a phone the builder is a screen above the offer you just pressed, so
+    // without this the button appears to do nothing at all.
+    builder.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function respond(trade: Trade, action: "accept" | "decline" | "rescind" | "force") {
     setBusy(true);
     try {
       const res = await fetch(`/api/trades/${trade.id}`, {
@@ -472,8 +540,50 @@ export default function TradeDesk() {
           alignItems: "start",
         }}
       >
-        <div style={{ ...card, padding: "16px 18px" }}>
-          <h6 style={{ margin: "0 0 10px", color: "var(--accent-text)" }}>Build an offer</h6>
+        <div ref={builder} style={{ ...card, padding: "16px 18px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: 10,
+              flexWrap: "wrap",
+              marginBottom: 10,
+            }}
+          >
+            <h6 style={{ margin: 0, color: "var(--accent-text)" }}>
+              {countering ? `Countering ${countering.franchise}` : "Build an offer"}
+            </h6>
+            {/* A way out that is not "reload the page". Without it a manager
+                who pressed Counter to see what the deal looked like is stuck
+                answering it. */}
+            {countering ? (
+              <button
+                onClick={clearBuilder}
+                style={{
+                  border: "none",
+                  background: "none",
+                  color: "var(--text-dim)",
+                  font: "inherit",
+                  fontSize: 11,
+                  padding: "6px 0",
+                  margin: "-6px 0",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                }}
+              >
+                Start again
+              </button>
+            ) : null}
+          </div>
+
+          {countering ? (
+            <div style={{ fontSize: 11, color: "var(--text-dim)", margin: "0 0 14px", lineHeight: 1.5 }}>
+              Their terms are already in, with the sides swapped. Change what you
+              want and send it back — it replaces the offer rather than opening a
+              second one.
+            </div>
+          ) : null}
 
           <label style={{ display: "block", fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)" }}>
             TRADE WITH
@@ -482,6 +592,10 @@ export default function TradeDesk() {
             value={partner}
             onChange={(e) => {
               setPartner(e.target.value);
+              // A counter answers one offer, and that offer belongs to one
+              // manager. Pointing the builder at somebody else makes it a new
+              // offer again rather than a counter sent to the wrong person.
+              setCountering(null);
               setWant([]);
               // Their picks belong to whoever was selected; keeping them
               // across a change of partner would offer a pick they never had.
@@ -535,6 +649,7 @@ export default function TradeDesk() {
                     style={rowButton(give.includes(n))}
                   >
                     {n}
+                    <PlayerAge name={n} />
                     <span style={{ marginLeft: "auto", color: "var(--text-dim)", fontSize: 11 }}>
                       {proj(n).toFixed(1)}
                     </span>
@@ -570,6 +685,7 @@ export default function TradeDesk() {
                     style={rowButton(want.includes(n))}
                   >
                     {n}
+                    <PlayerAge name={n} />
                     <span style={{ marginLeft: "auto", color: "var(--text-dim)", fontSize: 11 }}>
                       {proj(n).toFixed(1)}
                     </span>
@@ -672,7 +788,7 @@ export default function TradeDesk() {
                 opacity: !partner || empty ? 0.45 : 1,
               }}
             >
-              Send offer
+              {countering ? "Send counter" : "Send offer"}
             </button>
             <span style={{ flex: "1 1 200px", fontSize: 11, color: "var(--text-dim)" }}>
               Points scored this season, not a valuation — judge the deal yourself.
@@ -730,9 +846,20 @@ export default function TradeDesk() {
                 t.status !== "executed" &&
                 t.status !== "declined" &&
                 t.status !== "rescinded" ? (
-                  <div style={{ display: "flex", gap: 6 }}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     <button onClick={() => respond(t, "accept")} disabled={busy} style={smallButton("var(--good)")}>
                       Accept
+                    </button>
+                    {/* Between yes and no, which is where most trades in a
+                        league of twelve actually live. It opens the builder
+                        with this deal already in it rather than a blank
+                        form. */}
+                    <button
+                      onClick={() => startCounter(t)}
+                      disabled={busy}
+                      style={smallButton("var(--accent-link)")}
+                    >
+                      Counter
                     </button>
                     <button onClick={() => respond(t, "decline")} disabled={busy} style={smallButton("var(--warn)")}>
                       Decline
@@ -754,6 +881,31 @@ export default function TradeDesk() {
                   </div>
                 ) : t.status === "agreed" ? (
                   <div style={{ fontSize: 10, color: "var(--text-dim)" }}>Waiting on the other manager.</div>
+                ) : null}
+
+                {/* Out for a vote. Neither of the two in the deal has a say
+                    in it, so there is nothing to press here — only the count,
+                    and how long is left before silence puts it through. */}
+                {t.status === "voting" ? (
+                  <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 6 }}>
+                    With the league · {t.vetoes}/{t.voteBar} veto · {t.approvals}/{t.voteBar}{" "}
+                    approve
+                    {t.closesAt ? ` · ${voteCloses(t.closesAt)}` : ""}
+                  </div>
+                ) : null}
+
+                {/* The commissioner's override, and only theirs. The database
+                    is what actually refuses everybody else; this only decides
+                    whether to draw a button nobody else could use. */}
+                {desk.me.is_commissioner &&
+                (t.status === "voting" || t.status === "agreed") ? (
+                  <button
+                    onClick={() => respond(t, "force")}
+                    disabled={busy}
+                    style={{ ...smallButton("var(--accent-link)"), marginTop: 8 }}
+                  >
+                    Push it through
+                  </button>
                 ) : null}
               </div>
             );

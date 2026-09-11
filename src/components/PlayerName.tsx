@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ageOf } from "@/data/league-data";
 import { HEALTH_COLOUR, HEALTH_LABEL, HEALTH_SHORT, type Health } from "@/lib/health";
 import { healthOf, useHealthReport } from "@/lib/use-player-health";
 
@@ -15,6 +16,13 @@ import { healthOf, useHealthReport } from "@/lib/use-player-health";
  * Active is deliberately silent. Everybody not on an injury report is fit, and
  * a tick beside all sixteen names on a lineup is noise that hides the one who
  * is doubtful.
+ *
+ * The age is here for the same "always" reason. In a dynasty league a name
+ * without an age is half a fact: the difference between a 24-year-old and a
+ * 31-year-old is the whole question on a trade, a waiver claim and a keeper
+ * decision, and looking it up one player at a time is how a manager stops
+ * looking it up. Worked out from the date of birth every time it is drawn, so
+ * it is right in June as well as in September.
  */
 
 export function playerHref(name: string): string {
@@ -54,6 +62,34 @@ export function HealthBadge({ name, size = "small" }: { name: string; size?: "sm
 }
 
 /**
+ * How old he is, in the smallest thing that can still be read.
+ *
+ * Dim and unlabelled, because a number beside a footballer's name is his age
+ * and nothing else — "AGE 24" beside sixteen names is three hundred pixels
+ * spent saying a word nobody needed. Silent for a defence, and for the
+ * handful of players nobody has a birthday for: a blank is honest, and a
+ * guess in a column managers trade on is not.
+ */
+export function PlayerAge({ name }: { name: string }) {
+  const age = ageOf({ n: name });
+  if (age == null) return null;
+
+  return (
+    <span
+      aria-label={`Age ${age}`}
+      style={{
+        fontSize: ".84em",
+        color: "var(--text-dim)",
+        fontVariantNumeric: "tabular-nums",
+        flex: "0 0 auto",
+      }}
+    >
+      {age}
+    </span>
+  );
+}
+
+/**
  * The name itself, as a link, with the badge after it.
  *
  * `plain` renders the name without a link, for the few places already inside
@@ -64,11 +100,14 @@ export default function PlayerName({
   plain = false,
   style,
   badge = true,
+  age = true,
 }: {
   name: string;
   plain?: boolean;
   style?: React.CSSProperties;
   badge?: boolean;
+  /** Off only where the row already draws the age in a column of its own. */
+  age?: boolean;
 }) {
   const label = (
     <span style={{ minWidth: 0, overflowWrap: "anywhere", ...style }}>{name}</span>
@@ -110,6 +149,7 @@ export default function PlayerName({
           {label}
         </Link>
       )}
+      {age ? <PlayerAge name={name} /> : null}
       {badge ? <HealthBadge name={name} /> : null}
     </span>
   );

@@ -387,6 +387,25 @@ export function routes(page, over = {}) {
         get: ["Brock Bowers", "Tank Bigsby", "Trey McBride"], give: [],
         getPicks: 0, givePicks: 2 },
     ],
+    // Two other managers' deals, out for a vote this one has not cast. The
+    // longest franchise names in the league again, on both halves of the same
+    // card, because a ballot names two teams where an offer names one.
+    ballots: [
+      { id: "b1", from: "Kim's Very Long Franchise Name", to: "Gold Coast Gladiators",
+        fromGives: ["Jahmyr Gibbs"], toGives: ["Brock Bowers", "Tank Bigsby"],
+        fromGivesPicks: 2, toGivesPicks: 1,
+        vetoes: 3, approvals: 1, bar: 4,
+        // Half past the hour, so the card's rounding has an unambiguous
+        // answer and the check is not racing the page's own render.
+        closesAt: new Date(Date.now() + 14.5 * 3_600_000).toISOString() },
+      // One side sending nothing at all: the shape a league actually vetoes,
+      // and the one that reads as a broken card if an empty half goes blank.
+      { id: "b2", from: "Rust Belt Rhinos", to: "Bayou Bengals",
+        fromGives: [], toGives: ["Rome Odunze"],
+        fromGivesPicks: 0, toGivesPicks: 0,
+        vetoes: 0, approvals: 0, bar: 4,
+        closesAt: new Date(Date.now() + 40 * 60_000).toISOString() },
+    ],
     leaders: ["QB", "RB", "WR", "TE", "K", "D/ST"].map((position) => ({
       position,
       player: { name: "Marvin Harrison Jr.", team: "ARI", points: 88.4,
@@ -479,6 +498,10 @@ export function routes(page, over = {}) {
     weeksScored: 3, played: true,
     franchises: MANAGERS.map((m, i) => ({
       ...m, id: m.id, claimed: m.name !== "Open", isCommissioner: i === 0,
+      // Four of them are here, which is what the header counts and what the
+      // dots beside the franchise names have to line up with.
+      online: i < 4,
+      lastSeen: i < 4 ? new Date().toISOString() : null,
       pointsFor: 340 - i * 12,
       record: { wins: 12 - i, losses: i, ties: 0, divWins: 4, divLosses: 1,
         pointsFor: 340 - i * 12, pointsAgainst: 250 + i * 8 },
@@ -785,6 +808,28 @@ export function routes(page, over = {}) {
       // Value is about somebody's draft coming off, so he must not win it.
       "Kyle McCord": { total: 70.2, games: 2 },
     },
+    // What they actually did on the field, this season, which is what the
+    // rate columns are worked out from. Two games each, and the receivers
+    // deliberately not in points order: a board sorted on catches must be
+    // visibly a different board from one sorted on points.
+    played: {
+      "Rome Odunze": {
+        line: { receptions: 9, targets: 14, recYards: 148, recTd: 2, carries: 0, rushYards: 0, rushTd: 0 },
+        games: { receptions: 2, targets: 2, recYards: 2, recTd: 2, carries: 2, rushYards: 2, rushTd: 2 },
+      },
+      "Ja'Marr Chase": {
+        line: { receptions: 18, targets: 26, recYards: 210, recTd: 1, carries: 0, rushYards: 0, rushTd: 0 },
+        games: { receptions: 2, targets: 2, recYards: 2, recTd: 2, carries: 2, rushYards: 2, rushTd: 2 },
+      },
+      "Puka Nacua": {
+        line: { receptions: 14, targets: 19, recYards: 166, recTd: 0, carries: 1, rushYards: 8, rushTd: 0 },
+        games: { receptions: 2, targets: 2, recYards: 2, recTd: 2, carries: 1, rushYards: 1, rushTd: 1 },
+      },
+      "Jayden Daniels": {
+        line: { passYards: 512, passTd: 5, attempts: 62, completions: 43 },
+        games: { passYards: 2, passTd: 2, attempts: 2, completions: 2 },
+      },
+    },
     rostered: Object.fromEntries(
       ROSTER.map(([n]) => [n, "Steel Cartel"]),
     ),
@@ -829,10 +874,22 @@ export function routes(page, over = {}) {
 
   page.route("**/api/trades", json({
     me: ME, managers: MANAGERS, block: [], picks: [], inauguralSeason: 2026,
-    trades: [{ id: "t1", from_manager: "m0", to_manager: "m3",
-      offer: { give: ["Bijan Robinson"], get: ["Marvin Harrison Jr."], givePicks: [], getPicks: [] },
-      status: "open", from_accepted: true, to_accepted: false, thread: [],
-      created_at: ago(60), incoming: false, awaitingMe: false, canRescind: true }],
+    trades: [
+      { id: "t1", from_manager: "m0", to_manager: "m3",
+        offer: { give: ["Bijan Robinson"], get: ["Marvin Harrison Jr."], givePicks: [], getPicks: [] },
+        status: "open", from_accepted: true, to_accepted: false, thread: [],
+        created_at: ago(60), incoming: false, awaitingMe: false, canRescind: true,
+        vetoes: 0, approvals: 0, voteBar: 4, closesAt: null },
+      // One coming the other way and waiting on an answer, which is the only
+      // state a Counter button appears in. Two players out and one in, so a
+      // counter loading it into the builder is visibly the deal and not a
+      // blank form.
+      { id: "t2", from_manager: "m3", to_manager: "m0",
+        offer: { give: ["Trey McBride"], get: ["Ja'Marr Chase", "Tank Bigsby"], givePicks: [], getPicks: [] },
+        status: "open", from_accepted: true, to_accepted: false, thread: [],
+        created_at: ago(20), incoming: true, awaitingMe: true, canRescind: false,
+        vetoes: 0, approvals: 0, voteBar: 4, closesAt: null },
+    ],
   }));
   // The chat, with state, so the room can actually be talked in: a route that
   // always answers the same thing would show a message appear and then vanish

@@ -16,7 +16,7 @@ async function currentManager(db: Awaited<ReturnType<typeof serverClient>>) {
 
   const { data } = await db
     .from("managers")
-    .select("id, slot, franchise, league_id")
+    .select("id, slot, franchise, league_id, is_commissioner")
     .eq("auth_user_id", user.id)
     .single();
 
@@ -47,10 +47,27 @@ export async function GET() {
   const { data: trades } = await db
     .from("trades")
     .select(
-      "id, from_manager, to_manager, offer, status, from_accepted, to_accepted, thread, created_at, executed_at",
+      "id, from_manager, to_manager, offer, status, from_accepted, to_accepted, thread, created_at, executed_at, voting_opened_at",
     )
     .or(`from_manager.eq.${me.id},to_manager.eq.${me.id}`)
     .order("created_at", { ascending: false });
+
+  // Where the league has got to on the ones still out for a vote. The desk
+  // does not offer a vote — the two managers in a deal do not get one — but a
+  // manager watching their own trade sit there deserves to know whether it is
+  // being argued over or simply ignored.
+  const outForVote = (trades ?? []).filter((t) => t.status === "voting").map((t) => t.id as string);
+  const { data: castVotes } = outForVote.length
+    ? await db.from("trade_votes").select("trade_id, vote").in("trade_id", outForVote)
+    : { data: [] };
+
+  const ballot = new Map<string, { vetoes: number; approvals: number }>();
+  for (const v of castVotes ?? []) {
+    const row = ballot.get(v.trade_id as string) ?? { vetoes: 0, approvals: 0 };
+    if (v.vote === "veto") row.vetoes += 1;
+    else row.approvals += 1;
+    ballot.set(v.trade_id as string, row);
+  }
 
   const { data: managers } = await db
     .from("managers")
@@ -76,6 +93,10 @@ export async function GET() {
 
   const inaugural = league?.inaugural_season ?? league?.season ?? null;
 
+  const voteSettings = (league?.settings ?? {}) as { vetoVotes?: number; tradeVoteHours?: number };
+  const bar = Math.max(1, voteSettings.vetoVotes ?? 4);
+  const voteHours = Math.max(1, voteSettings.tradeVoteHours ?? 48);
+
   return Response.json({
     me,
     managers: managers ?? [],
@@ -96,11 +117,21 @@ export async function GET() {
       const mineStands = incoming ? t.to_accepted : t.from_accepted;
       const theirsStands = incoming ? t.from_accepted : t.to_accepted;
 
+      const counts = ballot.get(t.id as string) ?? { vetoes: 0, approvals: 0 };
+      const opened = t.voting_opened_at as string | null;
+
       return {
         ...t,
         // Say whose turn it is without the client re-deriving the rule.
         incoming,
         awaitingMe: incoming ? !t.to_accepted : !t.from_accepted,
+        vetoes: counts.vetoes,
+        approvals: counts.approvals,
+        voteBar: bar,
+        closesAt:
+          t.status === "voting" && opened
+            ? new Date(Date.parse(opened) + voteHours * 3600_000).toISOString()
+            : null,
         // Your terms are on the table and they have not taken them, so you can
         // still take them back. The same rule the database enforces.
         canRescind:

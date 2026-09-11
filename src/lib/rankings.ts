@@ -113,6 +113,19 @@ export interface LeaguePoints {
   [player: string]: { total: number; games: number };
 }
 
+/**
+ * What a player has actually done on the field this season.
+ *
+ * `line` is every counting statistic added across his weeks; `games` is how
+ * many of those weeks recorded each one. Two numbers rather than one because a
+ * back who never sees a target has no receiving games at all, and dividing his
+ * receptions by the weeks he ran the ball would say he is a receiver who
+ * catches nothing.
+ */
+export interface PlayedSeason {
+  [player: string]: { line: Record<string, number>; games: Record<string, number> };
+}
+
 const num = (v: unknown): number => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -165,6 +178,67 @@ function pointsFor(
   if (fin) return { total: num(fin.ttl), ppg: num(fin.avg), games: num(fin.gp) };
 
   return { total: 0, ppg: 0, games: 0 };
+}
+
+/**
+ * The football statistics for a season this league has actually played.
+ *
+ * Read off the box scores the app already stores, rather than off last year's
+ * tables. The board used to put this league's points beside last season's
+ * football, which is how a receiver with one touchdown in his one game came
+ * to read 0.59 TD/G — his 2025 rate, in a row headed by his 2026 points.
+ */
+function playedStats(
+  played: { line: Record<string, number>; games: Record<string, number> },
+  position: string,
+): Record<string, number | null> {
+  const { line, games } = played;
+  const n = (key: string) => num(line[key]);
+  const g = (key: string) => num(games[key]);
+
+  if (position === "QB") {
+    const gp = g("attempts");
+    if (!gp) return {};
+    return {
+      pypg: per(n("passYards"), gp),
+      tdpg: per(n("passTd"), gp),
+      compPct: n("attempts") ? (n("completions") / n("attempts")) * 100 : null,
+      attpg: per(n("attempts"), gp),
+      comppg: per(n("completions"), gp),
+    };
+  }
+
+  if (position === "K") {
+    const gp = g("fgAttempted");
+    if (!gp) return {};
+    return {
+      fgapg: per(n("fgAttempted"), gp),
+      fgpg: per(n("fgMade"), gp),
+      fg: n("fgMade"),
+    };
+  }
+
+  if (position === "D/ST") return {};
+
+  const rushGp = g("carries");
+  const recvGp = g("receptions");
+  const both = Math.max(rushGp, recvGp);
+  if (!both) return {};
+
+  const rec = n("receptions");
+
+  return {
+    attpg: per(n("carries"), rushGp),
+    // Yards per game over the games he carried it, to match how the 2025
+    // table counts them.
+    ypg: per(n("rushYards"), rushGp),
+    // Scoring is scoring, however he got there.
+    tdpg: per(n("rushTd") + n("recTd"), both),
+    recpg: per(rec, recvGp),
+    tgtpg: per(n("targets"), recvGp),
+    ypr: rec ? n("recYards") / rec : null,
+    scrimpg: per(n("rushYards") + n("recYards"), both),
+  };
 }
 
 /** The football statistics beside the points, from the 2025 season. */
@@ -235,9 +309,20 @@ export function rank(
   rostered: Record<string, string> = {},
   /** Whether this league has played a week, and so has a season of its own. */
   thisSeason = false,
+  /** The box scores of the weeks it has played, when it has played any. */
+  played: PlayedSeason = {},
 ): Row[] {
   return POOL.map((p) => {
     const points = pointsFor(p.n, p.p, p.t, league, thisSeason);
+    // Both halves of a row come from the same season or the row is a lie. A
+    // man this league has not scored has no football either — an empty row is
+    // the honest one, and it is what stops last year leaking into this one.
+    const mine = played[p.n];
+    const stats = thisSeason
+      ? mine
+        ? playedStats(mine, p.p)
+        : {}
+      : statsFor(p.n, p.p, p.t);
     return {
       name: p.n,
       position: p.p,
@@ -247,9 +332,51 @@ export function rank(
       total: Math.round(points.total * 10) / 10,
       ppg: Math.round(points.ppg * 10) / 10,
       games: points.games,
-      stats: statsFor(p.n, p.p, p.t),
+      stats,
     };
   }).sort((a, b) => b.total - a.total || b.ppg - a.ppg || a.name.localeCompare(b.name));
+}
+
+/**
+ * The board, ordered by whichever column the reader pressed.
+ *
+ * Descending first for every column, because on a rankings board the question
+ * is always who is best, and "sort by points" meaning "show me the worst
+ * players first" is a thing nobody has ever wanted. Pressing the same column
+ * again turns it round.
+ *
+ * A player with no value in the column always sinks, whichever way it is
+ * sorted. Absent is not zero — a receiver with no completion percentage has
+ * not thrown badly, he has not thrown — and floating those rows to the top on
+ * an ascending sort buries the answer under two hundred dashes.
+ */
+export function sortRows(rows: Row[], key: string, ascending: boolean): Row[] {
+  const valueOf = (r: Row): number | null => {
+    if (key === "total") return r.total;
+    if (key === "ppg") return r.ppg;
+    if (key === "name") return null;
+    const v = r.stats[key];
+    return v == null || !Number.isFinite(v) ? null : v;
+  };
+
+  if (key === "name") {
+    return [...rows].sort(
+      (a, b) => a.name.localeCompare(b.name) * (ascending ? 1 : -1),
+    );
+  }
+
+  return [...rows].sort((a, b) => {
+    const x = valueOf(a);
+    const y = valueOf(b);
+    if (x == null && y == null) return a.name.localeCompare(b.name);
+    if (x == null) return 1;
+    if (y == null) return -1;
+    if (x !== y) return ascending ? x - y : y - x;
+    // A tie on the column asked for falls back to the season, which is what
+    // the board is about, and then to the alphabet so the order never wobbles
+    // between renders.
+    return b.total - a.total || a.name.localeCompare(b.name);
+  });
 }
 
 /** The rows a toggle shows. */
