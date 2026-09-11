@@ -694,3 +694,79 @@ select expect('the other league still has its own conversation',
 \o /dev/null
 set role authenticated;
 \o
+
+-- ------------------------------------------------------------- countering ---
+-- A counter is an offer, so the manager making it has made it.
+--
+-- Rewriting the terms has always voided both acceptances, which is right for
+-- the side that did not rewrite them and wrong for the side that did: it left
+-- a counter waiting on its own author. These run as `authenticated` because
+-- the rule keys on there being a manager behind the write at all.
+
+\o /dev/null
+reset role;
+
+\set CT 'ffff2222-0000-0000-0000-0000000000c1'
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'L', id, 'My Star', 'BENCH' from managers where league_id = :'L' and slot = 'AAA';
+
+-- Alpha offers and stands behind it; Bravo has not answered. This is the state
+-- a counter actually arrives in.
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted)
+values (:'CT', :'L',
+  (select id from managers where league_id = :'L' and slot = 'AAA'),
+  (select id from managers where league_id = :'L' and slot = 'BBB'),
+  '{"give": ["My Star"], "get": ["Their Star"]}'::jsonb, 'open', true, false);
+
+-- Bravo counters: different terms, and his own acceptance in the same breath,
+-- which is exactly what the route sends.
+select set_config('test.uid', :'U2', false);
+set role authenticated;
+
+update trades
+   set offer = '{"give": ["My Star"], "get": []}'::jsonb, to_accepted = true
+ where id = :'CT';
+\o
+
+\echo ''
+\echo '--- countering ---'
+
+select expect('a counter stands as its author''s offer',
+  (select to_accepted from trades where id = :'CT'), true);
+
+select expect('and the manager it goes back to is no longer committed',
+  (select from_accepted from trades where id = :'CT'), false);
+
+select expect('the trade says it has been countered',
+  (select status from trades where id = :'CT'), 'countered');
+
+-- The half that must not change, whatever else does: the other manager is
+-- never carried onto terms they have not seen. Here Alpha re-accepts and then
+-- Bravo moves the goalposts again.
+\o /dev/null
+reset role;
+select set_config('test.uid', :'U1', false);
+set role authenticated;
+update trades set from_accepted = true where id = :'CT';
+
+reset role;
+select set_config('test.uid', :'U2', false);
+set role authenticated;
+update trades set offer = '{"give": [], "get": ["Their Star"]}'::jsonb where id = :'CT';
+\o
+
+select expect('rewriting the terms drops the other manager every time',
+  (select from_accepted from trades where id = :'CT'), false);
+
+-- And the author's own flag is left exactly as their statement left it. They
+-- wrote these terms; nobody needs protecting from a manager agreeing with
+-- himself, and the guard in 0023 already refuses either of them touching the
+-- other's.
+select expect('while the author stays behind what they wrote',
+  (select to_accepted from trades where id = :'CT'), true);
+
+\o /dev/null
+reset role;
+\o

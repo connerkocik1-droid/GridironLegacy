@@ -874,10 +874,22 @@ export function routes(page, over = {}) {
 
   page.route("**/api/trades", json({
     me: ME, managers: MANAGERS, block: [], picks: [], inauguralSeason: 2026,
-    trades: [{ id: "t1", from_manager: "m0", to_manager: "m3",
-      offer: { give: ["Bijan Robinson"], get: ["Marvin Harrison Jr."], givePicks: [], getPicks: [] },
-      status: "open", from_accepted: true, to_accepted: false, thread: [],
-      created_at: ago(60), incoming: false, awaitingMe: false, canRescind: true }],
+    trades: [
+      { id: "t1", from_manager: "m0", to_manager: "m3",
+        offer: { give: ["Bijan Robinson"], get: ["Marvin Harrison Jr."], givePicks: [], getPicks: [] },
+        status: "open", from_accepted: true, to_accepted: false, thread: [],
+        created_at: ago(60), incoming: false, awaitingMe: false, canRescind: true,
+        vetoes: 0, approvals: 0, voteBar: 4, closesAt: null },
+      // One coming the other way and waiting on an answer, which is the only
+      // state a Counter button appears in. Two players out and one in, so a
+      // counter loading it into the builder is visibly the deal and not a
+      // blank form.
+      { id: "t2", from_manager: "m3", to_manager: "m0",
+        offer: { give: ["Trey McBride"], get: ["Ja'Marr Chase", "Tank Bigsby"], givePicks: [], getPicks: [] },
+        status: "open", from_accepted: true, to_accepted: false, thread: [],
+        created_at: ago(20), incoming: true, awaitingMe: true, canRescind: false,
+        vetoes: 0, approvals: 0, voteBar: 4, closesAt: null },
+    ],
   }));
   // The chat, with state, so the room can actually be talked in: a route that
   // always answers the same thing would show a message appear and then vanish

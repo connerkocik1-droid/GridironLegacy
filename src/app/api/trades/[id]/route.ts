@@ -14,6 +14,14 @@ function names(value: unknown): string[] {
   return [...new Set(value.filter((v): v is string => typeof v === "string" && v.length > 0))];
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Pick ids from a request body, deduplicated and shaped like ids. */
+function ids(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((v): v is string => typeof v === "string" && UUID.test(v)))];
+}
+
 /**
  * Respond to a trade. Accepting when the other side has already accepted no
  * longer executes it: it opens a vote of the rest of the league, which is
@@ -38,7 +46,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
 
-  let body: { action?: unknown; give?: unknown; get?: unknown; message?: unknown };
+  let body: {
+    action?: unknown;
+    give?: unknown;
+    get?: unknown;
+    givePicks?: unknown;
+    getPicks?: unknown;
+    message?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -160,11 +175,18 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     // proposer's point of view.
     const give = names(body.give);
     const want = names(body.get);
-    if (!give.length && !want.length) {
+    // Picks are property too, and a counter that silently dropped them turned
+    // a deal for two firsts into a deal for nothing without saying so.
+    const givePicks = ids(body.givePicks);
+    const getPicks = ids(body.getPicks);
+
+    if (!give.length && !want.length && !givePicks.length && !getPicks.length) {
       return Response.json({ error: "A counter needs at least one player" }, { status: 400 });
     }
 
-    const offer = isFrom ? { give, get: want } : { give: want, get: give };
+    const offer = isFrom
+      ? { give, get: want, givePicks, getPicks }
+      : { give: want, get: give, givePicks: getPicks, getPicks: givePicks };
 
     // The trigger on `trades` voids both acceptances whenever the terms
     // change, so a counter cannot inherit a stale acceptance.
