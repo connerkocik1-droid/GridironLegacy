@@ -4320,6 +4320,332 @@ select expect('but one the report has cleared is left cleared',
   ir_eligible('Res Grandfathered'), false);
 
 \echo ''
+\echo '════════ the phone in a pocket ════════'
+--
+-- Four kinds of notification and a manager who has asked for none of them by
+-- default, because turning notifications on is a thing somebody does and not
+-- a thing that happens to them. Everything here is about the queue refusing
+-- to hold what nobody asked for: an outbox that fills with messages no device
+-- wants is an outbox that never drains.
+
+\o /dev/null
+\set P  '99999999-0000-0000-0000-0000000000ae'
+\set PU 'cf900000-1111-4000-8000-000000000001'
+\set PU2 'cf900000-1111-4000-8000-000000000002'
+
+insert into auth.users (id) values (:'PU'), (:'PU2');
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'P', 'Pocket', 2030, 'AAA',
+        '{"starters":{"QB":1,"RB":1,"WR":1,"TE":1},"bench":20}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise, auth_user_id) values
+  (:'P', 'AAA', 'A', 'Alpha', :'PU'),
+  (:'P', 'BBB', 'B', 'Bravo', :'PU2');
+
+select signin(:'PU');
+\o
+
+select expect('nobody is signed up for anything to begin with',
+  (select push_scores or push_recap or push_injuries or push_projections
+     from managers where league_id = :'P' and slot = 'AAA'), false);
+
+\o /dev/null
+select subscribe_push('https://push.example/aaa', 'BKEY-AAA', 'AUTH-AAA');
+\o
+
+select expect('a browser can say it will accept them',
+  (select count(*)::int from push_subscriptions
+    where manager_id = (select id from managers where league_id = :'P' and slot = 'AAA')), 1);
+
+-- A browser hands back the same endpoint when it re-subscribes, and a second
+-- row would mean two copies of every notification on one phone.
+\o /dev/null
+select subscribe_push('https://push.example/aaa', 'BKEY-AAA2', 'AUTH-AAA2');
+\o
+
+select expect('subscribing twice is still one device',
+  (select count(*)::int from push_subscriptions where endpoint = 'https://push.example/aaa'), 1);
+
+select expect('with the keys it gave the second time',
+  (select p256dh from push_subscriptions where endpoint = 'https://push.example/aaa'), 'BKEY-AAA2');
+
+\echo ''
+\echo '--- and nothing is queued for a kind nobody asked for ---'
+
+select expect('a score nobody wants is not queued',
+  enqueue_push((select id from managers where league_id = :'P' and slot = 'AAA'),
+    'scores', 'Steel Cartel 104.6', 'You are up by 11.', '/lineup', 'w1-score'), false);
+
+select expect('and the outbox is empty',
+  (select count(*)::int from push_outbox where league_id = :'P'), 0);
+
+\o /dev/null
+update managers set push_scores = true
+ where league_id = :'P' and slot = 'AAA';
+\o
+
+select expect('once asked for, it is',
+  enqueue_push((select id from managers where league_id = :'P' and slot = 'AAA'),
+    'scores', 'Steel Cartel 104.6', 'You are up by 11.', '/lineup', 'w1-score'), true);
+
+-- The scoring cron runs every few minutes all afternoon. Without this it would
+-- say the same thing every few minutes.
+select expect('saying the same thing twice says it once',
+  enqueue_push((select id from managers where league_id = :'P' and slot = 'AAA'),
+    'scores', 'Steel Cartel 104.6', 'You are up by 11.', '/lineup', 'w1-score'), false);
+
+select expect('so there is one message waiting',
+  (select count(*)::int from push_outbox where league_id = :'P'), 1);
+
+select expect('a different thing is a different message',
+  enqueue_push((select id from managers where league_id = :'P' and slot = 'AAA'),
+    'scores', 'Steel Cartel 118.2', 'You are up by 4.', '/lineup', 'w1-score-2'), true);
+
+-- Asking for scores is not asking for everything.
+select expect('a kind they did not ask for is still refused',
+  enqueue_push((select id from managers where league_id = :'P' and slot = 'AAA'),
+    'injuries', 'Jahmyr Gibbs', 'Doubtful.', '/my-team', 'w1-gibbs'), false);
+
+\echo ''
+\echo '--- nor for somebody with nothing to be told on ---'
+
+\o /dev/null
+update managers set push_scores = true where league_id = :'P' and slot = 'BBB';
+\o
+
+select expect('a manager with no device queues nothing, however keen',
+  enqueue_push((select id from managers where league_id = :'P' and slot = 'BBB'),
+    'scores', 'Bravo 98.2', 'You are down by 6.', '/lineup', 'w1-score'), false);
+
+\echo ''
+\echo '--- claiming is what stops it being sent twice ---'
+
+select expect('both waiting messages are claimed',
+  (select count(*)::int from claim_push(40)), 2);
+
+select expect('and a second run claims nothing',
+  (select count(*)::int from claim_push(40)), 0);
+
+\o /dev/null
+-- One delivered, one the network would not take.
+select push_sent(
+  array(select id from push_outbox where league_id = :'P' and dedupe = 'w1-score'),
+  array['https://push.example/aaa']);
+select push_failed(
+  array(select id from push_outbox where league_id = :'P' and dedupe = 'w1-score-2'),
+  array[]::text[]);
+\o
+
+select expect('what went is marked gone',
+  (select sent_at is not null from push_outbox
+    where league_id = :'P' and dedupe = 'w1-score'), true);
+
+select expect('what did not is waiting again',
+  (select claimed_at is null from push_outbox
+    where league_id = :'P' and dedupe = 'w1-score-2'), true);
+
+select expect('so the next run picks it up rather than losing it',
+  (select count(*)::int from claim_push(40)), 1);
+
+\echo ''
+\echo '--- a device the push service says is gone, goes ---'
+
+\o /dev/null
+select push_failed(array[]::uuid[], array['https://push.example/aaa']);
+\o
+
+select expect('a revoked endpoint is deleted rather than retried forever',
+  (select count(*)::int from push_subscriptions where endpoint = 'https://push.example/aaa'), 0);
+
+-- And with nothing to send to, the queue stops offering the message.
+select expect('and nothing is claimed for a manager with no devices left',
+  (select count(*)::int from claim_push(40)), 0);
+
+\echo ''
+\echo '--- and a subscription is nobody elses business ---'
+
+select expect('nobody has that device yet',
+  (select count(*)::int from push_subscriptions where endpoint = 'https://push.example/bbb'), 0);
+
+\o /dev/null
+select signin(:'PU2');
+select subscribe_push('https://push.example/bbb', 'BKEY-BBB', 'AUTH-BBB');
+select signin(:'PU');
+select forget_push('https://push.example/bbb');
+\o
+
+-- An endpoint is a capability: anybody holding one can send that browser a
+-- notification, so deleting somebody else's has to be impossible even knowing
+-- the string.
+select expect('another manager''s device survives being forgotten by you',
+  (select count(*)::int from push_subscriptions where endpoint = 'https://push.example/bbb'), 1);
+
+\o /dev/null
+select signin(:'PU2');
+select forget_push('https://push.example/bbb');
+\o
+
+select expect('but your own goes when you say so',
+  (select count(*)::int from push_subscriptions where endpoint = 'https://push.example/bbb'), 0);
+
+\echo ''
+\echo '--- and the four things it is worth being told ---'
+
+\o /dev/null
+-- Alpha wants all four; Bravo wants none, and is here to prove the queue is
+-- per manager rather than per league.
+update managers set push_scores = true, push_recap = true,
+                    push_injuries = true, push_projections = true
+ where league_id = :'P' and slot = 'AAA';
+update managers set push_scores = false where league_id = :'P' and slot = 'BBB';
+
+-- Alpha's, explicitly: the block above left Bravo signed in, and a device
+-- attached to the wrong manager makes every check below quietly pass by
+-- queueing nothing.
+select signin(:'PU');
+select subscribe_push('https://push.example/aaa2', 'BKEY', 'AUTH');
+
+insert into nfl_players (name, team, position) values
+  ('Pocket QB', 'SEA', 'QB'), ('Pocket RB', 'DAL', 'RB'),
+  ('Pocket Hurt', 'BUF', 'WR'), ('Pocket Fine', 'GB', 'TE')
+on conflict (name) do update set team = excluded.team, injury_status = null;
+
+-- With positions: best_ball_lineup reads the one on roster_slots, not the one
+-- on nfl_players, and a roster with none scores nought however much its
+-- players did.
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'P', m.id, t.n, 'BENCH', t.p from managers m,
+         unnest(array['Pocket QB','Pocket Hurt','Pocket Fine'],
+                array['QB','WR','TE']) as t(n, p)
+   where m.league_id = :'P' and m.slot = 'AAA';
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'P', m.id, 'Pocket RB', 'BENCH', 'RB'
+    from managers m where m.league_id = :'P' and m.slot = 'BBB';
+
+insert into matchups (league_id, week, home_manager, away_manager, final)
+  select :'P', 1,
+         (select id from managers where league_id = :'P' and slot = 'AAA'),
+         (select id from managers where league_id = :'P' and slot = 'BBB'),
+         false;
+
+-- Bravo is ahead.
+insert into player_scores (league_id, week, player_name, points)
+values (:'P', 1, 'Pocket QB', 8), (:'P', 1, 'Pocket RB', 28);
+\o
+
+
+select expect('a matchup in progress is worth one message to whoever asked',
+  push_score_news(:'P', 1), 1);
+
+select expect('and it says who is ahead, from the reader''s side',
+  (select body from push_outbox
+    where league_id = :'P' and dedupe = 'score:w1:a'),
+  'Behind Bravo by 20.0.');
+
+-- The cron runs again five minutes later and nothing has changed.
+select expect('running again while nothing has changed says nothing again',
+  push_score_news(:'P', 1), 0);
+
+\o /dev/null
+update player_scores set points = 48 where league_id = :'P' and player_name = 'Pocket QB';
+\o
+
+select expect('but the lead changing hands is worth saying',
+  push_score_news(:'P', 1), 1);
+
+select expect('and now it reads the other way',
+  (select body from push_outbox
+    where league_id = :'P' and kind = 'scores' and dedupe = 'score:w1:h'),
+  'Ahead of Bravo by 20.0.');
+
+select expect('a manager who did not ask is told nothing either way',
+  (select count(*)::int from push_outbox o join managers m on m.id = o.manager_id
+    where m.slot = 'BBB' and m.league_id = :'P'), 0);
+
+\echo ''
+\echo '--- nought to nought is not news ---'
+
+\o /dev/null
+insert into matchups (league_id, week, home_manager, away_manager, final)
+  select :'P', 2,
+         (select id from managers where league_id = :'P' and slot = 'AAA'),
+         (select id from managers where league_id = :'P' and slot = 'BBB'),
+         false;
+\o
+
+select expect('a week nobody has played yet says nothing', push_score_news(:'P', 2), 0);
+
+\echo ''
+\echo '--- the week, once it is over ---'
+
+select expect('an ungraded week has no recap in it', push_recap_news(:'P', 1), 0);
+
+\o /dev/null
+update matchups
+   set final = true, home_points = 52, away_points = 20,
+       winner = (select id from managers where league_id = :'P' and slot = 'AAA')
+ where league_id = :'P' and week = 1;
+\o
+
+select expect('a graded week is recapped', push_recap_news(:'P', 1), 1);
+
+select expect('saying who won and by how much',
+  (select title || ' / ' || body from push_outbox
+    where league_id = :'P' and kind = 'recap'),
+  'Week 1: won / Alpha 52.0, Bravo 20.0.');
+
+-- A commissioner regrading a week must not send it round again.
+select expect('and grading it twice recaps it once', push_recap_news(:'P', 1), 0);
+
+\echo ''
+\echo '--- and somebody on your roster going down ---'
+
+\o /dev/null
+update nfl_players set injury_status = 'questionable' where name = 'Pocket Hurt';
+\o
+
+-- Questionable is a designation almost everybody carries by December. It
+-- changes nothing a best-ball manager would do, so it is not worth a buzz.
+select expect('a doubt is not worth waking somebody for', push_injury_news(:'P'), 0);
+
+\o /dev/null
+update nfl_players set injury_status = 'out', injury_detail = 'Hamstring'
+ where name = 'Pocket Hurt';
+\o
+
+select expect('being ruled out is', push_injury_news(:'P'), 1);
+
+select expect('and it says what is wrong with him',
+  (select title || ' / ' || body from push_outbox where league_id = :'P' and kind = 'injuries'),
+  'Pocket Hurt / Out — Hamstring.');
+
+select expect('the same news the next night is not news again', push_injury_news(:'P'), 0);
+
+\o /dev/null
+update nfl_players set injury_status = 'ir', injury_detail = 'Torn ACL'
+ where name = 'Pocket Hurt';
+\o
+
+-- A downgrade is a different fact, and the one that actually changes what a
+-- manager does with the roster spot.
+select expect('but being downgraded is', push_injury_news(:'P'), 1);
+
+\o /dev/null
+-- Once he is stashed the manager plainly knows, and saying so again is the
+-- app telling somebody what they just did.
+update roster_slots set lineup_slot = 'IR'
+ where league_id = :'P' and player_name = 'Pocket Hurt';
+update nfl_players set injury_status = 'out' where name = 'Pocket Hurt';
+\o
+
+select expect('a man already on the reserve is not reported again', push_injury_news(:'P'), 0);
+
+select expect('and a fit player is never mentioned at all',
+  (select count(*)::int from push_outbox
+    where league_id = :'P' and body like '%Pocket Fine%'), 0);
+
+\echo ''
 \echo '════════ a trade answers to the league ════════'
 --
 -- Two managers agreeing is no longer the end of it. The deal goes to the
