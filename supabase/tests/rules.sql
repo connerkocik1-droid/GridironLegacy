@@ -4318,3 +4318,319 @@ select expect('a stashed player the report has never mentioned is taken as injur
 
 select expect('but one the report has cleared is left cleared',
   ir_eligible('Res Grandfathered'), false);
+
+\echo ''
+\echo '════════ a trade answers to the league ════════'
+--
+-- Two managers agreeing is no longer the end of it. The deal goes to the
+-- other ten, and settles one of three ways: enough vetoes kills it, enough
+-- approvals sends it through early, and — the important one — silence sends
+-- it through once the window closes. A league where nobody votes must not be
+-- a league where nothing trades.
+
+\o /dev/null
+\set V  '99999999-0000-0000-0000-0000000000ad'
+\set VA 'ce900000-1111-4000-8000-00000000000a'
+\set VB 'ce900000-1111-4000-8000-00000000000b'
+\set VC 'ce900000-1111-4000-8000-00000000000c'
+\set VD 'ce900000-1111-4000-8000-00000000000d'
+\set VE 'ce900000-1111-4000-8000-00000000000e'
+\set VF 'ce900000-1111-4000-8000-00000000000f'
+\set VT1 'ce111111-1111-4000-8000-000000000001'
+\set VT2 'ce111111-1111-4000-8000-000000000002'
+\set VT3 'ce111111-1111-4000-8000-000000000003'
+\set VT4 'ce111111-1111-4000-8000-000000000004'
+
+insert into auth.users (id)
+values (:'VA'), (:'VB'), (:'VC'), (:'VD'), (:'VE'), (:'VF');
+
+-- Season 2029, so no game fixture anywhere else in this file gives the
+-- kickoff lock an opinion and every trade here moves at once.
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'V', 'Ballot', 2029, 'AAA',
+        '{"starters":{"QB":1},"bench":20,"rounds":24,"waiverMode":"none"}'::jsonb);
+
+-- Alpha and Bravo do the dealing; the other four are the electorate, which is
+-- exactly the bar, so "one short" and "just enough" are both reachable.
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'V', 'AAA', 'A', 'Alpha',   true,  :'VA'),
+  (:'V', 'BBB', 'B', 'Bravo',   false, :'VB'),
+  (:'V', 'CCC', 'C', 'Charlie', false, :'VC'),
+  (:'V', 'DDD', 'D', 'Delta',   false, :'VD'),
+  (:'V', 'EEE', 'E', 'Echo',    false, :'VE'),
+  (:'V', 'FFF', 'F', 'Foxtrot', false, :'VF');
+
+insert into nfl_players (name, team, position) values
+  ('Vote Alpha1', 'SEA', 'QB'), ('Vote Bravo1', 'BUF', 'QB'),
+  ('Vote Alpha2', 'DAL', 'QB'), ('Vote Bravo2', 'MIA', 'QB'),
+  ('Vote Alpha3', 'DEN', 'QB'), ('Vote Bravo3', 'GB',  'QB'),
+  ('Vote Alpha4', 'CHI', 'QB'), ('Vote Bravo4', 'NYJ', 'QB')
+on conflict (name) do update set team = excluded.team;
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'V', m.id, t.n, t.s from managers m,
+         unnest(array['Vote Alpha1','Vote Alpha2','Vote Alpha3','Vote Alpha4'],
+                array['QB','BENCH','BENCH','BENCH']) as t(n, s)
+   where m.league_id = :'V' and m.slot = 'AAA';
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'V', m.id, t.n, t.s from managers m,
+         unnest(array['Vote Bravo1','Vote Bravo2','Vote Bravo3','Vote Bravo4'],
+                array['QB','BENCH','BENCH','BENCH']) as t(n, s)
+   where m.league_id = :'V' and m.slot = 'BBB';
+
+-- Four agreed trades, one for each way a vote can end.
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted)
+  select t.id, :'V',
+         (select id from managers where league_id = :'V' and slot = 'AAA'),
+         (select id from managers where league_id = :'V' and slot = 'BBB'),
+         t.offer, 'agreed', true, true
+    from (values
+      (:'VT1'::uuid, '{"give":["Vote Alpha1"],"get":["Vote Bravo1"]}'::jsonb),
+      (:'VT2'::uuid, '{"give":["Vote Alpha2"],"get":["Vote Bravo2"]}'::jsonb),
+      (:'VT3'::uuid, '{"give":["Vote Alpha3"],"get":["Vote Bravo3"]}'::jsonb),
+      (:'VT4'::uuid, '{"give":["Vote Alpha4"],"get":["Vote Bravo4"]}'::jsonb)
+    ) as t(id, offer);
+
+select signin(:'VA');
+\o
+
+select expect('four of the others decide it', veto_threshold(:'V'), 4);
+select expect('and they get forty-eight hours', trade_vote_hours(:'V'), 48);
+
+\o /dev/null
+select open_trade_vote(:'VT1');
+\o
+
+select expect('an agreed trade goes to the league rather than through',
+  (select status from trades where id = :'VT1'), 'voting');
+
+select expect('and nobody has moved while it is out',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'V' and r.player_name = 'Vote Alpha1'), 'AAA');
+
+select expect('the clock is running',
+  (select voting_opened_at is not null from trades where id = :'VT1'), true);
+
+select expect('opening it twice is not an error',
+  (select (open_trade_vote(:'VT1') ->> 'ok')::boolean), true);
+
+\echo ''
+\echo '--- the two in the deal do not get a say ---'
+
+select expect('the manager who offered cannot vote on his own trade',
+  refuses(format('select cast_trade_vote(%L, %L)', :'VT1', 'approve')),
+  'You are in this trade — you have already had your say');
+
+\o /dev/null
+select signin(:'VB');
+\o
+
+select expect('nor can the manager who accepted',
+  refuses(format('select cast_trade_vote(%L, %L)', :'VT1', 'veto')),
+  'You are in this trade — you have already had your say');
+
+select expect('and neither of them left a ballot behind',
+  (select count(*)::int from trade_votes where trade_id = :'VT1'), 0);
+
+\o /dev/null
+select signin(:'U1');   -- a manager of an entirely different league
+\o
+
+select expect('somebody from another league has no vote here',
+  refuses(format('select cast_trade_vote(%L, %L)', :'VT1', 'veto')),
+  'Not your league');
+
+\o /dev/null
+select signin(:'VC');
+\o
+
+select expect('a vote is veto or approve, not anything else',
+  refuses(format('select cast_trade_vote(%L, %L)', :'VT1', 'maybe')),
+  'A vote is veto or approve');
+
+\echo ''
+\echo '--- enough vetoes kills it ---'
+
+\o /dev/null
+select signin(:'VC'); select cast_trade_vote(:'VT1', 'veto');
+select signin(:'VD'); select cast_trade_vote(:'VT1', 'veto');
+select signin(:'VE'); select cast_trade_vote(:'VT1', 'veto');
+\o
+
+select expect('three of the four is not enough',
+  (select status from trades where id = :'VT1'), 'voting');
+
+select expect('and the players are still where they were',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'V' and r.player_name = 'Vote Alpha1'), 'AAA');
+
+\o /dev/null
+select signin(:'VF'); select cast_trade_vote(:'VT1', 'veto');
+\o
+
+select expect('the fourth veto kills it',
+  (select status from trades where id = :'VT1'), 'declined');
+
+select expect('a vetoed trade moves nobody',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'V' and r.player_name = 'Vote Alpha1'), 'AAA');
+
+select expect('and the league can see it was the league that did it',
+  (select count(*)::int from admin_log
+    where league_id = :'V' and action = 'trade_vetoed'), 1);
+
+select expect('a settled trade takes no more votes',
+  refuses(format('select cast_trade_vote(%L, %L)', :'VT1', 'approve')),
+  'This trade is not open for voting');
+
+\echo ''
+\echo '--- enough approvals sends it through early ---'
+
+\o /dev/null
+select signin(:'VA'); select open_trade_vote(:'VT2');
+select signin(:'VC'); select cast_trade_vote(:'VT2', 'approve');
+select signin(:'VD'); select cast_trade_vote(:'VT2', 'approve');
+select signin(:'VE'); select cast_trade_vote(:'VT2', 'approve');
+\o
+
+select expect('three approvals do not shorten the wait',
+  (select status from trades where id = :'VT2'), 'voting');
+
+\o /dev/null
+select signin(:'VF'); select cast_trade_vote(:'VT2', 'approve');
+\o
+
+select expect('the fourth sends it through without waiting out the clock',
+  (select status from trades where id = :'VT2'), 'executed');
+
+select expect('and the players actually change hands',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'V' and r.player_name = 'Vote Alpha2'), 'BBB');
+
+select expect('both ways',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'V' and r.player_name = 'Vote Bravo2'), 'AAA');
+
+\echo ''
+\echo '--- and silence sends it through once the window closes ---'
+
+\o /dev/null
+select signin(:'VA'); select open_trade_vote(:'VT3');
+\o
+
+select expect('nothing happens while the window is open',
+  settle_trade_vote(:'VT3'), null);
+
+select expect('a split short of the bar is still open',
+  (select status from trades where id = :'VT3'), 'voting');
+
+\o /dev/null
+-- Wind the clock back past the forty-eight hours rather than waiting them out.
+update trades set voting_opened_at = now() - interval '49 hours' where id = :'VT3';
+select settle_trade_votes(:'V');
+\o
+
+select expect('an unvoted trade goes through when the window closes',
+  (select status from trades where id = :'VT3'), 'executed');
+
+select expect('and its players move',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'V' and r.player_name = 'Vote Alpha3'), 'BBB');
+
+\echo ''
+\echo '--- the commissioner can put one through regardless ---'
+
+\o /dev/null
+select signin(:'VA'); select open_trade_vote(:'VT4');
+select signin(:'VC'); select cast_trade_vote(:'VT4', 'veto');
+select signin(:'VD'); select cast_trade_vote(:'VT4', 'veto');
+select signin(:'VB');
+\o
+
+select expect('a manager who is not the commissioner cannot force a trade',
+  refuses(format('select force_trade(%L)', :'VT4')),
+  'Only the commissioner can force a trade');
+
+\o /dev/null
+select signin(:'VC');
+\o
+
+select expect('nor can a voter who does not like how it is going',
+  refuses(format('select force_trade(%L)', :'VT4')),
+  'Only the commissioner can force a trade');
+
+\o /dev/null
+select signin(:'VA'); select force_trade(:'VT4');
+\o
+
+select expect('the commissioner can, mid-vote',
+  (select status from trades where id = :'VT4'), 'executed');
+
+select expect('and the players move',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'V' and r.player_name = 'Vote Alpha4'), 'BBB');
+
+-- Overriding a league vote is the kind of thing a commissioner should have to
+-- answer for, so it is written down with who did it.
+select expect('overriding the league leaves a mark',
+  (select count(*)::int from admin_log
+    where league_id = :'V' and action = 'trade_forced'), 1);
+
+select expect('naming the commissioner who did it',
+  (select l.actor = (select id from managers where league_id = :'V' and slot = 'AAA')
+     from admin_log l where l.league_id = :'V' and l.action = 'trade_forced'), true);
+
+\echo ''
+\echo '--- and only the two in a deal may put it to the league ---'
+
+\o /dev/null
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted)
+values ('ce111111-1111-4000-8000-000000000005', :'V',
+        (select id from managers where league_id = :'V' and slot = 'AAA'),
+        (select id from managers where league_id = :'V' and slot = 'BBB'),
+        '{"give":["Vote Bravo1"],"get":["Vote Alpha1"]}'::jsonb,
+        'open', false, false);
+select signin(:'VC');
+\o
+
+select expect('a bystander cannot open the vote',
+  refuses(format('select open_trade_vote(%L)', 'ce111111-1111-4000-8000-000000000005')),
+  'Not your trade');
+
+\o /dev/null
+select signin(:'VA');
+\o
+
+select expect('nor can a party, before the other side has accepted',
+  refuses(format('select open_trade_vote(%L)', 'ce111111-1111-4000-8000-000000000005')),
+  'Both managers must accept first');
+
+\echo ''
+\echo '--- a ballot is the leagues to read and nobodys to stuff ---'
+
+select expect('the league can see who voted which way',
+  (select count(*)::int from trade_votes where trade_id = :'VT1'), 4);
+
+select expect('changing your mind replaces your vote rather than adding one',
+  (select count(*)::int from trade_votes
+    where trade_id = :'VT4' and manager_id =
+      (select id from managers where league_id = :'V' and slot = 'CCC')), 1);
+
+\echo ''
+\echo '--- and being present is something only you can claim ---'
+
+\o /dev/null
+select signin(:'VC');
+select touch_presence();
+\o
+
+select expect('using the app marks you present',
+  (select last_seen_at is not null from managers
+    where league_id = :'V' and slot = 'CCC'), true);
+
+select expect('and marks nobody else',
+  (select count(*)::int from managers
+    where league_id = :'V' and slot <> 'CCC' and last_seen_at is not null), 0);
