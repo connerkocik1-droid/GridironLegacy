@@ -527,7 +527,7 @@ export function write(built, data) {
   // glance.
   //
   // The rest are free agents, who are on nobody's roster and so in no feed, and
-  // the team defences, which are a crest rather than a face.
+  // the team defenses, which are a crest rather than a face.
   const shotsFile = path.join(ROOT, "src/data/headshots.state.json");
   const shots = JSON.parse(fs.readFileSync(shotsFile, "utf8"));
   let faces = 0;

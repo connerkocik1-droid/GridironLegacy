@@ -13,7 +13,7 @@ export const NFL = {CIN:"Cincinnati Bengals",ATL:"Atlanta Falcons",NYG:"New York
 
 // The player pool: 944 players — every man an NFL club employs at QB, RB, WR,
 // TE or K, practice squads included, plus the free agents and the team
-// defences.
+// defenses.
 //
 // It is not hand-maintained any more. It was, and it drifted: at the start of
 // the 2026 season it was short three hundred and fifty-nine players an NFL

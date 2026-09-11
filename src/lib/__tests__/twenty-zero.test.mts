@@ -37,9 +37,9 @@ console.log("");
 console.log("--- the shape of a run ---");
 
 eq("twelve slots", SLOTS.length, 12);
-eq("six offence, six defence", [OFFENSE.length, DEFENSE.length], [6, 6]);
-eq("rounds one to six are offence", sideFor(0), OFFENSE);
-eq("seven to twelve are defence", sideFor(6), DEFENSE);
+eq("six offense, six defense", [OFFENSE.length, DEFENSE.length], [6, 6]);
+eq("rounds one to six are offense", sideFor(0), OFFENSE);
+eq("seven to twelve are defense", sideFor(6), DEFENSE);
 eq("three eras", ERA_LABELS.length, 3);
 
 console.log("");
@@ -161,13 +161,13 @@ console.log("--- scoring ---");
   roster[1] = man("RB", 100);
   eq("a running back counts once", total(roster), 250);
 
-  const defence = empty();
-  defence[6] = man("DL", 100);
-  eq("so does the edge", total(defence), 150);
-  defence[9] = man("DB", 100);
-  eq("and the corner", total(defence), 300);
-  defence[7] = man("DL", 100);
-  eq("but the interior line does not", total(defence), 400);
+  const defense = empty();
+  defense[6] = man("DL", 100);
+  eq("so does the edge", total(defense), 150);
+  defense[9] = man("DB", 100);
+  eq("and the corner", total(defense), 300);
+  defense[7] = man("DL", 100);
+  eq("but the interior line does not", total(defense), 400);
 }
 
 eq("three slots carry a multiplier", Object.keys(MULT).sort(), ["CB", "EDGE", "QB"]);
@@ -202,13 +202,13 @@ console.log("--- a whole run, on the real pool ---");
   eq("every slot is filled", roster.filter(Boolean).length, 12);
   eq("nobody is on it twice", new Set(roster.map((p) => p!.n)).size, 12);
 
-  const offence = roster.slice(0, 6);
-  const defence = roster.slice(6);
-  ok("the offence is all offensive positions",
-    offence.every((p) => ["QB", "RB", "WR", "TE"].includes(p!.pos)));
-  ok("the defence is all defensive positions",
-    defence.every((p) => ["DL", "LB", "DB"].includes(p!.pos)));
-  eq("exactly one quarterback", offence.filter((p) => p!.pos === "QB").length, 1);
+  const offense = roster.slice(0, 6);
+  const defense = roster.slice(6);
+  ok("the offense is all offensive positions",
+    offense.every((p) => ["QB", "RB", "WR", "TE"].includes(p!.pos)));
+  ok("the defense is all defensive positions",
+    defense.every((p) => ["DL", "LB", "DB"].includes(p!.pos)));
+  eq("exactly one quarterback", offense.filter((p) => p!.pos === "QB").length, 1);
 
   const score = total(roster);
   ok(`a greedy run scores well (${Math.round(score)})`, score > 900 && score <= 1350);

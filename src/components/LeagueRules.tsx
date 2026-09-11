@@ -10,7 +10,7 @@ import { useNavHeight } from "@/lib/use-nav-height";
  * How this league works, for the eleven people who did not build it.
  *
  * Everything else in the app assumes you already know: what a flex slot
- * takes, how the slots fill themselves, how long a waiver sits, what a defence is worth
+ * takes, how the slots fill themselves, how long a waiver sits, what a defense is worth
  * for a shutout. A manager who knows fantasy football can work most of it out by
  * poking around, and a manager who does not is left guessing on the one night
  * of the year it matters.
@@ -213,7 +213,7 @@ export default function LeagueRules({ embedded = false }: { embedded?: boolean }
               slot === "FLEX"
                 ? "FLEX — a running back, receiver or tight end"
                 : slot === "D/ST"
-                  ? "D/ST — a whole defence, not a player"
+                  ? "D/ST — a whole defense, not a player"
                   : slot
             }
             worth={`×${starters[slot]}`}
@@ -257,13 +257,13 @@ export default function LeagueRules({ embedded = false }: { embedded?: boolean }
         <Rule what="Extra point missed" worth={signed(SCORING_RULES.xpMissed)} />
       </div>
 
-      {/* ----------------------------------------------------- the defence --- */}
-      <div id="rule-defence" style={card}>
-        <div style={eyebrow}>DEFENCE AND SPECIAL TEAMS</div>
+      {/* ----------------------------------------------------- the defense --- */}
+      <div id="rule-defense" style={card}>
+        <div style={eyebrow}>DEFENSE AND SPECIAL TEAMS</div>
         <p style={body}>
           You start a whole unit, not a player. Most of its score is what it
           gave up: the bands below are the largest single term in a defensive
-          week, which is why a defence facing a bad offence is worth reaching
+          week, which is why a defense facing a bad offense is worth reaching
           for.
         </p>
         <Rule what="Sack" worth={signed(DEFENSE_RULES.sack)} />
@@ -370,7 +370,7 @@ function RulesMenu() {
     ["rule-lineup", "Lineup"],
     ["rule-scoring", "Scoring"],
     ["rule-kickers", "Kickers"],
-    ["rule-defence", "Defence"],
+    ["rule-defense", "Defense"],
     ["rule-season", "Season"],
     ["rule-waivers", "Waivers"],
     ["rule-draft", "Draft"],

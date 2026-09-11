@@ -219,14 +219,14 @@ export function boxscore(stats: PlayerStat[]): BoxTeam[] {
 }
 
 /**
- * A defence is owned by team, not by name.
+ * A defense is owned by team, not by name.
  *
  * "Chicago Bears D/ST" never appears in a box score — the unit's numbers are
  * in the team totals, and the roster holds a name ESPN has never heard of. So
  * ownership of a unit is matched on the club rather than through the name
- * index, which deliberately refuses to hold defences at all.
+ * index, which deliberately refuses to hold defenses at all.
  */
-export function defenceOwners(
+export function defenseOwners(
   owners: Ownership,
   abbrevOf: (rosterName: string) => string | null,
 ): Map<string, { franchise: string; managerId: string }> {

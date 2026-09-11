@@ -11,7 +11,7 @@ import { useLogos } from "@/lib/use-logos";
  *
  * Everything this league does to each other happens through the app and none
  * of it could be answered inside it, so the reaction to every trade and every
- * defence left in on a bye happened in a group text. A league whose
+ * defense left in on a bye happened in a group text. A league whose
  * conversation lives somewhere else is a league that lives somewhere else.
  *
  * Built as a room rather than a feed: newest at the bottom, the box at the

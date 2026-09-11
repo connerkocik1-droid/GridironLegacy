@@ -113,7 +113,7 @@ near("Mahomes", by("Mahomes")!.points, 16);
 near("Kelce", by("Kelce")!.points, 20.5);
 near("Butker, two from fifty-plus", by("Butker")!.points, 13);
 near("Cook, who lost one", by("Cook")!.points, 17.5);
-near("Kansas City's defence", by("Kansas City")!.points, 10);
+near("Kansas City's defense", by("Kansas City")!.points, 10);
 near("Buffalo's, with the safety", by("Buffalo")!.points, 5);
 
 console.log("\n--- positions ---");
@@ -190,7 +190,7 @@ const kicker = week.lineup.find((r) => r.slot === "K")!.player;
 eq("the K slot is filled", kicker?.name, "Harrison Butker");
 
 const dst = week.lineup.find((r) => r.slot === "D/ST")!.player;
-ok("and so is the defence", (dst?.name ?? "").includes("D/ST"));
+ok("and so is the defense", (dst?.name ?? "").includes("D/ST"));
 
 // Nobody is started twice, which a naive fill would do across FLEX.
 const started = week.lineup.map((r) => r.player?.name).filter(Boolean);
@@ -241,7 +241,7 @@ eq("a kicker: made over attempted", by("Butker")!.statLine, "3/4 FG · 1/1 XP");
 // Yards allowed comes from ESPN's team-total row, which is the only place the
 // figure exists — no per-player line adds up to it.
 const kc = by("Kansas City")!;
-ok("a defence names what it gave up", /yds allowed/.test(kc.statLine));
+ok("a defense names what it gave up", /yds allowed/.test(kc.statLine));
 eq("read from the team totals", kc.line.yardsAllowed, 388);
 ok("and the sacks, recoveries and takeaways", /3 sack · 1 FR · 2 INT/.test(kc.statLine));
 

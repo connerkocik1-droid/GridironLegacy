@@ -50,23 +50,23 @@ export function poolsForSlot(slot: string, defense: boolean): string[] {
   return SLOT_POOLS[slot] ?? [slot];
 }
 
-/** Rounds 1-6 are offence, 7-12 defence. */
-export function isDefence(round: number): boolean {
+/** Rounds 1-6 are offense, 7-12 defense. */
+export function isDefense(round: number): boolean {
   return round >= OFFENSE.length;
 }
 
 export function sideFor(round: number): readonly string[] {
-  return isDefence(round) ? DEFENSE : OFFENSE;
+  return isDefense(round) ? DEFENSE : OFFENSE;
 }
 
 export type Roster = (Season | null)[];
 
 /** Every season a round can offer, which is every position on that side. */
 export function poolFor(round: number, pools: Record<string, Season[]>): Season[] {
-  const defence = isDefence(round);
+  const defense = isDefense(round);
   const keys: string[] = [];
   for (const slot of sideFor(round)) {
-    for (const key of poolsForSlot(slot, defence)) if (!keys.includes(key)) keys.push(key);
+    for (const key of poolsForSlot(slot, defense)) if (!keys.includes(key)) keys.push(key);
   }
   return keys.flatMap((k) => pools[k] ?? []);
 }
@@ -80,9 +80,9 @@ export function poolFor(round: number, pools: Record<string, Season[]>): Season[
  */
 export function slotIndexFor(pos: string, round: number, roster: Roster): number {
   const side = sideFor(round);
-  const defence = isDefence(round);
-  const base = defence ? OFFENSE.length : 0;
-  const takes = (slot: string) => poolsForSlot(slot, defence).includes(pos);
+  const defense = isDefense(round);
+  const base = defense ? OFFENSE.length : 0;
+  const takes = (slot: string) => poolsForSlot(slot, defense).includes(pos);
 
   for (let k = 0; k < side.length; k++) {
     if (side[k] !== "FLEX" && takes(side[k]) && !roster[base + k]) return base + k;

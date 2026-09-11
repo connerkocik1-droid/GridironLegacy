@@ -98,7 +98,7 @@ console.log("\n--- the lineup the chips mark ---");
   // it looks like a mistake.
   ok("two running backs, numbered", labels.includes("RB1") && labels.includes("RB2"));
   ok("two receivers, numbered", labels.includes("WR1") && labels.includes("WR2"));
-  ok("and the defence is not called D/ST in a chip", !labels.includes("D/ST") && labels.includes("DST"));
+  ok("and the defense is not called D/ST in a chip", !labels.includes("D/ST") && labels.includes("DST"));
   ok("nobody is marked twice", new Set(labels).size === labels.length);
   ok("and the bench is not marked at all", slots.size < names.length);
 }

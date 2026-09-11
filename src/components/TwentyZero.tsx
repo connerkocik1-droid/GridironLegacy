@@ -12,7 +12,7 @@ import {
   type Roster,
   type Spin,
   drawSpin,
-  isDefence,
+  isDefense,
   playable,
   reelValues,
   slotIndexFor,
@@ -24,7 +24,7 @@ import {
  *
  * Twelve rounds. Each one spins a franchise and an era, and offers that
  * franchise's best seasons inside it; you take one, and it lands in whichever
- * slot fits. Rounds one to six build the offence, seven to twelve the defence.
+ * slot fits. Rounds one to six build the offense, seven to twelve the defense.
  * Do all twelve and the roster scores. A perfect run is 20-0.
  *
  * Nothing here touches the dynasty league — it is a game about football
@@ -219,8 +219,8 @@ export default function TwentyZero() {
 
   const groups = useMemo(
     () => [
-      { label: "OFFENCE · ROUNDS 1–6", from: 0, list: OFFENSE as readonly string[] },
-      { label: "DEFENCE · ROUNDS 7–12", from: 6, list: DEFENSE as readonly string[] },
+      { label: "OFFENSE · ROUNDS 1–6", from: 0, list: OFFENSE as readonly string[] },
+      { label: "DEFENSE · ROUNDS 7–12", from: 6, list: DEFENSE as readonly string[] },
     ],
     [],
   );
@@ -270,8 +270,8 @@ export default function TwentyZero() {
       <p style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.7, margin: "0 0 20px", maxWidth: "68ch" }}>
         Twelve rounds, twelve slots. Every round spins a franchise and an era,
         and you draft from what it lands on — each player&rsquo;s best season
-        inside that window, from 2002 to 2025. Rounds 1–6 build the offence,
-        7–12 the defence. QB, EDGE and CB score 1.5×. Nothing here touches your
+        inside that window, from 2002 to 2025. Rounds 1–6 build the offense,
+        7–12 the defense. QB, EDGE and CB score 1.5×. Nothing here touches your
         dynasty team.
       </p>
 
@@ -291,7 +291,7 @@ export default function TwentyZero() {
             <Stat label="ROUND" value={round >= SLOTS.length ? "COMPLETE" : `${round + 1} / 12`} />
             <Stat
               label="SIDE"
-              value={round >= SLOTS.length ? "—" : isDefence(round) ? "DEFENCE" : "OFFENCE"}
+              value={round >= SLOTS.length ? "—" : isDefense(round) ? "DEFENSE" : "OFFENSE"}
             />
             <Stat label="SCORE" value={complete ? String(Math.round(score)) : "—"} big />
           </div>
@@ -304,7 +304,7 @@ export default function TwentyZero() {
               {g.list.map((pos, k) => {
                 const i = g.from + k;
                 const p = roster[i];
-                const activeSide = round < SLOTS.length && (i >= OFFENSE.length) === isDefence(round);
+                const activeSide = round < SLOTS.length && (i >= OFFENSE.length) === isDefense(round);
                 const live = !p && activeSide && phase !== "done";
                 return (
                   <div
@@ -382,7 +382,7 @@ export default function TwentyZero() {
               <div style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>
                 {spinning
                   ? "SPINNING"
-                  : `ROUND ${round + 1} · ${isDefence(round) ? "DEFENCE" : "OFFENCE"}`}
+                  : `ROUND ${round + 1} · ${isDefense(round) ? "DEFENSE" : "OFFENSE"}`}
               </div>
 
               <div style={{ margin: "18px 0 4px", minHeight: 140, display: "grid", placeItems: "center" }}>

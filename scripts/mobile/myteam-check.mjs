@@ -107,7 +107,7 @@ console.log("\n--- the roster ---");
   ok("and the numbers are sane", rates.every((r) => r >= 0 && r <= 100));
 
   // The chips mark the arrangement. Counted from the numbered ones and the
-  // defence only: "QB", "TE" and "K" are also the group headings above the
+  // defense only: "QB", "TE" and "K" are also the group headings above the
   // cards, so counting those measures the headings and passes either way.
   const numbered = ["RB1", "RB2", "WR1", "WR2", "FLEX1", "FLEX2", "DST"];
   const found = [];
@@ -244,11 +244,11 @@ console.log("\n--- how old everybody is ---");
 
   const aged = await page.locator('[aria-label^="Age "]').count();
   const named = await page.locator('a[href^="/player/"]').count();
-  // Everybody but the defence, which has no birthday and gets no guess.
+  // Everybody but the defense, which has no birthday and gets no guess.
   ok(`every footballer on the roster carries one (${aged} of ${named})`, aged === named - 1);
 
   const dst = await page.locator('a[href*="Ravens"]').first().locator("xpath=..").innerText();
-  ok(`and a defence is left blank rather than guessed (${dst.replace(/\n/g, " ")})`,
+  ok(`and a defense is left blank rather than guessed (${dst.replace(/\n/g, " ")})`,
     !/\b\d\d\b/.test(dst));
 
   // The real numbers, not a placeholder: two players whose birthdays are in

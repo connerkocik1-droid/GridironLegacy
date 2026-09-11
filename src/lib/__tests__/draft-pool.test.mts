@@ -20,7 +20,7 @@ const all = availablePlayers(new Set());
 eq("nobody drafted means the whole pool is available", all.length, POOL.length);
 
 // The bug this file exists for: the route used to send the first two hundred
-// by ADP, and kickers and defences have the latest ADP there is. A league
+// by ADP, and kickers and defenses have the latest ADP there is. A league
 // cannot draft a player the server never sent.
 const count = (position: string) => all.filter((p) => p.position === position).length;
 
@@ -34,7 +34,7 @@ for (const position of ["QB", "RB", "WR", "TE", "K", "D/ST"]) {
 }
 
 ok("kickers in particular, which is how this was found", count("K") >= 12);
-ok("and defences, which had none at all", count("D/ST") >= 12);
+ok("and defenses, which had none at all", count("D/ST") >= 12);
 
 // A twelve-team, twenty-four-round draft is 288 picks. A pool smaller than
 // that runs dry before the last round.

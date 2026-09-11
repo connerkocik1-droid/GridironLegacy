@@ -80,7 +80,7 @@ eq("a stranger resolves to nothing", index.lookup("Some Guy Nobody Rostered"), n
 
 console.log("\n--- units ---");
 
-ok("a defence is recognised", isDefense("Baltimore Ravens D/ST"));
+ok("a defense is recognised", isDefense("Baltimore Ravens D/ST"));
 ok("a person is not", !isDefense("Lamar Jackson"));
 eq("the team comes off cleanly", defenseTeamName("Baltimore Ravens D/ST"), "Baltimore Ravens");
 
