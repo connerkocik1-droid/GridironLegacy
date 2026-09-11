@@ -163,18 +163,18 @@ console.log("--- bye weeks ---");
 {
   const kickers = at(6, [man("K", 5, 7), man("D/ST", 15, 7)]);
   eq(
-    "kickers and defences are exempt — those get streamed",
+    "kickers and defenses are exempt — those get streamed",
     byePenalty(man("K", 40, 7), kickers),
     0,
   );
 }
 
 console.log("");
-console.log("--- when kickers and defences go ---");
+console.log("--- when kickers and defenses go ---");
 
 {
   ok("not in the eighth round", blocked("K", at(8)));
-  ok("nor a defence", blocked("D/ST", at(8)));
+  ok("nor a defense", blocked("D/ST", at(8)));
   ok("but in the second to last, yes", blocked("K", at(ROUNDS - 1)), false);
   ok("and the last", blocked("D/ST", at(ROUNDS)), false);
 }
@@ -187,7 +187,7 @@ console.log("--- when kickers and defences go ---");
 }
 
 {
-  // The bug this exists to stop: defences live around ADP 240, far below any
+  // The bug this exists to stop: defenses live around ADP 240, far below any
   // sensible window on the board, so a team that only reads down the list
   // finishes the draft without one — not by choosing against it, but by never
   // having seen one.
@@ -200,7 +200,7 @@ console.log("--- when kickers and defences go ---");
     man("D/ST", 240),
   ];
   const pick = chooseFor(board, at(ROUNDS, roster), rngFrom(5));
-  eq("a defence far down the board is still found when one is needed", pick?.p, "D/ST");
+  eq("a defense far down the board is still found when one is needed", pick?.p, "D/ST");
 }
 
 {
@@ -280,7 +280,7 @@ console.log("--- against the real pool ---");
     rosters.every((r) => count(r, "K") === 1),
   );
   ok(
-    "and a defence",
+    "and a defense",
     rosters.every((r) => count(r, "D/ST") === 1),
   );
   ok(
@@ -296,7 +296,7 @@ console.log("--- against the real pool ---");
     r.map((p, i) => (p.p === "K" || p.p === "D/ST" ? i + 1 : 0)).filter(Boolean),
   );
   ok(
-    "kickers and defences all went in the last two rounds",
+    "kickers and defenses all went in the last two rounds",
     kickerRounds.every((r) => r > rounds - 2),
   );
 

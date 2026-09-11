@@ -46,7 +46,7 @@ ok(
   (find(first!)?.adp ?? 999) <= 12,
 );
 ok(
-  "not a kicker or a defence in the first round",
+  "not a kicker or a defense in the first round",
   !["K", "D/ST"].includes(positionOf(first)),
 );
 
@@ -184,7 +184,7 @@ console.log("\n--- a whole draft, autopicked ---");
  *
  * The thing this catches only shows at scale: a pick that looks sensible on
  * its own can still leave a team without a kicker in round twenty-four,
- * because defences and kickers sit past ADP 240 and a top-forty window in the
+ * because defenses and kickers sit past ADP 240 and a top-forty window in the
  * fourteenth round reaches nowhere near them. It also proves the board
  * outlasts a full draft, which stopped being obvious when the pool went from
  * 585 players to 944.
@@ -216,10 +216,10 @@ console.log("\n--- a whole draft, autopicked ---");
   const short = rosters.filter((r) => STARTERS.some(([pos, n]) => held(r, pos) < n));
   ok(`every team can field a legal lineup${short.length ? ` — ${short.length} cannot` : ""}`, short.length === 0);
 
-  // The kicker is the one worth naming: defences and kickers sit past ADP 240,
+  // The kicker is the one worth naming: defenses and kickers sit past ADP 240,
   // and a top-forty window in the fourteenth round reaches nowhere near them.
   ok("everybody drafted a kicker", rosters.every((r) => held(r, "K") >= 1));
-  ok("and a defence", rosters.every((r) => held(r, "D/ST") >= 1));
+  ok("and a defense", rosters.every((r) => held(r, "D/ST") >= 1));
 }
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");

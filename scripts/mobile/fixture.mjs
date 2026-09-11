@@ -226,7 +226,7 @@ export function routes(page, over = {}) {
   );
 
   // The commissioner's scoring check. Hostile on purpose in the way that page
-  // can actually be hostile: long names, a defence whose name is three words
+  // can actually be hostile: long names, a defense whose name is three words
   // and a suffix, deep breakdowns, and raw ESPN columns that want to run off
   // the side of a phone.
   const term = (stat, rule, points) => ({ stat, rule, points });

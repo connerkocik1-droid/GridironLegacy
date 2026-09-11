@@ -118,7 +118,7 @@ export interface GameDetail {
    * Whole-team totals, by abbreviation: "totalYards", "turnovers" and the
    * rest of the row along the bottom of a box score.
    *
-   * A defence is judged partly on what the other side gained, and that number
+   * A defense is judged partly on what the other side gained, and that number
    * exists nowhere in the per-player lines — a hundred and forty rushing yards
    * spread over four backs has to be added up by somebody, and ESPN has
    * already done it.
@@ -582,7 +582,7 @@ export function forgetTeamRosters(): void {
 /**
  * Every player on one club, and what he plays.
  *
- * ESPN groups the squad into offense, defence and special teams on this
+ * ESPN groups the squad into offense, defense and special teams on this
  * endpoint, and returns a flat list on some responses, so both shapes are
  * read. A club that cannot be fetched yields an empty sheet rather than
  * throwing: a missing position costs a slot label, and nothing here is worth

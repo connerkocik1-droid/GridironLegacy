@@ -3217,7 +3217,7 @@ select :'BB', m.id, x.name, x.pos, 'BENCH'
          ('Wide Three',  'WR'),
          ('Tight One',   'TE'),
          ('Kicker',      'K'),
-         ('The Defence', 'D/ST')
+         ('The Defense', 'D/ST')
        ) as x(name, pos)
  where m.league_id = :'BB' and m.slot = 'AAA';
 
@@ -3234,12 +3234,12 @@ insert into player_scores (league_id, week, player_name, points) values
   (:'BB', 1, 'Wide Three',  16),
   (:'BB', 1, 'Tight One',    7),
   (:'BB', 1, 'Kicker',       8),
-  (:'BB', 1, 'The Defence', 10);
+  (:'BB', 1, 'The Defense', 10);
 \o
 
 -- The optimum: Backup QB 30, Back Three 18 + Back Two 12, Wide Three 16 +
 -- Wide Two 14, Tight One 7, flex takes Wide One 9 (the best left over, ahead
--- of Back One's 5), Kicker 8, Defence 10. Total 124.
+-- of Back One's 5), Kicker 8, Defense 10. Total 124.
 select expect('the best quarterback starts, whatever he is called',
   (select slot from best_ball_lineup(:'BB',
      (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
@@ -3309,26 +3309,26 @@ select expect('a player who overtakes a starter takes his place',
 -- step. A missing one costs that player his slot rather than breaking a week.
 \o /dev/null
 update roster_slots set position = null
- where league_id = :'BB' and player_name = 'The Defence';
+ where league_id = :'BB' and player_name = 'The Defense';
 \o
 
 select expect('a player with no position is left out rather than guessed at',
   (select count(*)::int from best_ball_lineup(:'BB',
      (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
-    where player_name = 'The Defence'), 0);
+    where player_name = 'The Defense'), 0);
 
 select expect('and the rest of the lineup still stands',
   (select count(*)::int from best_ball_lineup(:'BB',
      (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)), 8);
 
 \o /dev/null
-select sync_roster_positions(:'BB', array['The Defence'], array['D/ST']);
+select sync_roster_positions(:'BB', array['The Defense'], array['D/ST']);
 \o
 
 select expect('and the app putting it back puts him back',
   (select slot from best_ball_lineup(:'BB',
      (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
-    where player_name = 'The Defence'), 'D/ST');
+    where player_name = 'The Defense'), 'D/ST');
 
 select expect('positions are the service key''s to write, not a manager''s',
   (select has_function_privilege('authenticated',

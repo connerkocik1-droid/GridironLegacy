@@ -36,7 +36,7 @@ const SLIDE_PER_BYE = 8;
 const MUST_FILL = 1000;
 
 /**
- * Nobody carries three quarterbacks, two kickers or two defences, whatever the
+ * Nobody carries three quarterbacks, two kickers or two defenses, whatever the
  * generic depth maths says. These override the derived caps.
  */
 const HARD_CAP: Partial<Record<Position, number>> = { QB: 2, TE: 2, K: 1, "D/ST": 1 };
@@ -81,7 +81,7 @@ function countAt(roster: Player[], position: Position): number {
  * Whether a team will not take this position at all right now.
  *
  * Two rules, both of them things real drafters do without thinking. Kickers
- * and defences wait until the end — taking one in the eighth is the mark of
+ * and defenses wait until the end — taking one in the eighth is the mark of
  * nobody who has drafted before. And no roster carries more of a position than
  * it can use.
  */
@@ -90,7 +90,7 @@ export function blocked(position: Position, ctx: PickContext): boolean {
   const cap = Math.min(caps[position] ?? 99, HARD_CAP[position] ?? 99);
   if (countAt(ctx.roster, position) >= cap) return true;
 
-  // The last two rounds are where the kicker and the defence go.
+  // The last two rounds are where the kicker and the defense go.
   if (KICKING.includes(position) && ctx.round <= ctx.rounds - 2) return true;
 
   return false;
@@ -159,7 +159,7 @@ export function needBonus(position: Position, ctx: PickContext): number {
  *
  * Two starters sharing a bye is a normal week off. Three is a hole in the
  * lineup, and the fourth is worse than the third, so the penalty compounds.
- * Kickers and defences are exempt: those get streamed round the bye anyway.
+ * Kickers and defenses are exempt: those get streamed round the bye anyway.
  */
 export function byePenalty(candidate: Player, ctx: PickContext): number {
   if (!candidate.bye || KICKING.includes(candidate.p)) return 0;
@@ -211,10 +211,10 @@ export function chooseFor(
   const board = ranked.slice(0, window);
 
   // Plus the best left at every position the lineup still demands, wherever
-  // they sit on the board. Defences go around ADP 240 and a top-forty window
+  // they sit on the board. Defenses go around ADP 240 and a top-forty window
   // in the fourteenth round reaches nowhere near them — a team would finish
   // the draft without one, not because it decided against it but because it
-  // never saw one. This is the drafter asking "who is the best defence left?"
+  // never saw one. This is the drafter asking "who is the best defense left?"
   // rather than reading down the list.
   const need = startingNeed(ctx.league);
   for (const position of Object.keys(need)) {

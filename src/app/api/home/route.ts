@@ -296,7 +296,7 @@ export async function GET() {
    * The average age of a roster, which is the one number that says what kind
    * of team somebody is building without saying anything about this week.
    *
-   * Skill players only: a team defence has no birthday, and counting it as a
+   * Skill players only: a team defense has no birthday, and counting it as a
    * nought would drag every roster down by two years.
    */
   const ageOfRoster = (managerId: string) => {
