@@ -8,6 +8,51 @@ export const dynamic = "force-dynamic";
  * Read-only and visible to any signed-in manager — a league where you cannot
  * see the other rosters is not much of a league.
  */
+/** What a manager row looks like here, with presence if the column is there. */
+interface ManagerRow {
+  id: string;
+  slot: string;
+  name: string;
+  franchise: string;
+  is_commissioner: boolean;
+  pin_hash: string | null;
+  division: string | null;
+  last_seen_at?: string | null;
+}
+
+/**
+ * The league's managers, whether or not presence has been migrated in.
+ *
+ * `last_seen_at` arrived with a migration, and a deploy can reach a browser
+ * before its SQL reaches the database. Naming a column that is not there fails
+ * the whole select, and this route swallows a failed select into an empty
+ * list — so for the few minutes between a deploy and a migration the entire
+ * League tab would read as a league with no teams in it, which is what
+ * happened. Asking again without the column costs one round trip in a window
+ * that should never be open, and keeps the standings on the screen throughout.
+ */
+async function readManagers(
+  db: Awaited<ReturnType<typeof serverClient>>,
+  leagueId: string,
+): Promise<{ data: ManagerRow[] | null }> {
+  const base = "id, slot, name, franchise, is_commissioner, pin_hash, division";
+
+  const withPresence = await db
+    .from("managers")
+    .select(`${base}, last_seen_at`)
+    .eq("league_id", leagueId)
+    .order("slot");
+
+  if (!withPresence.error) return { data: withPresence.data as ManagerRow[] };
+
+  console.warn("[league] reading presence failed, falling back", withPresence.error.message);
+
+  const plain = await db.from("managers").select(base).eq("league_id", leagueId).order("slot");
+  if (plain.error) console.error("[league] could not read the managers", plain.error);
+
+  return { data: (plain.data as ManagerRow[] | null) ?? null };
+}
+
 export async function GET() {
   if (!isConfigured()) {
     return Response.json({ error: "The league database is not configured yet." }, { status: 503 });
@@ -29,11 +74,7 @@ export async function GET() {
   const [{ data: league }, { data: managers }, { data: slots }, { data: scores }, { data: table }] =
     await Promise.all([
       db.from("leagues").select("name, season, settings").eq("id", me.league_id).single(),
-      db
-        .from("managers")
-        .select("id, slot, name, franchise, is_commissioner, pin_hash, division, last_seen_at")
-        .eq("league_id", me.league_id)
-        .order("slot"),
+      readManagers(db, me.league_id),
       db
         .from("roster_slots")
         .select("manager_id, player_name, lineup_slot, acquired")
@@ -125,7 +166,8 @@ export async function GET() {
       // Five minutes, which is roughly how long somebody stays "here" before
       // it is a lie. The app touches this on every page load and every return
       // to the tab, so a manager reading a long page is still present.
-      online: m.last_seen_at != null && Date.now() - Date.parse(m.last_seen_at) < 5 * 60_000,
+      online:
+        m.last_seen_at != null && Date.now() - Date.parse(m.last_seen_at) < 5 * 60_000,
       lastSeen: (m.last_seen_at as string | null) ?? null,
       pointsFor: Math.round((pointsFor.get(m.id) ?? 0) * 10) / 10,
       record: record.get(m.id) ?? null,
