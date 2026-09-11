@@ -1,4 +1,5 @@
 "use client";
+import { PlayerAge } from "./PlayerName";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import TeamMark from "./TeamMark";
@@ -160,6 +161,7 @@ function PlayerChip({ name, onRemove }: { name: string; onRemove?: () => void })
     >
       <TeamMark team={p?.t} size={14} opacity={1} />
       {name}
+      <PlayerAge name={name} />
       <span style={{ color: "var(--text-dim)", fontSize: 10 }}>{proj(name).toFixed(1)}</span>
       {onRemove ? (
         <button
@@ -552,6 +554,7 @@ export default function TradeDesk() {
                     style={rowButton(give.includes(n))}
                   >
                     {n}
+                    <PlayerAge name={n} />
                     <span style={{ marginLeft: "auto", color: "var(--text-dim)", fontSize: 11 }}>
                       {proj(n).toFixed(1)}
                     </span>
@@ -587,6 +590,7 @@ export default function TradeDesk() {
                     style={rowButton(want.includes(n))}
                   >
                     {n}
+                    <PlayerAge name={n} />
                     <span style={{ marginLeft: "auto", color: "var(--text-dim)", fontSize: 11 }}>
                       {proj(n).toFixed(1)}
                     </span>

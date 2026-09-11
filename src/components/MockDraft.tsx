@@ -1,4 +1,5 @@
 "use client";
+import { PlayerAge } from "./PlayerName";
 
 import { useEffect, useMemo, useState } from "react";
 import { POOL, type Player, type Position } from "@/data/league-data";
@@ -378,7 +379,19 @@ export default function MockDraft() {
                   }}
                 >
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 12.5, color: "var(--text)" }}>{p.n}</div>
+                    <div
+                      style={{
+                        fontSize: 12.5,
+                        color: "var(--text)",
+                        display: "flex",
+                        alignItems: "baseline",
+                        gap: 5,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{p.n}</span>
+                      <PlayerAge name={p.n} />
+                    </div>
                     <div style={{ fontSize: 10, color: "var(--text-dim)", letterSpacing: ".06em" }}>
                       <span style={{ color: TINT[p.p] }}>{p.posRank || p.p}</span> · {p.t} · ADP{" "}
                       {p.adp}

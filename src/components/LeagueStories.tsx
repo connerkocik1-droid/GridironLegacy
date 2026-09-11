@@ -1,4 +1,5 @@
 "use client";
+import { PlayerAge } from "./PlayerName";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -238,6 +239,7 @@ function ValueCard({
           >
             {player.name}
           </Link>
+          <PlayerAge name={player.name} />
           <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 3 }}>
             {[player.pos, player.team].filter(Boolean).join(" · ")}
           </div>

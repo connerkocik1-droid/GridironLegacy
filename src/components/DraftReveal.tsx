@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { headshot, logo, statLine } from "@/data/league-data";
+import { ageOf, headshot, logo, statLine } from "@/data/league-data";
 import { player } from "@/lib/roster";
 
 /**
@@ -255,7 +255,11 @@ export default function DraftReveal({
             <img src={mark} alt="" width={20} height={20} style={{ objectFit: "contain" }} />
           ) : null}
           <span style={{ fontSize: 11, letterSpacing: ".2em", color: "var(--text-muted)" }}>
-            {stage >= 5 && p ? `${p.p} · ${p.t} · BYE ${p.bye}` : ""}
+            {stage >= 5 && p
+              ? [p.p, p.t, ageOf(p) != null ? `AGE ${ageOf(p)}` : null, `BYE ${p.bye}`]
+                  .filter(Boolean)
+                  .join(" · ")
+              : ""}
           </span>
         </div>
 

@@ -1,4 +1,5 @@
 "use client";
+import { PlayerAge } from "./PlayerName";
 
 import { useMemo } from "react";
 import { player } from "@/lib/roster";
@@ -255,9 +256,16 @@ export default function DraftBoard({
                               fontSize: 11,
                               lineHeight: 1.25,
                               marginTop: 1,
+                              display: "flex",
+                              alignItems: "baseline",
+                              gap: 5,
+                              flexWrap: "wrap",
                             }}
                           >
-                            {p.player_name}
+                            <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                              {p.player_name}
+                            </span>
+                            <PlayerAge name={p.player_name} />
                           </div>
                         </>
                       ) : (

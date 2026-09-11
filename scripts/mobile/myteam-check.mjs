@@ -235,6 +235,30 @@ console.log("\n--- the pencil ---");
   ok("it opens the Edit section", page.url().includes("tab=edit"));
 }
 
+console.log("\n--- how old everybody is ---");
+{
+  // In a dynasty league a name without an age is half a fact. It has to be on
+  // every one of them, not on the ones that happened to get a component.
+  await page.goto(`${BASE}/my-team`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(900);
+
+  const aged = await page.locator('[aria-label^="Age "]').count();
+  const named = await page.locator('a[href^="/player/"]').count();
+  // Everybody but the defence, which has no birthday and gets no guess.
+  ok(`every footballer on the roster carries one (${aged} of ${named})`, aged === named - 1);
+
+  const dst = await page.locator('a[href*="Ravens"]').first().locator("xpath=..").innerText();
+  ok(`and a defence is left blank rather than guessed (${dst.replace(/\n/g, " ")})`,
+    !/\b\d\d\b/.test(dst));
+
+  // The real numbers, not a placeholder: two players whose birthdays are in
+  // the pool, read off the page rather than off the module.
+  const nacua = await page.locator('a[href="/player/Puka%20Nacua"]').first()
+    .locator("xpath=..").innerText();
+  ok(`and it is his actual age (${nacua.replace(/\n/g, " ")})`, /\b25\b/.test(nacua));
+
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);
