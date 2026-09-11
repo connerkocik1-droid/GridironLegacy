@@ -71,7 +71,7 @@ export async function GET() {
       .order("season")
       .order("round")
       .order("slot"),
-    db.from("leagues").select("season, inaugural_season").eq("id", me.league_id).single(),
+    db.from("leagues").select("season, inaugural_season, settings").eq("id", me.league_id).single(),
   ]);
 
   const inaugural = league?.inaugural_season ?? league?.season ?? null;
@@ -81,6 +81,9 @@ export async function GET() {
     managers: managers ?? [],
     block: block ?? [],
     inauguralSeason: inaugural,
+    // What the league fields. The desk ranks partners by which slots each of
+    // them is short or deep at, so it needs the league's own shape.
+    starters: (league?.settings as { starters?: Record<string, number> } | null)?.starters ?? {},
     picks: (picks ?? []).map((p) => ({
       ...p,
       // The same rule the database enforces, so the desk can grey out what it

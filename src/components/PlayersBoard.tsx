@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { fitChip, rosterNeed, trending, type Held } from "@/lib/moves-story";
 import Skeleton from "./Skeleton";
 import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
@@ -50,6 +51,8 @@ interface Feed {
   waiverDays: number;
   capacity: number;
   held: number;
+  /** What the league fields at each position. */
+  starters?: Record<string, number>;
   /** What the reserve holds, and how much of it is taken. */
   irLimit?: number;
   irHeld?: number;
@@ -103,7 +106,11 @@ const button = (enabled: boolean): React.CSSProperties => ({
   flex: "0 0 auto",
 });
 
-export default function PlayersBoard() {
+/**
+ * `embedded` drops the page title. Under the Moves screen the sub-tab already
+ * says "Free Agents" over a header that already says "Moves".
+ */
+export default function PlayersBoard({ embedded = false }: { embedded?: boolean } = {}) {
   const [feed, setFeed] = useState<Feed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -117,6 +124,32 @@ export default function PlayersBoard() {
   // because it changes on its own clock — a star does not need the whole pool
   // re-read behind it.
   const [watching, setWatching] = useState<Set<string>>(new Set());
+
+  // What everybody has scored, and what the league has been doing. Both are
+  // annotations on this page: a failure costs a badge, never the list.
+  const [totals, setTotals] = useState<Record<string, { total: number; games: number }>>({});
+  const [rostered, setRostered] = useState<Record<string, string>>({});
+  const [recent, setRecent] = useState<{ kind: string; player: string }[]>([]);
+
+  useEffect(() => {
+    void Promise.all([
+      fetch("/api/rankings", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch("/api/activity?limit=60", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ]).then(([ranks, activity]) => {
+      if (ranks?.points) setTotals(ranks.points);
+      if (ranks?.rostered) setRostered(ranks.rostered);
+      // The activity route sends `entries`, each with a kind and the player
+      // it was about.
+      const rows = (activity?.entries ?? []) as { kind?: string; player?: string; isPick?: boolean }[];
+      setRecent(
+        rows
+          // A traded pick is a move, but it is not a player anybody can add,
+          // so it does not belong in a strip about the wire.
+          .filter((r) => r.kind && r.player && !r.isPick)
+          .map((r) => ({ kind: String(r.kind), player: String(r.player) })),
+      );
+    });
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -196,6 +229,42 @@ export default function PlayersBoard() {
   }
 
   const full = feed != null && feed.held >= feed.capacity;
+
+  // The two sides the advice compares. Read from the season's scoring rather
+  // than the draft board, so it is about what has happened.
+  const held = useCallback(
+    (name: string): Held => ({
+      name,
+      pos: player(name)?.p ?? "",
+      points: totals[name]?.total ?? 0,
+      games: totals[name]?.games ?? 0,
+    }),
+    [totals],
+  );
+
+  const mine = useMemo(
+    () => (feed?.roster ?? []).filter((r) => r.lineup_slot !== "IR").map((r) => held(r.player_name)),
+    [feed, held],
+  );
+
+  // The whole unowned pool, not the page being looked at: advice about who to
+  // add should not change when somebody scrolls.
+  const freePool = useMemo(
+    () => Object.keys(totals).filter((n) => !rostered[n]).map(held),
+    [totals, rostered, held],
+  );
+
+  const starters = useMemo(
+    () => (feed?.starters ?? { QB: 1, RB: 2, WR: 2, TE: 1, K: 1, "D/ST": 1 }),
+    [feed],
+  );
+
+  const need = useMemo(
+    () => (mine.length || freePool.length ? rosterNeed(mine, freePool, starters) : null),
+    [mine, freePool, starters],
+  );
+
+  const hot = useMemo(() => trending(recent), [recent]);
 
   // Who could be signed straight into the reserve, and whether there is room.
   // The one add that costs no roster spot, and the reason it is safe: he
@@ -301,21 +370,23 @@ export default function PlayersBoard() {
   const settled = feed.claims.filter((c) => c.status !== "pending").slice(0, 5);
 
   return (
-    <div style={{ padding: "24px 26px 40px" }}>
-      <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>
-        {feed.mode === "open" ? "OPEN MARKET" : "WAIVERS"}
+    <div style={{ padding: embedded ? "0 18px 24px" : "24px 26px 40px" }}>
+      <div hidden={embedded}>
+        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>
+          {feed.mode === "open" ? "OPEN MARKET" : "WAIVERS"}
+        </div>
+        <h1
+          style={{
+            fontFamily: "var(--font-heading)",
+            fontSize: "clamp(30px, 8.4vw, 40px)",
+            letterSpacing: "-.035em",
+            margin: "8px 0 6px",
+            fontWeight: 500,
+          }}
+        >
+          Free agents
+        </h1>
       </div>
-      <h1
-        style={{
-          fontFamily: "var(--font-heading)",
-          fontSize: "clamp(30px, 8.4vw, 40px)",
-          letterSpacing: "-.035em",
-          margin: "8px 0 6px",
-          fontWeight: 500,
-        }}
-      >
-        Free agents
-      </h1>
       {/* The rule, and then the two numbers. This was one paragraph carrying
           five different facts, six lines deep on a phone, above the list it
           was explaining — and the two things in it a manager actually comes
@@ -530,6 +601,116 @@ export default function PlayersBoard() {
         </div>
       ) : null}
 
+      {/* What the league has been moving. Counted from the record rather than
+          ranked by points: this is about attention, and a player three
+          managers have chased is news whether or not he is any good. */}
+      {hot.length ? (
+        <div
+          className="gl-noscrollbar"
+          style={{
+            display: "flex",
+            gap: 14,
+            overflowX: "auto",
+            padding: "9px 14px",
+            marginBottom: 12,
+            border: "1px solid rgb(var(--accent-rgb) / .18)",
+            borderRadius: "var(--radius-md)",
+            background: "rgb(var(--surface-rgb) / .5)",
+            fontSize: 11,
+          }}
+        >
+          <span style={{ letterSpacing: ".16em", color: "var(--text-dim)", flex: "0 0 auto" }}>
+            MOVING
+          </span>
+          {hot.map((t) => (
+            <span
+              key={t.name}
+              style={{ display: "flex", alignItems: "center", gap: 6, flex: "0 0 auto", whiteSpace: "nowrap" }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 4,
+                  height: 4,
+                  borderRadius: "50%",
+                  background:
+                    t.net > 0 ? "var(--good)" : t.net < 0 ? "var(--bad)" : "rgb(var(--accent-rgb) / .5)",
+                }}
+              />
+              <span style={{ color: "var(--text-2)" }}>{t.name}</span>
+              <span
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  color: t.net > 0 ? "var(--good)" : t.net < 0 ? "var(--bad)" : "var(--text-dim)",
+                }}
+              >
+                {t.net > 0 ? `+${t.net} ADD` : t.net < 0 ? `${t.net} DROP` : "MOVED"}
+              </span>
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {/* What the wire could actually do for this roster. Four tiers falling
+          through to each other, so it always says something: an earlier
+          version compared only against starters, which on a decent roster is
+          true almost never, and the module was invisible most weeks. */}
+      {need ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 9,
+            padding: "11px 12px",
+            borderRadius: "var(--radius-md)",
+            marginBottom: 12,
+            border: `1px solid ${
+              need.tier === "hole" || need.tier === "starter"
+                ? "rgb(var(--warn-rgb) / .3)"
+                : need.tier === "bench"
+                  ? "rgb(var(--good-rgb) / .3)"
+                  : "rgb(var(--accent-rgb) / .22)"
+            }`,
+            background: "rgb(var(--surface-rgb) / .5)",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 10,
+              letterSpacing: ".14em",
+              padding: "3px 6px",
+              borderRadius: 3,
+              flex: "0 0 auto",
+              whiteSpace: "nowrap",
+              border: `1px solid ${
+                need.tier === "hole" || need.tier === "starter"
+                  ? "rgb(var(--warn-rgb) / .5)"
+                  : need.tier === "bench"
+                    ? "rgb(var(--good-rgb) / .5)"
+                    : "rgb(var(--accent-rgb) / .4)"
+              }`,
+              color:
+                need.tier === "hole" || need.tier === "starter"
+                  ? "var(--warn)"
+                  : need.tier === "bench"
+                    ? "var(--good)"
+                    : "var(--text-muted)",
+            }}
+          >
+            {need.tier === "hole"
+              ? "ROSTER HOLE"
+              : need.tier === "starter"
+                ? "STARTER UPGRADE"
+                : need.tier === "bench"
+                  ? "BENCH UPGRADE"
+                  : "NO UPGRADES"}
+          </span>
+          <span style={{ fontSize: 12, lineHeight: 1.5, color: "var(--text-2)", minWidth: 0 }}>
+            {need.text}
+          </span>
+        </div>
+      ) : null}
+
       <div style={card}>
         <div
           style={{
@@ -633,6 +814,32 @@ export default function PlayersBoard() {
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <PlayerName name={p.name} style={{ fontFamily: "var(--font-heading)", fontSize: 14 }} />
                   <TeamMark team={p.team} />
+                  {/* Relative to this roster, so the same man is a starter for
+                      one manager and nothing for another. Most rows earn
+                      nothing, which is the point — a chip on every row carries
+                      no information. */}
+                  {(() => {
+                    const chip = fitChip(held(p.name), mine, starters);
+                    if (!chip) return null;
+                    const ink = chip.tone === "warn" ? "var(--warn)" : "var(--good)";
+                    const edge = chip.tone === "warn" ? "--warn-rgb" : "--good-rgb";
+                    return (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          letterSpacing: ".1em",
+                          padding: "2px 5px",
+                          borderRadius: 3,
+                          flex: "0 0 auto",
+                          whiteSpace: "nowrap",
+                          border: `1px solid rgb(var(${edge}) / .6)`,
+                          color: ink,
+                        }}
+                      >
+                        {chip.label}
+                      </span>
+                    );
+                  })()}
                   {flags.map((f) => (
                     <span
                       key={f.label}

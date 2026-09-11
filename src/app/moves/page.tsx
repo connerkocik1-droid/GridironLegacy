@@ -1,4 +1,4 @@
-import MovesHub from "@/components/MovesHub";
+import MovesTabs from "@/components/MovesTabs";
 import Nav from "@/components/Nav";
 
 export const metadata = { title: "Moves · Pylon Fantasy" };
@@ -20,7 +20,7 @@ export default function MovesPage() {
       }}
     >
       <Nav current="/moves" />
-      <MovesHub />
+      <MovesTabs />
     </div>
   );
 }

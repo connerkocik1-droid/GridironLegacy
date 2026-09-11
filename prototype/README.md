@@ -1,120 +1,187 @@
-# Handoff: Pylon Fantasy — mobile League
+# Handoff: Pylon Fantasy — mobile Moves
 
 ## Overview
 
-The mobile League screen. Seven sections behind a sub-tab strip, ordered by use: **Overview, Standings, Chat, Moves, News, Ranks, Rules**.
+The mobile Moves screen. Three sections behind a sub-tab strip: **Free Agents, Trade Builder, The Record.**
 
-The defining property of this screen: **almost nothing is authored prose**. Headlines, trade grades, matchup reads and the three rotating Overview cards are all generated from two tables (weekly scores, player scoring vs. draft position). Pushing a real week of results into those tables rewrites the page. Treat the generators as the spec — they are the part worth porting carefully.
+Like the League screen, the copy here is **generated, not authored** — transaction detail lines, waiver countdowns, trade verdicts and pick values are all computed. The important structural idea: **the transaction log is the single source of truth for ownership.** `POOL` holds each player's owner *before* the log is applied; `TX` is replayed oldest-first over it to produce current rosters, the free-agent pool and waiver status. That is why the three tabs cannot contradict each other, and it is the behaviour to preserve when porting.
 
-State of the season in the prototype: **Week 4, three weeks graded.**
+Season state in the prototype: **Week 4, three weeks graded.**
 
 ## About the design files
 
-`Pylon League.dc.html` is a **Design Component** in the same format as the files in `prototype/` — same `support.js` runtime, same `<x-dc>` template + `class Component extends DCLogic` structure, same Nocturne stylesheet path (`_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/`). It runs unmodified in `prototype/`; port into `src/` using this file as the spec.
+`Pylon Moves.dc.html` is a **Design Component** in the same format as the files in `prototype/` — same `support.js` runtime, same `<x-dc>` template + `class Component extends DCLogic` structure, same Nocturne stylesheet path (`_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/`). It runs unmodified in `prototype/`; port into `src/` using this file as the spec.
 
 Fidelity: **high**. Colors, type, spacing and motion are final.
 
 ## Files in this bundle
 
-- `Pylon League.dc.html` — the screen. Template + logic in one file.
+- `Pylon Moves.dc.html` — the screen. Template + logic in one file.
 - `ios-frame.jsx` — iPhone bezel wrapper (`IOSDevice`). **Presentation only** — drop it when porting.
-- `image-slot.js` — drag-and-drop image placeholder standing in for player headshots. Replace with your real headshot source, keyed by player id.
 
 Not bundled (already in the repo): `prototype/support.js`, `_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css` and `_ds_bundle.js`.
 
-## The two source tables
+## The six generated features
 
-Everything derives from these. In the real app they are queries, not constants.
+These are the point of the screen. Each is computed, and each branches — do not flatten a branch into a single string.
 
-**`SCHEDULE`** — array of weeks, each an array of `[teamIndex, teamIndex]` pairings. `WEEK` marks the current (unplayed) week.
+| Feature | Where | How it's derived |
+| --- | --- | --- |
+| Live waiver clock | Header | Real countdown to the next 3:00 AM run, ticking each second |
+| Trending strip | Free Agents | Most-moved players from \`TX\`, net adds minus drops, color-coded |
+| Roster-need callout | Free Agents | Three-tier ladder, always renders — see below |
+| Fit chips | Free Agents rows | \`FILLS <POS>\` / \`STARTER\` / \`OVER <NAME>\` from the same comparison |
+| Partner fit ranking | Trade Builder | \`fitScore\` — only the top scorer gets the ◆, none if nobody scores |
+| Trade auto-balancer | Trade Builder | Finds the single pick nearest the gap; suppressed unless it lands within 8 points |
 
-**`SCORES`** — per franchise, an array of weekly point totals for graded weeks.
+### The roster-need ladder
 
-**`PLAYERS`** — per player: `n` (name), `pos`, `t` (NFL team), `pre` (preseason positional rank), `wk` (weekly fantasy points).
+Falls through in order, so something always shows:
 
-**`TEAMS`** — franchise, owner, division, power score. From `supabase/seed.sql`.
+1. **ROSTER HOLE** (amber) — a starting slot is unfilled.
+2. **STARTER UPGRADE** (amber) — a free agent's per-game beats your weakest starter at that position.
+3. **BENCH UPGRADE** (green) — a free agent beats the worst player you are holding.
+4. **NO UPGRADES** (grey) — explicit empty state naming your weakest roster spot.
+
+On a strong roster tiers 1 and 2 rarely fire, which is why 3 and 4 exist. An earlier version compared only against starters and rendered nothing almost every week.
+
+### \`fitScore\` semantics
+
+A position counts only when **one side is genuinely short and the other genuinely deep**:
+
+\`\`\`
+if (myDepth < need && theirDepth > need) score += min(need - myDepth, theirDepth - need)
+if (theirDepth < need && myDepth > need) score += min(need - theirDepth, myDepth - need)
+\`\`\`
+
+Crediting surplus alone makes every manager a "best fit" and the badge meaningless.
+
+## Read this before porting
+
+Three things will not survive a mechanical port.
+
+**1. The data is fabricated.** \`POOL\` holds invented players with invented weekly scores, and \`OWNERS\` uses seeded franchise names. Every field has to be mapped onto the real schema. A port that compiles while showing invented numbers is the most likely failure mode — wire the data first, then judge the screen.
+
+**2. The generators are the product.** Each generated sentence and badge branches on the data. Flattening those branches into one string is easy and removes the reason the screen exists. Specific traps, each of which was a real bug caught in review:
+
+- A badge that renders on every row carries no information — thresholds must be relative (top scorer), not absolute.
+- A suggestion the data cannot satisfy is worse than no suggestion — guard it.
+- An insight tier that never triggers on a strong roster renders an invisible module — always provide the fall-through.
+
+**3. The ownership replay is a design decision.** If the backend already stores current rosters, the natural move is to read those and delete the replay. That holds until a trade and a waiver claim land in the same nightly run and the three tabs disagree. Keep one source of truth.
+
+## Suggested order of work
+
+1. Land \`Pylon Moves.dc.html\` in \`prototype/\` unchanged and look at it in the real app shell.
+2. Map \`POOL\` / \`TX\` to real queries. Stop and check the numbers.
+3. Port the generators one at a time, keeping the branches.
+4. Wire the action buttons last — a successful claim appends to \`TX\` and the replay does the rest.
+
+## Source tables
+
+**`POOL`** — one row per player: `[name, pos, nflTeam, ownerIndexBeforeLog, preseasonPositionalRank, wk1, wk2, wk3, rostered%]`. `-1` means free agent at the start of the window.
+
+**`TX`** — the transaction log: `{kind, player, by, from|to, h}` where `h` is hours ago. Kinds: `ADDED`, `CLAIM`, `RECEIVED`, `SENT`, `DROP`.
+
+**`OWNERS`** — franchise index → "Team · Manager". From `supabase/seed.sql`.
+
+`ME` is the current user's franchise index. `WEEK` / `PLAYED` set the season position.
+
+### The replay
+
+```
+TX sorted oldest-first, then for each row:
+  DROP      → owner = -1, waiver clock = 24h − hoursAgo (null once elapsed)
+  SENT      → owner = t.to
+  otherwise → owner = t.by
+```
+
+This is the whole ownership model. Rosters, the free-agent list and the amber "on waivers" state all read out of it. Waivers run nightly (3:00 AM), matching the league rule that a dropped player sits one day before release.
 
 ### Derived helpers
 
-| Function | What it returns |
+| Function | Returns |
 | --- | --- |
 | `total(p)` | Player's season points |
-| `currentRank(p)` | Player's current positional rank, by points |
-| `table()` | Per franchise: results array, W/L, active streak + kind, points for |
-| `slotId(name)` | Stable headshot slot id (`hs-zay-flowers`) |
+| `rank(p)` | Current positional rank by points |
+| `stamp(h)` | Relative timestamp (`40M`, `4H`, `YDAY`, `MON`) |
+| `dayOf(h)` | Day-group label (`TODAY` / `YESTERDAY` / `EARLIER`) |
+| `draftOrder()` | Franchise indices ordered weakest-first by roster points |
+| `picksFor(owner)` | That franchise's 2027 R1–R5 picks with derived slot and value |
 
 ## Section by section
 
-### Overview
+### Free Agents
 
-**Three rotating cards**, auto-advancing every 6.5s, dots to jump. All computed:
+Position filters (All / QB / RB / WR / TE) and sort by **Points / Trend / Rostered**. Each row carries a three-week bar chart of actual scoring, points-per-game, rostered percentage, and a status line giving current positional rank against draft rank.
 
-1. **Best Value** — the player with the largest gain against preseason positional rank. Large headshot, `WR31 → WR3 ▲28`, points / per-game / overall rank, and a generated sentence.
-2. **Hot Streak** — every team tied at the longest *active* win streak (handles ties and the single-leader case in one code path). W/L pips per week, record, points for.
-3. **MVP** — top three scorers league-wide as compact rows with gold / silver / bronze medals, headshot, points tinted to the medal.
+The meaningful distinction: a player dropped inside the last 24h shows an **amber left edge**, "clears in Nh", and a `CLAIM` button. Everyone else is a plain `ADD`. Both derive from the replay — no authored flag.
 
-Below: a **live wire ticker** of recent moves, then the **week 4 slate** — tap any game to expand a win-probability bar, the spread, and a generated read that differs for tight / normal / lopsided gaps. The user's own matchup is highlighted.
+Trend is `wk3 − mean(wk1, wk2)`, shown as ▲/▼ only past a ±2 threshold.
 
-### Standings
+### Trade Builder
 
-Toggles **Divisions** (North / South, ordered by record then points for) and **Power** (league-wide power score). Records, PF and bars all come from `table()`.
+Pick a partner from the chip row, then tap to select on either side. Four selectable pools: your players, your 2027 picks (R1–R5), their players, their picks.
 
-### Chat
+- **Player value** = season points scored.
+- **Pick value** = derived from round and draft slot: `((6 − round) / 5) × (30 + (10 − slot) × 2.5)`, where slot comes from `draftOrder()` — inverse of roster strength, matching `DRAFT-PICKS.md`. A pick is worth more to a weak team because it lands earlier.
+- **Verdict** is generated from the difference: under 5 points reads as even; otherwise it names who is ahead and by how much.
 
-Bubbles, own messages right-aligned, tap-to-toggle reactions with live counts, typing indicator, working input.
+2027 is the first tradeable year — inaugural-season picks stay untradeable per the league rules, so they are not offered here.
 
-### Moves
+The balance bar and totals update live; `SEND OFFER` is disabled until something is selected.
 
-A move record is only `{kind, who, when, player, side, cost}`. The grade and write-up are **generated**: the player's rank movement decides `STEAL` (≥10 spots to the acquirer) / `SHARP` (≥3) / `EVEN` / `RISKY` (≤−3), and the sentence states points scored, current rank, draft rank and which side the value moved toward. Filterable by kind.
+### The Record
 
-### News
+Every transaction, newest first, grouped by derived day label. Five color codes, each also drawn as a left edge on the row:
 
-Five item types, each generated from the week's numbers: highest single week, biggest riser, longest streak, points-for leader, and any winless teams. No authored headlines.
+| Kind | Color |
+| --- | --- |
+| `ADDED` (free agency) | `#7fd8a8` green |
+| `CLAIM` (waivers) | `#e0b573` amber |
+| `RECEIVED` (trade in) | `#b5abfc` accent |
+| `SENT` (trade out) | `#8f94a8` grey |
+| `DROP` | `#e07a7a` red |
 
-### Ranks
-
-Consensus board, position-filterable, sorted by projection, with ▲▼ movement against board order.
-
-### Rules
-
-Accordion — the one place authored text is correct, since league rules don't fluctuate. Drawn from `DRAFT-PICKS.md` and `supabase/seed.sql` settings.
+Filter chips isolate any single kind. Each detail line is generated: who did what, the counterparty for trades, and what that player has scored since — so the log doubles as a value record rather than a bare audit trail.
 
 ## What to wire when porting
 
-1. **`SCORES` / `SCHEDULE`** → real matchup and scoring tables. Everything else follows.
-2. **`PLAYERS.pre`** → preseason positional rank from your draft board (`src/data/board-leaders.js` has ADP for the top of the board). `wk` → weekly fantasy points.
-3. **Headshots** → replace `<image-slot>` with your image source, keyed by the same `slotId(name)` scheme.
-4. **Chat** → real messages and reactions; the prototype keeps them in component state.
-5. **Moves** → your transaction log; keep the record thin and let the generator write the copy.
-6. **Power score** → currently authored per franchise in `TEAMS`; compute it from roster projection, depth and age.
+1. **`POOL` / `TX`** → real player and transaction tables. Keep the replay; do not store current ownership denormalised alongside a log that can disagree with it.
+2. **`h` (hours ago)** → real timestamps. `stamp` / `dayOf` become date formatting.
+3. **Waiver window** → currently 24h from the drop; read it from league settings.
+4. **Pick value** → the formula is a reasonable default, not gospel. If you adopt a real value chart, keep the derivation from live standings so values move as the season does.
+5. **`rostered%`** → real league-wide roster rates.
+6. **Claim / add / offer buttons** → currently local state; wire to the transaction endpoint. A successful claim should append to `TX`, and the replay handles the rest.
 
 ## Behaviour worth preserving
 
-- Every generated sentence branches on the data (ties, single leaders, winless teams, lopsided vs. tight games). Don't collapse those branches into one string.
-- Overview rotation pauses implicitly when the user is on another tab (the interval checks `tab === "Overview"`).
-- Records read `0-0` and points `0.0` when no weeks are graded — the empty state is already handled.
+- Ownership derives from the log, in one place.
+- The waiver-vs-free-agent split is computed, and the row's whole treatment (edge, button label, status text) follows from it.
+- Generated sentences branch on the data — even trades, lopsided trades, empty selection — rather than resolving to one string.
 
 ## State
 
-`tab`, `nav`, `standingsMode`, `moveFilter`, `posFilter`, `openRule`, `openGame`, `story` (rotation index), `reacts`, `draft`, `sent`.
+`tab`, `nav`, `pos`, `txFilter`, `sort`, `partner`, `send` (players and picks keyed together), `get`, `claimed`, `offered`.
+
+Pick selections key as `pick:<owner>:2027:<round>` so players and picks share one selection map.
 
 ## Design tokens
 
 Nocturne, dark. Use `var(--color-text)`, `var(--font-heading)`, `var(--font-body)` where available.
 
 - Ground `#0f111c` with radial washes `#23274a` top-left, `#2b1e3d` top-right
-- Surfaces `rgba(22,24,38,.72)`; hero card `linear-gradient(160deg, rgba(38,32,64,.92), rgba(20,22,36,.86))`
-- Accent `#b5abfc`, deeper `#5d5294`, tints `rgba(145,132,217,.06–.36)`
-- Muted `#a8adc0` / `#8f94a8` / `#75798c` / `#595d6c`
-- Positive `#7fd8a8`, negative `#e07a7a`, warning `#e0b573`, live `#ff9a5c`
-- Medals: gold `#e8c56a` (`#f0d488→#b8892f`), silver `#c4cad6` (`#d8dde7→#8b93a3`), bronze `#cd9060` (`#e0a878→#96603a`)
-- Radii 16 hero / 14 cards / 12 items / 10 rows / 8 buttons; gutter 18px
-- Micro-labels 8–10px at .1–.28em tracking; body 11–13px; `tabular-nums` on the root
+- Surfaces `rgba(22,24,38,.72)`; trade summary `linear-gradient(160deg, rgba(38,32,64,.9), rgba(20,22,36,.86))`
+- Accent `#b5abfc`, deeper `#5d5294`, tints `rgba(145,132,217,.13–.36)`
+- Muted `#b2b6ca` / `#8f94a8` / `#75798c` / `#595d6c`
+- Transaction colors as tabulated above
+- Radii 14 cards / 9–10 picks and buttons / 7 row buttons / 5 checkboxes; gutter 18px
+- Micro-labels 7–10px at .08–.24em tracking; body 9–13px; `tabular-nums` on the root
 
 ## Motion
 
-`lg-pulse` (live dots), `lg-rise` (card and row entrances), `lg-grow` (bars from zero), `lg-sweep` (sheen across the hero), `lg-marquee` (wire ticker, 30s), `lg-blink` (typing dots).
+`mv-pulse` (waiver dot), `mv-rise`, `mv-grow` (bars from zero), `mv-sweep` (sheen across the trade summary). The balance bar transitions width over .4s `cubic-bezier(.2,.8,.2,1)`.
 
 ## Suggested prompt for Claude Code
 
-> This bundle contains a Design Component prototype of the mobile League screen for this repo (same format as `prototype/`). Read `README.md` first. Land it in `prototype/` unchanged, then plan the port into `src/`. The important part is that headlines, trade grades and the three rotating Overview cards are GENERATED from two data tables, not authored — see "The two source tables" and "What to wire when porting". Preserve the generators and their branching. Do not ship `ios-frame.jsx`. Show me the plan before writing app code.
+> This bundle contains a Design Component prototype of the mobile Moves screen for this repo (same format as `prototype/`). Read `README.md` first. Land it in `prototype/` unchanged, then plan the port into `src/`. The critical design decision: the transaction log is the single source of truth — current rosters, the free-agent pool and waiver status are all DERIVED by replaying it, and pick values derive from live standings. Preserve that model rather than storing ownership separately. Do not ship `ios-frame.jsx`. Show me the plan before writing app code.

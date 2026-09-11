@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import TeamMark from "./TeamMark";
 import { player, proj } from "@/lib/roster";
+import { balancer, fitScore, pickValue, verdict, type Held } from "@/lib/moves-story";
 
 interface Manager {
   id: string;
@@ -39,6 +40,8 @@ interface Trade {
 }
 
 interface Desk {
+  /** What the league fields at each position. */
+  starters?: Record<string, number>;
   me: Manager & { league_id: string };
   managers: Manager[];
   block: { player_name: string; manager_id: string }[];
@@ -48,6 +51,11 @@ interface Desk {
 }
 
 const ORDINAL = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
+
+/** Everybody but the reader. */
+function partnersOf(desk: Desk) {
+  return desk.managers.filter((m) => m.id !== desk.me.id);
+}
 
 function ordinal(n: number): string {
   return ORDINAL[n] ?? `${n}th`;
@@ -180,6 +188,21 @@ export default function TradeDesk() {
   const [myRoster, setMyRoster] = useState<string[]>([]);
   const [theirRoster, setTheirRoster] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  // Season scoring and who holds whom, from one request. The rostered map is
+  // every player in the league keyed to his franchise, which is enough to
+  // rebuild all twelve rosters without asking for them one at a time.
+  const [totals, setTotals] = useState<Record<string, { total: number; games: number }>>({});
+  const [rostered, setRostered] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    void fetch("/api/rankings", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then((ranks) => {
+        if (ranks?.points) setTotals(ranks.points);
+        if (ranks?.rostered) setRostered(ranks.rostered);
+      });
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -277,8 +300,38 @@ export default function TradeDesk() {
   const empty =
     !give.length && !want.length && !givePicks.length && !getPicks.length;
 
-  const giveValue = give.reduce((s, n) => s + proj(n), 0);
-  const wantValue = want.reduce((s, n) => s + proj(n), 0);
+  // What each side of the offer is actually worth.
+  //
+  // Season points, not projection: a trade is judged on what a man has done
+  // this year, and the desk used to value him by a preseason estimate that
+  // stops being the interesting number the moment a week is played. Before
+  // anything has been scored the projection is still the only answer, so it
+  // remains the fallback rather than showing a table of noughts.
+  const worth = useCallback(
+    (name: string) => {
+      const row = totals[name];
+      return row && row.games > 0 ? row.total : proj(name);
+    },
+    [totals],
+  );
+
+  // A pick is worth its round and where the standings currently place it, so
+  // the same second-rounder is worth more to a team going badly. Slot is only
+  // known once the order has been computed; until then the round carries it.
+  const pickWorth = useCallback(
+    (id: string) => {
+      const pick = desk?.picks.find((p) => p.id === id);
+      if (!pick) return 0;
+      return pickValue(pick.round, pick.slot ?? 6, desk?.managers.length || 12);
+    },
+    [desk],
+  );
+
+  const giveValue =
+    give.reduce((s, n) => s + worth(n), 0) + givePicks.reduce((s, id) => s + pickWorth(id), 0);
+  const wantValue =
+    want.reduce((s, n) => s + worth(n), 0) + getPicks.reduce((s, id) => s + pickWorth(id), 0);
+  const gap = wantValue - giveValue;
 
   function toggle(list: string[], set: (v: string[]) => void, name: string) {
     set(list.includes(name) ? list.filter((n) => n !== name) : [...list, name]);
@@ -333,7 +386,61 @@ export default function TradeDesk() {
     return <div style={{ padding: "24px 26px", color: "var(--text-dim)" }}>Opening the trade desk…</div>;
   }
 
-  const partners = desk.managers.filter((m) => m.id !== desk.me.id);
+  // Every roster in the league, rebuilt from the one map the rankings route
+  // already sends, so ranking partners costs no extra request.
+  const rostersOf = (franchise: string): Held[] =>
+    Object.keys(rostered)
+      .filter((n) => rostered[n] === franchise)
+      .map((n) => ({
+        name: n,
+        pos: player(n)?.p ?? "",
+        points: totals[n]?.total ?? 0,
+        games: totals[n]?.games ?? 0,
+      }));
+
+  const starters = desk.starters && Object.keys(desk.starters).length
+    ? desk.starters
+    : { QB: 1, RB: 2, WR: 2, TE: 1, K: 1, "D/ST": 1 };
+
+  const myHeld = rostersOf(desk.me.franchise);
+
+  /**
+   * Best fit first, and a diamond on the best of them.
+   *
+   * A position counts only where one side is genuinely short and the other
+   * genuinely deep — crediting surplus alone makes every manager somebody's
+   * best partner, and a badge everybody wears says nothing. Which is also why
+   * the diamond disappears entirely when nobody scores.
+   */
+  const fits = new Map(
+    partnersOf(desk).map((m) => [m.id, fitScore(myHeld, rostersOf(m.franchise), starters)]),
+  );
+  const topFit = Math.max(0, ...fits.values());
+
+  const partners = partnersOf(desk)
+    .slice()
+    .sort((a, b) => (fits.get(b.id) ?? 0) - (fits.get(a.id) ?? 0) || a.franchise.localeCompare(b.franchise));
+
+  // The single pick that would even up a lopsided offer, if one would. Only
+  // from the side that is behind, and only when it actually lands the deal
+  // near even — a suggestion that leaves the gap where it was looks like
+  // advice and costs a tap to find out it is not.
+  const sweetener = balancer(
+    gap,
+    (desk.picks ?? [])
+      .filter((p) => p.tradeable)
+      .filter((p) =>
+        gap > 0
+          ? p.manager_id === desk.me.id && !givePicks.includes(p.id)
+          : p.manager_id === partner && !getPicks.includes(p.id),
+      )
+      .map((p) => ({
+        id: p.id,
+        label: `${p.season} ${ordinal(p.round)}`,
+        value: pickValue(p.round, p.slot ?? 6, desk.managers.length || 12),
+      })),
+    managerName.get(partner) ?? "they",
+  );
 
   return (
     <>
@@ -395,6 +502,7 @@ export default function TradeDesk() {
             {partners.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.franchise}
+                {topFit > 0 && fits.get(m.id) === topFit ? " ◆" : ""}
               </option>
             ))}
           </select>
@@ -484,6 +592,57 @@ export default function TradeDesk() {
               phone the caption wrapped past the button and left "— judge the
               deal yourself." stranded on a line of its own underneath, which
               reads as a fragment somebody forgot to delete. */}
+          {/* What the offer amounts to, and the one pick that would even it
+              up. Both generated: the verdict turns over between an empty
+              selection, a close deal and a lopsided one rather than resolving
+              to a single sentence, and the sweetener only appears when a
+              single pick actually lands the deal near even. */}
+          <div
+            style={{
+              marginTop: 14,
+              padding: "11px 12px",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid rgb(var(--accent-rgb) / .22)",
+              background: "rgb(var(--surface-rgb) / .5)",
+            }}
+          >
+            <div style={{ fontSize: 12, lineHeight: 1.55, color: "var(--text-2)" }}>
+              {verdict(gap, !empty, managerName.get(partner) ?? "they")}
+            </div>
+
+            {sweetener ? (
+              <button
+                type="button"
+                onClick={() =>
+                  sweetener.side === "send"
+                    ? setGivePicks([...givePicks, sweetener.id])
+                    : setGetPicks([...getPicks, sweetener.id])
+                }
+                style={{
+                  cursor: "pointer",
+                  width: "100%",
+                  marginTop: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "9px 11px",
+                  borderRadius: "var(--radius-sm)",
+                  textAlign: "left",
+                  font: "inherit",
+                  minHeight: 34,
+                  border: "1px dashed rgb(var(--good-rgb) / .5)",
+                  background: "rgb(var(--good-rgb) / .08)",
+                  color: "var(--good)",
+                }}
+              >
+                <span style={{ fontSize: 10, letterSpacing: ".14em", flex: "0 0 auto" }}>EVEN IT</span>
+                <span style={{ fontSize: 12, lineHeight: 1.45, color: "var(--text-2)", minWidth: 0 }}>
+                  {sweetener.text}
+                </span>
+              </button>
+            ) : null}
+          </div>
+
           <div
             style={{
               display: "flex",
@@ -516,7 +675,7 @@ export default function TradeDesk() {
               Send offer
             </button>
             <span style={{ flex: "1 1 200px", fontSize: 11, color: "var(--text-dim)" }}>
-              Projected points, not a valuation — judge the deal yourself.
+              Points scored this season, not a valuation — judge the deal yourself.
             </span>
           </div>
         </div>
