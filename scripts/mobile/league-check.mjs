@@ -267,10 +267,50 @@ console.log("\n--- who is about ---");
   const t = await page.locator("body").innerText();
   ok("the league says how many of it are here", /4 managers here now/.test(t));
 
-  // A dot per manager who is present, and none for the eight who are not.
-  // The count and the dots disagreeing is the failure worth catching.
-  const dots = await page.locator('[role="img"][aria-label="Here now"]').count();
-  ok(`and marks which four (${dots})`, dots === 4);
+  // A dot beside every franchise, both ways round. Drawing one only for the
+  // managers who are here makes the eight who are not look like a different
+  // kind of row, and leaves a reader unable to tell "nobody is about" from
+  // "this app does not show that".
+  const here = await page.locator('.gl-presence.is-on').count();
+  const away = await page.locator('.gl-presence:not(.is-on)').count();
+  ok(`four are marked here (${here})`, here >= 4);
+  ok(`and the rest are marked away rather than left blank (${away})`, away >= 8);
+
+  // Green and pulsing, grey and flat. The colour is the state; the ring is
+  // how it is delivered.
+  const live = await page.locator('.gl-presence.is-on').first().evaluate((el) => ({
+    ring: getComputedStyle(el, "::after").animationName,
+    colour: getComputedStyle(el).backgroundColor,
+  }));
+  ok(`the online dot pulses (${live.ring})`, live.ring === "gl-presence-ping");
+
+  const idle = await page.locator('.gl-presence:not(.is-on)').first().evaluate((el) => ({
+    ring: getComputedStyle(el, "::after").animationName,
+    colour: getComputedStyle(el).backgroundColor,
+  }));
+  ok(`the offline one does not (${idle.ring})`, idle.ring === "none");
+  ok(`and they are not the same colour (${live.colour} / ${idle.colour})`,
+    live.colour !== idle.colour);
+
+  // Motion that cannot be turned off is motion imposed on somebody — but the
+  // green has to survive it, or somebody who asked for less movement is also
+  // told less.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.waitForTimeout(300);
+  const calm = await page.locator('.gl-presence.is-on').first().evaluate((el) => ({
+    ring: getComputedStyle(el, "::after").animationName,
+    colour: getComputedStyle(el).backgroundColor,
+  }));
+  ok(`asked for less motion, the ring stops (${calm.ring})`, calm.ring === "none");
+  ok("and the green stays, because the colour is the state",
+    calm.colour === live.colour);
+  await page.emulateMedia({ reducedMotion: null });
+  await page.waitForTimeout(200);
+
+  // Both say which they are, out loud. A colour alone is not a state.
+  ok("each says which it is",
+    (await page.locator('.gl-presence[aria-label*="is here now"]').count()) >= 4 &&
+    (await page.locator('.gl-presence[aria-label*="is not here"]').count()) >= 8);
 }
 
 await browser.close();

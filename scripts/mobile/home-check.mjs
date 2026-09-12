@@ -84,6 +84,20 @@ console.log("\n--- the power rank ---");
   ok("and a team that has not moved says so", /—/.test(t));
   ok("your own row is marked", /· YOU/.test(t));
 
+  // Presence here as well as on the League tab, and agreeing with it: two
+  // pages with two opinions about who is about is worse than neither having
+  // one.
+  await page.getByRole("button", { name: /ALL \d+ TEAMS/ }).click();
+  await page.waitForTimeout(400);
+  const lit = await page.locator(".gl-presence.is-on").count();
+  const dim = await page.locator(".gl-presence:not(.is-on)").count();
+  ok(`the four who are about are lit (${lit})`, lit === 4);
+  ok(`and the eight who are not are still drawn (${dim})`, dim === 8);
+
+  // Closed again, so the count below measures the opening rather than a
+  // list that was already open from the check above.
+  await page.getByRole("button", { name: /TOP \d+|ALL \d+ TEAMS/ }).click();
+  await page.waitForTimeout(300);
   const before = await page.locator('a[href^="/team/"], a[href="/lineup"]').count();
   await page.getByRole("button", { name: /ALL \d+ TEAMS/ }).click();
   await page.waitForTimeout(300);

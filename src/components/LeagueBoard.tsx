@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import PresenceDot from "./PresenceDot";
 import TeamMark from "./TeamMark";
 import Skeleton from "./Skeleton";
 import { headshot } from "@/data/league-data";
@@ -56,16 +57,7 @@ function Present({ count }: { count: number }) {
         margin: "0 0 14px",
       }}
     >
-      <span
-        aria-hidden
-        style={{
-          width: 7,
-          height: 7,
-          borderRadius: "50%",
-          background: "var(--good)",
-          boxShadow: "0 0 0 3px rgb(var(--good-rgb) / .2)",
-        }}
-      />
+      <span className="gl-presence is-on" aria-hidden />
       {count} managers here now
     </div>
   );
@@ -244,21 +236,7 @@ export default function LeagueBoard() {
                     <span style={{ fontFamily: "var(--font-heading)", fontSize: 16 }}>
                       {f.franchise}
                     </span>
-                    {f.online ? (
-                      <span
-                        role="img"
-                        aria-label="Here now"
-                        title="Here now"
-                        style={{
-                          width: 7,
-                          height: 7,
-                          borderRadius: "50%",
-                          background: "var(--good)",
-                          boxShadow: "0 0 0 3px rgb(var(--good-rgb) / .2)",
-                          flex: "0 0 auto",
-                        }}
-                      />
-                    ) : null}
+                    <PresenceDot online={f.online} who={f.franchise} />
                     {f.isCommissioner ? (
                       <span style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--accent-link)" }}>
                         COMMISSIONER

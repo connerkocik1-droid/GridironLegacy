@@ -110,6 +110,20 @@ const button = (enabled: boolean): React.CSSProperties => ({
  * `embedded` drops the page title. Under the Moves screen the sub-tab already
  * says "Free Agents" over a header that already says "Moves".
  */
+/**
+ * How many times to lay the list out inside one copy of the ticker track.
+ *
+ * A ticker moves by exactly half its own width, which is seamless only while
+ * each half is wider than the rail. Two names on a desktop is not, and the
+ * strip would show a name, then a gap the width of the page, then the same
+ * name. Repeating a short list until there are at least six cells in a copy
+ * fills the rail at any width; a full list of eight is already long enough
+ * and is laid out once.
+ */
+function runsOf(items: number): number {
+  return Math.max(1, Math.ceil(6 / Math.max(1, items)));
+}
+
 export default function PlayersBoard({ embedded = false }: { embedded?: boolean } = {}) {
   const [feed, setFeed] = useState<Feed | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -603,51 +617,111 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
 
       {/* What the league has been moving. Counted from the record rather than
           ranked by points: this is about attention, and a player three
-          managers have chased is news whether or not he is any good. */}
+          managers have chased is news whether or not he is any good.
+
+          A ticker, because that is what it is. It sat still and read as a row
+          of chips somebody had forgotten to finish — and a strip that does not
+          move gives away nothing about whether it is showing this afternoon or
+          last month. The same rail as the scores and the draft: it pauses
+          under a cursor, under a thumb, and for anybody who has asked their
+          machine for less motion. */}
       {hot.length ? (
         <div
-          className="gl-noscrollbar"
+          className="gl-ticker"
           style={{
             display: "flex",
-            gap: 14,
-            overflowX: "auto",
-            padding: "9px 14px",
+            alignItems: "stretch",
             marginBottom: 12,
             border: "1px solid rgb(var(--accent-rgb) / .18)",
             borderRadius: "var(--radius-md)",
             background: "rgb(var(--surface-rgb) / .5)",
             fontSize: 11,
+            overflow: "hidden",
           }}
         >
-          <span style={{ letterSpacing: ".16em", color: "var(--text-dim)", flex: "0 0 auto" }}>
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "9px 12px",
+              flex: "0 0 auto",
+              zIndex: 1,
+              letterSpacing: ".16em",
+              color: "var(--text-dim)",
+              background: "rgb(var(--surface-rgb) / .95)",
+              borderRight: "1px solid rgb(var(--accent-rgb) / .18)",
+            }}
+          >
             MOVING
           </span>
-          {hot.map((t) => (
-            <span
-              key={t.name}
-              style={{ display: "flex", alignItems: "center", gap: 6, flex: "0 0 auto", whiteSpace: "nowrap" }}
+
+          {/* The rail clips the track; the track is what moves. */}
+          <div className="gl-ticker-rail" style={{ flex: 1, minWidth: 0 }}>
+            <div
+              className="gl-ticker-track"
+              role="list"
+              aria-label="Players the league has been moving"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                width: "max-content",
+                // Per cell rather than per strip, so two names and eight names
+                // travel at the same speed. A short list otherwise sprints.
+                animationDuration: `${runsOf(hot.length) * hot.length * 3.4}s`,
+              }}
             >
-              <span
-                aria-hidden
-                style={{
-                  width: 4,
-                  height: 4,
-                  borderRadius: "50%",
-                  background:
-                    t.net > 0 ? "var(--good)" : t.net < 0 ? "var(--bad)" : "rgb(var(--accent-rgb) / .5)",
-                }}
-              />
-              <span style={{ color: "var(--text-2)" }}>{t.name}</span>
-              <span
-                style={{
-                  fontFamily: "var(--font-heading)",
-                  color: t.net > 0 ? "var(--good)" : t.net < 0 ? "var(--bad)" : "var(--text-dim)",
-                }}
-              >
-                {t.net > 0 ? `+${t.net} ADD` : t.net < 0 ? `${t.net} DROP` : "MOVED"}
-              </span>
-            </span>
-          ))}
+              {[0, 1].map((copy) => (
+                <div
+                  key={copy}
+                  aria-hidden={copy === 1}
+                  style={{ display: "flex", alignItems: "center" }}
+                >
+                  {Array.from({ length: runsOf(hot.length) }).flatMap((_, run) =>
+                    hot.map((t) => (
+                      <span
+                        key={`${copy}-${run}-${t.name}`}
+                        role={copy === 0 && run === 0 ? "listitem" : undefined}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          flex: "0 0 auto",
+                          whiteSpace: "nowrap",
+                          padding: "9px 14px 9px 0",
+                          marginLeft: 14,
+                        }}
+                      >
+                        <span
+                          aria-hidden
+                          style={{
+                            width: 4,
+                            height: 4,
+                            borderRadius: "50%",
+                            background:
+                              t.net > 0
+                                ? "var(--good)"
+                                : t.net < 0
+                                  ? "var(--bad)"
+                                  : "rgb(var(--accent-rgb) / .5)",
+                          }}
+                        />
+                        <span style={{ color: "var(--text-2)" }}>{t.name}</span>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-heading)",
+                            color:
+                              t.net > 0 ? "var(--good)" : t.net < 0 ? "var(--bad)" : "var(--text-dim)",
+                          }}
+                        >
+                          {t.net > 0 ? `+${t.net} ADD` : t.net < 0 ? `${t.net} DROP` : "MOVED"}
+                        </span>
+                      </span>
+                    )),
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       ) : null}
 

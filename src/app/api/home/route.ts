@@ -1,3 +1,4 @@
+import { isPresent, readManagers } from "@/lib/presence";
 import { ageOf } from "@/data/league-data";
 import { freshenWeek } from "@/lib/live-refresh";
 import { player, proj } from "@/lib/roster";
@@ -54,11 +55,13 @@ export async function GET() {
         .select("name, season, settings, draft_at, draft_state")
         .eq("id", me.league_id)
         .single(),
-      db
-        .from("managers")
-        .select("id, slot, name, franchise, division")
-        .eq("league_id", me.league_id)
-        .order("slot"),
+      readManagers<{
+          id: string;
+          slot: string;
+          name: string;
+          franchise: string;
+          division: string | null;
+        }>(db, me.league_id, "id, slot, name, franchise, division"),
       db.from("roster_slots").select("manager_id, player_name, lineup_slot").eq("league_id", me.league_id),
       db
         .from("matchups")
@@ -415,6 +418,9 @@ export async function GET() {
       // each: nothing to compare, and nothing changed.
       movement: t.movement,
       avgAge: ageOfRoster(t.id),
+      // Five minutes, the same window the League tab uses. One definition of
+      // "here" across the app, or the two pages disagree about who is about.
+      online: isPresent(m?.last_seen_at),
       mine: t.id === me.id,
     };
   });
