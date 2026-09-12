@@ -416,6 +416,9 @@ export function routes(page, over = {}) {
       id: m.id, slot: m.slot, franchise: m.franchise, name: m.name,
       rank: i + 1, rating: 90 - i * 6, wins: 12 - i, losses: i, ties: 0,
       pointsFor: 340 - i * 12, mine: i === 0,
+      // The same four as the League tab, so the two pages agree about who is
+      // about rather than each having its own opinion.
+      online: i < 4,
       // Up, down, and unmoved: all three chips have to be measured.
       movement: i === 0 ? 2 : i === 1 ? -3 : i === 2 ? null : (i % 3) - 1,
       avgAge: 24.6 + (i % 5) * 0.9,

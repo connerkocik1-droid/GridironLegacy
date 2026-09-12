@@ -36,6 +36,65 @@ a:hover {
   }
 }
 
+/* ------------------------------------------------------------- presence ---
+   Who is in the app right now, beside their franchise.
+
+   Always a dot, never sometimes a dot. Drawing one only for the managers who
+   are here means the eleven who are not look like a different kind of row,
+   and a reader cannot tell "nobody is about" from "this app does not show
+   that". Grey and flat is a real answer to the question.
+
+   The green one breathes. A ring that grows out of it and fades is the shape
+   every app uses for live, and unlike a blinking dot it reads as present
+   rather than as an alert wanting something. */
+
+@keyframes gl-presence-ping {
+  from {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.gl-presence {
+  position: relative;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  vertical-align: middle;
+  /* Grey, flat, and slightly recessed: offline is the resting state and
+     should not compete with the name beside it. */
+  background: var(--text-faint);
+}
+
+.gl-presence.is-on {
+  background: var(--good);
+}
+
+.gl-presence.is-on::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--good);
+  animation: gl-presence-ping 2s ease-out infinite;
+}
+
+/* The colour is the state; the ring is only how it is delivered. Somebody who
+   has asked for less motion still needs to be able to tell who is here, so the
+   ring goes and the green stays. */
+@media (prefers-reduced-motion: reduce) {
+  .gl-presence.is-on::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 @keyframes mt-pulse {
   0%,
   100% {

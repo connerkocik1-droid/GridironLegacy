@@ -79,6 +79,64 @@ console.log("\n--- the free agent advice ---");
 
   ok("and shows what the league has been moving", /MOVING/.test(t));
 
+  // It is a ticker, so it has to tick. A strip that sits still reads as a row
+  // of chips somebody forgot to finish, and gives away nothing about whether
+  // it is showing this afternoon or last month.
+  {
+    // Asked of the document rather than through a locator, so a strip that is
+    // not a ticker at all reports as one failed check rather than timing out
+    // and taking the rest of the run with it.
+    const where = () =>
+      page.evaluate(() => {
+        const el = document.querySelector(".gl-ticker-track");
+        if (!el) return null;
+        return new DOMMatrixReadOnly(getComputedStyle(el).transform).m41;
+      });
+
+    const first = await where();
+    ok("the strip is built as a ticker", first !== null);
+    await page.waitForFunction(
+      (was) => {
+        const el = document.querySelector(".gl-ticker-track");
+        if (!el) return false;
+        return new DOMMatrixReadOnly(getComputedStyle(el).transform).m41 !== was;
+      },
+      first,
+      { timeout: 8000 },
+    ).catch(() => {});
+
+    const moved = await where();
+    ok(
+      `the moving strip is moving (${first?.toFixed(1)} → ${moved?.toFixed(1)})`,
+      first !== null && moved !== null && moved !== first,
+    );
+
+    // Leftwards, so the next name arrives from the right the way every ticker
+    // anybody has ever read does.
+    ok("leftwards", first !== null && moved !== null && moved < first);
+
+    // And a name you are trying to read stops when you reach for it, or the
+    // strip is decoration rather than information.
+    await page.locator(".gl-ticker").first().hover().catch(() => {});
+    await page.waitForTimeout(300);
+    const held = await where();
+    await page.waitForTimeout(700);
+    ok(
+      `and it stops when you go to read it (${held?.toFixed(1)})`,
+      held !== null && (await where()) === held,
+    );
+    await page.mouse.move(0, 0);
+  }
+
+  // Short lists are laid out more than once, or a two-name ticker shows a
+  // name, then a page-width of nothing, then the same name again.
+  {
+    const cells = await page.locator(".gl-ticker-track [role='listitem']").count();
+    const all = await page.locator(".gl-ticker-track > div").first().locator("> span").count();
+    ok(`the list is repeated to fill the rail (${cells} named, ${all} drawn)`, all >= 6);
+    ok("but a screen reader hears each name once", cells > 0 && cells <= all / 2 + 1);
+  }
+
   // The trap: a chip on every row carries no information.
   const rows = await page.locator('a[href^="/player/"]').count();
   const chips = await page.locator('text=/^(FILLS |STARTER$|OVER )/').count();
