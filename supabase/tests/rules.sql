@@ -4320,6 +4320,81 @@ select expect('but one the report has cleared is left cleared',
   ir_eligible('Res Grandfathered'), false);
 
 \echo ''
+\echo '════════ a man you signed scores for you ════════'
+--
+-- Best ball fills the slots from roster_slots.position, and a player with no
+-- position is in no slot — not his own, and not the flex. The draft wrote it;
+-- nothing else did, so anybody signed off the wire scored nought for his
+-- manager while looking perfectly normal on the roster.
+
+\o /dev/null
+\set W  '99999999-0000-0000-0000-0000000000ba'
+\set WU 'db900000-1111-4000-8000-000000000001'
+
+insert into auth.users (id) values (:'WU');
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'W', 'Signing', 2032, 'AAA',
+        '{"starters":{"QB":1,"RB":1},"bench":20,"ir":2,"waiverMode":"none"}'::jsonb);
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id)
+values (:'W', 'AAA', 'A', 'Alpha', true, :'WU');
+
+insert into nfl_players (name, team, position) values
+  ('Sign QB', 'SEA', 'QB'), ('Sign Wire RB', 'DAL', 'RB'),
+  ('Sign Hurt WR', 'GB', 'WR'), ('Sign Given TE', 'TB', 'TE')
+on conflict (name) do update set position = excluded.position;
+
+update nfl_players set injury_status = 'ir' where name = 'Sign Hurt WR';
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'W', id, 'Sign QB', 'BENCH', 'QB'
+    from managers where league_id = :'W' and slot = 'AAA';
+
+select signin(:'WU');
+select add_player(:'W', 'Sign Wire RB');
+
+insert into player_scores (league_id, week, player_name, points) values
+  (:'W', 1, 'Sign QB', 10), (:'W', 1, 'Sign Wire RB', 25);
+\o
+
+select expect('signing a free agent records what he plays',
+  (select position from roster_slots where league_id = :'W' and player_name = 'Sign Wire RB'), 'RB');
+
+-- The whole of it: without the position he is worth nothing at all, and the
+-- matchup is simply lower than it should be with nothing anywhere saying so.
+select expect('so he is in the lineup the week he is signed',
+  lineup_points(:'W', (select id from managers where league_id = :'W' and slot = 'AAA'), 1),
+  35::numeric);
+
+\echo ''
+\echo '--- and so does every other way onto a roster ---'
+
+\o /dev/null
+select add_player_to_ir(:'W', 'Sign Hurt WR');
+select commissioner_move_player(:'W', 'Sign Given TE',
+  (select id from managers where league_id = :'W' and slot = 'AAA'));
+\o
+
+select expect('a free agent stashed straight onto the reserve',
+  (select position from roster_slots where league_id = :'W' and player_name = 'Sign Hurt WR'), 'WR');
+
+select expect('and a player the commissioner puts on a roster',
+  (select position from roster_slots where league_id = :'W' and player_name = 'Sign Given TE'), 'TE');
+
+-- The draft says what it knows, and the trigger must not talk over it: a man
+-- ESPN has since moved to another position is still what he was drafted as
+-- until the report says otherwise.
+\o /dev/null
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'W', id, 'Sign Stated', 'BENCH', 'QB'
+    from managers where league_id = :'W' and slot = 'AAA';
+insert into nfl_players (name, team, position) values ('Sign Stated', 'NYJ', 'WR')
+  on conflict (name) do update set position = 'WR';
+\o
+
+select expect('a position the caller stated is left alone',
+  (select position from roster_slots where league_id = :'W' and player_name = 'Sign Stated'), 'QB');
+
+\echo ''
 \echo '════════ points for is the lineup, not the roster ════════'
 --
 -- An eighteen-man roster in a league that fields eleven has seven men who
