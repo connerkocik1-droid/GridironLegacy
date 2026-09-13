@@ -4621,7 +4621,7 @@ select push_sent(
   array['https://push.example/aaa']);
 select push_failed(
   array(select id from push_outbox where league_id = :'P' and dedupe = 'w1-score-2'),
-  array[]::text[]);
+  array[]::text[], array['https://push.example/aaa']);
 \o
 
 select expect('what went is marked gone',
@@ -4635,11 +4635,40 @@ select expect('what did not is waiting again',
 select expect('so the next run picks it up rather than losing it',
   (select count(*)::int from claim_push(40)), 1);
 
+-- A refusal is counted against the device, not against the message. This used
+-- to add one to exactly the rows it deleted on the next line, so the count
+-- never survived and a device behind a push service having a bad week was
+-- retried forever.
+select expect('and the device that refused has a mark against it',
+  (select failures from push_subscriptions where endpoint = 'https://push.example/aaa'), 1);
+
+\o /dev/null
+-- Five in a row and it is a device that is gone in every way but the row.
+select push_failed(array[]::uuid[], array[]::text[],
+  array['https://push.example/aaa','https://push.example/aaa',
+        'https://push.example/aaa','https://push.example/aaa']);
+\o
+
+select expect('five refusals and it stops being tried',
+  (select count(*)::int from claim_push(40)), 0);
+
+select expect('though the row is still there, waiting for it to come back',
+  (select count(*)::int from push_subscriptions where endpoint = 'https://push.example/aaa'), 1);
+
+\o /dev/null
+-- Coming back is coming back: subscribing again forgives whatever it owed.
+select signin(:'PU');
+select subscribe_push('https://push.example/aaa', 'BKEY-AAA2', 'AUTH-AAA2');
+\o
+
+select expect('and a device that comes back is tried again',
+  (select failures from push_subscriptions where endpoint = 'https://push.example/aaa'), 0);
+
 \echo ''
 \echo '--- a device the push service says is gone, goes ---'
 
 \o /dev/null
-select push_failed(array[]::uuid[], array['https://push.example/aaa']);
+select push_failed(array[]::uuid[], array['https://push.example/aaa'], array[]::text[]);
 \o
 
 select expect('a revoked endpoint is deleted rather than retried forever',
@@ -4727,7 +4756,7 @@ select expect('a matchup in progress is worth one message to whoever asked',
 
 select expect('and it says who is ahead, from the reader''s side',
   (select body from push_outbox
-    where league_id = :'P' and dedupe = 'score:w1:a'),
+    where league_id = :'P' and dedupe = 'score:w1:a:0'),
   'Behind Bravo by 20.0.');
 
 -- The cron runs again five minutes later and nothing has changed.
@@ -4743,12 +4772,37 @@ select expect('but the lead changing hands is worth saying',
 
 select expect('and now it reads the other way',
   (select body from push_outbox
-    where league_id = :'P' and kind = 'scores' and dedupe = 'score:w1:h'),
+    where league_id = :'P' and kind = 'scores' and dedupe = 'score:w1:h:1'),
   'Ahead of Bravo by 20.0.');
 
 select expect('a manager who did not ask is told nothing either way',
   (select count(*)::int from push_outbox o join managers m on m.id = o.manager_id
     where m.slot = 'BBB' and m.league_id = :'P'), 0);
+
+-- Every lead change, which is what the switch promises. The key used to be
+-- just who was ahead — three values for a whole week — so the first time each
+-- side took the lead was news and every flip after it was silently dropped.
+\o /dev/null
+update player_scores set points = 4 where league_id = :'P' and player_name = 'Pocket QB';
+select push_score_news(:'P', 1);
+update player_scores set points = 60 where league_id = :'P' and player_name = 'Pocket QB';
+select push_score_news(:'P', 1);
+\o
+
+select expect('a lead that changes back is said again',
+  (select count(*)::int from push_outbox
+    where league_id = :'P' and dedupe like 'score:w1:%'), 4);
+
+-- But a lead that merely stands is not repeated, or a Sunday is thirty
+-- notifications.
+\o /dev/null
+update player_scores set points = 70 where league_id = :'P' and player_name = 'Pocket QB';
+select push_score_news(:'P', 1);
+\o
+
+select expect('while a lead that only widens is not',
+  (select count(*)::int from push_outbox
+    where league_id = :'P' and dedupe like 'score:w1:%'), 4);
 
 \echo ''
 \echo '--- nought to nought is not news ---'
@@ -4902,8 +4956,7 @@ insert into trades (id, league_id, from_manager, to_manager, offer, status,
     from (values
       (:'VT1'::uuid, '{"give":["Vote Alpha1"],"get":["Vote Bravo1"]}'::jsonb),
       (:'VT2'::uuid, '{"give":["Vote Alpha2"],"get":["Vote Bravo2"]}'::jsonb),
-      (:'VT3'::uuid, '{"give":["Vote Alpha3"],"get":["Vote Bravo3"]}'::jsonb),
-      (:'VT4'::uuid, '{"give":["Vote Alpha4"],"get":["Vote Bravo4"]}'::jsonb)
+      (:'VT3'::uuid, '{"give":["Vote Alpha3"],"get":["Vote Bravo3"]}'::jsonb)
     ) as t(id, offer);
 
 select signin(:'VA');
@@ -5056,10 +5109,19 @@ select expect('and its players move',
 \echo '--- the commissioner can put one through regardless ---'
 
 \o /dev/null
-select signin(:'VA'); select open_trade_vote(:'VT4');
-select signin(:'VC'); select cast_trade_vote(:'VT4', 'veto');
+-- A deal between two managers the commissioner is not one of, because forcing
+-- your own is the exact thing the vote exists to stop and is checked below.
+-- Bravo gives Charlie a man for nothing, which is the shape a league vetoes.
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted)
+values (:'VT4', :'V',
+        (select id from managers where league_id = :'V' and slot = 'BBB'),
+        (select id from managers where league_id = :'V' and slot = 'CCC'),
+        '{"give":["Vote Bravo4"],"get":[]}'::jsonb, 'agreed', true, true);
+
+select signin(:'VB'); select open_trade_vote(:'VT4');
 select signin(:'VD'); select cast_trade_vote(:'VT4', 'veto');
-select signin(:'VB');
+select signin(:'VE'); select cast_trade_vote(:'VT4', 'veto');
 \o
 
 select expect('a manager who is not the commissioner cannot force a trade',
@@ -5075,15 +5137,26 @@ select expect('nor can a voter who does not like how it is going',
   'Only the commissioner can force a trade');
 
 \o /dev/null
-select signin(:'VA'); select force_trade(:'VT4');
+select signin(:'VA');
+\o
+
+-- The one deal a commissioner may not put through is their own. Overriding a
+-- league vote on somebody else's trade is the job; overriding it on yours is
+-- the thing the vote exists to prevent.
+select expect('not even the commissioner forces a trade they are in',
+  refuses(format('select force_trade(%L)', :'VT1')),
+  'You are in this trade — the league decides it, not you');
+
+\o /dev/null
+select force_trade(:'VT4');
 \o
 
 select expect('the commissioner can, mid-vote',
   (select status from trades where id = :'VT4'), 'executed');
 
-select expect('and the players move',
+select expect('and the player moves to the manager it was forced for',
   (select m.slot from roster_slots r join managers m on m.id = r.manager_id
-    where r.league_id = :'V' and r.player_name = 'Vote Alpha4'), 'BBB');
+    where r.league_id = :'V' and r.player_name = 'Vote Bravo4'), 'CCC');
 
 -- Overriding a league vote is the kind of thing a commissioner should have to
 -- answer for, so it is written down with who did it.
@@ -5094,6 +5167,111 @@ select expect('overriding the league leaves a mark',
 select expect('naming the commissioner who did it',
   (select l.actor = (select id from managers where league_id = :'V' and slot = 'AAA')
      from admin_log l where l.league_id = :'V' and l.action = 'trade_forced'), true);
+
+\echo ''
+\echo '--- a vote on a deal that has fallen apart settles rather than sticking ---'
+--
+-- Forty-eight hours is long enough for a player in the offer to be somewhere
+-- else. apply_trade raises at that, and the raise used to take the deciding
+-- voter's ballot with it: a 403, the vote rolled back, and the trade stuck in
+-- 'voting' forever one short of the bar — and on the nightly pass, one such
+-- trade aborted the loop for every other trade in the league.
+
+\o /dev/null
+\set VT6 'ce111111-1111-4000-8000-000000000006'
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted)
+values (:'VT6', :'V',
+        (select id from managers where league_id = :'V' and slot = 'BBB'),
+        (select id from managers where league_id = :'V' and slot = 'CCC'),
+        '{"give":["Vote Bravo3"],"get":[]}'::jsonb, 'agreed', true, true);
+
+select signin(:'VB'); select open_trade_vote(:'VT6');
+
+-- And now the man is not where the offer says he is.
+delete from roster_slots where league_id = :'V' and player_name = 'Vote Bravo3';
+
+update trades set voting_opened_at = now() - interval '49 hours' where id = :'VT6';
+\o
+
+select expect('a trade whose players have moved is settled, not stuck',
+  settle_trade_vote(:'VT6'), 'declined');
+
+select expect('and it says so in the log rather than vanishing',
+  (select count(*)::int from admin_log
+    where league_id = :'V' and action = 'trade_void'), 1);
+
+-- The half that actually hurt: one broken trade took the whole run with it.
+\o /dev/null
+\set VT7 'ce111111-1111-4000-8000-000000000007'
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted, voting_opened_at)
+values (:'VT7', :'V',
+        (select id from managers where league_id = :'V' and slot = 'BBB'),
+        (select id from managers where league_id = :'V' and slot = 'CCC'),
+        '{"give":["Vote Gone"],"get":[]}'::jsonb, 'voting', true, true,
+        now() - interval '49 hours');
+
+\set VT8 'ce111111-1111-4000-8000-000000000008'
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted, voting_opened_at)
+values (:'VT8', :'V',
+        (select id from managers where league_id = :'V' and slot = 'BBB'),
+        (select id from managers where league_id = :'V' and slot = 'CCC'),
+        '{"give":["Vote Spare"],"get":[]}'::jsonb, 'voting', true, true,
+        now() - interval '49 hours');
+
+insert into nfl_players (name, team, position) values ('Vote Spare', 'LAC', 'QB')
+  on conflict (name) do update set team = excluded.team;
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'V', id, 'Vote Spare', 'BENCH', 'QB'
+    from managers where league_id = :'V' and slot = 'BBB';
+
+select settle_trade_votes(:'V');
+\o
+
+select expect('a broken trade does not take the good one down with it',
+  (select status from trades where id = :'VT8'), 'executed');
+
+select expect('and the broken one is declined',
+  (select status from trades where id = :'VT7'), 'declined');
+
+\echo ''
+\echo '--- and rewriting the terms throws away the votes cast on the old ones ---'
+--
+-- Three managers vetoing a lopsided deal must not have their vetoes counted
+-- against whatever it is rewritten into. They were also filtered off the home
+-- page as having already voted, so they could not correct it.
+
+\o /dev/null
+\set VT9 'ce111111-1111-4000-8000-000000000009'
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted)
+values (:'VT9', :'V',
+        (select id from managers where league_id = :'V' and slot = 'BBB'),
+        (select id from managers where league_id = :'V' and slot = 'CCC'),
+        '{"give":["Vote Bravo1"],"get":[]}'::jsonb, 'agreed', true, true);
+
+select signin(:'VB'); select open_trade_vote(:'VT9');
+select signin(:'VD'); select cast_trade_vote(:'VT9', 'veto');
+select signin(:'VE'); select cast_trade_vote(:'VT9', 'veto');
+select signin(:'VF'); select cast_trade_vote(:'VT9', 'veto');
+\o
+
+select expect('three vetoes stand while the terms do',
+  (select count(*)::int from trade_votes where trade_id = :'VT9'), 3);
+
+\o /dev/null
+select signin(:'VB');
+update trades set offer = '{"give":["Vote Bravo1"],"get":["Vote Alpha1"]}'::jsonb
+ where id = :'VT9';
+\o
+
+select expect('changing them throws the ballots away',
+  (select count(*)::int from trade_votes where trade_id = :'VT9'), 0);
+
+select expect('and stops the clock, so the new terms get a full window',
+  (select voting_opened_at is null from trades where id = :'VT9'), true);
 
 \echo ''
 \echo '--- and only the two in a deal may put it to the league ---'
@@ -5130,7 +5308,7 @@ select expect('the league can see who voted which way',
 select expect('changing your mind replaces your vote rather than adding one',
   (select count(*)::int from trade_votes
     where trade_id = :'VT4' and manager_id =
-      (select id from managers where league_id = :'V' and slot = 'CCC')), 1);
+      (select id from managers where league_id = :'V' and slot = 'DDD')), 1);
 
 \echo ''
 \echo '--- and both managers are told what the league did ---'
@@ -5153,14 +5331,23 @@ select expect('nobody is told the other manager declined, because they did not',
   (select count(*)::int from notices n join managers m on m.id = n.manager_id
     where m.league_id = :'V' and n.body like '%declined your offer%'), 0);
 
-select expect('and going to the league is itself news to both of them',
+-- Both of them, not just the one who proposed it. Counted per manager rather
+-- than in total, because the total moves every time a test above opens another
+-- vote and an assertion that has to be retuned is an assertion nobody trusts.
+select expect('going to the league is news to the manager who offered',
   (select count(*)::int from notices n join managers m on m.id = n.manager_id
-    where m.league_id = :'V' and n.body like '%is with the league.'), 8);
+    where m.league_id = :'V' and m.slot = 'AAA'
+      and n.body = 'Your trade with Bravo is with the league.') > 0, true);
+
+select expect('and to the manager who accepted',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where m.league_id = :'V' and m.slot = 'BBB'
+      and n.body = 'Your trade with Alpha is with the league.') > 0, true);
 
 -- Eleven notices a trade is how a notice list becomes something nobody reads.
 select expect('but the voters are told nothing — the vote is on their home page',
   (select count(*)::int from notices n join managers m on m.id = n.manager_id
-    where m.league_id = :'V' and m.slot not in ('AAA','BBB')), 0);
+    where m.league_id = :'V' and m.slot not in ('AAA','BBB','CCC')), 0);
 
 \echo ''
 \echo '--- and being present is something only you can claim ---'

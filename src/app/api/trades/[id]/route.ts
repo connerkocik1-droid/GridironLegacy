@@ -87,9 +87,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   if (action === "force") {
     // The commissioner putting a deal through over the league's vote, or
-    // without waiting for one. Deliberately above the "not your trade" guard:
-    // forcing your own trade through is the one case this is not for. The
-    // database decides who may, so a manager cannot get here by guessing.
+    // without waiting for one. Deliberately above the "not your trade" guard,
+    // because the whole point of it is that the trade is somebody else's — and
+    // the database refuses a commissioner forcing one they are in, which is
+    // the exact thing the vote exists to prevent. It decides who may; this
+    // only decides whether to ask.
     const { data: forced, error } = await db.rpc("force_trade", { p_trade_id: id });
     if (error) {
       console.error("[trades] force failed", error);

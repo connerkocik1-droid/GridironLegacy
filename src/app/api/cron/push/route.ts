@@ -66,6 +66,7 @@ export async function GET(req: Request) {
   const delivered: string[] = [];
   const failed: string[] = [];
   const dead: string[] = [];
+  const sick: string[] = [];
 
   // In parallel: these are a dozen independent requests to two or three push
   // services, and doing them one at a time is a minute of waiting for a
@@ -100,6 +101,7 @@ export async function GET(req: Request) {
       dead.push(row.endpoint);
     } else {
       failed.push(row.id);
+      sick.push(row.endpoint);
     }
   }
 
@@ -111,10 +113,15 @@ export async function GET(req: Request) {
     if (sentError) console.error("[cron/push] could not mark sent", sentError);
   }
 
-  if (failed.length || dead.length) {
+  if (failed.length || dead.length || sick.length) {
     const { error: failError } = await db.rpc("push_failed", {
       p_ids: failed,
       p_dead_endpoints: dead,
+      // The two lists are different things and were being conflated: a device
+      // the push service says is gone is deleted, and one that merely refused
+      // gets a mark against it. Counting the marks against the rows about to
+      // be deleted meant the count never survived to retire anything.
+      p_sick_endpoints: sick,
     });
     if (failError) console.error("[cron/push] could not settle failures", failError);
   }

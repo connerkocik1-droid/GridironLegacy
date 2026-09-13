@@ -246,6 +246,21 @@ console.log("\n--- ordering the board ---");
       (await page.locator("tbody tr").allInnerTexts()).slice(dashesFirst)
         .every((t) => /—\s*$/.test(t)));
 
+  // The one column that is not a number. Best-first for a name is A to Z, and
+  // the unit test only covered ascending, which is how a first press that
+  // answered with the bottom of the alphabet went unnoticed.
+  await page.getByRole("button", { name: /PLAYERS?$/ }).first().click();
+  await page.waitForTimeout(400);
+  const alphabetical = await names();
+  ok(`the first press on the name column starts at A (${alphabetical[0]})`,
+    alphabetical.length > 1 &&
+      alphabetical[0].localeCompare(alphabetical[alphabetical.length - 1]) <= 0);
+
+  // Back to points, or the checks below are reading whoever happens to be in
+  // the first fifty rows of the alphabet.
+  await page.getByRole("button", { name: /^PTS/ }).first().click();
+  await page.waitForTimeout(400);
+
   const header = await page.getByRole("button", { name: /^REC\/G/ }).first().boundingBox();
   ok(`a thumb can hit the heading (${Math.round(header?.height ?? 0)}px)`,
     (header?.height ?? 0) >= 32);

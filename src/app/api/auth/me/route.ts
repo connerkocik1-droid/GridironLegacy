@@ -24,7 +24,14 @@ export async function GET() {
   // is as good a definition of "using the app" as anything the client could
   // invent — and it is a function rather than a policy, so the only row it
   // can ever touch is this manager's own.
-  void db.rpc("touch_presence");
+  //
+  // Awaited, and that is the whole of it: a PostgREST builder is a lazy
+  // thenable, so the request is not made until something subscribes to it.
+  // `void db.rpc(...)` builds the call and throws it away — which is what this
+  // did, and why every dot in the league was grey. Nothing failed; nothing was
+  // ever sent.
+  const stamped = await db.rpc("touch_presence");
+  if (stamped.error) console.warn("[auth/me] presence not stamped", stamped.error.message);
 
   // Their own crest comes along, so the button in the corner has something to
   // draw without a second round trip. Everyone else's is fetched only by the

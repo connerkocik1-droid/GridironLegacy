@@ -149,7 +149,13 @@ export default function PlayerRankings() {
    */
   function orderBy(key: string) {
     setShown(PAGE);
-    setSort((s) => (s.key === key ? { key, ascending: !s.ascending } : { key, ascending: false }));
+    setSort((s) => {
+      if (s.key === key) return { key, ascending: !s.ascending };
+      // Best first, and for a column of names "best" is A to Z. Descending is
+      // right for every number here and wrong for the only column that is not
+      // one: a first press that answers with Zavier is a press wasted.
+      return { key, ascending: key === "name" };
+    });
   }
 
   return (
