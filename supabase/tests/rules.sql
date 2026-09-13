@@ -4320,6 +4320,118 @@ select expect('but one the report has cleared is left cleared',
   ir_eligible('Res Grandfathered'), false);
 
 \echo ''
+\echo '════════ points for is the lineup, not the roster ════════'
+--
+-- An eighteen-man roster in a league that fields eleven has seven men who
+-- score nothing for anybody. Counting them was not merely a third too much: it
+-- rewarded hoarding, because a manager who never started a player all season
+-- still banked his points, and the table before any week was graded ranked
+-- whoever had the deepest bench.
+
+\o /dev/null
+\set F  '99999999-0000-0000-0000-0000000000af'
+\set FU 'da900000-1111-4000-8000-000000000001'
+\set FU2 'da900000-1111-4000-8000-000000000002'
+
+insert into auth.users (id) values (:'FU'), (:'FU2');
+
+-- One starter at each of two positions, so a bench is reachable with four men.
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'F', 'Lineup', 2031, 'AAA',
+        '{"starters":{"QB":1,"RB":1},"bench":20}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise, auth_user_id) values
+  (:'F', 'AAA', 'A', 'Alpha', :'FU'),
+  (:'F', 'BBB', 'B', 'Bravo', :'FU2');
+
+insert into nfl_players (name, team, position) values
+  ('Line Starter QB', 'SEA', 'QB'), ('Line Starter RB', 'DAL', 'RB'),
+  ('Line Bench QB',   'BUF', 'QB'), ('Line Bench RB',   'GB',  'RB'),
+  ('Line Bravo QB',   'DEN', 'QB'), ('Line Bravo RB',   'CHI', 'RB')
+on conflict (name) do update set team = excluded.team;
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'F', m.id, t.n, 'BENCH', t.p from managers m,
+         unnest(array['Line Starter QB','Line Starter RB','Line Bench QB','Line Bench RB'],
+                array['QB','RB','QB','RB']) as t(n, p)
+   where m.league_id = :'F' and m.slot = 'AAA';
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'F', m.id, t.n, 'BENCH', t.p from managers m,
+         unnest(array['Line Bravo QB','Line Bravo RB'], array['QB','RB']) as t(n, p)
+   where m.league_id = :'F' and m.slot = 'BBB';
+
+-- Week one, ungraded. Alpha's two best score 30 and 20; the two behind them
+-- score 9 and 8, which is what a roster total would wrongly add on.
+insert into player_scores (league_id, week, player_name, points) values
+  (:'F', 1, 'Line Starter QB', 30), (:'F', 1, 'Line Starter RB', 20),
+  (:'F', 1, 'Line Bench QB',    9), (:'F', 1, 'Line Bench RB',    8),
+  (:'F', 1, 'Line Bravo QB',   14), (:'F', 1, 'Line Bravo RB',   11);
+
+insert into matchups (league_id, week, home_manager, away_manager, final)
+  select :'F', 1,
+         (select id from managers where league_id = :'F' and slot = 'AAA'),
+         (select id from managers where league_id = :'F' and slot = 'BBB'),
+         false;
+
+select signin(:'FU');
+\o
+
+select expect('a week in progress counts the best eleven and no more',
+  (select points_for from season_points_for(:'F')
+    where manager_id = (select id from managers where league_id = :'F' and slot = 'AAA')), 50.0);
+
+-- The number the old arithmetic gave, named so a regression is recognisable.
+select expect('and not the whole roster, which would have been 67',
+  (select points_for from season_points_for(:'F')
+    where manager_id = (select id from managers where league_id = :'F' and slot = 'AAA')) = 67.0,
+  false);
+
+select expect('the other manager is counted the same way',
+  (select points_for from season_points_for(:'F')
+    where manager_id = (select id from managers where league_id = :'F' and slot = 'BBB')), 25.0);
+
+\echo ''
+\echo '--- a graded week is what the matchup said, not what today says ---'
+
+\o /dev/null
+select grade_week(:'F', 1);
+\o
+
+select expect('grading it does not change the number',
+  (select points_for from season_points_for(:'F')
+    where manager_id = (select id from managers where league_id = :'F' and slot = 'AAA')), 50.0);
+
+select expect('and the standings agree with it',
+  (select points_for from standings(:'F')
+    where manager_id = (select id from managers where league_id = :'F' and slot = 'AAA')), 50.0);
+
+-- A settled week is settled. Recomputing it against whatever the roster looks
+-- like today would quietly rewrite a result every time somebody made a trade.
+\o /dev/null
+delete from roster_slots
+ where league_id = :'F' and player_name in ('Line Starter QB', 'Line Starter RB');
+\o
+
+select expect('and trading the men who scored it away does not take it back',
+  (select points_for from season_points_for(:'F')
+    where manager_id = (select id from managers where league_id = :'F' and slot = 'AAA')), 50.0);
+
+\echo ''
+\echo '--- and a manager who has scored nothing is still a row ---'
+
+\o /dev/null
+insert into managers (league_id, slot, name, franchise) values (:'F', 'CCC', 'C', 'Charlie');
+\o
+
+select expect('at nought rather than missing from the table',
+  (select points_for from season_points_for(:'F')
+    where manager_id = (select id from managers where league_id = :'F' and slot = 'CCC')), 0.0);
+
+select expect('so every franchise in the league has a number',
+  (select count(*)::int from season_points_for(:'F')), 3);
+
+\echo ''
 \echo '════════ the phone in a pocket ════════'
 --
 -- Four kinds of notification and a manager who has asked for none of them by

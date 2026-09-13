@@ -239,15 +239,22 @@ export async function GET() {
     ]),
   );
 
-  // Points scored across the whole season by the players a franchise holds.
-  // The standings table only counts graded weeks; this counts everything, so
-  // the ranking moves during a week rather than only at the end of one.
-  const scoredFor = new Map<string, number>();
-  for (const [name, points] of season) {
-    const holder = owner.get(name);
-    if (!holder) continue;
-    scoredFor.set(holder, (scoredFor.get(holder) ?? 0) + points);
-  }
+  // What each franchise's starting lineups have scored, graded weeks and the
+  // one in progress. Not what its roster has scored: an eighteen-man roster in
+  // a league that fields eleven has seven men who score for nobody, and adding
+  // them in made the power rank a ranking of who had the deepest bench.
+  //
+  // The standings table only counts graded weeks; this counts the live one
+  // too, which is what makes the rank move during a Sunday rather than only at
+  // the end of it.
+  const { data: production } = await db.rpc("season_points_for", { p_league_id: me.league_id });
+
+  const scoredFor = new Map<string, number>(
+    ((production ?? []) as { manager_id: string; points_for: number }[]).map((r) => [
+      r.manager_id,
+      Number(r.points_for),
+    ]),
+  );
 
   const teams: Team[] = roster.map((m) => {
     const r = record.get(m.id);

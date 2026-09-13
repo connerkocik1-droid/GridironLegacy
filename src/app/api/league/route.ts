@@ -107,17 +107,22 @@ export async function GET() {
     (r: { wins: number; losses: number; ties: number }) => r.wins + r.losses + r.ties > 0,
   );
 
-  // Points for, by manager: every week a rostered player has scored. Without a
-  // season schedule there are no records to stand on, so this is the honest
-  // ordering — total production, not a fabricated W-L.
-  const owner = new Map((slots ?? []).map((s) => [s.player_name, s.manager_id]));
-  const pointsFor = new Map<string, number>();
+  // Points for, by manager: what their starting lineups have scored. Not what
+  // their rosters have — an eighteen-man roster in a league that fields eleven
+  // has seven men who score for nobody, and counting them rewarded hoarding.
+  // Worked out in the database, where best_ball_lineup already decides who
+  // started, so this number and the standings cannot drift apart.
+  const { data: production, error: productionError } = await db.rpc("season_points_for", {
+    p_league_id: me.league_id,
+  });
+  if (productionError) console.error("[league] could not read points for", productionError);
 
-  for (const row of scores ?? []) {
-    const managerId = owner.get(row.player_name);
-    if (!managerId) continue;
-    pointsFor.set(managerId, (pointsFor.get(managerId) ?? 0) + Number(row.points));
-  }
+  const pointsFor = new Map<string, number>(
+    ((production ?? []) as { manager_id: string; points_for: number }[]).map((r) => [
+      r.manager_id,
+      Number(r.points_for),
+    ]),
+  );
 
   const weeks = new Set((scores ?? []).map((s) => s.week));
 
