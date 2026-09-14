@@ -1,3 +1,4 @@
+import { seasonPointsFor } from "@/lib/points-for";
 import { isPresent, readManagers } from "@/lib/presence";
 import { ageOf } from "@/data/league-data";
 import { freshenWeek } from "@/lib/live-refresh";
@@ -247,14 +248,7 @@ export async function GET() {
   // The standings table only counts graded weeks; this counts the live one
   // too, which is what makes the rank move during a Sunday rather than only at
   // the end of it.
-  const { data: production } = await db.rpc("season_points_for", { p_league_id: me.league_id });
-
-  const scoredFor = new Map<string, number>(
-    ((production ?? []) as { manager_id: string; points_for: number }[]).map((r) => [
-      r.manager_id,
-      Number(r.points_for),
-    ]),
-  );
+  const scoredFor = await seasonPointsFor(db, me.league_id);
 
   const teams: Team[] = roster.map((m) => {
     const r = record.get(m.id);

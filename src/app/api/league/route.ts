@@ -1,3 +1,4 @@
+import { seasonPointsFor } from "@/lib/points-for";
 import { isPresent, readManagers } from "@/lib/presence";
 
 /** The manager columns this route reads. */
@@ -112,17 +113,7 @@ export async function GET() {
   // has seven men who score for nobody, and counting them rewarded hoarding.
   // Worked out in the database, where best_ball_lineup already decides who
   // started, so this number and the standings cannot drift apart.
-  const { data: production, error: productionError } = await db.rpc("season_points_for", {
-    p_league_id: me.league_id,
-  });
-  if (productionError) console.error("[league] could not read points for", productionError);
-
-  const pointsFor = new Map<string, number>(
-    ((production ?? []) as { manager_id: string; points_for: number }[]).map((r) => [
-      r.manager_id,
-      Number(r.points_for),
-    ]),
-  );
+  const pointsFor = await seasonPointsFor(db, me.league_id);
 
   const weeks = new Set((scores ?? []).map((s) => s.week));
 
