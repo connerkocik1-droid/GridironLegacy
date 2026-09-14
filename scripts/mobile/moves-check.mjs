@@ -155,8 +155,81 @@ console.log("\n--- the trade builder ---");
   ok("rather than calling nothing an even deal", !/As even as trades get/.test(t));
 }
 
+console.log("\n--- what a free agent has actually done ---");
+{
+  await open("Free Agents", "free-agents", /MOVING|UPGRADE|ROSTER HOLE/);
+  const t = await body();
+
+  // A draft-day list is the right answer in August and the wrong one by
+  // October, when what a manager wants is whoever has been scoring.
+  ok("a free agent's season is on his row", /41\.2 PTS/.test(t));
+  ok("with a per-game rate beside it", /20\.6 PPG/.test(t));
+  ok("and how many games it is over", /2 games/.test(t));
+
+  // Nothing invented for somebody who has not played: nought points beside a
+  // row of dashes is three lines saying the season has not started.
+  const warren = await page.locator("text=Tyler Warren").first()
+    .locator("xpath=../../..").innerText();
+  ok(`a man who has not played says nothing (${warren.split("\n").slice(0, 2).join(" ")})`,
+    !/PTS/.test(warren));
+
+  // The draft-day line is still there — it is what a rookie is judged on.
+  ok("and the draft-day line is still there", /ADP \d+/.test(t));
+}
+
+console.log("\n--- ordered by what you are shopping for ---");
+{
+  const chips = page.locator("text=BY").locator("xpath=..");
+  ok("the pool can be ordered", (await chips.count()) > 0);
+
+  const names = async () =>
+    (await page.locator('a[href^="/player/"]').allInnerTexts()).map((n) => n.trim());
+
+  const byAdp = await names();
+  ok(`ADP order to begin with (${byAdp[0]})`, byAdp[0] === "Ashton Jeanty");
+
+  await page.getByRole("button", { name: "PTS", exact: true }).click();
+  await page.waitForTimeout(600);
+  const byPoints = await names();
+  ok(`ordering by points reorders the pool (${byPoints[0]})`,
+    byPoints[0] === "Ashton Jeanty" && byPoints.join("|") !== byAdp.join("|"));
+
+  // Sorted on the server, or it would only be ordering the sixty rows this
+  // page happens to hold.
+  const asked = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/api/players")) asked.push(r.url());
+  });
+  await page.getByRole("button", { name: "POS", exact: true }).click();
+  await page.waitForTimeout(600);
+  ok(`the order is asked of the server (${asked.length} request${asked.length === 1 ? "" : "s"})`,
+    asked.some((u) => u.includes("sort=position")));
+
+  // The columns offered follow what you are shopping for: catches and targets
+  // for a receiver, and not for a quarterback.
+  await page.getByRole("button", { name: "WR", exact: true }).click();
+  await page.waitForTimeout(700);
+  const wr = await body();
+  ok("shopping for a receiver offers catches and targets",
+    /REC\/G/.test(wr) && /TGT\/G/.test(wr));
+  ok("and the rows carry them", /6\.5 REC\/G/.test(wr) && /9\.0 TGT\/G/.test(wr));
+
+  await page.getByRole("button", { name: "REC/G", exact: true }).click();
+  await page.waitForTimeout(600);
+  const byCatches = await names();
+  ok(`and the pool can be ordered on them (${byCatches[0]})`, byCatches[0] === "Chris Godwin");
+
+  const chip = await page.getByRole("button", { name: "REC/G", exact: true }).boundingBox();
+  ok(`a thumb can hit a sort chip (${Math.round(chip?.height ?? 0)}px)`, (chip?.height ?? 0) >= 32);
+}
+
 console.log("\n--- countering a received offer ---");
 {
+  // Its own page rather than whichever one the check above happened to leave
+  // open. A check that depends on what ran before it fails for a reason that
+  // has nothing to do with what it is testing.
+  await open("Trade Builder", "trade-builder", /Build an offer|Countering/);
+
   // Between yes and no, which is where most trades in a league of twelve
   // actually live. The offer on the fixture is two players out and one in.
   const counter = page.getByRole("button", { name: "Counter" });

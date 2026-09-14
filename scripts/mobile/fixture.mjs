@@ -839,7 +839,10 @@ export function routes(page, over = {}) {
     basis: "league",
   }));
 
-  page.route("**/api/players**", json({
+  // A function rather than a fixed answer: the sort and the position filter are
+  // both server-side now, so a fixture that ignores the query string would let
+  // a sort chip that does nothing pass.
+  const FREE_AGENTS = {
     me: ME, mode: "waivers", waiverDays: 1, capacity: 25, held: 13,
     // The reserve holds two and one is taken, so a free agent on IR can still
     // be signed to it — which is what puts an IR button beside Tyler Warren
@@ -858,22 +861,79 @@ export function routes(page, over = {}) {
       { name: "Jayden Reed", clearsAt: ago(-1800), position: "WR", team: "GB", mine: false },
     ],
     total: 5, page: 0, hasMore: false,
+    // What the position filter is showing. ALL fields points alone; a position
+    // adds the statistics that position is judged on, and the sort control
+    // follows the same list.
+    columns: [
+      { key: "total", label: "PTS", dp: 1, title: "Total fantasy points" },
+      { key: "ppg", label: "PPG", dp: 1, title: "Fantasy points per game" },
+    ],
+    sort: "adp",
     players: [
       { name: "Ashton Jeanty", position: "RB", team: "LV", adp: 10, posRank: "RB6",
-        bye: 10, clearsAt: null },
+        bye: 10, clearsAt: null,
+        points: 41.2, ppg: 20.6, games: 2,
+        stats: { attpg: 17.5, ypg: 82.5, tdpg: 0.5, recpg: 2.5, tgtpg: 3, scrimpg: 96 } },
       // His club kicked off an hour ago: not a pickup this week.
       { name: "Chris Godwin", position: "WR", team: "TB", adp: 44, posRank: "WR20",
-        bye: 9, clearsAt: null, locked: true },
+        bye: 9, clearsAt: null, locked: true,
+        points: 28.4, ppg: 14.2, games: 2,
+        stats: { recpg: 6.5, tgtpg: 9, ypg: 71, tdpg: 0.5, ypr: 10.9 } },
       { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", adp: 22, posRank: "WR9",
-        bye: 8, clearsAt: ago(-300) },
+        bye: 8, clearsAt: ago(-300),
+        points: 22.6, ppg: 11.3, games: 2,
+        stats: { recpg: 4, tgtpg: 7.5, ypg: 58, tdpg: 0, ypr: 14.5 } },
       { name: "Seattle Seahawks D/ST", position: "D/ST", team: "SEA", adp: 240,
-        posRank: "DST1", bye: 8, clearsAt: null },
-      // On IR, so he can be signed to the reserve without a roster spot. The
-      // one row on this page that offers the move.
+        posRank: "DST1", bye: 8, clearsAt: null,
+        points: 18, ppg: 9, games: 2, stats: {} },
+      // Nothing recorded at all, which has to read as nothing rather than as a
+      // row of noughts and dashes.
       { name: "Tyler Warren", position: "TE", team: "IND", adp: 96, posRank: "TE11",
-        bye: 11, clearsAt: null },
+        bye: 11, clearsAt: null, points: 0, ppg: 0, games: 0, stats: {} },
     ],
-  }));
+  };
+
+  const WR_COLUMNS = [
+    { key: "total", label: "PTS", dp: 1, title: "Total fantasy points" },
+    { key: "ppg", label: "PPG", dp: 1, title: "Fantasy points per game" },
+    { key: "recpg", label: "REC/G", dp: 1, title: "Receptions per game" },
+    { key: "tgtpg", label: "TGT/G", dp: 1, title: "Targets per game" },
+    { key: "ypg", label: "YDS/G", dp: 1, title: "Receiving yards per game" },
+    { key: "tdpg", label: "TD/G", dp: 2, title: "Receiving touchdowns per game" },
+  ];
+
+  page.route("**/api/players**", (r) => {
+    const url = new URL(r.request().url());
+    const sort = url.searchParams.get("sort") ?? "adp";
+    const position = url.searchParams.get("position") ?? "ALL";
+
+    let players = FREE_AGENTS.players.filter(
+      (p) => position === "ALL" || p.position === position,
+    );
+
+    const key = (p) =>
+      sort === "adp" ? p.adp
+      : sort === "position" ? p.position
+      : sort === "total" ? -(p.points ?? 0)
+      : sort === "ppg" ? -(p.ppg ?? 0)
+      : -(p.stats?.[sort] ?? -Infinity);
+
+    players = [...players].sort((a, b) => {
+      const x = key(a);
+      const y = key(b);
+      return typeof x === "string" ? x.localeCompare(y) : x - y;
+    });
+
+    return r.fulfill({
+      json: {
+        ...FREE_AGENTS,
+        sort,
+        columns: position === "WR" ? WR_COLUMNS : FREE_AGENTS.columns,
+        players,
+        total: players.length,
+      },
+    });
+  });
 
   page.route("**/api/trades", json({
     me: ME, managers: MANAGERS, block: [], picks: [], inauguralSeason: 2026,

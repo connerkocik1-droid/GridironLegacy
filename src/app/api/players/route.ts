@@ -1,5 +1,6 @@
 import { POOL } from "@/data/league-data";
 import { teamGames } from "@/lib/nfl-week";
+import { COLUMNS, rank, sortRows, type Group, type Row } from "@/lib/rankings";
 import { isConfigured, serverClient } from "@/lib/supabase";
 import { currentWeek } from "@/lib/week";
 
@@ -38,6 +39,19 @@ export async function GET(req: Request) {
   const search = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   const page = Math.max(0, Number(url.searchParams.get("page") ?? 0) || 0);
 
+  // Only a key the board actually has. Anything else is ADP, which is the
+  // order the list has always been in and the sensible answer before a ball
+  // has been kicked.
+  const asked = url.searchParams.get("sort") ?? "adp";
+  const sortable = new Set<string>([
+    "adp",
+    "position",
+    "total",
+    "ppg",
+    ...Object.values(COLUMNS).flatMap((columns) => columns.map((c) => c.key)),
+  ]);
+  const sort = sortable.has(asked) ? asked : "adp";
+
   const [{ data: league }, { data: rostered }, { data: mine }, { data: claims }, { data: wire }] =
     await Promise.all([
       db.from("leagues").select("season, settings").eq("id", me.league_id).single(),
@@ -70,15 +84,101 @@ export async function GET(req: Request) {
     return g ? g.state !== "pre" : false;
   };
 
+  // What everybody has actually done this season, worked out by the same code
+  // the rankings board uses — so a free agent's numbers here and his numbers
+  // on the League tab are the same numbers rather than two attempts at them.
+  const { data: scoreRows } = await db
+    .from("player_scores")
+    .select("player_name, points, week, stats")
+    .eq("league_id", me.league_id);
+
+  const weeksOf = new Map<string, Set<number>>();
+  const totalOf = new Map<string, number>();
+  const lineOf = new Map<string, Record<string, number>>();
+  const seenIn = new Map<string, Record<string, number>>();
+
+  for (const row of scoreRows ?? []) {
+    const name = row.player_name as string;
+    totalOf.set(name, (totalOf.get(name) ?? 0) + Number(row.points));
+    const weeks = weeksOf.get(name) ?? new Set<number>();
+    weeks.add(row.week as number);
+    weeksOf.set(name, weeks);
+
+    const line = lineOf.get(name) ?? {};
+    const appearances = seenIn.get(name) ?? {};
+    for (const [key, value] of Object.entries((row.stats ?? {}) as Record<string, unknown>)) {
+      if (typeof value !== "number" || !Number.isFinite(value)) continue;
+      line[key] = (line[key] ?? 0) + value;
+      appearances[key] = (appearances[key] ?? 0) + 1;
+    }
+    lineOf.set(name, line);
+    seenIn.set(name, appearances);
+  }
+
+  const leaguePoints: Record<string, { total: number; games: number }> = {};
+  for (const [name, total] of totalOf) {
+    leaguePoints[name] = {
+      total: Math.round(total * 10) / 10,
+      games: weeksOf.get(name)?.size ?? 0,
+    };
+  }
+
+  const played: Record<string, { line: Record<string, number>; games: Record<string, number> }> = {};
+  for (const [name, line] of lineOf) {
+    played[name] = { line, games: seenIn.get(name) ?? {} };
+  }
+
+  const heldBy: Record<string, string> = {};
+  for (const r of rostered ?? []) heldBy[r.player_name] = "held";
+
+  const scored = Object.keys(leaguePoints).length > 0;
+  const board = new Map<string, Row>(
+    rank(leaguePoints, heldBy, scored, played).map((r) => [r.name, r]),
+  );
+
   const taken = new Set((rostered ?? []).map((r) => r.player_name));
   const clears = new Map((wire ?? []).map((w) => [w.player_name, w.clears_at as string]));
 
-  const free = POOL.filter((p) => {
+  const matching = POOL.filter((p) => {
     if (taken.has(p.n)) return false;
     if (position !== "ALL" && p.p !== position) return false;
     if (search && !p.n.toLowerCase().includes(search)) return false;
     return true;
-  }).sort((a, b) => a.adp - b.adp);
+  });
+
+  // Sorted here rather than in the browser, because the browser only has the
+  // sixty rows it was sent: ordering those by points would answer "the best of
+  // the players nearest the top of the ADP list", which is not a question
+  // anybody asked.
+  let free: typeof matching;
+
+  if (sort === "adp") {
+    free = matching.sort((a, b) => a.adp - b.adp);
+  } else if (sort === "position") {
+    // Grouped by what they play, best first inside each group, so a manager
+    // shopping for one thing reads one run of rows.
+    const order = ["QB", "RB", "WR", "TE", "K", "D/ST"];
+    const rankOf = (p: (typeof matching)[number]) => {
+      const at = order.indexOf(p.p);
+      return at === -1 ? order.length : at;
+    };
+    free = matching.sort(
+      (a, b) =>
+        rankOf(a) - rankOf(b) ||
+        (board.get(b.n)?.total ?? 0) - (board.get(a.n)?.total ?? 0) ||
+        a.adp - b.adp,
+    );
+  } else {
+    // Every other key is a column on the rankings board, so the board does the
+    // sorting and this puts the pool back in that order.
+    const rows = matching
+      .map((p) => board.get(p.n))
+      .filter((r): r is Row => r != null);
+    const at = new Map(sortRows(rows, sort, false).map((r, i) => [r.name, i]));
+    free = matching.sort(
+      (a, b) => (at.get(a.n) ?? Infinity) - (at.get(b.n) ?? Infinity) || a.adp - b.adp,
+    );
+  }
 
   const settings = league?.settings ?? {};
   const starters: Record<string, number> = settings.starters ?? {};
@@ -145,16 +245,30 @@ export async function GET(req: Request) {
     total: free.length,
     page,
     hasMore: free.length > (page + 1) * PAGE,
-    players: free.slice(page * PAGE, (page + 1) * PAGE).map((p) => ({
-      name: p.n,
-      position: p.p,
-      team: p.t,
-      adp: p.adp,
-      posRank: p.posRank,
-      bye: p.bye,
-      clearsAt: clears.get(p.n) ?? null,
-      // His club is on the field, or has left it. Not a pickup this week.
-      locked: started(p.t),
-    })),
+    // Which columns mean something for the group being looked at, so the
+    // rows and the sort control are describing the same statistics.
+    columns: COLUMNS[(position === "ALL" ? "ALL" : position) as Group] ?? COLUMNS.ALL,
+    sort,
+    players: free.slice(page * PAGE, (page + 1) * PAGE).map((p) => {
+      const row = board.get(p.n);
+      return {
+        name: p.n,
+        position: p.p,
+        team: p.t,
+        adp: p.adp,
+        posRank: p.posRank,
+        bye: p.bye,
+        clearsAt: clears.get(p.n) ?? null,
+        // His club is on the field, or has left it. Not a pickup this week.
+        locked: started(p.t),
+        // What he has actually done. Nought points and no rates is an honest
+        // answer for somebody who has not played, and it is what the board
+        // says about him too.
+        points: row?.total ?? 0,
+        ppg: row?.ppg ?? 0,
+        games: row?.games ?? 0,
+        stats: row?.stats ?? {},
+      };
+    }),
   });
 }

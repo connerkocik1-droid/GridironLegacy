@@ -25,6 +25,11 @@ interface FreeAgent {
   clearsAt: string | null;
   /** His club is on the field, or has left it. Not a pickup this week. */
   locked?: boolean;
+  /** What he has actually done this season, the same numbers the board shows. */
+  points?: number;
+  ppg?: number;
+  games?: number;
+  stats?: Record<string, number | null>;
 }
 
 interface Wired {
@@ -65,6 +70,9 @@ interface Feed {
   page: number;
   hasMore: boolean;
   players: FreeAgent[];
+  /** Which statistics mean something for the position being looked at. */
+  columns?: { key: string; label: string; dp: number; title: string }[];
+  sort?: string;
 }
 
 /**
@@ -120,6 +128,66 @@ const button = (enabled: boolean): React.CSSProperties => ({
  * fills the rail at any width; a full list of eight is already long enough
  * and is laid out once.
  */
+/**
+ * A free agent's season, in the statistics his position is judged on.
+ *
+ * The columns come from the board rather than from a list written out here, so
+ * a receiver is measured on catches and targets and a quarterback on
+ * completions — and so this and the rankings table can never end up describing
+ * the same man differently.
+ *
+ * Silent for anybody with nothing recorded. Nought points beside a row of
+ * dashes is three lines of screen saying the season has not started.
+ */
+function StatLine({
+  player,
+  columns,
+}: {
+  player: FreeAgent;
+  columns: { key: string; label: string; dp: number; title: string }[];
+}) {
+  const points = player.points ?? 0;
+  const games = player.games ?? 0;
+  if (!games) return null;
+
+  const rates = columns
+    .filter((c) => c.key !== "total" && c.key !== "ppg")
+    .map((c) => ({ ...c, value: player.stats?.[c.key] }))
+    .filter((c) => c.value != null && Number.isFinite(c.value))
+    // Three at most. A phone row is not a spreadsheet, and the first three are
+    // the ones the position is actually judged on.
+    .slice(0, 3);
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        gap: 8,
+        flexWrap: "wrap",
+        marginTop: 3,
+        fontSize: 10.5,
+        color: "var(--text-dim)",
+      }}
+    >
+      <span style={{ color: "var(--accent-text)", fontFamily: "var(--font-heading)" }}>
+        {points.toFixed(1)} PTS
+      </span>
+      <span style={{ fontVariantNumeric: "tabular-nums" }}>
+        {(points / games).toFixed(1)} PPG
+      </span>
+      <span>
+        {games} {games === 1 ? "game" : "games"}
+      </span>
+      {rates.map((c) => (
+        <span key={c.key} title={c.title} style={{ fontVariantNumeric: "tabular-nums" }}>
+          {(c.value as number).toFixed(c.dp)} {c.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function runsOf(items: number): number {
   return Math.max(1, Math.ceil(6 / Math.max(1, items)));
 }
@@ -129,6 +197,9 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [filter, setFilter] = useState("ALL");
+  // Ordered on the server, because the browser only holds the sixty rows it
+  // was sent and sorting those answers a question nobody asked.
+  const [sort, setSort] = useState("adp");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -167,7 +238,9 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
 
   const load = useCallback(async () => {
     try {
-      const url = `/api/players?position=${encodeURIComponent(filter)}&q=${encodeURIComponent(search)}&page=${page}`;
+      const url =
+        `/api/players?position=${encodeURIComponent(filter)}` +
+        `&q=${encodeURIComponent(search)}&page=${page}&sort=${encodeURIComponent(sort)}`;
       const res = await fetch(url, { cache: "no-store" });
       if (res.status === 401) return setError("Sign in to add players.");
       if (res.status === 503) {
@@ -180,7 +253,7 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
     } catch {
       setError("Could not load the player pool.");
     }
-  }, [filter, search, page]);
+  }, [filter, search, page, sort]);
 
   const loadWatchlist = useCallback(async () => {
     try {
@@ -839,6 +912,67 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
           </div>
         </div>
 
+        {/* What to order the pool by. ADP is the list as it has always been —
+            the right answer in August and the wrong one by October, when what
+            a manager wants is whoever has actually been scoring. The columns
+            offered follow the position filter, so shopping for a receiver
+            offers catches and targets and shopping for a quarterback does
+            not. */}
+        <div
+          className="gl-noscrollbar"
+          style={{
+            display: "flex",
+            gap: 4,
+            alignItems: "center",
+            padding: "0 16px 10px",
+            overflowX: "auto",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 10,
+              letterSpacing: ".16em",
+              color: "var(--text-dim)",
+              flex: "0 0 auto",
+              paddingRight: 3,
+            }}
+          >
+            BY
+          </span>
+          {[
+            { key: "adp", label: "ADP", title: "Where he went in drafts" },
+            { key: "position", label: "POS", title: "Grouped by what he plays" },
+            { key: "total", label: "PTS", title: "Fantasy points this season" },
+            { key: "ppg", label: "PPG", title: "Fantasy points per game" },
+            ...(feed.columns ?? []).filter((c) => c.key !== "total" && c.key !== "ppg"),
+          ].map((c) => (
+            <button
+              key={c.key}
+              title={c.title}
+              onClick={() => {
+                setSort(c.key);
+                setPage(0);
+              }}
+              style={{
+                padding: "6px 9px",
+                minHeight: 32,
+                fontSize: 10,
+                letterSpacing: ".1em",
+                flex: "0 0 auto",
+                whiteSpace: "nowrap",
+                border: `1px solid ${sort === c.key ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+                background: sort === c.key ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+                color: sort === c.key ? "var(--text)" : "var(--text-muted)",
+                borderRadius: "var(--radius-sm)",
+                fontFamily: "inherit",
+                cursor: "pointer",
+              }}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+
         {feed.players.length === 0 ? (
           <div style={{ padding: 16, fontSize: 12, color: "var(--text-dim)" }}>Nobody left here.</div>
         ) : null}
@@ -930,6 +1064,14 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
                     </span>
                   ))}
                 </div>
+                {/* What he has actually done, in the numbers that mean
+                    something for what he plays — catches and targets for a
+                    receiver, carries for a back, nothing invented for a man
+                    who has not played. Above the draft-day line, because by
+                    October what he did last week matters more than where he
+                    went in August. */}
+                <StatLine player={p} columns={feed.columns ?? []} />
+
                 <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
                   {p.posRank} · ADP {p.adp} · bye {p.bye} · proj {proj(p.name).toFixed(1)}
                   {p.clearsAt ? (
