@@ -4507,6 +4507,160 @@ select expect('so every franchise in the league has a number',
   (select count(*)::int from season_points_for(:'F')), 3);
 
 \echo ''
+\echo '════════ the postseason is not the season ════════'
+--
+-- Playoff games are written into the same table as the regular season, with a
+-- flag saying which they are. regular_season_weeks() reads the flag. standings()
+-- never did, so a champion finished the year with three extra wins on the
+-- League page — and reverse-standings draft order, which reads the same
+-- numbers, handed the best team a better pick for winning the title.
+
+\o /dev/null
+\set PS  '99999999-0000-0000-0000-0000000000bb'
+\set PSU 'dc900000-1111-4000-8000-000000000001'
+
+insert into auth.users (id) values (:'PSU');
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'PS', 'Postseason', 2033, 'AAA', '{"starters":{"QB":1},"bench":20}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise, auth_user_id) values
+  (:'PS', 'AAA', 'A', 'Alpha', :'PSU'),
+  (:'PS', 'BBB', 'B', 'Bravo', null);
+
+-- One regular week: Alpha wins it.
+insert into matchups (league_id, week, home_manager, away_manager,
+                      home_points, away_points, winner, final, playoff)
+  select :'PS', 1,
+         (select id from managers where league_id = :'PS' and slot = 'AAA'),
+         (select id from managers where league_id = :'PS' and slot = 'BBB'),
+         100, 90,
+         (select id from managers where league_id = :'PS' and slot = 'AAA'),
+         true, false;
+
+-- And one playoff week, which is not the season.
+insert into matchups (league_id, week, home_manager, away_manager,
+                      home_points, away_points, winner, final, playoff, playoff_round)
+  select :'PS', 15,
+         (select id from managers where league_id = :'PS' and slot = 'AAA'),
+         (select id from managers where league_id = :'PS' and slot = 'BBB'),
+         120, 80,
+         (select id from managers where league_id = :'PS' and slot = 'AAA'),
+         true, true, 1;
+\o
+
+select expect('a title does not add a win to the regular season',
+  (select wins from standings(:'PS')
+    where manager_id = (select id from managers where league_id = :'PS' and slot = 'AAA')), 1);
+
+select expect('nor a loss to the beaten side',
+  (select losses from standings(:'PS')
+    where manager_id = (select id from managers where league_id = :'PS' and slot = 'BBB')), 1);
+
+select expect('and postseason points are not season points',
+  (select points_for from standings(:'PS')
+    where manager_id = (select id from managers where league_id = :'PS' and slot = 'AAA')), 100::numeric);
+
+-- The same table drives the League tab's points column, so it had the same
+-- hole from the day it was written.
+select expect('the season total agrees',
+  (select points_for from season_points_for(:'PS')
+    where manager_id = (select id from managers where league_id = :'PS' and slot = 'AAA')), 100.0);
+
+\echo ''
+\echo '════════ rolling into next season ════════'
+--
+-- The one moment in a dynasty league that cannot be done twice. What comes out
+-- of it is the rookie draft, and a rookie draft in the wrong order — or missing
+-- the picks people traded for — is a year of dealing thrown away.
+
+\o /dev/null
+\set RS  '99999999-0000-0000-0000-0000000000bc'
+\set RSU 'dd900000-1111-4000-8000-000000000001'
+
+insert into auth.users (id) values (:'RSU');
+insert into leagues (id, name, season, inaugural_season, commissioner_slot, settings, draft_state)
+values (:'RS', 'Rollover', 2033, 2033, 'AAA',
+        '{"starters":{"QB":1},"bench":20,"rounds":24,"rookieRounds":3}'::jsonb, 'complete');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'RS', 'AAA', 'A', 'Alpha',   true,  :'RSU'),
+  (:'RS', 'BBB', 'B', 'Bravo',   false, null),
+  (:'RS', 'CCC', 'C', 'Charlie', false, null),
+  (:'RS', 'DDD', 'D', 'Delta',   false, null);
+
+-- A finished season, and deliberately not in alphabetical order: Bravo was
+-- worst and Alpha won it. Without that the two orderings coincide and a board
+-- built by franchise slot passes a test meant for reverse standings.
+insert into matchups (league_id, week, home_manager, away_manager,
+                      home_points, away_points, winner, final, playoff)
+  select :'RS', w.week, h.id, a.id, w.hp, w.ap,
+         case when w.hp > w.ap then h.id else a.id end, true, false
+    from (values
+      (1, 'AAA', 'BBB', 120, 60),
+      (1, 'CCC', 'DDD', 110, 100),
+      (2, 'AAA', 'DDD', 118, 90),
+      (2, 'CCC', 'BBB', 105, 70)
+    ) as w(week, home, away, hp, ap)
+    join managers h on h.league_id = :'RS' and h.slot = w.home
+    join managers a on a.league_id = :'RS' and a.slot = w.away;
+
+insert into league_champions (league_id, season, manager_id, franchise, decided_at)
+  select :'RS', 2033, id, 'Alpha', now()
+    from managers where league_id = :'RS' and slot = 'AAA';
+
+-- And a pick traded a year in advance, which is the whole point of holding
+-- them early: Delta's first rounder belongs to Alpha.
+select award_draft_picks(:'RS', 2034);
+update draft_pick_assets
+   set manager_id = (select id from managers where league_id = :'RS' and slot = 'BBB')
+ where league_id = :'RS' and season = 2034 and round = 1
+   and origin_manager = (select id from managers where league_id = :'RS' and slot = 'AAA');
+
+select signin(:'RSU');
+select roll_season(:'RS');
+\o
+
+select expect('the league is playing the next season',
+  (select season from leagues where id = :'RS'), 2034);
+
+-- A rookie draft, not a startup one.
+select expect('the board is as many rounds as a rookie draft has',
+  (select max(round)::int from draft_picks where league_id = :'RS'), 3);
+
+-- Reverse standings, read from the season that has just finished. Computed
+-- after the matchups and the seeds were deleted, there is nothing left to read
+-- and the order collapses to franchise slot.
+select expect('the worst team picks first',
+  (select m.slot from draft_picks p join managers m on m.id = p.manager_id
+    where p.league_id = :'RS' and p.overall = 1), 'BBB');
+
+-- In round three, where nobody has traded anything. Round one cannot answer
+-- this: the champion's own first belongs to Bravo now, so the last pick of
+-- that round is Bravo's, which is the point of having traded for it.
+select expect('and the champion picks last',
+  (select m.slot from draft_picks p join managers m on m.id = p.manager_id
+    where p.league_id = :'RS' and p.round = 3
+    order by p.overall desc limit 1), 'AAA');
+
+-- Snaking, as the startup draft does: the worst team goes first in round one
+-- and last in round two.
+select expect('the board snakes',
+  (select m.slot from draft_picks p join managers m on m.id = p.manager_id
+    where p.league_id = :'RS' and p.round = 2
+    order by p.overall desc limit 1), 'BBB');
+
+-- The pick Alpha traded for a year ago has to be on the board as Alpha's.
+select expect('a pick traded a year early belongs to whoever holds it',
+  (select count(*)::int from draft_picks p
+    join managers m on m.id = p.manager_id
+   where p.league_id = :'RS' and p.round = 1 and m.slot = 'BBB'), 2);
+
+select expect('and the manager who traded it away has none',
+  (select count(*)::int from draft_picks p
+    join managers m on m.id = p.manager_id
+   where p.league_id = :'RS' and p.round = 1 and m.slot = 'AAA'), 0);
+
+\echo ''
 \echo '════════ the phone in a pocket ════════'
 --
 -- Four kinds of notification and a manager who has asked for none of them by
