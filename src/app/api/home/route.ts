@@ -394,24 +394,6 @@ export async function GET() {
       };
     });
 
-  /**
-   * When the next NFL game starts, for the countdown.
-   *
-   * The league's own fixtures rather than a feed: they are already stored for
-   * the pick-'em, and a home page should not wait on ESPN to say what time it
-   * is. Null once everything this week has kicked off, which is when a
-   * countdown has nothing left to count.
-   */
-  const { data: nextGame } = await db
-    .from("nfl_games")
-    .select("starts_at")
-    .eq("season", league?.season ?? 0)
-    .eq("state", "pre")
-    .gt("starts_at", new Date().toISOString())
-    .order("starts_at")
-    .limit(1)
-    .maybeSingle();
-
   const power = rank(teams, previous).map((t) => {
     const m = byId.get(t.id);
     return {
@@ -558,7 +540,6 @@ export async function GET() {
     leaderBasis: basis,
     power,
     upcoming,
-    nextKickoff: nextGame?.starts_at ?? null,
     // Whether any week has actually been settled. The rankings say what they
     // are built on rather than implying a record nobody has yet.
     played: teams.some((t) => t.wins + t.losses + t.ties > 0),

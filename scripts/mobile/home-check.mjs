@@ -24,21 +24,52 @@ await page.waitForTimeout(1000);
 
 const body = () => page.locator("body").innerText();
 
-console.log("--- the countdown ---");
+console.log("--- who is here ---");
 {
-  // By its label rather than out of the page text: the clock sits in a span of
-  // its own, so innerText breaks the line between "KICKOFF IN 1D" and the
-  // digits — and a regex that stops at the newline reads the one part that
-  // never changes and calls a working clock frozen.
-  const clock = page.getByLabel("Time until kickoff");
-  const first = await clock.innerText();
-  ok("it says how long until kickoff", /KICKOFF IN/i.test(first));
-  ok("with a day count and a clock", /\d+D\s*\n?\s*\d{2}:\d{2}:\d{2}/.test(first));
+  const strip = page.locator("text=HERE NOW").first();
+  ok("the top of the page says who is about", await strip.count() > 0);
 
-  // It has to tick, or it is a picture of a countdown.
-  await page.waitForTimeout(1600);
-  ok(`and it is counting, not frozen (${first.split("\n").pop()} → ${(await clock.innerText()).split("\n").pop()})`,
-    (await clock.innerText()) !== first);
+  const row = page.locator('[aria-label$="in the app right now"]').first();
+  const t = (await row.count()) ? await row.innerText() : "";
+
+  ok("it names them by first name, not by franchise",
+    /Conner/.test(t) && !/Steel Cartel/.test(t));
+  ok("and marks which one is you", /you/i.test(t));
+
+  // Two Danas online. Two identical chips would say somebody is here without
+  // saying who, which is the whole reason the surname initial exists.
+  ok(`both Danas are told apart (${(t.match(/Dana\s\w\./g) ?? []).join(" ")})`,
+    /Dana W\./.test(t) && /Dana K\./.test(t));
+
+  ok("somebody who is not about is not listed", !/\bSam\b/.test(t));
+  ok("the open seat is never listed as a person", !/\bOpen\b/.test(t));
+
+  // The dot is the state; the ring is the pulse. Both come from the class, so
+  // a strip drawn with flat grey dots would still read correctly here.
+  const dots = await page.evaluate(() => {
+    const row = document.querySelector('[aria-label$="in the app right now"]');
+    if (!row) return null;
+    const all = [...row.querySelectorAll(".gl-presence")];
+    return {
+      count: all.length,
+      lit: all.filter((d) => d.classList.contains("is-on")).length,
+      ring: all.length
+        ? getComputedStyle(all[0], "::after").animationName
+        : "",
+    };
+  });
+  ok("every name carries a dot", !!dots && dots.count === 4);
+  ok("and every one of them is lit", !!dots && dots.lit === dots.count);
+  ok(`the lit dot pulses (${dots?.ring ?? "none"})`, dots?.ring === "gl-presence-ping");
+}
+
+console.log("\n--- no countdown ---");
+{
+  // Removed. The ticker above it already says what is on and when, and a
+  // clock counting down to Thursday is a thing a manager reads once.
+  ok("the kickoff clock is gone",
+    (await page.getByLabel("Time until kickoff").count()) === 0);
+  ok("and nothing else is counting to it", !/KICKOFF IN/i.test(await body()));
 }
 
 console.log("\n--- the matchup hero ---");
@@ -94,10 +125,24 @@ console.log("\n--- the power rank ---");
   // one.
   await page.getByRole("button", { name: /ALL \d+ TEAMS/ }).click();
   await page.waitForTimeout(400);
-  const lit = await page.locator(".gl-presence.is-on").count();
-  const dim = await page.locator(".gl-presence:not(.is-on)").count();
+  // Counted off the table itself rather than off the page: the strip at the
+  // top of Home carries the same dots, and a page-wide count would pass on
+  // the strip alone while the table drew nothing.
+  const { lit, dim, names } = await page.evaluate(() => {
+    const strip = document.querySelector('[aria-label$="in the app right now"]');
+    const table = [...document.querySelectorAll(".gl-presence")].filter((d) => !strip?.contains(d));
+    return {
+      lit: table.filter((d) => d.classList.contains("is-on")).length,
+      dim: table.filter((d) => !d.classList.contains("is-on")).length,
+      // Who each page thinks is about, to compare them.
+      names: [...(strip?.querySelectorAll('[aria-label$="is here now"]') ?? [])]
+        .map((d) => d.getAttribute("aria-label").replace(" is here now", "")),
+    };
+  });
   ok(`the four who are about are lit (${lit})`, lit === 4);
   ok(`and the eight who are not are still drawn (${dim})`, dim === 8);
+  ok(`and the strip at the top names the same four (${names.join(", ")})`,
+    names.length === 4);
 
   // Closed again, so the count below measures the opening rather than a
   // list that was already open from the check above.

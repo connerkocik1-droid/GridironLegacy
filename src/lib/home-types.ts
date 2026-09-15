@@ -134,7 +134,5 @@ export interface Home {
   power: PowerRow[];
   /** The next five fixtures, for the hero. */
   upcoming: Upcoming[];
-  /** When the next NFL game starts, or null once they all have. */
-  nextKickoff: string | null;
   played: boolean;
 }

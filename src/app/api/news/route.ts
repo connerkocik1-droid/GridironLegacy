@@ -1,4 +1,4 @@
-import { fetchNews } from "@/lib/news";
+import { readNews } from "@/lib/news";
 
 /**
  * The wire, for the band on the home page.
@@ -12,14 +12,23 @@ import { fetchNews } from "@/lib/news";
  * to ESPN between windows rather than twelve.
  */
 export async function GET() {
-  const stories = await fetchNews();
+  const { stories, ok } = await readNews();
   return Response.json(
-    { stories },
+    { stories, ok },
     {
       // Shared rather than private: there is nothing per-manager in this
       // response, and the filtering happens in the browser against a roster
       // fetched separately.
-      headers: { "cache-control": "public, max-age=300, stale-while-revalidate=900" },
+      //
+      // A failure is never cached. Five minutes of shared cache plus fifteen
+      // of stale-while-revalidate turns one unreachable minute at ESPN into
+      // twenty minutes of an empty wire for the whole league, and an empty
+      // wire is indistinguishable from a broken feature.
+      headers: {
+        "cache-control": ok
+          ? "public, max-age=300, stale-while-revalidate=900"
+          : "no-store",
+      },
     },
   );
 }

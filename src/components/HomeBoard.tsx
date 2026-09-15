@@ -11,7 +11,7 @@ import TradeBallots from "./TradeBallots";
 import TheLeagueButton from "./TheLeagueButton";
 import MiniGamesButton from "./MiniGamesButton";
 import ScoreTicker from "./ScoreTicker";
-import KickoffCountdown from "./KickoffCountdown";
+import WhoIsHere from "./WhoIsHere";
 import GamecastButton from "./GamecastButton";
 import MatchupHero from "./MatchupHero";
 import PowerRank from "./PowerRank";
@@ -74,14 +74,14 @@ export default function HomeBoard() {
 
   return (
     <div style={{ paddingBottom: 44 }}>
-      {/* Above everything, because it is the one thing on this page that is
-          about the actual football rather than the league. */}
-      <ScoreTicker />
+      {/* Before the football, because it is about the room. Who else has the
+          app open decides whether a trade is worth sending now — and it is one
+          line, so it costs the matchup nothing. */}
+      <WhoIsHere power={home?.power ?? []} />
 
-      {/* How long until football. Under the ticker because it is the same
-          subject, and gone once the slate is under way — by then the ticker
-          above is the better answer. */}
-      <KickoffCountdown at={home?.nextKickoff ?? null} />
+      {/* Above everything else, because it is the one thing on this page that
+          is about the actual football rather than the league. */}
+      <ScoreTicker />
 
       {/* First of all, because on a Sunday it is the only question anybody
           has. Not collapsible: a band you can fold away is a band somebody

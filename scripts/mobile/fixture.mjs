@@ -12,10 +12,10 @@ export const ME = {
 
 const NAMES = [
   ["m0", "T01", "Conner", "Steel Cartel", "North"],
-  ["m1", "T02", "Dana", "Bay Area Brawlers", "North"],
+  ["m1", "T02", "Dana Whitfield", "Bay Area Brawlers", "North"],
   ["m2", "T03", "Open", "Open Team", "North"],
   ["m3", "T04", "Kim", "Kim's Very Long Franchise Name", "North"],
-  ["m4", "T05", "Alex", "Thunderbolts", "North"],
+  ["m4", "T05", "Dana Kowalczyk", "Thunderbolts", "North"],
   ["m5", "T06", "Sam", "Riverside Rattlesnakes", "North"],
   ["m6", "T07", "Jo", "Nine Lives", "South"],
   ["m7", "T08", "Pat", "Gold Coast Gladiators", "South"],
@@ -324,6 +324,9 @@ export function routes(page, over = {}) {
       story("s3", "A league-wide rule change lands", []),
       story("s4", "Ashton Jeanty impresses", ["Ashton Jeanty"]),
     ],
+    // Reached. The route answers 200 either way, so this flag is the only
+    // thing separating a quiet wire from an unreachable one.
+    ok: true,
   }));
   page.route("**/api/activity**", json({
     me: { id: "m0" }, managers: MANAGERS, total: 4, page: 0, hasMore: false,
@@ -417,8 +420,10 @@ export function routes(page, over = {}) {
       rank: i + 1, rating: 90 - i * 6, wins: 12 - i, losses: i, ties: 0,
       pointsFor: 340 - i * 12, mine: i === 0,
       // The same four as the League tab, so the two pages agree about who is
-      // about rather than each having its own opinion.
-      online: i < 4,
+      // about rather than each having its own opinion. Never the open seat:
+      // an unclaimed franchise has nobody to be here, and the home strip
+      // would otherwise print a manager called "Open".
+      online: i < 5 && m.name !== "Open",
       // Up, down, and unmoved: all three chips have to be measured.
       movement: i === 0 ? 2 : i === 1 ? -3 : i === 2 ? null : (i % 3) - 1,
       avgAge: 24.6 + (i % 5) * 0.9,
@@ -440,8 +445,6 @@ export function routes(page, over = {}) {
       margin: 7.2 - n * 3.1,
       winProbability: 0.57 - n * 0.05,
     })),
-    // Two days out, so the countdown shows a day count as well as a clock.
-    nextKickoff: ago(-2880),
     played: true,
   }));
 
@@ -503,7 +506,7 @@ export function routes(page, over = {}) {
       ...m, id: m.id, claimed: m.name !== "Open", isCommissioner: i === 0,
       // Four of them are here, which is what the header counts and what the
       // dots beside the franchise names have to line up with.
-      online: i < 4,
+      online: i < 5 && m.name !== "Open",
       lastSeen: i < 4 ? new Date().toISOString() : null,
       pointsFor: 340 - i * 12,
       record: { wins: 12 - i, losses: i, ties: 0, divWins: 4, divLosses: 1,

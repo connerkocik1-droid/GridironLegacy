@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Nav from "@/components/Nav";
 import NewsWire from "@/components/NewsWire";
 import PlayerNewsFilter from "@/components/PlayerNewsFilter";
-import { fetchNews } from "@/lib/news";
+import { readNews } from "@/lib/news";
 
 export const metadata = { title: "News · Pylon Fantasy" };
 // The wire is the same for everyone, so it is fetched once and shared rather
@@ -11,7 +11,7 @@ export const metadata = { title: "News · Pylon Fantasy" };
 export const revalidate = 900;
 
 export default async function NewsPage() {
-  const stories = await fetchNews();
+  const { stories, ok } = await readNews();
 
   return (
     <div
@@ -41,7 +41,14 @@ export default async function NewsPage() {
             while the page is served from the shared cache. */}
         <Suspense fallback={<div style={{ color: "var(--text-dim)", fontSize: 12 }}>Loading…</div>}>
           <PlayerNewsFilter stories={stories}>
-            <NewsWire stories={stories} />
+            <NewsWire
+              stories={stories}
+              emptyMessage={
+                ok
+                  ? "The wire is quiet. It refreshes every fifteen minutes."
+                  : "ESPN is not reachable right now, so there is nothing to show. This page retries on its own."
+              }
+            />
           </PlayerNewsFilter>
         </Suspense>
       </div>

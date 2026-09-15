@@ -152,6 +152,36 @@ console.log("\n--- the news is read off the table too ---");
   ok("and the points-for leader is named", /leads the league in points for/.test(t));
 }
 
+console.log("\n--- and the NFL's news is on the same tab ---");
+{
+  // /news existed from the beginning and nothing in the app linked to it, so
+  // a manager asking "what has happened" got the league's own generated items
+  // and nothing about actual football. Both answers belong here.
+  await open("News");
+  const t = await body();
+  ok("the wire is on the tab", /AROUND THE NFL/i.test(t));
+  ok("with real stories on it", /Bijan Robinson carries a heavy load/.test(t));
+  ok("and a way through to the whole thing",
+    (await page.locator('a[href="/news"]').count()) > 0);
+
+  // Roster-first: the fixture's roster holds Bijan and Marvin Harrison Jr.
+  // and does not hold Ashton Jeanty, so the two of theirs come before his.
+  const order = ["Bijan Robinson carries", "Marvin Harrison Jr. is limited", "Ashton Jeanty impresses"]
+    .map((h) => t.indexOf(h));
+  ok(`stories about your own players come first (${order.join(", ")})`,
+    order.every((i) => i >= 0) && order[0] < order[2] && order[1] < order[2]);
+
+  // Marked, not merely present — the highlight is what does the sorting work
+  // visible on the screen.
+  const marked = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-wire="nfl"] article')]
+      .filter((a) => a.querySelector('a[href^="/player/"]'))
+      .map((a) => a.innerText.split("\n")[0]));
+  ok(`and are marked as yours (${marked.length})`,
+    marked.some((h) => /Bijan Robinson carries/.test(h)) &&
+    !marked.some((h) => /Ashton Jeanty/.test(h)));
+}
+
 console.log("\n--- and every section renders ---");
 for (const [tab, wanted, label] of [
   ["Standings", /POINTS FOR|PF|Ordered by/i, "the table"],
