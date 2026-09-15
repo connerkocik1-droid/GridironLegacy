@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fitChip, rosterNeed, trending, type Held } from "@/lib/moves-story";
+import {
+  fitChip,
+  replacementLevels,
+  rosterNeed,
+  trending,
+  type Held,
+} from "@/lib/moves-story";
 import Skeleton from "./Skeleton";
 import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
@@ -341,10 +347,20 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
     [totals, rostered, held],
   );
 
+  // The app's own defaults when the league has not said, the same set
+  // readSettings lays under a saved blob — including the flexes, which this
+  // fall-back used to drop. A league missing two flex slots is a league whose
+  // third receiver is nobody's starter, and the advice below reads off it.
   const starters = useMemo(
-    () => (feed?.starters ?? { QB: 1, RB: 2, WR: 2, TE: 1, K: 1, "D/ST": 1 }),
+    () => (feed?.starters ?? { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, "D/ST": 1 }),
     [feed],
   );
+
+  // What the wire could replace each position with, worked out once. It is the
+  // yardstick every cross-position comparison below uses: a rate cannot be
+  // compared across positions, and comparing them anyway is what put a
+  // quarterback at the top of every recommendation in a league that starts one.
+  const levels = useMemo(() => replacementLevels(freePool), [freePool]);
 
   const need = useMemo(
     () => (mine.length || freePool.length ? rosterNeed(mine, freePool, starters) : null),
@@ -1027,7 +1043,7 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
                       nothing, which is the point — a chip on every row carries
                       no information. */}
                   {(() => {
-                    const chip = fitChip(held(p.name), mine, starters);
+                    const chip = fitChip(held(p.name), mine, starters, levels);
                     if (!chip) return null;
                     const ink = chip.tone === "warn" ? "var(--warn)" : "var(--good)";
                     const edge = chip.tone === "warn" ? "--warn-rgb" : "--good-rgb";

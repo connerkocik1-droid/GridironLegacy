@@ -8,7 +8,7 @@
  */
 import { mkdir } from "node:fs/promises";
 import { chromium } from "playwright";
-import { routes } from "./fixture.mjs";
+import { RANKINGS, routes } from "./fixture.mjs";
 import { sessionCookie } from "./session.mjs";
 
 const BASE = process.env.AUDIT_BASE ?? "http://localhost:3123";
@@ -44,6 +44,48 @@ const open = async (tab, slug, ready) => {
   await page.waitForTimeout(300);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/moves-${slug}.png`, fullPage: true });
 };
+
+// A wire with something on it.
+//
+// The shared fixture's unowned pool is one quarterback, which cannot show
+// whether the advice ranks positions sensibly — the whole question is what it
+// picks when a quarterback and a receiver are both there. Overridden here
+// rather than in the fixture because the League tab's stories are tuned
+// against that pool.
+//
+// Baker Mayfield out-rates Jaxon Smith-Njigba by nine points a game and is
+// barely better than the next free quarterback; Smith-Njigba has a wire of
+// nobody behind him. This league starts one quarterback, so the receiver is
+// the pickup and the ordering has to say so.
+const WIRE = {
+  ...RANKINGS,
+  points: {
+    ...RANKINGS.points,
+    // The shared fixture leaves Kyle McCord unowned and top of the league on
+    // points, which makes him a genuine upgrade on this manager's starting
+    // quarterback — a recommendation that is right, and not the one under
+    // test. Held down here so the question is only about second bodies.
+    "Kyle McCord": { total: 40.0, games: 2 },
+    "Baker Mayfield": { total: 52.0, games: 2 },
+    "Kyler Murray": { total: 50.0, games: 2 },
+    "Denver Broncos D/ST": { total: 24.0, games: 2 },
+    "Seattle Seahawks D/ST": { total: 22.0, games: 2 },
+    "Jaxon Smith-Njigba": { total: 34.0, games: 2 },
+    "Jayden Reed": { total: 5.0, games: 2 },
+    // This manager's own kicker and defense, which the shared pool never
+    // scored. Without them the roster reads as having none, and any free
+    // defense is an upgrade on a blank — which is a different bug from the
+    // one under test.
+    "Baltimore Ravens D/ST": { total: 30.0, games: 2 },
+    "Brandon Aubrey": { total: 24.0, games: 2 },
+    // Two men who do have rows on the wire, so the chips can be read off the
+    // page: a tight end with nobody behind him, and a second defense that
+    // out-rates the weakest man on this roster while being worth a point less
+    // than the free defense nobody has taken either.
+    "Tyler Warren": { total: 30.0, games: 2 },
+  },
+};
+await page.route("**/api/rankings", (r) => r.fulfill({ json: WIRE }));
 
 await page.goto(`${BASE}/moves`, { waitUntil: "networkidle" });
 await page
@@ -143,6 +185,61 @@ console.log("\n--- the free agent advice ---");
   ok(`the fit chip is on some rows, not all (${chips} of ${rows})`, chips < rows);
 }
 
+console.log("\n--- and this is not superflex ---");
+{
+  // Baker Mayfield averages 26 a game on this wire and Jaxon Smith-Njigba 17,
+  // so ordering the pool by rate names the quarterback. This league starts one
+  // quarterback and the manager already holds one, so the second is worth the
+  // point a game he clears the next free quarterback by — and the receiver is
+  // worth the fourteen he clears an empty wire by.
+  const advice = (await body()).match(
+    /(ROSTER HOLE|STARTER UPGRADE|BENCH UPGRADE|NO UPGRADES)\n(.+)/)?.[2] ?? "";
+
+  // Named by what he plays rather than by who he is: the man with the largest
+  // surplus can be the receiver or the tight end depending on the numbers, and
+  // pinning the assertion to one of them tests the fixture rather than the
+  // rule. What must never happen is a quarterback or a defense at the top.
+  ok(`the advice names somebody who would actually play (${advice.slice(0, 90)})`,
+    /Smith-Njigba|Tyler Warren|Ashton Jeanty/.test(advice));
+  ok("and not the quarterback, who out-rates all of them",
+    !/Mayfield/.test(advice) && !/Murray/.test(advice) && !/McCord/.test(advice));
+  ok("nor a defense", !/Broncos|Seahawks|Ravens/.test(advice));
+
+  // The chips on the rows say the same thing.
+  const chipOf = (name) =>
+    page.evaluate((who) => {
+      const link = [...document.querySelectorAll('a[href^="/player/"]')]
+        .find((a) => a.textContent?.includes(who));
+      const row = link?.closest("li, article, div[style]");
+      return [...(row?.querySelectorAll("span") ?? [])]
+        .map((el) => el.textContent?.trim() ?? "")
+        .find((x) => /^(FILLS |STARTER$|OVER )/.test(x)) ?? null;
+    }, name);
+
+  // And the chips on the rows say the same thing. Read off two men the wire
+  // actually lists: Tyler Warren has nothing behind him at tight end, and the
+  // Seahawks are a point worse than a free defense nobody has taken.
+  const warren = await chipOf("Tyler Warren");
+  const seahawks = await chipOf("Seattle Seahawks D/ST");
+
+  ok(`the tight end with an empty position behind him is chipped (${warren})`, warren != null);
+  ok(`the second defense is not (${seahawks})`, seahawks == null);
+
+  // The trap, on the page: on rate alone the defense clears the weakest man
+  // held, and under the old rule it wore a chip for it.
+  const rates = await page.evaluate(() => {
+    const of = (who) => {
+      const link = [...document.querySelectorAll('a[href^="/player/"]')]
+        .find((a) => a.textContent?.includes(who));
+      const row = link?.closest("li, article, div[style]");
+      return row?.textContent ?? "";
+    };
+    return { seahawks: of("Seattle Seahawks D/ST") };
+  });
+  ok(`the defense is on the page to have been chipped (${rates.seahawks.slice(0, 40)})`,
+    rates.seahawks.length > 0);
+}
+
 console.log("\n--- the trade builder ---");
 {
   await open("Trade Builder", "trade-builder", /Build an offer/);
@@ -168,8 +265,16 @@ console.log("\n--- what a free agent has actually done ---");
 
   // Nothing invented for somebody who has not played: nought points beside a
   // row of dashes is three lines saying the season has not started.
-  const warren = await page.locator("text=Tyler Warren").first()
-    .locator("xpath=../../..").innerText();
+  // Found by walking up from his link rather than by counting three parents:
+  // a fixed depth breaks the moment anything is added to the row, and it did.
+  const warren = await page.evaluate(() => {
+    const link = [...document.querySelectorAll('a[href^="/player/"]')]
+      .find((a) => a.textContent?.includes("Tyler Warren"));
+    let row = link?.parentElement ?? null;
+    // Up to the element that holds the whole row: the one carrying his ADP.
+    while (row && !/ADP/.test(row.textContent ?? "")) row = row.parentElement;
+    return row?.innerText ?? "";
+  });
   ok(`a man who has not played says nothing (${warren.split("\n").slice(0, 2).join(" ")})`,
     !/PTS/.test(warren));
 

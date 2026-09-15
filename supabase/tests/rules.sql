@@ -5562,3 +5562,123 @@ select expect('and the function says where it landed',
 
 select expect('a recap with no week is refused',
   refuses($$select see_recap(null)$$), 'see_recap needs a week');
+
+\echo ''
+\echo '════════ a league that says nothing still fields a team ════════'
+--
+-- best_ball_lineup reads settings -> 'starters' and every lookup against an
+-- empty object is nought, so a league whose settings never named a starting
+-- lineup fielded nobody: every week nought, every matchup 0–0, points for
+-- nought for the whole league. The app never saw it because readSettings lays
+-- the saved blob over defaults, so every screen always had a lineup to draw.
+-- Only the database took the silence literally, and the database is where the
+-- scoring happens.
+
+\set SL '99999999-0000-0000-0000-0000000000a1'
+\set SS '99999999-0000-0000-0000-0000000000a2'
+
+\o /dev/null
+-- Two leagues, identical but for whether settings names a lineup at all.
+insert into leagues (id, name, season, settings) values
+  (:'SL', 'Silent', 2026, '{"bench": 4, "rounds": 1}'::jsonb),
+  (:'SS', 'Spoken', 2026,
+   '{"starters": {"QB": 1}, "bench": 4, "rounds": 1}'::jsonb);
+
+insert into nfl_players (name, team, position) values
+  ('Quiet QB', 'SEA', 'QB'), ('Quiet RB', 'DAL', 'RB'), ('Quiet WR', 'GB', 'WR')
+on conflict (name) do update set team = excluded.team;
+
+insert into managers (league_id, slot, name, franchise) values
+  (:'SL', 'AAA', 'A', 'Alpha'), (:'SS', 'AAA', 'A', 'Alpha');
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select m.league_id, m.id, t.n, 'BENCH', t.p
+    from managers m,
+         unnest(array['Quiet QB','Quiet RB','Quiet WR'], array['QB','RB','WR']) as t(n, p)
+   where m.league_id in (:'SL', :'SS');
+
+insert into player_scores (league_id, week, player_name, points)
+  select l, 1, t.n, t.p
+    from unnest(array[:'SL'::uuid, :'SS'::uuid]) as l,
+         unnest(array['Quiet QB','Quiet RB','Quiet WR'], array[30, 20, 10]) as t(n, p);
+\o
+
+-- QB 30 + RB 20 + WR 10 = 60, which is the default lineup's whole answer here:
+-- one quarterback, two backs, two receivers and two flexes take all three men.
+select expect('a league that names no starters fields the app''s default lineup',
+  lineup_points(:'SL', (select id from managers where league_id = :'SL'), 1), 60.0);
+
+-- The guard against over-fixing. A league that named one quarterback and
+-- nothing else has said what it fields; quietly adding six more slots to it
+-- would be a different bug with the same shape.
+select expect('but a league that named one starter still fields exactly that',
+  lineup_points(:'SS', (select id from managers where league_id = :'SS'), 1), 30.0);
+
+select expect('so points for is a real number rather than a table of noughts',
+  (select points_for from season_points_for(:'SL')
+    where manager_id = (select id from managers where league_id = :'SL')), 60.0);
+
+-- The same silence, read by the other function that reads it. A capacity of
+-- the bench alone puts every roster over its limit and refuses every signing.
+select expect('capacity counts the default lineup when none is named',
+  roster_capacity('{"bench": 4}'::jsonb), 14);
+
+select expect('and the default bench when none is named either',
+  roster_capacity('{"starters": {"QB": 1}}'::jsonb), 9);
+
+select expect('a league that names both is still exactly what it names',
+  roster_capacity('{"starters": {"QB": 1, "RB": 1}, "bench": 1}'::jsonb), 3);
+
+-- Ten slots: QB 1, RB 2, WR 2, TE 1, FLEX 2, D/ST 1, K 1.
+select expect('the default lineup is the one the app draws',
+  (select sum(value::int)::int from jsonb_each_text(league_starters('{}'::jsonb))), 10);
+
+\echo ''
+\echo '--- and the weeks that graded while it was silent ---'
+
+-- A week graded with an empty lineup kept the nought it was graded with, and a
+-- graded week is never recomputed — that rule is right, and it is what stops a
+-- trade in November rewriting September. But 0–0 for both sides did not record
+-- a result, it recorded the absence of one. Migration 0057 re-grades exactly
+-- those, which is this condition.
+\o /dev/null
+insert into matchups (league_id, week, home_manager, away_manager,
+                      home_points, away_points, final)
+  select :'SL', 1,
+         (select id from managers where league_id = :'SL'),
+         null, 0, 0, true;
+
+-- A week nobody scored in. Correctly nought, and re-grading it would only say
+-- the same thing more slowly.
+insert into player_scores (league_id, week, player_name, points) values
+  (:'SL', 2, 'Quiet QB', 0);
+insert into matchups (league_id, week, home_manager, away_manager,
+                      home_points, away_points, final)
+  select :'SL', 2,
+         (select id from managers where league_id = :'SL'),
+         null, 0, 0, true;
+\o
+
+select expect('a 0-0 week with real scoring behind it is one to re-grade',
+  (select count(*)::int from matchups m
+    where m.league_id = :'SL' and m.final
+      and coalesce(m.home_points, 0) = 0 and coalesce(m.away_points, 0) = 0
+      and exists (select 1 from player_scores s
+                   where s.league_id = m.league_id and s.week = m.week and s.points <> 0)),
+  1);
+
+select expect('and a week nobody scored in is left exactly as it stands',
+  (select count(*)::int from matchups m
+    where m.league_id = :'SL' and m.week = 2 and m.final
+      and exists (select 1 from player_scores s
+                   where s.league_id = m.league_id and s.week = m.week and s.points <> 0)),
+  0);
+
+\o /dev/null
+update matchups set final = false, winner = null, is_tie = false
+ where league_id = :'SL' and week = 1;
+select grade_week(:'SL', 1);
+\o
+
+select expect('re-grading it writes down what the lineup actually scored',
+  (select home_points from matchups where league_id = :'SL' and week = 1), 60.0);

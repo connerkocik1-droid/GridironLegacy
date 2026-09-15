@@ -5,7 +5,8 @@ import Skeleton from "./Skeleton";
 import PlayerName from "./PlayerName";
 import { useRefreshable } from "@/lib/use-refresh";
 import { flagColor, flagsFor, player, proj, type LeagueShape } from "@/lib/roster";
-import { optimalLineup, startRates } from "@/lib/start-rate";
+import { optimalLineup } from "@/lib/start-rate";
+import { fieldedAt, positionForm, tierOf, type Scored } from "@/lib/position-form";
 import { ROLES } from "@/data/league-data";
 
 /** How often a page left open on a Sunday goes and asks for the numbers. */
@@ -21,10 +22,17 @@ const POLL_MS = 60_000;
  * too many.
  *
  * By position, then, with two numbers per man that answer different things.
- * The projection says what he is worth. The start rate says how often that is
- * enough to beat the other four receivers on the same roster — which is the
- * number that decides whether to keep him, and the one no ordering can show.
- * The slot chip marks the arrangement projection alone would pick today.
+ * The projection says what he is worth this week. The pair of chips under him
+ * say what he is: where he ranks at his position across the whole pool, and
+ * what he has actually been worth per week.
+ *
+ * Those two replaced a start rate — how often he made this roster's own lineup
+ * across four hundred simulated weeks. It was a good number about the wrong
+ * thing. "Fourth receiver on your team" is a fact about the team; a manager
+ * deciding whether to keep somebody, trade him, or drop him for a waiver claim
+ * is asking about the player, and the answer to that is WR14 at 13.8 a week.
+ *
+ * The slot chip still marks the arrangement projection alone would pick today.
  */
 
 const ORDER = ["QB", "RB", "WR", "TE", "K", "D/ST"] as const;
@@ -45,6 +53,13 @@ interface Feed {
   rosterLimit?: number;
 }
 
+/** What /api/rankings answers: the league's scored pool, and who holds whom. */
+interface Pool {
+  points?: Record<string, { total: number; games: number }>;
+  /** How many franchises there are, which is what turns a rank into a tier. */
+  teams?: number;
+}
+
 const MICRO: React.CSSProperties = { fontSize: 10, letterSpacing: ".14em" };
 
 /** What the league fields at this position, said in the group header. */
@@ -56,10 +71,20 @@ function startsLabel(pos: string, league: LeagueShape | null): string {
 
 export default function MyTeamRoster() {
   const [feed, setFeed] = useState<Feed | null>(null);
+  /** The league's whole scored pool, which is what a position rank is against. */
+  const [pool, setPool] = useState<Pool | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    // The pool alongside the roster rather than after it: a rank drawn from a
+    // table that arrives a beat later would flick from "—" to "WR14" on every
+    // poll.
+    void fetch("/api/rankings", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => body && setPool(body as Pool))
+      .catch(() => {});
+
     try {
       const res = await fetch("/api/lineup", { cache: "no-store" });
       if (res.status === 401) return setError("Sign in to see your roster.");
@@ -122,9 +147,8 @@ export default function MyTeamRoster() {
   // plays. In the hours between, every row on a full roster read 0.0 PTS,
   // which looks like a disaster rather than a Sunday morning.
   //
-  // Whichever it is, it is the basis for all three numbers on a row — the
-  // points, the slot chips and the start rates — so they never disagree about
-  // which week they are describing.
+  // Whichever it is, it is the basis for the points and the slot chips alike,
+  // so they never disagree about which week they are describing.
   const live = useMemo(
     () => Boolean(feed?.started) && (feed?.roster ?? []).some((n) => feed?.scores?.[n] != null),
     [feed],
@@ -143,14 +167,23 @@ export default function MyTeamRoster() {
     [feed, values],
   );
 
-  // Four hundred simulated weeks. Cheap enough to do here rather than on the
-  // server, and it must not be done on the server anyway: it depends on the
-  // roster, which changes under a waiver claim, and a cached rate would be
-  // wrong in exactly the week somebody is deciding whether to make one.
-  const rates = useMemo(
-    () => (feed ? startRates(feed.roster, feed.settings, values) : new Map<string, number>()),
-    [feed, values],
-  );
+  // Where every scored player stands at his own position, and what he has been
+  // worth a week. Across the whole pool, not this roster: "second-best back you
+  // hold" is a fact about the roster, and the question a manager is asking is
+  // about the player.
+  const form = useMemo(() => {
+    const scored: Scored[] = Object.entries(pool?.points ?? {}).map(([name, row]) => ({
+      name,
+      position: player(name)?.p ?? "",
+      points: Number(row.total) || 0,
+      games: Number(row.games) || 0,
+    }));
+    return positionForm(scored);
+  }, [pool]);
+
+  // What turns a rank into a tier: RB20 is a weekly starter in a twelve-team
+  // league and unrostered in a six.
+  const teams = pool?.teams ?? 0;
 
   const groups = useMemo(() => {
     if (!feed) return [];
@@ -257,8 +290,8 @@ export default function MyTeamRoster() {
         }}
       >
         Best ball — the highest-scoring legal lineup is taken for you every week. Highlighted
-        players are the ones it would take right now; start rate is how often they land in it
-        across four hundred simulated weeks.
+        players are the ones it would take right now. Under each man: where he ranks at his
+        position across the league&rsquo;s whole pool, and what he has been worth a week.
       </p>
 
       {groups.map((group) => {
@@ -298,7 +331,7 @@ export default function MyTeamRoster() {
             >
               {group.players.map((name, i) => {
                 const slot = slots.get(name) ?? null;
-                const rate = Math.round((rates.get(name) ?? 0) * 100);
+                const standing = form.get(name) ?? null;
                 const p = player(name);
                 const role = ROLES[name]?.role;
                 const line = [p?.t, role].filter(Boolean).join(" · ");
@@ -339,6 +372,7 @@ export default function MyTeamRoster() {
 
                         {slot ? (
                           <span
+                            data-chip="slot"
                             style={{
                               ...MICRO,
                               flex: "0 0 auto",
@@ -378,40 +412,12 @@ export default function MyTeamRoster() {
                         </div>
                       ) : null}
 
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 7 }}>
-                        <div
-                          style={{
-                            flex: 1,
-                            height: 3,
-                            borderRadius: 99,
-                            background: "rgb(var(--accent-rgb) / .14)",
-                            overflow: "hidden",
-                          }}
-                        >
-                          <div
-                            style={{
-                              height: "100%",
-                              width: `${ir ? 0 : rate}%`,
-                              borderRadius: 99,
-                              background: slot
-                                ? "linear-gradient(90deg,var(--accent-deep),var(--accent-link))"
-                                : rate >= 30
-                                  ? "rgb(var(--accent-bright-rgb) / .45)"
-                                  : "rgb(var(--accent-rgb) / .28)",
-                            }}
-                          />
-                        </div>
-                        <span
-                          style={{
-                            ...MICRO,
-                            letterSpacing: ".1em",
-                            color: "var(--text-dim)",
-                            flex: "0 0 auto",
-                          }}
-                        >
-                          {ir ? "OUT" : `${rate}% START RATE`}
-                        </span>
-                      </div>
+                      <FormChips
+                        position={p?.p ?? ""}
+                        standing={standing}
+                        fielded={fieldedAt(p?.p ?? "", feed.settings?.starters, teams)}
+                        out={ir}
+                      />
                     </div>
 
                     {/* Offered only where the database will accept it: the
@@ -458,7 +464,10 @@ export default function MyTeamRoster() {
                       </div>
                       {/* --text-faint measures 2.86:1 against this card, which is
                           under the floor. The quietest tone that still reads. */}
-                      <div style={{ ...MICRO, letterSpacing: ".16em", color: "var(--text-dim)" }}>
+                      <div
+                        data-basis={live ? "points" : "projection"}
+                        style={{ ...MICRO, letterSpacing: ".16em", color: "var(--text-dim)" }}
+                      >
                         {live ? "PTS" : "PROJ"}
                       </div>
                     </div>
@@ -472,3 +481,167 @@ export default function MyTeamRoster() {
     </div>
   );
 }
+
+/**
+ * The two chips under a name: what he is, and what he is worth.
+ *
+ * Boxes rather than a line of text, and lit rather than merely coloured. A
+ * rank has a meaning a manager reads instantly — RB4 is a first-rounder, RB44
+ * is a drop — and that meaning is not in the digits, it is in where they sit
+ * against what the league starts. So the chip carries the tier: a filled,
+ * glowing box for a man in the top half of the startable ranks, an outlined
+ * one for the rest of the starters, and a flat recessed one for depth.
+ *
+ * The rate chip is filled in proportion to the best rate anybody at that
+ * position is managing, so the bar behind the number is the same comparison
+ * the number is making. Full means nobody at his position is doing better.
+ *
+ * Coloured by position rather than by good-and-bad. The palette already has a
+ * colour per position and it is the one used everywhere else a player is
+ * tinted; a green-to-red scale here would be a second vocabulary saying a
+ * blunter version of the same thing.
+ */
+function FormChips({
+  position,
+  standing,
+  fielded,
+  out,
+}: {
+  position: string;
+  standing: { rank: number; ppg: number; games: number; bestPpg: number } | null;
+  fielded: number;
+  out: boolean;
+}) {
+  // Stashed on injured reserve. He is out of the week entirely, and a rank
+  // beside a man who cannot play is a number about somebody who is not there.
+  if (out) {
+    return (
+      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+        <span style={{ ...CHIP, ...FLAT, color: "var(--text-dim)" }}>ON RESERVE</span>
+      </div>
+    );
+  }
+
+  // Nothing scored yet, league-wide: a preseason roster, or the hours before
+  // the first Sunday. A chip claiming a rank here would be inventing one.
+  if (!standing || !position) {
+    return (
+      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+        <span style={{ ...CHIP, ...FLAT, color: "var(--text-dim)" }}>NOT YET RANKED</span>
+      </div>
+    );
+  }
+
+  const tier = tierOf(standing.rank, fielded);
+  const hue = POSITION_RGB[position] ?? "var(--accent-rgb)";
+  const ink = POSITION_INK[position] ?? "var(--accent-text)";
+
+  // How full the rate chip runs. Against the best at the position, so a full
+  // bar is a real claim rather than a rounding of the roster.
+  const share =
+    standing.bestPpg > 0 ? Math.max(0, Math.min(1, standing.ppg / standing.bestPpg)) : 0;
+
+  return (
+    <div style={{ display: "flex", alignItems: "stretch", gap: 6, marginTop: 8 }}>
+      <span
+        data-chip="rank"
+        title={
+          fielded
+            ? `${position}${standing.rank} of the ${fielded} this league starts`
+            : `${position}${standing.rank} in the league's pool`
+        }
+        style={{
+          ...CHIP,
+          fontFamily: "var(--font-heading)",
+          letterSpacing: ".08em",
+          color: tier === "depth" ? "var(--text-dim)" : ink,
+          border:
+            tier === "depth"
+              ? "1px solid rgb(var(--accent-rgb) / .2)"
+              : `1px solid rgb(${hue} / ${tier === "elite" ? ".85" : ".45"})`,
+          background:
+            tier === "elite"
+              ? `rgb(${hue} / .22)`
+              : tier === "starter"
+                ? `rgb(${hue} / .1)`
+                : "rgb(var(--raised-rgb) / .5)",
+          // The glow is the whole difference between a chip and a badge. Only
+          // the top half of the startable ranks gets one, or it stops meaning
+          // anything.
+          boxShadow: tier === "elite" ? `0 0 12px rgb(${hue} / .3)` : "none",
+        }}
+      >
+        {`${position}${standing.rank}`}
+      </span>
+
+      <span
+        data-chip="ppg"
+        title={
+          standing.games
+            ? `${standing.ppg.toFixed(1)} a week over ${standing.games} ${standing.games === 1 ? "game" : "games"}`
+            : "No games played yet"
+        }
+        style={{
+          ...CHIP,
+          position: "relative",
+          overflow: "hidden",
+          border: "1px solid rgb(var(--accent-rgb) / .22)",
+          background: "rgb(var(--raised-rgb) / .5)",
+          color: "var(--text)",
+        }}
+      >
+        {/* Behind the number rather than beside it: the chip is the bar. */}
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: `${(share * 100).toFixed(0)}%`,
+            background: `linear-gradient(90deg, rgb(${hue} / .08), rgb(${hue} / .28))`,
+            transition: "width .5s cubic-bezier(.2,.8,.2,1)",
+          }}
+        />
+        <span style={{ position: "relative" }}>
+          {standing.games ? `${standing.ppg.toFixed(1)} PPG` : "— PPG"}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+const CHIP: React.CSSProperties = {
+  fontSize: 11,
+  letterSpacing: ".1em",
+  padding: "4px 9px",
+  borderRadius: 5,
+  flex: "0 0 auto",
+  display: "inline-flex",
+  alignItems: "center",
+  fontVariantNumeric: "tabular-nums",
+  lineHeight: 1.3,
+};
+
+const FLAT: React.CSSProperties = {
+  ...MICRO,
+  border: "1px solid rgb(var(--accent-rgb) / .18)",
+  background: "rgb(var(--raised-rgb) / .4)",
+};
+
+/** The position palette the rest of the app tints players with. */
+const POSITION_RGB: Record<string, string> = {
+  QB: "var(--pos-qb-rgb)",
+  RB: "var(--pos-rb-rgb)",
+  WR: "var(--pos-wr-rgb)",
+  TE: "var(--pos-te-rgb)",
+  K: "var(--pos-k-rgb)",
+  "D/ST": "var(--pos-dst-rgb)",
+};
+
+const POSITION_INK: Record<string, string> = {
+  QB: "var(--pos-qb)",
+  RB: "var(--pos-rb)",
+  WR: "var(--pos-wr)",
+  TE: "var(--pos-te)",
+  K: "var(--pos-k)",
+  "D/ST": "var(--pos-dst)",
+};

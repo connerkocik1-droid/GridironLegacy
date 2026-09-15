@@ -57,6 +57,10 @@ interface Feed {
 interface Standing {
   record: string | null;
   pointsFor: number | null;
+  /** Graded weeks, which is what turns points for into points per game. */
+  games: number;
+  /** The roster's average age, as the power rank works it out. */
+  avgAge: number | null;
 }
 
 /**
@@ -98,7 +102,12 @@ function Board() {
   const tab = tabFrom(params.get("tab"));
 
   const [feed, setFeed] = useState<Feed | null>(null);
-  const [standing, setStanding] = useState<Standing>({ record: null, pointsFor: null });
+  const [standing, setStanding] = useState<Standing>({
+    record: null,
+    pointsFor: null,
+    games: 0,
+    avgAge: null,
+  });
 
   // Where the top of the screen actually is. The nav above this is sticky too
   // and wraps to two rows on a narrow phone, so its height is not a constant
@@ -158,14 +167,22 @@ function Board() {
 
     if (lineup) setFeed(lineup as Feed);
 
+    // This manager's own power row, whether or not a week has been graded: it
+    // carries the roster's age as well as its record, and a roster has an age
+    // in August.
+    const mine = home?.power?.find((r: { mine?: boolean }) => r.mine);
+
     // Before anything has been graded a record is not 0-0, it is a season that
     // has not started. The home feed says which by `played`.
-    const row = home?.played
-      ? home.power?.find((r: { mine?: boolean }) => r.mine)
-      : null;
+    const row = home?.played ? mine : null;
+
     setStanding({
       record: row ? `${row.wins}-${row.losses}${row.ties ? `-${row.ties}` : ""}` : null,
       pointsFor: row ? Number(row.pointsFor) : null,
+      games: row ? Number(row.wins) + Number(row.losses) + Number(row.ties) : 0,
+      // The same number the power rank prints, rather than a second opinion
+      // worked out here from the same roster.
+      avgAge: mine?.avgAge == null ? null : Number(mine.avgAge),
     });
   }, []);
 
@@ -243,7 +260,14 @@ function Board() {
     );
   }
 
-  const onRoster = (feed?.roster.length ?? 0) + (feed?.injuredReserve.length ?? 0);
+  // Points per game rather than points for. The total is a number that only
+  // means something once you also know how many weeks are behind it, and the
+  // strip has no room to say both — a per-week average is the comparable one,
+  // and it is what a manager is actually asking when they look.
+  const perGame =
+    standing.pointsFor == null || standing.games < 1
+      ? null
+      : standing.pointsFor / standing.games;
 
   const stats: { value: string; label: string; accent?: boolean }[] = [
     {
@@ -251,9 +275,12 @@ function Board() {
       label: tally?.scored ? "SCORED" : "PROJECTED",
       accent: true,
     },
-    { value: onRoster ? String(onRoster) : "—", label: "ON ROSTER" },
+    // How many men are on the roster was the least interesting number on the
+    // screen: it is the same for everybody in the league until somebody breaks
+    // a rule. How old they are is the shape of the team.
+    { value: standing.avgAge == null ? "—" : standing.avgAge.toFixed(1), label: "AVG AGE" },
     { value: standing.record ?? "—", label: "RECORD" },
-    { value: standing.pointsFor == null ? "—" : standing.pointsFor.toFixed(1), label: "POINTS FOR" },
+    { value: perGame == null ? "—" : perGame.toFixed(1), label: "PTS / GAME" },
   ];
 
   return (

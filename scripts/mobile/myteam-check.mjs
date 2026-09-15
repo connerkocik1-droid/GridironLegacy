@@ -9,7 +9,7 @@
  */
 import { mkdir } from "node:fs/promises";
 import { chromium } from "playwright";
-import { routes } from "./fixture.mjs";
+import { RANKINGS, routes } from "./fixture.mjs";
 import { sessionCookie } from "./session.mjs";
 
 const BASE = process.env.AUDIT_BASE ?? "http://localhost:3123";
@@ -45,12 +45,30 @@ const open = async (tab) => {
   }
 };
 
+// Three players this manager does not hold, outscoring three he does.
+//
+// Overridden here rather than added to the shared fixture: the League tab's
+// stories are tuned against that pool — the biggest riser, the top three — and
+// three new high scorers rewrite all of them. What this page needs is only
+// that the pool be bigger than the roster, so a rank taken across the league
+// is visibly not a rank taken across the twelve men on this screen.
+const POOL = {
+  ...RANKINGS,
+  points: {
+    ...RANKINGS.points,
+    "Justin Jefferson": { total: 80.0, games: 2 },
+    "Amon-Ra St. Brown": { total: 70.0, games: 2 },
+    "Saquon Barkley": { total: 65.0, games: 2 },
+  },
+};
+await page.route("**/api/rankings", (r) => r.fulfill({ json: POOL }));
+
 await page.goto(`${BASE}/my-team`, { waitUntil: "networkidle" });
 // Waited for rather than slept on. Everything below polls; this first load did
 // not, and a cold compile in dev is slower than any fixed pause worth writing
 // — which is how this check failed once and then passed seven times.
 await page
-  .waitForFunction(() => /START RATE/.test(document.body.innerText), undefined, { timeout: 20000 })
+  .waitForFunction(() => /PPG|NOT YET RANKED/.test(document.body.innerText), undefined, { timeout: 20000 })
   .catch(() => {});
 
 if (SHOTS) {
@@ -64,16 +82,16 @@ console.log("--- the header ---");
   ok("it names the franchise", /Steel Cartel/.test(t));
   ok("and the manager", /Conner/i.test(t));
   ok("what the roster is worth this week", /SCORED|PROJECTED/.test(t));
-  ok("how many are on it", /ON ROSTER/.test(t));
+  ok("how old the roster is", /AVG AGE/.test(t));
   ok("the record", /RECORD/.test(t));
-  ok("and the points for", /POINTS FOR/.test(t));
+  ok("and what it scores a week", /PTS \/ GAME/.test(t));
 
   // The four numbers are the point of the row, and four labels over four
   // dashes is a header that has failed and looks fine. Read off the labels
   // themselves rather than counted across the page — an IR row draws a dash
   // for its projection too, so a page-wide count measures the roster.
   const stats = await page.evaluate(() =>
-    ["PROJECTED", "SCORED", "ON ROSTER", "RECORD", "POINTS FOR"].flatMap((label) => {
+    ["PROJECTED", "SCORED", "AVG AGE", "RECORD", "PTS / GAME"].flatMap((label) => {
       const cell = [...document.querySelectorAll("div")].find(
         (el) => el.children.length === 0 && el.textContent?.trim() === label,
       );
@@ -93,32 +111,90 @@ console.log("\n--- the roster ---");
   const t = await body();
   ok("it groups by position", /\bQB\b/.test(t) && /\bWR\b/.test(t) && /D\/ST/.test(t));
   ok("and says what the league starts at each", /START/.test(t));
-  ok("every row carries a start rate", (t.match(/% START RATE/g) ?? []).length > 8);
   ok("the reserve is separate", /\bIR\b/.test(t));
-  ok("and the man on it reads OUT rather than a rate", /OUT/.test(t));
-
-  // The whole argument for the number: if it were an ordering, every rate
-  // would be 100 or 0 and there would be nothing to draw.
-  const rates = [...t.matchAll(/(\d+)% START RATE/g)].map((m) => Number(m[1]));
-  const between = rates.filter((r) => r > 0 && r < 100);
-  ok(`rates are not just 0 and 100 (${between.length} of ${rates.length} in between)`,
-    between.length >= 3);
-  ok("somebody starts every week", rates.includes(100));
-  ok("and the numbers are sane", rates.every((r) => r >= 0 && r <= 100));
+  ok("and the man on it says so rather than carrying a rank", /ON RESERVE/.test(t));
 
   // The chips mark the arrangement. Counted from the numbered ones and the
   // defense only: "QB", "TE" and "K" are also the group headings above the
   // cards, so counting those measures the headings and passes either way.
   const numbered = ["RB1", "RB2", "WR1", "WR2", "FLEX1", "FLEX2", "DST"];
-  const found = [];
-  for (const slot of numbered) {
-    if (await page.locator(`text="${slot}"`).count()) found.push(slot);
-  }
+  // Read off the slot chips themselves. A rank chip says "RB1" as well now,
+  // and a page-wide text search would find one of those and pass whether the
+  // lineup was chipped or not.
+  const chipped = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-chip="slot"]')].map((el) => el.textContent?.trim()));
+  const found = numbered.filter((slot) => chipped.includes(slot));
   ok(`the optimal lineup is chipped (${found.join(", ")})`, found.length === numbered.length);
 
   // A league fielding two backs must chip two, not three: the slot the chip
   // claims has to be one the league actually has.
-  ok("and no slot the league does not field", !(await page.locator('text="RB3"').count()));
+  ok("and no slot the league does not field", !chipped.includes("RB3"));
+}
+
+console.log("\n--- what each man is, and what he is worth ---");
+{
+  // Start rate said how often somebody made this roster's own lineup, which is
+  // a fact about the roster. These two say what the player is: where he ranks
+  // at his position across the league's whole pool, and what he has actually
+  // been worth a week.
+  const chips = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-chip="rank"]')].map((el) => {
+      const s = getComputedStyle(el);
+      const ppg = el.parentElement?.querySelector('[data-chip="ppg"]');
+      const fill = ppg?.querySelector("span[aria-hidden]");
+      return {
+        rank: el.textContent?.trim(),
+        title: el.getAttribute("title"),
+        glow: s.boxShadow,
+        background: s.backgroundColor,
+        ppg: ppg?.textContent?.trim(),
+        // The bar behind the rate, as a share of the chip it sits in.
+        fill: fill && ppg
+          ? Math.round((fill.getBoundingClientRect().width /
+              Math.max(1, ppg.getBoundingClientRect().width)) * 100)
+          : null,
+      };
+    }));
+
+  ok(`every scored man carries a rank chip (${chips.length})`, chips.length >= 8);
+  ok("start rate is gone", !/START RATE/.test(await body()));
+
+  // Against the whole pool, not this roster. Gibbs is the best back this
+  // manager holds and the second in the league behind Bijan Robinson; Odunze
+  // is his best receiver and the third in the league. A rank taken across the
+  // roster would read RB1 and WR1 and be wrong about both.
+  const ranks = chips.map((c) => c.rank);
+  ok(`ranks are against the league, not the roster (${ranks.join(", ")})`,
+    ranks.includes("RB2") && ranks.includes("WR3") && !ranks.includes("RB1"));
+
+  const gibbs = chips.find((c) => c.rank === "RB2");
+  const odunze = chips.find((c) => c.rank === "WR3");
+
+  // 55.8 over two games. A total printed instead of a rate would read 55.8.
+  ok(`the rate is per game, not the total (${gibbs?.ppg})`, gibbs?.ppg === "27.9 PPG");
+  ok(`and the receiver's too (${odunze?.ppg})`, odunze?.ppg === "30.7 PPG");
+
+  // Highlighted, not just written. A twelve-team league fielding two backs and
+  // two flexes starts 48, so RB1 is in the top half of them and glows.
+  ok(`the top of a position glows (${gibbs?.glow})`,
+    !!gibbs?.glow && gibbs.glow !== "none");
+  ok("and it is tinted rather than transparent",
+    !!gibbs?.background && !/rgba\(0, 0, 0, 0\)/.test(gibbs.background));
+
+  // The chip says what the tier is measured against, so the number is not a
+  // claim the reader has to take on faith.
+  ok(`and it says what it is measured against (${gibbs?.title})`,
+    /of the 48 this league starts/.test(gibbs?.title ?? ""));
+
+  // The rate chip is filled against the best at the position, so the fill is
+  // the comparison the number is making. Brock Bowers is the best tight end in
+  // the fixture's pool, so his runs full; Marvin Harrison Jr. is sixth of the
+  // receivers, so his does not.
+  const bowers = chips.find((c) => c.rank === "TE1");
+  const harrison = chips.find((c) => c.rank === "WR6");
+  ok(`the best at a position fills his bar (${bowers?.fill}%)`, (bowers?.fill ?? 0) >= 95);
+  ok(`and a man well down his own reads short (${harrison?.fill}%)`,
+    harrison != null && harrison.fill != null && harrison.fill > 0 && harrison.fill < 60);
 }
 
 console.log("\n--- before anybody has played ---");
@@ -129,7 +205,7 @@ console.log("\n--- before anybody has played ---");
   // morning. A nought before anything is played is not a score.
   await page.goto(`${BASE}/my-team?nothingplayed=1`, { waitUntil: "networkidle" });
   await page
-    .waitForFunction(() => /START RATE/.test(document.body.innerText), undefined, { timeout: 20000 })
+    .waitForFunction(() => /PPG|NOT YET RANKED/.test(document.body.innerText), undefined, { timeout: 20000 })
     .catch(() => {});
   const t = await page.locator("body").innerText();
 
@@ -139,13 +215,18 @@ console.log("\n--- before anybody has played ---");
   const headline = t.match(/([\d.]+)\nPROJECTED/)?.[1];
   ok(`and the projection is a real number (${headline})`, Number(headline) > 0);
 
-  ok("the rows are projections too", /PROJ/.test(t) && !/\bPTS\b/.test(t));
+  // Read off the rows rather than off the page: the header strip says
+  // "PTS / GAME" now, and a page-wide search for PTS finds that instead.
+  const basis = await page.evaluate(() =>
+    [...document.querySelectorAll("[data-basis]")].map((el) => el.getAttribute("data-basis")));
+  ok(`the rows are projections too (${[...new Set(basis)].join(", ")})`,
+    basis.length > 0 && basis.every((b) => b === "projection"));
   ok("and none of them reads nought",
     !/(^|\n)0\.0(\n|$)/.test(t));
 
   await page.goto(`${BASE}/my-team`, { waitUntil: "networkidle" });
   await page
-    .waitForFunction(() => /START RATE/.test(document.body.innerText), undefined, { timeout: 20000 })
+    .waitForFunction(() => /PPG|NOT YET RANKED/.test(document.body.innerText), undefined, { timeout: 20000 })
     .catch(() => {});
   ok("while a week with scores in it still says so",
     /\bSCORED\b/.test(await page.locator("body").innerText()));
@@ -160,7 +241,7 @@ console.log("\n--- when one man has played and the rest have not ---");
   // picked, and the man who played was not among them. It read 0.0.
   await page.goto(`${BASE}/my-team?thursday=1`, { waitUntil: "networkidle" });
   await page
-    .waitForFunction(() => /START RATE/.test(document.body.innerText), undefined, { timeout: 20000 })
+    .waitForFunction(() => /PPG|NOT YET RANKED/.test(document.body.innerText), undefined, { timeout: 20000 })
     .catch(() => {});
   const t = await page.locator("body").innerText();
 

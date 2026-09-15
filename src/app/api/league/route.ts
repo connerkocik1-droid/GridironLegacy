@@ -89,7 +89,17 @@ export async function GET() {
     }
   }
 
-  const record = new Map(
+  interface Record {
+    divWins: number;
+    divLosses: number;
+    wins: number;
+    losses: number;
+    ties: number;
+    pointsFor: number;
+    pointsAgainst: number;
+  }
+
+  const record = new Map<string, Record>(
     (table ?? []).map((r: { manager_id: string; wins: number; losses: number; ties: number; div_wins: number; div_losses: number; points_for: number; points_against: number }) => [
       r.manager_id,
       {
@@ -135,7 +145,13 @@ export async function GET() {
       // to the tab, so a manager reading a long page is still present.
       online: isPresent(m.last_seen_at),
       lastSeen: (m.last_seen_at as string | null) ?? null,
-      pointsFor: Math.round((pointsFor.get(m.id) ?? 0) * 10) / 10,
+      // The standings row beside it as the floor. A franchise missing from
+      // the lineup answer — the function not deployed yet, a read that failed
+      // — would otherwise print nought next to a record of 2-1, which is the
+      // one number on this page nobody would question and everybody would
+      // believe. Home has always had this fallback; this column did not.
+      pointsFor:
+        Math.round((pointsFor.get(m.id) ?? record.get(m.id)?.pointsFor ?? 0) * 10) / 10,
       record: record.get(m.id) ?? null,
       form: form.get(m.id) ?? [],
       roster: (slots ?? [])
