@@ -336,7 +336,18 @@ export async function GET() {
   const projections = new Map(roster.map((m) => [m.id, projectedFor(m.id)]));
 
   // Points scored so far, per franchise, for the gap between two of them.
-  const pfOf = (id: string) => Math.round((scoredFor.get(id) ?? 0) * 10) / 10;
+  /**
+   * A franchise's season coming into this game — settled weeks only.
+   *
+   * Deliberately not the number the power rank uses. That one counts the week
+   * in progress, so the rank moves on a Sunday; this one sits on a card beside
+   * the opponent's record and this week's margin, and both of those are about
+   * everything except right now. Counting the live week here made PF GAP creep
+   * upward through an afternoon in step with the margin printed next to it —
+   * two numbers that are supposed to say different things, quietly saying some
+   * of the same thing twice.
+   */
+  const pfOf = (id: string) => Math.round((record.get(id)?.pointsFor ?? 0) * 10) / 10;
 
   const recordOf = (id: string) => {
     const r = record.get(id);

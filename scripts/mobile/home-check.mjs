@@ -50,6 +50,11 @@ console.log("\n--- the matchup hero ---");
   ok("the odds", /WIN PROBABILITY/i.test(t));
   ok("the opponent's record", /OPP RECORD/i.test(t));
   ok("the season's points gap", /PF GAP/i.test(t));
+
+  // Signed, and with a real minus rather than a hyphen — the sign is the whole
+  // of what this number says.
+  ok(`and it says which way round (${(t.match(/[+−]\d+\.\d(?=\s*\n?\s*PF GAP)/) ?? ["none"])[0]})`,
+    /[+−]\d+\.\d\s*\n?\s*PF GAP/.test(t) || /0\.0\s*\n?\s*PF GAP/.test(t));
   ok("and a way into the full head to head",
     (await page.locator('a[href^="/lineup"]').count()) > 0);
 }
