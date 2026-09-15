@@ -9,6 +9,10 @@ import {
   countdown,
   draftOrder,
   fitChip,
+  fills,
+  isShort,
+  replacementLevels,
+  surplusOf,
   fitScore,
   nextWaiverRun,
   perGame,
@@ -120,6 +124,143 @@ console.log("\n--- a chip that is not on every row ---");
   const wire = [p("A", "WR", 1), p("B", "WR", 2), p("C", "RB", 3), p("D", "TE", 2)];
   eq("so a quiet wire draws no chips",
     wire.filter((x) => fitChip(x, mine, starters)).length, 0);
+}
+
+console.log("\n--- and this is not superflex ---");
+{
+  // One quarterback and one defense start. So the wire is full of
+  // quarterbacks who outscore every receiver on it and would never take the
+  // field: a manager already holding one has nowhere to play a second.
+  //
+  // Rates are what makes this go wrong. Ordering the wire by rate puts a
+  // quarterback at the top of every recommendation. What decides it is the
+  // surplus over the man who would take his place — and the best free
+  // quarterback in a one-quarterback league is nearly as good as the one you
+  // hold, while the best free receiver is nobody at all.
+  //
+  // Every figure below is per game; the helper divides by three.
+  const g = (perGame: number) => perGame * 3;
+  const starters = { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, "D/ST": 1, K: 1 };
+
+  // Ten starters, and seven men who can fill the five back/receiver/tight
+  // slots and the two flexes, so nothing is short and the surplus tiers are
+  // what is actually being tested.
+  const mine = [
+    p("My QB", "QB", g(30)),
+    p("Back One", "RB", g(20)), p("Back Two", "RB", g(16)), p("Back Three", "RB", g(12)),
+    p("Wide One", "WR", g(18)), p("Wide Two", "WR", g(15)), p("Wide Three", "WR", g(11)),
+    p("Tight One", "TE", g(12)),
+    p("My Kicker", "K", g(9)),
+    p("My Defense", "D/ST", g(12)),
+  ];
+
+  // The wire. The quarterbacks and the defenses outscore the receiver by a
+  // distance and are each barely better than the next one of their own kind.
+  const wire = [
+    p("Free QB", "QB", g(26)), p("Other QB", "QB", g(25)),
+    p("Free Defense", "D/ST", g(11)), p("Other Defense", "D/ST", g(10)),
+    p("Free Wide", "WR", g(14)), p("Spare Wide", "WR", g(2)),
+    p("Free Back", "RB", g(10)), p("Spare Back", "RB", g(3)),
+    p("Free Tight", "TE", g(9)), p("Spare Tight", "TE", g(2)),
+    p("Free Kicker", "K", g(8)), p("Spare Kicker", "K", g(7)),
+  ];
+
+  const levels = replacementLevels(wire);
+
+  // 26 against a 25 replacement is one point of surplus. 14 against a wire
+  // whose next receiver manages 2 is twelve.
+  eq("a quarterback's surplus is only what is behind him",
+    surplusOf(p("Free QB", "QB", g(26)), levels, false), 1);
+  eq("a defense's likewise",
+    surplusOf(p("Free Defense", "D/ST", g(11)), levels, false), 1);
+  eq("and a receiver's is the empty wire behind him",
+    surplusOf(p("Free Wide", "WR", g(14)), levels, false), 12);
+
+  // The trap, named so a regression is recognisable: on rate alone the
+  // quarterback beats the receiver by twelve a game.
+  ok("on rate the quarterback wins by a distance",
+    perGame(p("Free QB", "QB", g(26))) > perGame(p("Free Wide", "WR", g(14))));
+
+  // The complaint, in one assertion.
+  const advice = rosterNeed(mine, wire, starters);
+  ok(`the wire advice names the receiver, not the quarterback (${advice.text})`,
+    /Free Wide/.test(advice.text) && !/Free QB/.test(advice.text) &&
+    !/Free Defense/.test(advice.text));
+  eq("and it is the bench tier, since nothing beats a starter", advice.tier, "bench");
+
+  // The row chips agree with it.
+  eq("the receiver is chipped",
+    fitChip(p("Free Wide", "WR", g(14)), mine, starters, levels)?.label, "OVER THREE");
+  eq("the second quarterback is not",
+    fitChip(p("Free QB", "QB", g(26)), mine, starters, levels), null);
+  eq("nor the second defense",
+    fitChip(p("Free Defense", "D/ST", g(11)), mine, starters, levels), null);
+
+  // A man on a roster is measured against the best free agent at his position,
+  // because that is who replaces him if he goes.
+  eq("a rostered man is measured against his own replacement",
+    surplusOf(p("My QB", "QB", g(30)), levels, true), 4);
+  eq("and the weakest thing held is the one the wire can match",
+    surplusOf(p("Wide Three", "WR", g(11)), levels, true), -3);
+
+  // A genuine hole still outranks all of this: a manager with no defense
+  // should be told to sign one, whatever the surplus arithmetic says.
+  const noDefense = mine.filter((x) => x.pos !== "D/ST");
+  const hole = rosterNeed(noDefense, wire, starters);
+  eq("an empty slot is still the loudest thing", hole.tier, "hole");
+  ok(`and it names a defense to fill it (${hole.text})`, /Free Defense/.test(hole.text));
+}
+
+console.log("\n--- a flex is a slot, not a position ---");
+{
+  // Nobody's position is "FLEX", so counting held flexes the way a dedicated
+  // slot is counted found nought every time. Every roster in every league that
+  // fields a flex — which is every league — was permanently told it was short
+  // at FLEX, and offered the best man on the wire to fix a hole it did not
+  // have.
+  const starters = { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, "D/ST": 1, K: 1 };
+  const g = (perGame: number) => perGame * 3;
+
+  // Five backs, receivers and tight ends between them: two short of the seven
+  // this league fields.
+  const thin = [
+    p("My QB", "QB", g(30)),
+    p("Back One", "RB", g(20)), p("Back Two", "RB", g(16)),
+    p("Wide One", "WR", g(18)), p("Wide Two", "WR", g(15)),
+    p("Tight One", "TE", g(12)),
+    p("My Kicker", "K", g(9)), p("My Defense", "D/ST", g(12)),
+  ];
+  ok("a roster two bodies short of its flexes is short at flex",
+    isShort("FLEX", thin, starters));
+
+  const full = [...thin, p("Back Three", "RB", g(10)), p("Wide Three", "WR", g(9))];
+  ok("and one that fills them is not", !isShort("FLEX", full, starters));
+  ok("no dedicated slot is short either",
+    !isShort("QB", full, starters) && !isShort("WR", full, starters));
+
+  // Which is the whole point: a full roster gets advice about upgrades rather
+  // than a permanent hole nobody can fill.
+  const wire = [p("Free Wide", "WR", g(14)), p("Spare Wide", "WR", g(2))];
+  ok("so a full roster is not told it is short",
+    rosterNeed(full, wire, starters).tier !== "hole");
+  eq("while a thin one is", rosterNeed(thin, wire, starters).tier, "hole");
+
+  // A quarterback cannot fill a flex. That is what "not superflex" means, and
+  // it is the one thing the slot rule must not get wrong.
+  ok("a back, a receiver and a tight end can flex",
+    fills("RB", "FLEX") && fills("WR", "FLEX") && fills("TE", "FLEX"));
+  ok("a quarterback cannot", !fills("QB", "FLEX"));
+  ok("and neither can a kicker or a defense",
+    !fills("K", "FLEX") && !fills("D/ST", "FLEX"));
+
+  // The chip says which slot he is filling rather than claiming his own.
+  eq("a receiver filling a flex says so",
+    fitChip(p("Free Wide", "WR", g(14)), thin, starters, replacementLevels(wire))?.label,
+    "FILLS FLEX");
+  eq("but a receiver whose own slot is empty says that instead",
+    fitChip(p("Free Wide", "WR", g(14)),
+      thin.filter((x) => x.pos !== "WR"), starters, replacementLevels(wire))?.label,
+    "FILLS WR");
 }
 
 console.log("\n--- who is worth trading with ---");

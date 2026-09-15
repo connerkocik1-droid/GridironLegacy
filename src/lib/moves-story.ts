@@ -28,6 +28,65 @@ export function perGame(p: Held): number {
   return p.games > 0 ? p.points / p.games : 0;
 }
 
+/**
+ * What a man is worth over whoever would take his place.
+ *
+ * Points per game cannot be compared across positions, and the wire advice
+ * used to do exactly that. A quarterback averaging 22 outscores every
+ * receiver on the board, so the top of every suggestion was a quarterback —
+ * and this league starts one. A manager already holding two was being told to
+ * pick up a third over a receiver who would actually have played.
+ *
+ * The comparable number is the surplus: what he scores above the best man at
+ * his own position that anybody could have for nothing. A backup quarterback
+ * barely clears the best free quarterback, so his surplus is small however
+ * large his total. A startable receiver clears a wire full of nobody, so his
+ * is large. That is the difference the recommendation is meant to be about,
+ * and it falls out of the pool rather than being asserted by a table of
+ * positional weights this app would then have to keep true.
+ *
+ * The bar depends on which side of the wire he is on. For a man on a roster it
+ * is the best free agent at his position — that is who replaces him if he goes.
+ * For a free agent it is the best free agent who is not him, because that is
+ * what is still there if you pass.
+ */
+export function replacementLevels(free: Held[]): Map<string, [number, number]> {
+  const rates = new Map<string, number[]>();
+  for (const p of free) {
+    if (!p.pos) continue;
+    const list = rates.get(p.pos) ?? [];
+    list.push(perGame(p));
+    rates.set(p.pos, list);
+  }
+
+  const out = new Map<string, [number, number]>();
+  for (const [pos, list] of rates) {
+    list.sort((a, b) => b - a);
+    out.set(pos, [list[0] ?? 0, list[1] ?? 0]);
+  }
+  return out;
+}
+
+/**
+ * The smallest surplus worth spending a roster spot on, per game.
+ *
+ * Two a game is a couple of hundred points across a season's lineups. Below
+ * that the chip is noise, and a chip on every row carries no information.
+ */
+export const WORTH_A_SPOT = 2;
+
+export function surplusOf(
+  p: Held,
+  levels: Map<string, [number, number]>,
+  held: boolean,
+): number {
+  const [best, next] = levels.get(p.pos) ?? [0, 0];
+  // A free agent is measured against the best of the others, which for the
+  // best of them is the one behind him.
+  const bar = held ? best : perGame(p) >= best ? next : best;
+  return Math.round((perGame(p) - bar) * 10) / 10;
+}
+
 // ------------------------------------------------------------- waivers ---
 
 /**
@@ -95,6 +154,42 @@ export function trending(moves: Move[], limit = 8): Trend[] {
 
 export type NeedTier = "hole" | "starter" | "bench" | "none";
 
+/** The positions a flex slot will take. Never a quarterback: one of those starts. */
+export const FLEX_TAKES = ["RB", "WR", "TE"];
+
+/**
+ * Whether a slot is short of bodies.
+ *
+ * The flex needs its own answer, because it is a slot rather than a position
+ * and nobody's position is "FLEX". Counting held flexes the way a dedicated
+ * slot is counted found nought every time, so every roster in every league
+ * that fields a flex — which is every league — was permanently told it was
+ * short at FLEX and offered the best man on the wire to fix it.
+ *
+ * A flex is short when the backs, receivers and tight ends held do not fill
+ * their own slots and the flexes between them.
+ */
+export function isShort(
+  slot: string,
+  mine: Held[],
+  starters: Record<string, number>,
+): boolean {
+  const need = starters[slot] ?? 0;
+  if (!need) return false;
+
+  if (slot === "FLEX") {
+    const total = FLEX_TAKES.reduce((n, pos) => n + (starters[pos] ?? 0), 0) + need;
+    return mine.filter((p) => FLEX_TAKES.includes(p.pos)).length < total;
+  }
+
+  return mine.filter((p) => p.pos === slot).length < need;
+}
+
+/** Whether a man can be put in a slot. */
+export function fills(pos: string, slot: string): boolean {
+  return slot === "FLEX" ? FLEX_TAKES.includes(pos) : pos === slot;
+}
+
 export interface Need {
   tier: NeedTier;
   text: string;
@@ -116,11 +211,17 @@ export function rosterNeed(
   const at = (pos: string) =>
     mine.filter((p) => p.pos === pos).sort((a, b) => b.points - a.points);
 
-  const holes = Object.keys(starters).filter((pos) => at(pos).length < (starters[pos] ?? 0));
-  const best = free.slice().sort((a, b) => perGame(b) - perGame(a));
+  const holes = Object.keys(starters).filter((pos) => isShort(pos, mine, starters));
+
+  // Ordered by what each is worth over his own replacement rather than by his
+  // raw rate, or the answer is a quarterback every week.
+  const levels = replacementLevels(free);
+  const best = free
+    .slice()
+    .sort((a, b) => surplusOf(b, levels, false) - surplusOf(a, levels, false));
 
   if (holes.length) {
-    const fit = best.find((p) => holes.includes(p.pos));
+    const fit = best.find((p) => holes.some((hole) => fills(p.pos, hole)));
     return {
       tier: "hole",
       text:
@@ -148,21 +249,33 @@ export function rosterNeed(
     }
   }
 
-  const worst = mine.slice().sort((a, b) => perGame(a) - perGame(b))[0];
+  // The weakest man you hold, and the best thing on the wire, both measured
+  // against their own positions. A kicker at 8 a game can be worth more than a
+  // third quarterback at 15 — the kicker is the only one you have, and the
+  // quarterback is behind two who will always start ahead of him.
+  const worst = mine
+    .slice()
+    .sort((a, b) => surplusOf(a, levels, true) - surplusOf(b, levels, true))[0];
+
   if (worst) {
-    const over = best.find((p) => perGame(p) > perGame(worst));
+    const bar = surplusOf(worst, levels, true);
+    const over = best.find((p) => surplusOf(p, levels, false) > bar);
     if (over) {
       return {
         tier: "bench",
         text:
-          `${over.name} (${perGame(over).toFixed(1)} PG) outscores ${worst.name} ` +
-          `(${perGame(worst).toFixed(1)} PG), the weakest player you are holding.`,
+          over.pos === worst.pos
+            ? `${over.name} (${perGame(over).toFixed(1)} PG) outscores ${worst.name} ` +
+              `(${perGame(worst).toFixed(1)} PG), the weakest ${over.pos} you are holding.`
+            : `${over.name} (${perGame(over).toFixed(1)} PG) is worth more at ${over.pos} than ` +
+              `${worst.name} (${perGame(worst).toFixed(1)} PG) is at ${worst.pos}, once you ` +
+              `count who would replace each of them.`,
       };
     }
     return {
       tier: "none",
       text:
-        `Nothing on the wire outscores anyone you are holding. Your weakest spot is ` +
+        `Nothing on the wire improves on anyone you are holding. Your weakest spot is ` +
         `${worst.name} at ${perGame(worst).toFixed(1)} a game.`,
     };
   }
@@ -182,21 +295,42 @@ export function fitChip(
   p: Held,
   mine: Held[],
   starters: Record<string, number>,
+  levels: Map<string, [number, number]> = new Map(),
 ): { label: string; tone: "warn" | "good" } | null {
   const at = (pos: string) =>
     mine.filter((x) => x.pos === pos).sort((a, b) => b.points - a.points);
 
-  const need = starters[p.pos] ?? 0;
-  if (need && at(p.pos).length < need) {
+  if (isShort(p.pos, mine, starters)) {
     return { label: `FILLS ${p.pos}`, tone: "warn" };
   }
+
+  // His own slot is full, but the flexes behind it are not and he can play in
+  // one. A quarterback cannot — this league starts exactly one, and a second
+  // has nowhere to play.
+  if (fills(p.pos, "FLEX") && isShort("FLEX", mine, starters)) {
+    return { label: "FILLS FLEX", tone: "warn" };
+  }
+
+  const need = starters[p.pos] ?? 0;
 
   const group = at(p.pos);
   const weak = need && group.length >= need ? group[need - 1] : null;
   if (weak && perGame(p) > perGame(weak)) return { label: "STARTER", tone: "warn" };
 
-  const worst = mine.slice().sort((a, b) => perGame(a) - perGame(b))[0];
-  if (worst && perGame(p) > perGame(worst)) {
+  // Across positions the comparison has to be surplus, not rate. Without it
+  // every quarterback on the wire wore an OVER chip against somebody's kicker,
+  // in a league that starts one quarterback.
+  //
+  // And a real surplus, not a rounding one. The best free quarterback in a
+  // one-quarterback league is a point a game better than the next free
+  // quarterback, which clears every negative number on a roster and means
+  // nothing — two a game is thirty-four points across a season, which is a
+  // move worth making.
+  const worst = mine
+    .slice()
+    .sort((a, b) => surplusOf(a, levels, true) - surplusOf(b, levels, true))[0];
+  const gain = surplusOf(p, levels, false);
+  if (worst && gain >= WORTH_A_SPOT && gain > surplusOf(worst, levels, true)) {
     return { label: `OVER ${worst.name.split(" ").slice(-1)[0].toUpperCase()}`, tone: "good" };
   }
 
