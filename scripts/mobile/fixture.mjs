@@ -124,6 +124,63 @@ export const RECAP = {
   },
 };
 
+/**
+ * The league's scored pool, as /api/rankings answers it.
+ *
+ * Exported because a check sometimes needs a bigger pool than this one —
+ * My Team's position ranks are a claim about the league rather than about a
+ * roster, and that claim is only visible when the two differ. Overridden by
+ * spreading this rather than by re-fetching: a route handler that fetches
+ * goes past the fixture to the real server, and gets a real answer.
+ */
+export const RANKINGS = {
+  points: {
+    "Rome Odunze": { total: 61.4, games: 2 },
+    "Ja'Marr Chase": { total: 48.2, games: 2 },
+    "Puka Nacua": { total: 41.9, games: 2 },
+    "Marvin Harrison Jr.": { total: 22.6, games: 2 },
+    "Jahmyr Gibbs": { total: 55.8, games: 2 },
+    "Tank Bigsby": { total: 18.4, games: 2 },
+    "Brock Bowers": { total: 37.1, games: 2 },
+    "Trey McBride": { total: 29.5, games: 2 },
+    "Jayden Daniels": { total: 52.3, games: 2 },
+    // Nobody owns him, and he is the biggest climb in the league by a
+    // distance: QB59 off the board, top of the position on points. Best
+    // Value is about somebody's draft coming off, so he must not win it.
+    "Kyle McCord": { total: 70.2, games: 2 },
+  },
+  // What they actually did on the field, this season, which is what the
+  // rate columns are worked out from. Two games each, and the receivers
+  // deliberately not in points order: a board sorted on catches must be
+  // visibly a different board from one sorted on points.
+  played: {
+    "Rome Odunze": {
+      line: { receptions: 9, targets: 14, recYards: 148, recTd: 2, carries: 0, rushYards: 0, rushTd: 0 },
+      games: { receptions: 2, targets: 2, recYards: 2, recTd: 2, carries: 2, rushYards: 2, rushTd: 2 },
+    },
+    "Ja'Marr Chase": {
+      line: { receptions: 18, targets: 26, recYards: 210, recTd: 1, carries: 0, rushYards: 0, rushTd: 0 },
+      games: { receptions: 2, targets: 2, recYards: 2, recTd: 2, carries: 2, rushYards: 2, rushTd: 2 },
+    },
+    "Puka Nacua": {
+      line: { receptions: 14, targets: 19, recYards: 166, recTd: 0, carries: 1, rushYards: 8, rushTd: 0 },
+      games: { receptions: 2, targets: 2, recYards: 2, recTd: 2, carries: 1, rushYards: 1, rushTd: 1 },
+    },
+    "Jayden Daniels": {
+      line: { passYards: 512, passTd: 5, attempts: 62, completions: 43 },
+      games: { passYards: 2, passTd: 2, attempts: 2, completions: 2 },
+    },
+  },
+  rostered: Object.fromEntries(
+    ROSTER.map(([n]) => [n, "Steel Cartel"]),
+  ),
+  // Twelve franchises to field anybody, which is what turns a rank into a
+  // tier. Off the managers rather than off the rosters, the way the route
+  // answers it — a league with an open seat still fields that seat's slots.
+  teams: MANAGERS.length,
+  basis: "league",
+};
+
 export function routes(page, over = {}) {
   const json = (body) => (r) => r.fulfill({ json: body });
 
@@ -844,49 +901,7 @@ export function routes(page, over = {}) {
   // league, which is the largest climb against a draft slot and therefore the
   // Overview's Best Value card. Without real numbers here every generated
   // sentence on that screen has nothing to be generated from.
-  page.route("**/api/rankings", json({
-    points: {
-      "Rome Odunze": { total: 61.4, games: 2 },
-      "Ja'Marr Chase": { total: 48.2, games: 2 },
-      "Puka Nacua": { total: 41.9, games: 2 },
-      "Marvin Harrison Jr.": { total: 22.6, games: 2 },
-      "Jahmyr Gibbs": { total: 55.8, games: 2 },
-      "Tank Bigsby": { total: 18.4, games: 2 },
-      "Brock Bowers": { total: 37.1, games: 2 },
-      "Trey McBride": { total: 29.5, games: 2 },
-      "Jayden Daniels": { total: 52.3, games: 2 },
-      // Nobody owns him, and he is the biggest climb in the league by a
-      // distance: QB59 off the board, top of the position on points. Best
-      // Value is about somebody's draft coming off, so he must not win it.
-      "Kyle McCord": { total: 70.2, games: 2 },
-    },
-    // What they actually did on the field, this season, which is what the
-    // rate columns are worked out from. Two games each, and the receivers
-    // deliberately not in points order: a board sorted on catches must be
-    // visibly a different board from one sorted on points.
-    played: {
-      "Rome Odunze": {
-        line: { receptions: 9, targets: 14, recYards: 148, recTd: 2, carries: 0, rushYards: 0, rushTd: 0 },
-        games: { receptions: 2, targets: 2, recYards: 2, recTd: 2, carries: 2, rushYards: 2, rushTd: 2 },
-      },
-      "Ja'Marr Chase": {
-        line: { receptions: 18, targets: 26, recYards: 210, recTd: 1, carries: 0, rushYards: 0, rushTd: 0 },
-        games: { receptions: 2, targets: 2, recYards: 2, recTd: 2, carries: 2, rushYards: 2, rushTd: 2 },
-      },
-      "Puka Nacua": {
-        line: { receptions: 14, targets: 19, recYards: 166, recTd: 0, carries: 1, rushYards: 8, rushTd: 0 },
-        games: { receptions: 2, targets: 2, recYards: 2, recTd: 2, carries: 1, rushYards: 1, rushTd: 1 },
-      },
-      "Jayden Daniels": {
-        line: { passYards: 512, passTd: 5, attempts: 62, completions: 43 },
-        games: { passYards: 2, passTd: 2, attempts: 2, completions: 2 },
-      },
-    },
-    rostered: Object.fromEntries(
-      ROSTER.map(([n]) => [n, "Steel Cartel"]),
-    ),
-    basis: "league",
-  }));
+  page.route("**/api/rankings", json(over.rankings ?? RANKINGS));
 
   // A function rather than a fixed answer: the sort and the position filter are
   // both server-side now, so a fixture that ignores the query string would let

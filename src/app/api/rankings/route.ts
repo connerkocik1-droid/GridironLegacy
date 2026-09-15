@@ -92,6 +92,11 @@ export async function GET() {
     points,
     played,
     rostered,
+    // How many franchises there are to field anybody. Counted off the managers
+    // rather than off who holds whom: a league with an open seat still fields
+    // that seat's slots the moment somebody takes it, and deriving the count
+    // from the rosters would quietly shrink the league every time one emptied.
+    teams: (managers ?? []).length,
     // Whether the points column is this league's or last season's finish.
     basis: Object.keys(points).length ? "league" : "2025",
   });
