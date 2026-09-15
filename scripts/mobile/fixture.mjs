@@ -78,6 +78,52 @@ const livingSide = (m, points, projected, yetToPlay, inPlay = 0) =>
   side(m, points, { projected, yetToPlay, inPlay });
 const ago = (mins) => new Date(Date.now() - mins * 60_000).toISOString();
 
+// The recap's own table. Built rather than typed out: twelve franchises over
+// three weeks is thirty-six numbers, and the shape of the season matters more
+// than any one of them. m0 wins weeks 1 and 3 and loses week 2, which gives
+// the strip a real streak to read and the standings a real move to report.
+const RECAP_WEEKS = [1, 2, 3];
+const RECAP_SCORES = MANAGERS.map((m, i) =>
+  RECAP_WEEKS.map((w) => Math.round((100 + i * 2.4 + w * 3.1) * 10) / 10));
+// m0 takes weeks 1 and 3 and drops week 2, whatever the generated numbers say.
+RECAP_SCORES[0] = [128.4, 96.2, 131.6];
+RECAP_SCORES[1] = [119.7, 140.8, 118.4];
+// Somebody else posts the week's best, so the crown beat has a name on it that
+// is not the reader's.
+RECAP_SCORES[3][2] = 152.9;
+
+const RECAP_GAMES = RECAP_WEEKS.flatMap((w) =>
+  // m0 plays m1 every week: a rematch, which is one of the branches.
+  MANAGERS.filter((_, i) => i % 2 === 0).map((m, pair) => ({
+    week: w,
+    home: MANAGERS[pair * 2].id,
+    away: MANAGERS[pair * 2 + 1].id,
+    homePoints: RECAP_SCORES[pair * 2][w - 1],
+    awayPoints: RECAP_SCORES[pair * 2 + 1][w - 1],
+    playoff: false,
+  })));
+
+export const RECAP = {
+  opensAt: Date.now() - 3_600_000,
+  recap: {
+    week: 3,
+    meId: "m0",
+    teams: MANAGERS.map((m) => ({ id: m.id, franchise: m.franchise, owner: m.name })),
+    games: RECAP_GAMES,
+    // The frozen best-ball lineup, out of points order the way the snapshot
+    // arrives — the MVP has to be derived, not taken off the top.
+    myWeek: [
+      { name: "Bijan Robinson", position: "RB", team: "ATL", points: 25.1 },
+      { name: "Trey McBride", position: "TE", team: "ARI", points: 11.0 },
+      { name: "Jayden Daniels", position: "QB", team: "WSH", points: 34.7 },
+      { name: "Brock Bowers", position: "TE", team: "LV", points: 12.3 },
+      { name: "Ja'Marr Chase", position: "WR", team: "CIN", points: 27.8 },
+      { name: "Jahmyr Gibbs", position: "RB", team: "DET", points: 20.7 },
+    ],
+    next: { week: 4, opponentId: "m1", kickoff: new Date(Date.now() + 3 * 86_400_000).toISOString() },
+  },
+};
+
 export function routes(page, over = {}) {
   const json = (body) => (r) => r.fulfill({ json: body });
 
@@ -1147,4 +1193,15 @@ export function routes(page, over = {}) {
   page.route("**/api/admin/season", json({
     season: 2026, champion: "Iron Rail", isCommissioner: true,
   }));
+
+  // ------------------------------------------------------------- the recap ---
+  // Three weeks played out across twelve franchises, so the recap has a real
+  // table to read: a result, a league-wide board, a standings move, and a
+  // fixture to come. Seen by default — the recap is a full-screen takeover and
+  // every other assertion about Home is made behind it — and recap-check turns
+  // it on by overriding this route with a manager who has not seen it.
+  page.route("**/api/recap", (r) => {
+    if (r.request().method() === "POST") return r.fulfill({ json: { seenWeek: 3, stored: true } });
+    return r.fulfill({ json: { ...RECAP, seenWeek: over.recapUnseen ? null : RECAP.recap.week } });
+  });
 }

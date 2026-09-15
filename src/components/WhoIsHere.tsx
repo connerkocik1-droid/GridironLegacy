@@ -51,8 +51,10 @@ export default function WhoIsHere({ power }: { power: PowerRow[] }) {
     >
       <span
         style={{
-          fontSize: 9,
-          letterSpacing: ".26em",
+          // Ten, not nine: the audit's floor for readable text on a phone, and
+          // this label is the only thing saying what the row of names is.
+          fontSize: 10,
+          letterSpacing: ".24em",
           color: "var(--text-dim)",
           flex: "0 0 auto",
         }}

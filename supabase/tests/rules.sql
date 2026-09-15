@@ -5518,3 +5518,47 @@ select expect('using the app marks you present',
 select expect('and marks nobody else',
   (select count(*)::int from managers
     where league_id = :'V' and slot <> 'CCC' and last_seen_at is not null), 0);
+
+\echo ''
+\echo '--- and a week is recapped once ---'
+
+-- The recap takes the whole screen. Nothing about it matters more than the
+-- marker that stops it taking the screen again on the next launch.
+
+select expect('nobody has seen a recap to begin with',
+  (select count(*)::int from managers
+    where league_id = :'V' and recap_seen_week is not null), 0);
+
+\o /dev/null
+select signin(:'VC');
+select see_recap(3);
+\o
+
+select expect('seeing one marks the week',
+  (select recap_seen_week from managers where league_id = :'V' and slot = 'CCC'), 3);
+
+select expect('and marks nobody else',
+  (select count(*)::int from managers
+    where league_id = :'V' and slot <> 'CCC' and recap_seen_week is not null), 0);
+
+-- Two tabs open on a Tuesday morning both dismiss the same recap. The second
+-- one must not be able to wind the marker back and play it again.
+\o /dev/null
+select see_recap(2);
+\o
+
+select expect('an older week cannot un-see a newer one',
+  (select recap_seen_week from managers where league_id = :'V' and slot = 'CCC'), 3);
+
+\o /dev/null
+select see_recap(4);
+\o
+
+select expect('but the next week moves it on',
+  (select recap_seen_week from managers where league_id = :'V' and slot = 'CCC'), 4);
+
+select expect('and the function says where it landed',
+  (select see_recap(4)), 4);
+
+select expect('a recap with no week is refused',
+  refuses($$select see_recap(null)$$), 'see_recap needs a week');

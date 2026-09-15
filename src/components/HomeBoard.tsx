@@ -12,6 +12,7 @@ import TheLeagueButton from "./TheLeagueButton";
 import MiniGamesButton from "./MiniGamesButton";
 import ScoreTicker from "./ScoreTicker";
 import WhoIsHere from "./WhoIsHere";
+import WeekRecap from "./WeekRecap";
 import GamecastButton from "./GamecastButton";
 import MatchupHero from "./MatchupHero";
 import PowerRank from "./PowerRank";
@@ -74,6 +75,11 @@ export default function HomeBoard() {
 
   return (
     <div style={{ paddingBottom: 44 }}>
+      {/* Over the whole page, on the first open after the NFL week ends. It
+          mounts here rather than in the layout because it is about this
+          manager's week, and Home is where a week is read. */}
+      <WeekRecap />
+
       {/* Before the football, because it is about the room. Who else has the
           app open decides whether a trade is worth sending now — and it is one
           line, so it costs the matchup nothing. */}
