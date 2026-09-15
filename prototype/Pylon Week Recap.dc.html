@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
+<script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
+<script src="./image-slot.js"></script>
+<style>
+  body { margin:0; background:#0b0d16; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  a { color:#b5abfc; text-decoration:none; }
+  a:hover { color:#d2cefd; }
+
+  /* Win: energy arrives from below and lifts. */
+  @keyframes rc-stamp { 0% { opacity:0; transform:scale(1.7); letter-spacing:.34em; } 55% { opacity:1; transform:scale(.95); } 100% { opacity:1; transform:scale(1); letter-spacing:.06em; } }
+  @keyframes rc-rays { 0% { opacity:0; transform:rotate(0deg) scale(.6);} 40% { opacity:.7;} 100% { opacity:0; transform:rotate(26deg) scale(1.5);} }
+  @keyframes rc-spark { 0% { opacity:0; transform:translateY(24px) scale(.4);} 18% { opacity:1;} 100% { opacity:0; transform:translateY(-104px) scale(1);} }
+
+  /* Loss: weight arrives from above and settles. */
+  @keyframes rc-drop { 0% { opacity:0; transform:translateY(-54px) scale(1.16); letter-spacing:.22em; } 58% { opacity:1; transform:translateY(7px) scale(.975); } 80% { transform:translateY(-2px) scale(1.005);} 100% { opacity:1; transform:translateY(0) scale(1); letter-spacing:.06em; } }
+  @keyframes rc-shade { 0% { opacity:0; transform:translateY(-70%);} 35% { opacity:1;} 100% { opacity:0; transform:translateY(70%);} }
+  @keyframes rc-sink { from { opacity:0; transform:translateY(-10px);} to { opacity:1; transform:none;} }
+
+  /* Highest score of the week. */
+  @keyframes rc-crown { 0% { opacity:0; transform:translateY(14px) scale(.6) rotate(-12deg);} 60% { transform:translateY(0) scale(1.12) rotate(4deg);} 100% { opacity:1; transform:none;} }
+  @keyframes rc-ring { 0% { opacity:.85; transform:scale(.35);} 100% { opacity:0; transform:scale(1.9);} }
+
+  @keyframes rc-in-l { from { opacity:0; transform:translateX(-24px);} to { opacity:1; transform:none;} }
+  @keyframes rc-in-r { from { opacity:0; transform:translateX(24px);} to { opacity:1; transform:none;} }
+  @keyframes rc-halo { 0%,100% { opacity:.3; transform:scale(1);} 50% { opacity:.8; transform:scale(1.08);} }
+  @keyframes rc-sweep { 0% { background-position:0% 50%;} 100% { background-position:200% 50%;} }
+  @keyframes rc-fade { from { opacity:0;} to { opacity:1;} }
+  @keyframes rc-pop { 0% { opacity:0; transform:scale(.82);} 60% { transform:scale(1.04);} 100% { opacity:1; transform:scale(1);} }
+  @keyframes rc-slide { from { opacity:0; transform:translateY(26px) scale(.97);} to { opacity:1; transform:none;} }
+</style>
+</helmet>
+
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+
+<div style="height:100%;position:relative;overflow:hidden;background:#0f111c;color:var(--color-text);font-family:var(--font-body);font-variant-numeric:tabular-nums">
+
+  <div style="position:absolute;inset:0;opacity:.28;filter:blur(1px);pointer-events:none">
+    <div style="padding:62px 18px 0">
+      <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:.24em;text-transform:uppercase">Pylon<span style="color:#b5abfc"> Fantasy</span></div>
+      <div style="margin-top:26px;height:150px;border-radius:16px;border:1px solid rgba(145,132,217,.2);background:rgba(22,24,38,.6)"></div>
+      <div style="margin-top:14px;height:64px;border-radius:14px;border:1px solid rgba(145,132,217,.16);background:rgba(22,24,38,.5)"></div>
+      <div style="margin-top:12px;height:64px;border-radius:14px;border:1px solid rgba(145,132,217,.16);background:rgba(22,24,38,.5)"></div>
+    </div>
+  </div>
+
+  <div style="position:absolute;inset:0;background:radial-gradient(620px 420px at 50% 16%, rgba(28,30,52,.97), rgba(11,13,22,.99))">
+    <div onClick="{{ onTap }}" style="{{ scrimStyle }}">
+
+      <div style="{{ glowStyle }}"></div>
+
+      <sc-if value="{{ showRays }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;top:96px;left:50%;width:340px;height:340px;margin-left:-170px;pointer-events:none;background:repeating-conic-gradient(from 0deg,rgba(127,216,168,.17) 0deg 5deg, transparent 5deg 22deg);mask-image:radial-gradient(circle,transparent 26%,#000 46%,transparent 74%);-webkit-mask-image:radial-gradient(circle,transparent 26%,#000 46%,transparent 74%);will-change:transform,opacity;animation:rc-rays 1.8s cubic-bezier(.2,.8,.2,1) both"></div>
+      </sc-if>
+
+      <sc-if value="{{ showSparks }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;pointer-events:none">
+          <span style="position:absolute;top:196px;left:7%;width:5px;height:5px;border-radius:50%;background:#7fd8a8;box-shadow:0 0 8px #7fd8a8;animation:rc-spark 1.9s .24s cubic-bezier(.3,.7,.4,1) both"></span>
+          <span style="position:absolute;top:210px;left:18%;width:3px;height:3px;border-radius:50%;background:rgba(181,171,252,.85);box-shadow:0 0 8px rgba(181,171,252,.85);animation:rc-spark 2s .39s cubic-bezier(.3,.7,.4,1) both"></span>
+          <span style="position:absolute;top:224px;left:30%;width:3px;height:3px;border-radius:50%;background:rgba(181,171,252,.85);box-shadow:0 0 8px rgba(181,171,252,.85);animation:rc-spark 2.1s .54s cubic-bezier(.3,.7,.4,1) both"></span>
+          <span style="position:absolute;top:196px;left:42%;width:5px;height:5px;border-radius:50%;background:#7fd8a8;box-shadow:0 0 8px #7fd8a8;animation:rc-spark 2.2s .69s cubic-bezier(.3,.7,.4,1) both"></span>
+          <span style="position:absolute;top:210px;left:54%;width:3px;height:3px;border-radius:50%;background:rgba(181,171,252,.85);box-shadow:0 0 8px rgba(181,171,252,.85);animation:rc-spark 2.3s .84s cubic-bezier(.3,.7,.4,1) both"></span>
+          <span style="position:absolute;top:224px;left:66%;width:3px;height:3px;border-radius:50%;background:#7fd8a8;box-shadow:0 0 8px #7fd8a8;animation:rc-spark 2.4s .99s cubic-bezier(.3,.7,.4,1) both"></span>
+          <span style="position:absolute;top:196px;left:78%;width:5px;height:5px;border-radius:50%;background:rgba(181,171,252,.85);box-shadow:0 0 8px rgba(181,171,252,.85);animation:rc-spark 2.5s 1.14s cubic-bezier(.3,.7,.4,1) both"></span>
+          <span style="position:absolute;top:210px;left:90%;width:3px;height:3px;border-radius:50%;background:rgba(181,171,252,.85);box-shadow:0 0 8px rgba(181,171,252,.85);animation:rc-spark 2.6s 1.29s cubic-bezier(.3,.7,.4,1) both"></span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showShade }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;top:120px;left:0;right:0;height:230px;pointer-events:none;background:linear-gradient(180deg,transparent,rgba(224,181,115,.13) 45%,rgba(11,13,22,.4) 92%,transparent);will-change:transform,opacity;animation:rc-shade 2.1s cubic-bezier(.4,0,.6,1) both"></div>
+      </sc-if>
+
+      <div style="position:relative;height:100%;display:flex;flex-direction:column;padding:0 22px">
+
+        <div style="display:flex;align-items:center;gap:10px;padding-top:80px">
+          <span style="font-size:9px;letter-spacing:.3em;color:#75798c">{{ weekLabel }}</span>
+          <div style="margin-left:auto;display:flex;gap:5px">
+            <sc-for list="{{ beatDots }}" as="d" hint-placeholder-count="4">
+              <button onClick="{{ d.onClick }}" style="{{ d.style }}"></button>
+            </sc-for>
+          </div>
+        </div>
+
+        <sc-for list="{{ beatResult }}" as="b" hint-placeholder-count="1">
+          <div style="position:absolute;left:22px;right:22px;top:112px;bottom:0;display:flex;flex-direction:column">
+            <div style="text-align:center;margin-top:24px">
+              <sc-if value="{{ b.won }}" hint-placeholder-val="{{ false }}">
+                <div style="font-family:var(--font-heading);font-size:54px;line-height:1;letter-spacing:.06em;color:#7fd8a8;text-shadow:0 0 44px rgba(127,216,168,.6);animation:rc-stamp .75s cubic-bezier(.2,.9,.2,1) both">WON</div>
+                <div style="font-size:11px;letter-spacing:.16em;color:#8f94a8;margin-top:12px;animation:rc-fade .6s .5s ease both">{{ b.sub }}</div>
+              </sc-if>
+              <sc-if value="{{ b.lost }}" hint-placeholder-val="{{ true }}">
+                <div style="font-family:var(--font-heading);font-size:54px;line-height:1;letter-spacing:.06em;color:#e0b573;text-shadow:0 0 26px rgba(224,181,115,.3);animation:rc-drop 1.05s cubic-bezier(.34,1.2,.5,1) both">LOST</div>
+                <div style="font-size:11px;letter-spacing:.16em;color:#8f94a8;margin-top:12px;animation:rc-sink .8s .75s ease both">{{ b.sub }}</div>
+              </sc-if>
+            </div>
+
+            <div style="margin-top:34px">
+              <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:12px">
+                <div style="animation:rc-in-l .55s cubic-bezier(.2,.8,.2,1) both">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span style="font-size:10px;letter-spacing:.12em;color:#8f94a8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ b.meName }}</span>
+                    <span style="{{ b.meLeadStyle }}">LEAD</span>
+                  </div>
+                  <div style="{{ b.meScoreStyle }}">{{ b.meScore }}</div>
+                </div>
+                <div style="font-family:var(--font-heading);font-size:10px;letter-spacing:.16em;color:#595d6c;padding-bottom:9px">VS</div>
+                <div style="text-align:right;animation:rc-in-r .55s .12s cubic-bezier(.2,.8,.2,1) both">
+                  <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+                    <span style="{{ b.oppLeadStyle }}">LEAD</span>
+                    <span style="font-size:10px;letter-spacing:.12em;color:#8f94a8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ b.oppName }}</span>
+                  </div>
+                  <div style="{{ b.oppScoreStyle }}">{{ b.oppScore }}</div>
+                </div>
+              </div>
+              <div style="margin-top:14px;height:5px;border-radius:99px;background:rgba(145,132,217,.16);overflow:hidden">
+                <div style="{{ b.barStyle }}"></div>
+              </div>
+              <div style="{{ b.marginStyle }}">{{ b.marginLine }}</div>
+            </div>
+
+            <div style="{{ b.streakWrapStyle }}">
+              <div style="display:flex;gap:4px">
+                <sc-for list="{{ b.pips }}" as="p" hint-placeholder-count="3">
+                  <span style="{{ p.style }}"></span>
+                </sc-for>
+              </div>
+              <span style="font-size:10px;letter-spacing:.1em;color:#8f94a8;text-wrap:pretty">{{ b.streakLine }}</span>
+            </div>
+          </div>
+        </sc-for>
+
+        <sc-for list="{{ beatTop }}" as="b" hint-placeholder-count="0">
+          <div style="position:absolute;left:22px;right:22px;top:112px;bottom:0;display:flex;flex-direction:column">
+            <div style="text-align:center;margin-top:16px">
+              <div style="{{ b.kickerStyle }}">{{ b.kicker }}</div>
+            </div>
+
+            <div style="position:relative;margin-top:20px;display:flex;flex-direction:column;align-items:center;color:{{ b.accent }}">
+              <sc-if value="{{ b.showRings }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;top:-6px;left:50%;width:120px;height:120px;margin-left:-60px;pointer-events:none;border-radius:50%;border:1px solid currentColor;animation:rc-ring 1.6s .2s cubic-bezier(.2,.7,.3,1) both"></div>
+                <div style="position:absolute;top:-6px;left:50%;width:120px;height:120px;margin-left:-60px;pointer-events:none;border-radius:50%;border:1px solid currentColor;animation:rc-ring 1.6s .62s cubic-bezier(.2,.7,.3,1) both"></div>
+              </sc-if>
+              <div style="{{ b.crownStyle }}">
+                <svg width="30" height="30" viewBox="0 0 256 256" fill="currentColor"><path d="M248 96a15.8 15.8 0 0 0-9.4 3.1l-.2.2-40.9 30.7-33.5-71.8a16 16 0 0 0-28.9 0L101.6 130 60.7 99.3l-.2-.2A16 16 0 0 0 35.4 115l19.5 97.7A16 16 0 0 0 70.6 224h114.8a16 16 0 0 0 15.7-11.3L220.6 115A16 16 0 0 0 248 96Z"></path></svg>
+              </div>
+              <div style="{{ b.scoreStyle }}">{{ b.score }}</div>
+              <div style="font-family:var(--font-heading);font-size:18px;line-height:1.2;letter-spacing:-.02em;margin-top:12px;text-align:center;color:var(--color-text);text-wrap:pretty">{{ b.team }}</div>
+              <div style="font-size:10px;letter-spacing:.14em;color:#8f94a8;margin-top:6px">{{ b.owner }}</div>
+            </div>
+
+            <div style="{{ b.readStyle }}">{{ b.read }}</div>
+
+            <div style="margin-top:20px">
+              <div style="font-size:9px;letter-spacing:.22em;color:#75798c;padding-bottom:10px">{{ b.boardLabel }}</div>
+              <div style="display:flex;flex-direction:column;gap:7px">
+                <sc-for list="{{ b.board }}" as="r" hint-placeholder-count="4">
+                  <div style="{{ r.rowStyle }}">
+                    <span style="font-family:var(--font-heading);font-size:10px;color:#595d6c;width:14px;flex:0 0 auto">{{ r.rank }}</span>
+                    <span style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 0 92px">{{ r.team }}</span>
+                    <div style="flex:1;height:5px;border-radius:99px;background:rgba(145,132,217,.13);overflow:hidden">
+                      <div style="{{ r.barStyle }}"></div>
+                    </div>
+                    <span style="{{ r.ptsStyle }}">{{ r.pts }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+
+        <sc-for list="{{ beatMvp }}" as="b" hint-placeholder-count="0">
+          <div style="position:absolute;left:22px;right:22px;top:112px;bottom:0;display:flex;flex-direction:column">
+            <div style="text-align:center;margin-top:20px">
+              <div style="font-size:9px;letter-spacing:.3em;color:#b5abfc">{{ b.kicker }}</div>
+            </div>
+
+            <div style="margin-top:22px;border:1px solid rgba(145,132,217,.34);border-radius:16px;overflow:hidden;background:linear-gradient(160deg,rgba(38,32,64,.92),rgba(20,22,36,.88));position:relative;animation:rc-pop .6s cubic-bezier(.2,.9,.2,1) both;box-shadow:0 18px 40px rgba(0,0,0,.45)">
+              <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 44%,rgba(181,171,252,.15) 50%,transparent 56%);background-size:220% 100%;animation:rc-sweep 5s linear infinite"></div>
+              <div style="padding:16px;position:relative;display:flex;gap:14px;align-items:center">
+                <div style="position:relative;flex:0 0 auto">
+                  <div style="position:absolute;inset:-6px;border-radius:15px;background:radial-gradient(circle,rgba(181,171,252,.55),transparent 70%);animation:rc-halo 2.6s ease-in-out infinite"></div>
+                  <image-slot id="recap-mvp-headshot" style="width:82px;height:82px;position:relative" shape="rounded" radius="12" placeholder="{{ b.first }}"></image-slot>
+                </div>
+                <div style="min-width:0;flex:1">
+                  <div style="font-family:var(--font-heading);font-size:20px;line-height:1.15;letter-spacing:-.02em;text-wrap:pretty">{{ b.name }}</div>
+                  <div style="font-size:10px;letter-spacing:.1em;color:#75798c;margin-top:5px">{{ b.posTeam }}</div>
+                  <div style="display:flex;align-items:baseline;gap:7px;margin-top:10px">
+                    <span style="font-family:var(--font-heading);font-size:28px;line-height:1;color:#b5abfc">{{ b.pts }}</span>
+                    <span style="font-size:9px;letter-spacing:.12em;color:#75798c">{{ b.shareLine }}</span>
+                  </div>
+                </div>
+              </div>
+              <div style="padding:0 16px 14px;position:relative">
+                <div style="font-size:10px;line-height:1.5;color:#a8adc0;text-wrap:pretty">{{ b.note }}</div>
+              </div>
+            </div>
+
+            <div style="margin-top:18px">
+              <div style="font-size:9px;letter-spacing:.22em;color:#75798c;padding-bottom:10px">WHO CARRIED IT</div>
+              <div style="display:flex;flex-direction:column;gap:7px">
+                <sc-for list="{{ b.contributors }}" as="c" hint-placeholder-count="5">
+                  <div style="{{ c.rowStyle }}">
+                    <span style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 0 96px">{{ c.name }}</span>
+                    <div style="flex:1;height:5px;border-radius:99px;background:rgba(145,132,217,.13);overflow:hidden">
+                      <div style="{{ c.barStyle }}"></div>
+                    </div>
+                    <span style="{{ c.ptsStyle }}">{{ c.pts }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+
+        <sc-for list="{{ beatNext }}" as="b" hint-placeholder-count="0">
+          <div style="position:absolute;left:22px;right:22px;top:112px;bottom:0;display:flex;flex-direction:column">
+            <div style="text-align:center;margin-top:20px">
+              <div style="font-size:9px;letter-spacing:.3em;color:#75798c">WHERE IT LEAVES YOU</div>
+            </div>
+
+            <div style="margin-top:22px;display:flex;align-items:center;gap:14px;padding:15px;border-radius:14px;border:1px solid rgba(145,132,217,.24);background:rgba(22,24,38,.7);animation:rc-slide .5s cubic-bezier(.2,.8,.2,1) both">
+              <div style="display:flex;align-items:baseline;gap:8px;flex:0 0 auto">
+                <span style="font-family:var(--font-heading);font-size:15px;color:#595d6c;text-decoration:line-through">{{ b.rankBefore }}</span>
+                <span style="color:#595d6c;font-size:11px">→</span>
+                <span style="font-family:var(--font-heading);font-size:28px;line-height:1;color:#b5abfc">{{ b.rankAfter }}</span>
+              </div>
+              <div style="min-width:0;flex:1">
+                <div style="{{ b.moveStyle }}">{{ b.moveLabel }}</div>
+                <div style="font-size:10px;color:#8f94a8;margin-top:5px;line-height:1.45;text-wrap:pretty">{{ b.rankNote }}</div>
+              </div>
+            </div>
+
+            <div style="margin-top:20px;border:1px solid rgba(145,132,217,.3);border-radius:16px;overflow:hidden;background:linear-gradient(160deg,rgba(34,30,56,.9),rgba(20,22,36,.86));animation:rc-slide .6s .1s cubic-bezier(.2,.8,.2,1) both">
+              <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid rgba(145,132,217,.2)">
+                <span style="font-size:9px;letter-spacing:.2em;color:#b5abfc">{{ b.nextKicker }}</span>
+                <span style="margin-left:auto;font-size:9px;letter-spacing:.12em;color:#75798c">{{ b.kickoff }}</span>
+              </div>
+              <div style="padding:14px">
+                <div style="display:flex;align-items:flex-start;gap:12px">
+                  <div style="min-width:0;flex:1">
+                    <div style="font-family:var(--font-heading);font-size:17px;line-height:1.2;text-wrap:pretty">{{ b.nextTeam }}</div>
+                    <div style="font-size:10px;color:#8f94a8;margin-top:5px">{{ b.nextLine }}</div>
+                  </div>
+                  <div style="text-align:right;flex:0 0 auto">
+                    <div style="font-family:var(--font-heading);font-size:16px;color:#b5abfc">{{ b.nextRecord }}</div>
+                    <div style="font-size:8px;letter-spacing:.14em;color:#595d6c;margin-top:3px">RECORD</div>
+                  </div>
+                </div>
+                <div style="font-size:11px;line-height:1.5;color:#d2cefd;margin-top:12px;padding:9px 11px;border-radius:9px;background:rgba(145,132,217,.12);text-wrap:pretty">{{ b.nextRead }}</div>
+              </div>
+            </div>
+
+            <div style="margin-top:auto;padding-bottom:26px">
+              <div style="height:2px;border-radius:99px;background:rgba(145,132,217,.16);overflow:hidden;margin-bottom:12px">
+                <div style="{{ b.autoStyle }}"></div>
+              </div>
+              <button onClick="{{ b.onDismiss }}" style="cursor:pointer;width:100%;font-family:var(--font-body);font-size:10px;letter-spacing:.18em;padding:14px 0;border-radius:10px;border:1px solid rgba(181,171,252,.6);background:rgba(145,132,217,.14);color:#b5abfc" style-hover="background:rgba(145,132,217,.26)">TAKE ME HOME</button>
+            </div>
+          </div>
+        </sc-for>
+
+        <sc-for list="{{ skipStage }}" as="k" hint-placeholder-count="1">
+          <div style="margin-top:auto;padding-bottom:30px;text-align:center">
+            <span style="font-size:9px;letter-spacing:.2em;color:#595d6c">{{ k.hint }}</span>
+          </div>
+        </sc-for>
+
+      </div>
+    </div>
+  </div>
+
+  <sc-for list="{{ replay }}" as="r" hint-placeholder-count="0">
+    <button onClick="{{ r.onClick }}" style="position:absolute;bottom:34px;left:50%;transform:translateX(-50%);cursor:pointer;font-family:var(--font-body);font-size:9px;letter-spacing:.18em;padding:10px 16px;border-radius:99px;border:1px solid rgba(145,132,217,.4);background:rgba(20,22,36,.9);color:#b5abfc;z-index:5" style-hover="background:rgba(145,132,217,.22)">REPLAY RECAP</button>
+  </sc-for>
+
+</div>
+
+</x-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:940},&quot;outcome&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;from data&quot;,&quot;force win&quot;,&quot;force loss&quot;],&quot;default&quot;:&quot;from data&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Review&quot;},&quot;resultMs&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:4200,&quot;min&quot;:2000,&quot;max&quot;:8000,&quot;step&quot;:200,&quot;unit&quot;:&quot;ms&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Beat timing&quot;},&quot;topMs&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:4400,&quot;min&quot;:2000,&quot;max&quot;:8000,&quot;step&quot;:200,&quot;unit&quot;:&quot;ms&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Beat timing&quot;},&quot;mvpMs&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:4400,&quot;min&quot;:2000,&quot;max&quot;:8000,&quot;step&quot;:200,&quot;unit&quot;:&quot;ms&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Beat timing&quot;},&quot;nextMs&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:5000,&quot;min&quot;:2000,&quot;max&quot;:9000,&quot;step&quot;:200,&quot;unit&quot;:&quot;ms&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Beat timing&quot;}}">
+const WEEK_JUST_PLAYED = 3;
+const ME = 1;
+
+const TEAMS = [
+  { team: "Steel Cartel", owner: "Dev" },
+  { team: "Gettin Stribby Wit' It", owner: "Conner" },
+  { team: "Ravenous", owner: "Priya" },
+  { team: "Manchester Poop Farmers", owner: "Angus" },
+  { team: "Nova Collective", owner: "Jules" },
+  { team: "Apex Union", owner: "Tomas" },
+  { team: "Helix Nine", owner: "Sam" },
+  { team: "Voltage", owner: "Rae" },
+  { team: "Onyx Row", owner: "Bex" },
+  { team: "Blaze Syndicate", owner: "Marcus" }
+];
+
+const SCHEDULE = [
+  [[1, 3], [0, 2], [4, 5], [6, 7], [8, 9]],
+  [[0, 1], [2, 4], [3, 6], [5, 8], [7, 9]],
+  [[0, 4], [1, 2], [3, 5], [6, 9], [7, 8]],
+  [[1, 3], [0, 2], [4, 5], [6, 7], [8, 9]]
+];
+
+const SCORES = [
+  [128.4, 119.7, 134.2],
+  [124.6, 131.0, 118.9],
+  [130.2, 122.8, 127.4],
+  [131.8, 108.4, 121.6],
+  [109.5, 116.2, 112.7],
+  [118.0, 105.9, 124.1],
+  [112.3, 120.6, 99.8],
+  [118.9, 111.5, 117.2],
+  [112.0, 114.8, 108.3],
+  [107.6, 96.2, 103.5]
+];
+
+// What each of my players scored in the week just played. The MVP and the
+// contribution list both fall out of this — neither is nominated.
+const MY_WEEK = [
+  { n: "Lamar Jackson", pos: "QB", t: "BAL", pts: 31.6 },
+  { n: "Ja'Marr Chase", pos: "WR", t: "CIN", pts: 27.8 },
+  { n: "Bijan Robinson", pos: "RB", t: "ATL", pts: 25.1 },
+  { n: "Ashton Jeanty", pos: "RB", t: "LV", pts: 23.8 },
+  { n: "Justin Jefferson", pos: "WR", t: "MIN", pts: 20.1 },
+  { n: "Brock Bowers", pos: "TE", t: "LV", pts: 19.6 },
+  { n: "Trey McBride", pos: "TE", t: "ARI", pts: 15.1 }
+];
+
+// Beat boundaries in ms, derived from per-beat durations so retiming is one
+// number per beat. Each beat replaces the last rather than stacking, so the
+// sequence stays inside one screen.
+const FADE = 900;
+function beatPlan(d) {
+  const a = [0];
+  for (let k = 1; k < d.length; k++) a.push(a[k - 1] + d[k - 1]);
+  return { BEATS: a, END: d.reduce((x, y) => x + y, 0) };
+}
+
+function opponentIn(week, team) {
+  let out = null;
+  SCHEDULE[week - 1].forEach(([x, y]) => {
+    if (x === team) out = y;
+    if (y === team) out = x;
+  });
+  return out;
+}
+
+function resultsThrough(team, weeks) {
+  const out = [];
+  for (let k = 0; k < weeks; k++) {
+    const o = opponentIn(k + 1, team);
+    if (o === null) continue;
+    out.push(SCORES[team][k] > SCORES[o][k] ? "W" : "L");
+  }
+  return out;
+}
+
+function recordOf(team, weeks) {
+  const r = resultsThrough(team, weeks);
+  const w = r.filter(x => x === "W").length;
+  return w + "-" + (r.length - w);
+}
+
+// Standings position after N weeks: wins first, points for as the tiebreak.
+function standingAfter(weeks) {
+  return TEAMS.map((t, i) => {
+    const r = resultsThrough(i, weeks);
+    return {
+      i, wins: r.filter(x => x === "W").length,
+      pf: SCORES[i].slice(0, weeks).reduce((a, b) => a + b, 0)
+    };
+  }).sort((a, b) => b.wins - a.wins || b.pf - a.pf).map(x => x.i);
+}
+
+// Every franchise's score for one week, highest first.
+function weekBoard(week) {
+  return TEAMS.map((t, i) => ({ i, pts: SCORES[i][week - 1] }))
+    .sort((a, b) => b.pts - a.pts);
+}
+
+const ord = n => n + (n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th");
+
+class Component extends DCLogic {
+  state = { t: 0, done: false };
+
+  plan() {
+    return beatPlan([
+      this.props.resultMs ?? 4200,
+      this.props.topMs ?? 4400,
+      this.props.mvpMs ?? 4400,
+      this.props.nextMs ?? 5000
+    ]);
+  }
+
+  componentDidMount() {
+    // rAF is throttled to zero in a hidden document while Date.now() keeps
+    // running, so without this an app-switch mid-play returns to a recap that
+    // has already skipped to the end. Pause on hide, resume where it left off.
+    this.onVis = () => {
+      if (document.hidden) {
+        if (this.timer) { this.heldAt = Date.now() - this.t0; this.stop(); }
+      } else if (this.heldAt != null && !this.state.done) {
+        this.t0 = Date.now() - this.heldAt;
+        this.heldAt = null;
+        this.run();
+      }
+    };
+    document.addEventListener("visibilitychange", this.onVis);
+    this.start();
+  }
+
+  componentWillUnmount() {
+    document.removeEventListener("visibilitychange", this.onVis);
+    this.stop();
+  }
+
+  stop() { if (this.timer) clearInterval(this.timer); this.timer = null; }
+
+  start() {
+    this.stop();
+    this.t0 = Date.now();
+    this.heldAt = null;
+    this.setState({ t: 0, done: false });
+    this.run();
+  }
+
+  // One clock for the whole sequence; it closes the recap on its own.
+  // Deliberately an interval, not requestAnimationFrame: rAF is hard-throttled
+  // to zero in a hidden document, which would freeze the recap at t=0 and
+  // never play it at all. State only changes on a 60ms boundary — every
+  // re-render re-applies style attributes, and needless renders are what
+  // restart CSS keyframes.
+  run() {
+    this.stop();
+    const { END } = this.plan();
+    this.timer = setInterval(() => {
+      const t = Date.now() - this.t0;
+      if (t > END) { this.stop(); this.setState({ t: END, done: true }); return; }
+      const q = Math.round(t / 60) * 60;
+      if (q !== this.state.t) this.setState({ t: q });
+    }, 60);
+  }
+
+  jump(beat) {
+    this.stop();
+    const at = this.plan().BEATS[beat];
+    this.t0 = Date.now() - at;
+    this.heldAt = null;
+    this.setState({ t: at });
+    this.run();
+  }
+
+  // Every league figure below depends only on WEEK_JUST_PLAYED and ME, never
+  // on the clock — so it is computed once per mount, not on every frame.
+  facts() {
+    if (this._f) return this._f;
+    const wk = WEEK_JUST_PLAYED, i = wk - 1;
+    const opp = opponentIn(wk, ME);
+    const byPts = MY_WEEK.slice().sort((a, b) => b.pts - a.pts);
+    const board = weekBoard(wk);
+    const myResults = resultsThrough(ME, wk);
+    let streak = 0;
+    for (let k = myResults.length - 1; k >= 0 && myResults[k] === myResults[myResults.length - 1]; k--) streak++;
+    const nextOpp = opponentIn(wk + 1, ME);
+    const nextResults = resultsThrough(nextOpp, wk);
+    let nextStreak = 0;
+    for (let k = nextResults.length - 1; k >= 0 && nextResults[k] === nextResults[nextResults.length - 1]; k--) nextStreak++;
+    const before = standingAfter(wk - 1).indexOf(ME) + 1;
+    const after = standingAfter(wk).indexOf(ME) + 1;
+    const teamTotal = MY_WEEK.reduce((a, p) => a + p.pts, 0);
+    this._f = {
+      wk, i, opp, board, top: board[0], runnerUp: board[1],
+      topIsMe: board[0].i === ME,
+      myWeekRank: board.map(x => x.i).indexOf(ME) + 1,
+      rawMe: SCORES[ME][i], rawOpp: SCORES[opp][i],
+      mvp: byPts[0], second: byPts[1], byPts, teamTotal,
+      share: byPts[0].pts / teamTotal * 100,
+      over20: MY_WEEK.filter(p => p.pts >= 20).length,
+      myResults, streak, myRecord: recordOf(ME, wk),
+      before, after, moved: before - after,
+      nextOpp, nextResults, nextStreak, nextRecord: recordOf(nextOpp, wk),
+      nextPf: SCORES[nextOpp].slice(0, wk).reduce((a, b) => a + b, 0),
+      myPf: SCORES[ME].slice(0, wk).reduce((a, b) => a + b, 0),
+      topRecord: recordOf(board[0].i, wk),
+      rematch: opponentIn(wk - 1, ME) === nextOpp || opponentIn(1, ME) === nextOpp
+    };
+    return this._f;
+  }
+
+  renderVals() {
+    const S = this.state, self = this;
+    const F = this.facts();
+    const wk = F.wk, i = F.i, opp = F.opp;
+    const mvp = F.mvp, board = F.board, top = F.top, runnerUp = F.runnerUp;
+    const topIsMe = F.topIsMe, share = F.share;
+    const myResults = F.myResults, streak = F.streak;
+    const before = F.before, after = F.after, moved = F.moved;
+    const nextOpp = F.nextOpp, nextResults = F.nextResults, nextStreak = F.nextStreak;
+    const nextPf = F.nextPf, myPf = F.myPf;
+
+    // The data decides the outcome. The tweak exists only so both motion
+    // treatments are reviewable without editing the tables.
+    const forced = this.props.outcome || "from data";
+    let meFinal = F.rawMe, oppFinal = F.rawOpp;
+    if ((forced === "force win" && meFinal < oppFinal) ||
+        (forced === "force loss" && meFinal > oppFinal)) {
+      const swap = meFinal; meFinal = oppFinal; oppFinal = swap;
+    }
+    const won = meFinal > oppFinal;
+    const margin = Math.abs(meFinal - oppFinal);
+    const accent = won ? "#7fd8a8" : "#e0b573";
+    const topAccent = topIsMe ? "#7fd8a8" : "#e8c56a";
+
+    const { BEATS, END } = this.plan();
+    let beat = 0;
+    BEATS.forEach((b, n) => { if (S.t >= b) beat = n; });
+    const last = BEATS.length - 1;
+    const inBeat = S.t - BEATS[beat];
+    const finished = S.done;
+
+    const ease = (to, at, dur) => {
+      if (inBeat <= at) return 0;
+      const k = Math.min(1, (inBeat - at) / dur);
+      return to * (1 - Math.pow(1 - k, 3));
+    };
+    const meNow = ease(meFinal, 900, 1400), oppNow = ease(oppFinal, 900, 1400);
+    const topNow = ease(top.pts, 700, 1300);
+
+    return {
+      weekLabel: "WEEK " + wk + " · FINAL",
+
+      // Holes carry only transition-driven values. Keyframes live as literal
+      // declarations in the template, because a re-render re-applies the style
+      // attribute and would restart them.
+      scrimStyle: "position:absolute;inset:0;pointer-events:" + (finished ? "none" : "auto") +
+        ";cursor:pointer;transition:opacity " + FADE + "ms ease, transform " + FADE +
+        "ms ease;opacity:" + (finished ? "0" : "1") + ";transform:scale(" + (finished ? "1.04" : "1") + ")",
+
+      // A win lights from below; a loss weighs from above.
+      glowStyle: "position:absolute;left:50%;transform:translateX(-50%);width:440px;height:360px;pointer-events:none;border-radius:50%;filter:blur(20px);" +
+        (won ? "top:-70px;background:radial-gradient(circle,rgba(127,216,168,.26),transparent 68%);"
+             : "top:-130px;background:radial-gradient(circle,rgba(224,181,115,.15),transparent 62%);") +
+        "opacity:" + (S.t > 200 ? "1" : "0") + ";transition:opacity .9s ease",
+
+      showRays: won && beat === 0 && inBeat < 2200,
+      showSparks: won && beat === 0 && inBeat < 3400,
+      showShade: !won && beat === 0 && inBeat < 2400,
+
+      onTap: () => {
+        if (finished) return;
+        if (beat < last) self.jump(beat + 1);
+        else { self.stop(); self.setState({ done: true }); }
+      },
+
+      beatDots: BEATS.map((b, n) => ({
+        // The scrim behind these also listens for taps — stop the bubble or a
+        // dot click would jump, then immediately advance again.
+        onClick: e => { e.stopPropagation(); self.jump(n); },
+        style: "cursor:pointer;padding:0;border:0;border-radius:99px;height:4px;transition:width .3s ease,background .3s ease;width:" +
+          (beat === n ? "18px" : "4px") + ";background:" + (beat === n ? "#b5abfc" : "rgba(145,132,217,.34)")
+      })),
+
+      beatResult: beat !== 0 ? [] : [{
+        // Two literal keyframe paths in the template, picked here.
+        won: won, lost: !won,
+        sub: won ? "Week " + wk + " is yours" : "Week " + wk + " got away",
+
+        meName: TEAMS[ME].team.toUpperCase(),
+        oppName: TEAMS[opp].team.toUpperCase(),
+        meScore: meNow.toFixed(1),
+        oppScore: oppNow.toFixed(1),
+        meScoreStyle: "font-family:var(--font-heading);font-size:34px;line-height:1;margin-top:7px;color:" +
+          (meNow >= oppNow ? "#e9e9ed" : "#8f94a8"),
+        oppScoreStyle: "font-family:var(--font-heading);font-size:34px;line-height:1;margin-top:7px;color:" +
+          (oppNow > meNow ? "#e9e9ed" : "#8f94a8"),
+        meLeadStyle: "font-size:7px;letter-spacing:.14em;padding:2px 5px;border-radius:3px;flex:0 0 auto;transition:opacity .25s ease;border:1px solid " +
+          accent + ";color:" + accent + ";opacity:" + (meNow > 0 && meNow >= oppNow ? "1" : "0"),
+        oppLeadStyle: "font-size:7px;letter-spacing:.14em;padding:2px 5px;border-radius:3px;flex:0 0 auto;transition:opacity .25s ease;border:1px solid " +
+          accent + ";color:" + accent + ";opacity:" + (oppNow > meNow ? "1" : "0"),
+        barStyle: "height:100%;border-radius:99px;background:linear-gradient(90deg,#5d5294,#b5abfc);box-shadow:0 0 12px rgba(181,171,252,.55);transition:width 1.4s cubic-bezier(.2,.8,.2,1);width:" +
+          (inBeat > 900 ? (meFinal / (meFinal + oppFinal) * 100).toFixed(1) : 0) + "%",
+        marginLine: (won ? "Won by " : "Lost by ") + margin.toFixed(1) +
+          (margin < 5 ? " — the closest week of your season" : margin > 20 ? " — never in doubt" : ""),
+        marginStyle: "font-size:11px;letter-spacing:.1em;color:" + accent + ";margin-top:12px;text-align:center;opacity:" +
+          (inBeat > 2000 ? "1" : "0") + ";transition:opacity .6s ease",
+
+        pips: myResults.map(r => ({
+          style: "width:7px;height:7px;border-radius:50%;background:" +
+            (r === "W" ? "#7fd8a8" : "rgba(224,122,122,.65)")
+        })),
+        streakLine: (streak === 1
+          ? (myResults[myResults.length - 1] === "W" ? "Back in the win column · " : "First loss after a win · ")
+          : streak + (myResults[myResults.length - 1] === "W" ? " straight wins · " : " straight losses · ")) +
+          F.myRecord + " on the season",
+        streakWrapStyle: "display:flex;align-items:center;gap:10px;margin-top:26px;padding:11px 13px;border-radius:11px;border:1px solid rgba(145,132,217,.2);background:rgba(20,22,36,.6);opacity:" +
+          (inBeat > 2600 ? "1" : "0") + ";transform:translateY(" + (inBeat > 2600 ? "0" : "10px") + ");transition:all .5s ease"
+      }],
+
+      beatTop: beat !== 1 ? [] : [{
+        accent: topAccent,
+        kicker: topIsMe ? "HIGHEST SCORE OF THE WEEK — THAT WAS YOU" : "HIGHEST SCORE OF THE WEEK",
+        kickerStyle: "font-size:9px;letter-spacing:.26em;color:" + topAccent + ";text-wrap:pretty",
+        showRings: inBeat < 2600,
+        crownStyle: "position:relative;width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;border:1px solid " +
+          topAccent + "66;background:radial-gradient(circle at 50% 30%," + topAccent + "26,rgba(20,22,36,.8));" +
+          "transition:opacity .5s ease,transform .5s cubic-bezier(.2,.9,.2,1);opacity:" +
+          (inBeat > 120 ? "1" : "0") + ";transform:scale(" + (inBeat > 120 ? "1" : ".7") + ")",
+        score: topNow.toFixed(1),
+        scoreStyle: "font-family:var(--font-heading);font-size:46px;line-height:1;margin-top:16px;color:" +
+          topAccent + ";text-shadow:0 0 34px " + topAccent + "59",
+        team: TEAMS[top.i].team,
+        owner: TEAMS[top.i].owner.toUpperCase() + " · " + F.topRecord,
+
+        read: topIsMe
+          ? "Nobody in the league scored more. " + (top.pts - runnerUp.pts).toFixed(1) +
+            " clear of " + TEAMS[runnerUp.i].owner + " in second."
+          : TEAMS[top.i].owner + " put up the week's best, " + (top.pts - runnerUp.pts).toFixed(1) +
+            " clear of second. Your " + F.rawMe.toFixed(1) + " came in " + ord(F.myWeekRank) + " of 10.",
+        readStyle: "font-size:11px;line-height:1.55;color:#a8adc0;margin-top:16px;text-align:center;text-wrap:pretty;opacity:" +
+          (inBeat > 1300 ? "1" : "0") + ";transition:opacity .6s ease",
+
+        boardLabel: "WEEK " + wk + " SCOREBOARD",
+        board: board.slice(0, 4).map((x, n) => ({
+          rank: n + 1,
+          team: TEAMS[x.i].team,
+          pts: x.pts.toFixed(1),
+          rowStyle: "display:flex;align-items:center;gap:9px;opacity:" +
+            (inBeat > 1500 + n * 140 ? "1" : "0") + ";transform:translateX(" +
+            (inBeat > 1500 + n * 140 ? "0" : "-12px") + ");transition:all .45s cubic-bezier(.2,.8,.2,1)",
+          barStyle: "height:100%;border-radius:99px;transition:width .7s cubic-bezier(.2,.8,.2,1);width:" +
+            (inBeat > 1500 + n * 140 ? (x.pts / top.pts * 100).toFixed(0) : 0) + "%;background:" +
+            (n === 0 ? "linear-gradient(90deg," + topAccent + "88," + topAccent + ")"
+             : x.i === ME ? "linear-gradient(90deg,#5d5294,#b5abfc)" : "rgba(181,171,252,.34)"),
+          ptsStyle: "font-family:var(--font-heading);font-size:12px;flex:0 0 auto;width:40px;text-align:right;color:" +
+            (n === 0 ? topAccent : x.i === ME ? "#b5abfc" : "#8f94a8")
+        }))
+      }],
+
+      beatMvp: beat !== 2 ? [] : [{
+        kicker: "YOUR WEEK " + wk + " MVP",
+        first: mvp.n.split(" ")[0],
+        name: mvp.n,
+        posTeam: mvp.pos + " · " + mvp.t,
+        pts: mvp.pts.toFixed(1),
+        shareLine: Math.round(share) + "% OF YOUR POINTS",
+        note: share > 25
+          ? "Carried the week almost alone — no other player of yours cleared " + F.second.pts.toFixed(1) + "."
+          : won
+            ? "Top of a balanced week: " + F.over20 + " of your players cleared 20."
+            : "Your best week from anyone, and it still was not enough by " + margin.toFixed(1) + ".",
+        contributors: F.byPts.slice(0, 5).map((p, n) => ({
+          name: p.n,
+          pts: p.pts.toFixed(1),
+          rowStyle: "display:flex;align-items:center;gap:9px;opacity:" +
+            (inBeat > 700 + n * 130 ? "1" : "0") + ";transform:translateX(" +
+            (inBeat > 700 + n * 130 ? "0" : "-12px") + ");transition:all .45s cubic-bezier(.2,.8,.2,1)",
+          barStyle: "height:100%;border-radius:99px;transition:width .7s cubic-bezier(.2,.8,.2,1);width:" +
+            (inBeat > 700 + n * 130 ? (p.pts / mvp.pts * 100).toFixed(0) : 0) + "%;background:" +
+            (n === 0 ? "linear-gradient(90deg,#5d5294,#b5abfc)" : "rgba(181,171,252,.4)"),
+          ptsStyle: "font-family:var(--font-heading);font-size:12px;flex:0 0 auto;width:38px;text-align:right;color:" +
+            (n === 0 ? "#b5abfc" : "#8f94a8")
+        }))
+      }],
+
+      beatNext: beat !== 3 ? [] : [{
+        rankBefore: "#" + before,
+        rankAfter: "#" + after,
+        moveLabel: moved > 0 ? "UP " + moved : moved < 0 ? "DOWN " + Math.abs(moved) : "HELD",
+        moveStyle: "font-family:var(--font-heading);font-size:11px;letter-spacing:.14em;color:" +
+          (moved > 0 ? "#7fd8a8" : moved < 0 ? "#e07a7a" : "#8f94a8"),
+        rankNote: moved === 0
+          ? "Same seat as last week. " + F.myRecord + " with " + myPf.toFixed(1) + " points for."
+          : moved > 0
+            ? "Climbed to " + after + " of 10 on " + F.myRecord + " and " + myPf.toFixed(1) + " points for."
+            : "Slipped to " + after + " of 10. Points for still reads " + myPf.toFixed(1) + ".",
+
+        nextKicker: "WEEK " + (wk + 1) + " · NEXT UP",
+        kickoff: "THU 8:20 PM",
+        nextTeam: TEAMS[nextOpp].team,
+        nextLine: TEAMS[nextOpp].owner + " · " + nextPf.toFixed(1) + " points for",
+        nextRecord: F.nextRecord,
+        nextRead: (F.rematch ? "You have already seen them once. " : "") +
+          TEAMS[nextOpp].owner + " comes in " +
+          (nextStreak === 1
+            ? (nextResults[nextResults.length - 1] === "W" ? "off a win" : "off a loss")
+            : "on " + nextStreak + (nextResults[nextResults.length - 1] === "W" ? " straight wins" : " straight losses")) +
+          " and " + (nextPf > myPf
+            ? (nextPf - myPf).toFixed(1) + " more points scored than you."
+            : (myPf - nextPf).toFixed(1) + " fewer points scored than you."),
+        autoStyle: "height:100%;border-radius:99px;background:linear-gradient(90deg,#5d5294,#b5abfc);width:" +
+          Math.max(0, Math.min(100, (END - S.t) / (END - BEATS[3]) * 100)).toFixed(1) + "%",
+        onDismiss: e => { e.stopPropagation(); self.stop(); self.setState({ done: true }); }
+      }],
+
+      skipStage: finished || beat === last ? [] : [{ hint: "TAP FOR NEXT" }],
+
+      replay: S.done ? [{ onClick: e => { e.stopPropagation(); self.start(); } }] : []
+    };
+  }
+}
+</script>
+</body>
+</html>

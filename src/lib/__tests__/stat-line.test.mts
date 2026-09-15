@@ -139,7 +139,7 @@ console.log("\n--- kickers ---");
 const kicker = readStatLine([stat("kicking", { FG: "3/4", XP: "2/2", LONG: "54" })]);
 eq("made over attempted, both kinds", formatStatLine(kicker, "K"), "3/4 FG · 2/2 XP");
 
-console.log("\n--- defences ---");
+console.log("\n--- defenses ---");
 
 const dstStats: PlayerStat[] = [
   { name: "A", team: "SEA", group: "defensive", stats: { SACKS: "2.5", TD: "0" } },
@@ -203,7 +203,7 @@ console.log("\n--- the edges ---");
 
 eq("nothing at all is an empty line, not a crash", formatStatLine(null, "QB"), "");
 eq("an empty line for an empty player", formatStatLine({}, "QB"), "");
-eq("and for a defence with no numbers", formatStatLine({}, "D/ST"), "");
+eq("and for a defense with no numbers", formatStatLine({}, "D/ST"), "");
 
 // A position nobody recognises still gets what he did rather than a blank.
 const unknown: StatLine = { carries: 3, rushYards: 20, rushTd: 1 };
@@ -265,7 +265,7 @@ eq("a season with no weeks in it is blank", formatStatLine(sumStatLines([]), "RB
 eq("a kicker is a K", toSlotPosition("PK"), "K");
 eq("a fullback is a back", toSlotPosition("FB"), "RB");
 eq("and so is a halfback", toSlotPosition("HB"), "RB");
-eq("a defence is a D/ST", toSlotPosition("DEF"), "D/ST");
+eq("a defense is a D/ST", toSlotPosition("DEF"), "D/ST");
 eq("however it is spelled", toSlotPosition("DST"), "D/ST");
 eq("a position already in our words is left alone", toSlotPosition("TE"), "TE");
 eq("case does not matter", toSlotPosition("pk"), "K");

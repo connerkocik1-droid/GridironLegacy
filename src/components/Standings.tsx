@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import PresenceDot from "./PresenceDot";
 import Skeleton from "./Skeleton";
 import Bracket from "./Bracket";
 import LeagueRecords from "./LeagueRecords";
@@ -194,16 +195,7 @@ export default function Standings({ embedded = false }: { embedded?: boolean } =
             margin: "0 0 16px",
           }}
         >
-          <span
-            aria-hidden
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: "50%",
-              background: "var(--good)",
-              boxShadow: "0 0 0 3px rgb(var(--good-rgb) / .2)",
-            }}
-          />
+          <span className="gl-presence is-on" aria-hidden />
           {onlineNow} managers here now
         </div>
       ) : null}
@@ -317,23 +309,8 @@ export default function Standings({ embedded = false }: { embedded?: boolean } =
                               }}
                             >
                               {f.franchise}
-                              {f.online ? (
-                                <span
-                                  role="img"
-                                  aria-label="Here now"
-                                  title="Here now"
-                                  style={{
-                                    display: "inline-block",
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: "50%",
-                                    marginLeft: 6,
-                                    verticalAlign: "middle",
-                                    background: "var(--good)",
-                                    boxShadow: "0 0 0 2.5px rgb(var(--good-rgb) / .2)",
-                                  }}
-                                />
-                              ) : null}
+              {" "}
+                              <PresenceDot online={Boolean(f.online)} who={f.franchise} size={6} />
                               {mine ? (
                                 <span style={{ color: "var(--accent-link)", fontSize: 10 }}> · YOU</span>
                               ) : null}

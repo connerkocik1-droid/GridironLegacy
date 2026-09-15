@@ -202,7 +202,7 @@ export function explainGroup(
 
     default:
       // Return yardage included: a punt returned for a touchdown is the
-      // defence's score, not the returner's, and it is counted there.
+      // defense's score, not the returner's, and it is counted there.
       return [];
   }
 }
@@ -247,26 +247,26 @@ export interface DefenseScore {
   line: StatLine;
 }
 
-/** What the summary can tell a defence that its own box-score lines cannot. */
+/** What the summary can tell a defense that its own box-score lines cannot. */
 export interface DefenseExtras {
   /**
-   * Fumbles the opposing offence lost — which is, by definition, the number
-   * this defence recovered.
+   * Fumbles the opposing offense lost — which is, by definition, the number
+   * this defense recovered.
    *
    * Read from the other side of the box score rather than from this one: a
    * team's own `fumbles` group counts a lineman falling on his quarterback's
    * fumble as a recovery, and that is not a takeaway.
    */
   fumblesRecovered?: number;
-  /** Safeties this defence scored, from the scoring summary. */
+  /** Safeties this defense scored, from the scoring summary. */
   safeties?: number;
   /** Kickoff returns taken back for a touchdown. */
   kickReturnTouchdowns?: number;
   /** Punt returns taken back for a touchdown. */
   puntReturnTouchdowns?: number;
   /**
-   * Total yards the opposing offence gained. Shown, not scored — this league
-   * bands a defence on points allowed — but it is the number that says whether
+   * Total yards the opposing offense gained. Shown, not scored — this league
+   * bands a defense on points allowed — but it is the number that says whether
    * a low score was a defensive performance or a quiet opponent.
    */
   yardsAllowed?: number;
@@ -304,7 +304,7 @@ export function scoreDefense(
     }
   }
 
-  // The opposing offence's lost fumbles when we have them, which counts only
+  // The opposing offense's lost fumbles when we have them, which counts only
   // takeaways; this team's own REC column when we do not, which over-counts a
   // recovery of its own fumble but is the only figure available.
   const fumbleRecoveries = extras.fumblesRecovered ?? ownFumbleRecoveries;
@@ -623,7 +623,7 @@ export function readStatLine(stats: PlayerStat[]): StatLine {
  * `position` is a fact about the man rather than about a week, and it is
  * carried through from whichever week stated it.
  *
- * Points allowed and yards allowed do add up: a defence's season total is what
+ * Points allowed and yards allowed do add up: a defense's season total is what
  * it gave up across the year, which is the number worth showing.
  */
 export function sumStatLines(lines: StatLine[]): StatLine {
@@ -799,7 +799,7 @@ export function readFieldGoals(plays: ScoringPlay[]): Map<string, number[]> {
   return out;
 }
 
-/** Safeties scored, by the abbreviation of the team whose defence scored it. */
+/** Safeties scored, by the abbreviation of the team whose defense scored it. */
 export function readSafeties(plays: ScoringPlay[]): Map<string, number> {
   const out = new Map<string, number>();
 
@@ -899,7 +899,7 @@ export function readReturnTouchdowns(stats: PlayerStat[]): ReturnTouchdowns {
   return { kick, punt };
 }
 
-/** Fumbles each side lost, which is what the other side's defence recovered. */
+/** Fumbles each side lost, which is what the other side's defense recovered. */
 export function readFumblesLost(stats: PlayerStat[]): Map<string, number> {
   const out = new Map<string, number>();
 
@@ -913,7 +913,7 @@ export function readFumblesLost(stats: PlayerStat[]): Map<string, number> {
   return out;
 }
 
-/** ESPN's team-total row, reduced to the one number a defence is judged on. */
+/** ESPN's team-total row, reduced to the one number a defense is judged on. */
 function totalYards(totals: Record<string, string> | undefined): number | undefined {
   if (!totals) return undefined;
   const raw = totals.totalYards;
@@ -922,10 +922,10 @@ function totalYards(totals: Record<string, string> | undefined): number | undefi
   return Number.isFinite(yards) ? yards : undefined;
 }
 
-/** One side of a game, as far as scoring a defence is concerned. */
+/** One side of a game, as far as scoring a defense is concerned. */
 export interface GameSide {
   abbrev: string;
-  /** Points this side put on the board — what the *other* defence allowed. */
+  /** Points this side put on the board — what the *other* defense allowed. */
   score: number;
 }
 
@@ -966,7 +966,7 @@ export function scoreGameDetail(
         safeties: safeties.get(side.abbrev) ?? 0,
         kickReturnTouchdowns: returns.kick.get(side.abbrev) ?? 0,
         puntReturnTouchdowns: returns.punt.get(side.abbrev) ?? 0,
-        // What the other side gained, which is what this defence gave up.
+        // What the other side gained, which is what this defense gave up.
         yardsAllowed: totalYards(detail.teamTotals[other.abbrev]),
       }),
     );

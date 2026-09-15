@@ -38,13 +38,27 @@ interface EspnStory {
  * says so, rather than breaking.
  */
 export async function fetchNews(revalidateSeconds = 900): Promise<Story[]> {
+  return (await readNews(revalidateSeconds)).stories;
+}
+
+/**
+ * The same wire, saying whether it was actually reached.
+ *
+ * An empty list means two very different things — the wire is quiet, or the
+ * wire is down — and callers that cache need to tell them apart. Caching a
+ * failure is how one bad minute at ESPN becomes twenty minutes of a league
+ * with no news, which is what "we have no news" looks like from the outside.
+ */
+export async function readNews(
+  revalidateSeconds = 900,
+): Promise<{ stories: Story[]; ok: boolean }> {
   try {
     const res = await fetch(NEWS_URL, { next: { revalidate: revalidateSeconds } });
-    if (!res.ok) return [];
+    if (!res.ok) return { stories: [], ok: false };
 
     const body = (await res.json()) as { articles?: EspnStory[] };
 
-    return (body.articles ?? []).map((a, i) => ({
+    const stories = (body.articles ?? []).map((a, i) => ({
       id: String(a.id ?? i),
       headline: a.headline ?? "Untitled",
       description: a.description ?? "",
@@ -57,8 +71,11 @@ export async function fetchNews(revalidateSeconds = 900): Promise<Story[]> {
         .filter((c) => c.type === "athlete" && c.athlete?.displayName)
         .map((c) => c.athlete!.displayName!),
     }));
+
+    // Reached, and it had nothing: that is a quiet wire, not a broken one.
+    return { stories, ok: true };
   } catch {
-    return [];
+    return { stories: [], ok: false };
   }
 }
 

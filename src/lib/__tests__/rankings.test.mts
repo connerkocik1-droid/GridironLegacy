@@ -213,6 +213,13 @@ console.log("\n--- ordering the board by any column ---");
   ok("and the names sort alphabetically",
     byName.every((r, i) => i === 0 || byName[i - 1].name.localeCompare(r.name) <= 0));
 
+  // The other way too. Only ascending was checked, which is how a first press
+  // that answered with Zavier went unnoticed.
+  const backwards = sortRows(qbs, "name", false);
+  ok("and backwards when asked",
+    backwards.every((r, i) => i === 0 || backwards[i - 1].name.localeCompare(r.name) >= 0));
+  ok("which is not the same order", backwards[0]?.name !== byName[0]?.name);
+
   ok("sorting never loses or invents a row", sortRows(qbs, "ppg", false).length === qbs.length);
 }
 

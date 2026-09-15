@@ -36,6 +36,65 @@ a:hover {
   }
 }
 
+/* ------------------------------------------------------------- presence ---
+   Who is in the app right now, beside their franchise.
+
+   Always a dot, never sometimes a dot. Drawing one only for the managers who
+   are here means the eleven who are not look like a different kind of row,
+   and a reader cannot tell "nobody is about" from "this app does not show
+   that". Grey and flat is a real answer to the question.
+
+   The green one breathes. A ring that grows out of it and fades is the shape
+   every app uses for live, and unlike a blinking dot it reads as present
+   rather than as an alert wanting something. */
+
+@keyframes gl-presence-ping {
+  from {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.gl-presence {
+  position: relative;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  vertical-align: middle;
+  /* Grey, flat, and slightly recessed: offline is the resting state and
+     should not compete with the name beside it. */
+  background: var(--text-faint);
+}
+
+.gl-presence.is-on {
+  background: var(--good);
+}
+
+.gl-presence.is-on::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--good);
+  animation: gl-presence-ping 2s ease-out infinite;
+}
+
+/* The colour is the state; the ring is only how it is delivered. Somebody who
+   has asked for less motion still needs to be able to tell who is here, so the
+   ring goes and the green stays. */
+@media (prefers-reduced-motion: reduce) {
+  .gl-presence.is-on::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 @keyframes mt-pulse {
   0%,
   100% {
@@ -1007,4 +1066,183 @@ button[disabled]:active {
 }
 .gl-noscrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* ---------------------------------------------------------- week recap ---
+   The takeover that plays over Home on the first open after the NFL week
+   ends.
+
+   Every keyframe animation the recap uses is declared here as a class, and
+   nothing in the component writes an `animation` into an inline style.
+
+   The handoff called that load-bearing because the prototype's runtime rebuilt
+   whole style attributes on every tick, and re-applying an attribute restarts
+   any animation it declares — a keyframe in a computed style would never leave
+   its first frame, and since most of these start at zero opacity the symptom
+   was an overlay that was perfectly correct in the DOM and invisible on the
+   screen. React does not have that failure: it diffs style properties and
+   writes only the ones that changed, and an unchanged animation string is
+   never touched. Measured, not assumed.
+
+   The rule stays anyway, and this is why: the reduced-motion block at the
+   bottom of this file switches the whole recap off in one place. An inline
+   animation outranks it, so the moment one is written the override needs
+   `!important` to reach it — and the version of that block with `!important`
+   in it passes whether the rule is being followed or not. Without it, the
+   browser check's reduced-motion assertions fail the moment somebody inlines
+   an animation, which is the only kind of rule that keeps itself.
+
+   Per-frame values — opacity, transform and width, driven by a transition —
+   stay inline, because a transition survives being re-applied.
+
+   The palette is the recap's own and it is dark in both themes. The rest of
+   the app follows the reader into daylight; this does not, because it is a
+   thing that plays over the app rather than a part of it, and a cinema does
+   not turn the lights on halfway through. */
+
+.gl-recap {
+  --rc-win: #7fd8a8;
+  --rc-loss: #e0b573;
+  --rc-gold: #e8c56a;
+  --rc-down: #e07a7a;
+  --rc-accent: #b5abfc;
+  --rc-deep: #5d5294;
+  --rc-text: #e9e9ed;
+  --rc-mute: #a8adc0;
+  --rc-dim: #8f94a8;
+  --rc-faint: #75798c;
+  --rc-ghost: #595d6c;
+  --rc-line: rgba(145, 132, 217, 0.2);
+  --rc-panel: rgba(22, 24, 38, 0.7);
+
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  color: var(--rc-text);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  background: radial-gradient(620px 420px at 50% 16%, rgba(28, 30, 52, 0.97), rgba(11, 13, 22, 0.99));
+  overscroll-behavior: contain;
+}
+
+/* Win: energy arrives from below and lifts. */
+@keyframes rc-stamp {
+  0% { opacity: 0; transform: scale(1.7); letter-spacing: .34em; }
+  55% { opacity: 1; transform: scale(.95); }
+  100% { opacity: 1; transform: scale(1); letter-spacing: .06em; }
+}
+@keyframes rc-rays {
+  0% { opacity: 0; transform: rotate(0deg) scale(.6); }
+  40% { opacity: .7; }
+  100% { opacity: 0; transform: rotate(26deg) scale(1.5); }
+}
+@keyframes rc-spark {
+  0% { opacity: 0; transform: translateY(24px) scale(.4); }
+  18% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-104px) scale(1); }
+}
+
+/* Loss: weight arrives from above and settles. Not the same motion in a
+   different colour — the absence of the rays and the embers is the contrast. */
+@keyframes rc-drop {
+  0% { opacity: 0; transform: translateY(-54px) scale(1.16); letter-spacing: .22em; }
+  58% { opacity: 1; transform: translateY(7px) scale(.975); }
+  80% { transform: translateY(-2px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0) scale(1); letter-spacing: .06em; }
+}
+@keyframes rc-shade {
+  0% { opacity: 0; transform: translateY(-70%); }
+  35% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(70%); }
+}
+@keyframes rc-sink {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes rc-crown {
+  0% { opacity: 0; transform: translateY(14px) scale(.6) rotate(-12deg); }
+  60% { transform: translateY(0) scale(1.12) rotate(4deg); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes rc-ring {
+  0% { opacity: .85; transform: scale(.35); }
+  100% { opacity: 0; transform: scale(1.9); }
+}
+@keyframes rc-in-l {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rc-in-r {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rc-halo {
+  0%, 100% { opacity: .3; transform: scale(1); }
+  50% { opacity: .8; transform: scale(1.08); }
+}
+@keyframes rc-sweep {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes rc-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes rc-pop {
+  0% { opacity: 0; transform: scale(.82); }
+  60% { transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes rc-slide {
+  from { opacity: 0; transform: translateY(26px) scale(.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.rc-stamp { animation: rc-stamp .75s cubic-bezier(.2, .9, .2, 1) both; }
+.rc-drop { animation: rc-drop 1.05s cubic-bezier(.34, 1.2, .5, 1) both; }
+.rc-rays { animation: rc-rays 1.8s cubic-bezier(.2, .8, .2, 1) both; }
+.rc-shade { animation: rc-shade 2.1s cubic-bezier(.4, 0, .6, 1) both; }
+.rc-sink { animation: rc-sink .8s .75s ease both; }
+.rc-fade { animation: rc-fade .6s .5s ease both; }
+.rc-crown { animation: rc-crown .7s cubic-bezier(.2, .9, .2, 1) both; }
+.rc-ring { animation: rc-ring 1.6s .2s cubic-bezier(.2, .7, .3, 1) both; }
+.rc-ring-late { animation: rc-ring 1.6s .62s cubic-bezier(.2, .7, .3, 1) both; }
+.rc-in-l { animation: rc-in-l .55s cubic-bezier(.2, .8, .2, 1) both; }
+.rc-in-r { animation: rc-in-r .55s .12s cubic-bezier(.2, .8, .2, 1) both; }
+.rc-halo { animation: rc-halo 2.6s ease-in-out infinite; }
+.rc-sweep { animation: rc-sweep 5s linear infinite; }
+.rc-pop { animation: rc-pop .6s cubic-bezier(.2, .9, .2, 1) both; }
+.rc-slide { animation: rc-slide .5s cubic-bezier(.2, .8, .2, 1) both; }
+.rc-slide-late { animation: rc-slide .6s .1s cubic-bezier(.2, .8, .2, 1) both; }
+
+/* Eight embers on staggered delays. The stagger is here rather than in the
+   markup for the same reason as everything else on this list. */
+.rc-spark { animation: rc-spark 1.9s .24s cubic-bezier(.3, .7, .4, 1) both; }
+.rc-spark:nth-child(2) { animation-duration: 2s; animation-delay: .39s; }
+.rc-spark:nth-child(3) { animation-duration: 2.1s; animation-delay: .54s; }
+.rc-spark:nth-child(4) { animation-duration: 2.2s; animation-delay: .69s; }
+.rc-spark:nth-child(5) { animation-duration: 2.3s; animation-delay: .84s; }
+.rc-spark:nth-child(6) { animation-duration: 2.4s; animation-delay: .99s; }
+.rc-spark:nth-child(7) { animation-duration: 2.5s; animation-delay: 1.14s; }
+.rc-spark:nth-child(8) { animation-duration: 2.6s; animation-delay: 1.29s; }
+
+/* Asked for less motion, the recap still plays — it is what the screen is for
+   — but it arrives rather than travelling. Every element lands on the state it
+   was animating towards, and the component stops counting the scores up and
+   staggering the lists in for the same reason. */
+@media (prefers-reduced-motion: reduce) {
+  .gl-recap [class*="rc-"] {
+    /* Deliberately not !important: see the note at the top of this section.
+       An inline animation would beat this rule, and the check that proves
+       reduced motion works is the check that catches one being written. */
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .gl-recap .rc-rays,
+  .gl-recap .rc-shade,
+  .gl-recap .rc-spark {
+    display: none;
+  }
 }

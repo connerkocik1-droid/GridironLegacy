@@ -3217,7 +3217,7 @@ select :'BB', m.id, x.name, x.pos, 'BENCH'
          ('Wide Three',  'WR'),
          ('Tight One',   'TE'),
          ('Kicker',      'K'),
-         ('The Defence', 'D/ST')
+         ('The Defense', 'D/ST')
        ) as x(name, pos)
  where m.league_id = :'BB' and m.slot = 'AAA';
 
@@ -3234,12 +3234,12 @@ insert into player_scores (league_id, week, player_name, points) values
   (:'BB', 1, 'Wide Three',  16),
   (:'BB', 1, 'Tight One',    7),
   (:'BB', 1, 'Kicker',       8),
-  (:'BB', 1, 'The Defence', 10);
+  (:'BB', 1, 'The Defense', 10);
 \o
 
 -- The optimum: Backup QB 30, Back Three 18 + Back Two 12, Wide Three 16 +
 -- Wide Two 14, Tight One 7, flex takes Wide One 9 (the best left over, ahead
--- of Back One's 5), Kicker 8, Defence 10. Total 124.
+-- of Back One's 5), Kicker 8, Defense 10. Total 124.
 select expect('the best quarterback starts, whatever he is called',
   (select slot from best_ball_lineup(:'BB',
      (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
@@ -3309,26 +3309,26 @@ select expect('a player who overtakes a starter takes his place',
 -- step. A missing one costs that player his slot rather than breaking a week.
 \o /dev/null
 update roster_slots set position = null
- where league_id = :'BB' and player_name = 'The Defence';
+ where league_id = :'BB' and player_name = 'The Defense';
 \o
 
 select expect('a player with no position is left out rather than guessed at',
   (select count(*)::int from best_ball_lineup(:'BB',
      (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
-    where player_name = 'The Defence'), 0);
+    where player_name = 'The Defense'), 0);
 
 select expect('and the rest of the lineup still stands',
   (select count(*)::int from best_ball_lineup(:'BB',
      (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)), 8);
 
 \o /dev/null
-select sync_roster_positions(:'BB', array['The Defence'], array['D/ST']);
+select sync_roster_positions(:'BB', array['The Defense'], array['D/ST']);
 \o
 
 select expect('and the app putting it back puts him back',
   (select slot from best_ball_lineup(:'BB',
      (select id from managers where league_id = :'BB' and slot = 'AAA'), 1)
-    where player_name = 'The Defence'), 'D/ST');
+    where player_name = 'The Defense'), 'D/ST');
 
 select expect('positions are the service key''s to write, not a manager''s',
   (select has_function_privilege('authenticated',
@@ -4320,6 +4320,727 @@ select expect('but one the report has cleared is left cleared',
   ir_eligible('Res Grandfathered'), false);
 
 \echo ''
+\echo '════════ a man you signed scores for you ════════'
+--
+-- Best ball fills the slots from roster_slots.position, and a player with no
+-- position is in no slot — not his own, and not the flex. The draft wrote it;
+-- nothing else did, so anybody signed off the wire scored nought for his
+-- manager while looking perfectly normal on the roster.
+
+\o /dev/null
+\set W  '99999999-0000-0000-0000-0000000000ba'
+\set WU 'db900000-1111-4000-8000-000000000001'
+
+insert into auth.users (id) values (:'WU');
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'W', 'Signing', 2032, 'AAA',
+        '{"starters":{"QB":1,"RB":1},"bench":20,"ir":2,"waiverMode":"none"}'::jsonb);
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id)
+values (:'W', 'AAA', 'A', 'Alpha', true, :'WU');
+
+insert into nfl_players (name, team, position) values
+  ('Sign QB', 'SEA', 'QB'), ('Sign Wire RB', 'DAL', 'RB'),
+  ('Sign Hurt WR', 'GB', 'WR'), ('Sign Given TE', 'TB', 'TE')
+on conflict (name) do update set position = excluded.position;
+
+update nfl_players set injury_status = 'ir' where name = 'Sign Hurt WR';
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'W', id, 'Sign QB', 'BENCH', 'QB'
+    from managers where league_id = :'W' and slot = 'AAA';
+
+select signin(:'WU');
+select add_player(:'W', 'Sign Wire RB');
+
+insert into player_scores (league_id, week, player_name, points) values
+  (:'W', 1, 'Sign QB', 10), (:'W', 1, 'Sign Wire RB', 25);
+\o
+
+select expect('signing a free agent records what he plays',
+  (select position from roster_slots where league_id = :'W' and player_name = 'Sign Wire RB'), 'RB');
+
+-- The whole of it: without the position he is worth nothing at all, and the
+-- matchup is simply lower than it should be with nothing anywhere saying so.
+select expect('so he is in the lineup the week he is signed',
+  lineup_points(:'W', (select id from managers where league_id = :'W' and slot = 'AAA'), 1),
+  35::numeric);
+
+\echo ''
+\echo '--- and so does every other way onto a roster ---'
+
+\o /dev/null
+select add_player_to_ir(:'W', 'Sign Hurt WR');
+select commissioner_move_player(:'W', 'Sign Given TE',
+  (select id from managers where league_id = :'W' and slot = 'AAA'));
+\o
+
+select expect('a free agent stashed straight onto the reserve',
+  (select position from roster_slots where league_id = :'W' and player_name = 'Sign Hurt WR'), 'WR');
+
+select expect('and a player the commissioner puts on a roster',
+  (select position from roster_slots where league_id = :'W' and player_name = 'Sign Given TE'), 'TE');
+
+-- The draft says what it knows, and the trigger must not talk over it: a man
+-- ESPN has since moved to another position is still what he was drafted as
+-- until the report says otherwise.
+\o /dev/null
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'W', id, 'Sign Stated', 'BENCH', 'QB'
+    from managers where league_id = :'W' and slot = 'AAA';
+insert into nfl_players (name, team, position) values ('Sign Stated', 'NYJ', 'WR')
+  on conflict (name) do update set position = 'WR';
+\o
+
+select expect('a position the caller stated is left alone',
+  (select position from roster_slots where league_id = :'W' and player_name = 'Sign Stated'), 'QB');
+
+\echo ''
+\echo '════════ points for is the lineup, not the roster ════════'
+--
+-- An eighteen-man roster in a league that fields eleven has seven men who
+-- score nothing for anybody. Counting them was not merely a third too much: it
+-- rewarded hoarding, because a manager who never started a player all season
+-- still banked his points, and the table before any week was graded ranked
+-- whoever had the deepest bench.
+
+\o /dev/null
+\set F  '99999999-0000-0000-0000-0000000000af'
+\set FU 'da900000-1111-4000-8000-000000000001'
+\set FU2 'da900000-1111-4000-8000-000000000002'
+
+insert into auth.users (id) values (:'FU'), (:'FU2');
+
+-- One starter at each of two positions, so a bench is reachable with four men.
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'F', 'Lineup', 2031, 'AAA',
+        '{"starters":{"QB":1,"RB":1},"bench":20}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise, auth_user_id) values
+  (:'F', 'AAA', 'A', 'Alpha', :'FU'),
+  (:'F', 'BBB', 'B', 'Bravo', :'FU2');
+
+insert into nfl_players (name, team, position) values
+  ('Line Starter QB', 'SEA', 'QB'), ('Line Starter RB', 'DAL', 'RB'),
+  ('Line Bench QB',   'BUF', 'QB'), ('Line Bench RB',   'GB',  'RB'),
+  ('Line Bravo QB',   'DEN', 'QB'), ('Line Bravo RB',   'CHI', 'RB')
+on conflict (name) do update set team = excluded.team;
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'F', m.id, t.n, 'BENCH', t.p from managers m,
+         unnest(array['Line Starter QB','Line Starter RB','Line Bench QB','Line Bench RB'],
+                array['QB','RB','QB','RB']) as t(n, p)
+   where m.league_id = :'F' and m.slot = 'AAA';
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'F', m.id, t.n, 'BENCH', t.p from managers m,
+         unnest(array['Line Bravo QB','Line Bravo RB'], array['QB','RB']) as t(n, p)
+   where m.league_id = :'F' and m.slot = 'BBB';
+
+-- Week one, ungraded. Alpha's two best score 30 and 20; the two behind them
+-- score 9 and 8, which is what a roster total would wrongly add on.
+insert into player_scores (league_id, week, player_name, points) values
+  (:'F', 1, 'Line Starter QB', 30), (:'F', 1, 'Line Starter RB', 20),
+  (:'F', 1, 'Line Bench QB',    9), (:'F', 1, 'Line Bench RB',    8),
+  (:'F', 1, 'Line Bravo QB',   14), (:'F', 1, 'Line Bravo RB',   11);
+
+insert into matchups (league_id, week, home_manager, away_manager, final)
+  select :'F', 1,
+         (select id from managers where league_id = :'F' and slot = 'AAA'),
+         (select id from managers where league_id = :'F' and slot = 'BBB'),
+         false;
+
+select signin(:'FU');
+\o
+
+select expect('a week in progress counts the best eleven and no more',
+  (select points_for from season_points_for(:'F')
+    where manager_id = (select id from managers where league_id = :'F' and slot = 'AAA')), 50.0);
+
+-- The number the old arithmetic gave, named so a regression is recognisable.
+select expect('and not the whole roster, which would have been 67',
+  (select points_for from season_points_for(:'F')
+    where manager_id = (select id from managers where league_id = :'F' and slot = 'AAA')) = 67.0,
+  false);
+
+select expect('the other manager is counted the same way',
+  (select points_for from season_points_for(:'F')
+    where manager_id = (select id from managers where league_id = :'F' and slot = 'BBB')), 25.0);
+
+\echo ''
+\echo '--- a graded week is what the matchup said, not what today says ---'
+
+\o /dev/null
+select grade_week(:'F', 1);
+\o
+
+select expect('grading it does not change the number',
+  (select points_for from season_points_for(:'F')
+    where manager_id = (select id from managers where league_id = :'F' and slot = 'AAA')), 50.0);
+
+select expect('and the standings agree with it',
+  (select points_for from standings(:'F')
+    where manager_id = (select id from managers where league_id = :'F' and slot = 'AAA')), 50.0);
+
+-- A settled week is settled. Recomputing it against whatever the roster looks
+-- like today would quietly rewrite a result every time somebody made a trade.
+\o /dev/null
+delete from roster_slots
+ where league_id = :'F' and player_name in ('Line Starter QB', 'Line Starter RB');
+\o
+
+select expect('and trading the men who scored it away does not take it back',
+  (select points_for from season_points_for(:'F')
+    where manager_id = (select id from managers where league_id = :'F' and slot = 'AAA')), 50.0);
+
+\echo ''
+\echo '--- and a manager who has scored nothing is still a row ---'
+
+\o /dev/null
+insert into managers (league_id, slot, name, franchise) values (:'F', 'CCC', 'C', 'Charlie');
+\o
+
+select expect('at nought rather than missing from the table',
+  (select points_for from season_points_for(:'F')
+    where manager_id = (select id from managers where league_id = :'F' and slot = 'CCC')), 0.0);
+
+select expect('so every franchise in the league has a number',
+  (select count(*)::int from season_points_for(:'F')), 3);
+
+\echo ''
+\echo '════════ the postseason is not the season ════════'
+--
+-- Playoff games are written into the same table as the regular season, with a
+-- flag saying which they are. regular_season_weeks() reads the flag. standings()
+-- never did, so a champion finished the year with three extra wins on the
+-- League page — and reverse-standings draft order, which reads the same
+-- numbers, handed the best team a better pick for winning the title.
+
+\o /dev/null
+\set PS  '99999999-0000-0000-0000-0000000000bb'
+\set PSU 'dc900000-1111-4000-8000-000000000001'
+
+insert into auth.users (id) values (:'PSU');
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'PS', 'Postseason', 2033, 'AAA', '{"starters":{"QB":1},"bench":20}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise, auth_user_id) values
+  (:'PS', 'AAA', 'A', 'Alpha', :'PSU'),
+  (:'PS', 'BBB', 'B', 'Bravo', null);
+
+-- One regular week: Alpha wins it.
+insert into matchups (league_id, week, home_manager, away_manager,
+                      home_points, away_points, winner, final, playoff)
+  select :'PS', 1,
+         (select id from managers where league_id = :'PS' and slot = 'AAA'),
+         (select id from managers where league_id = :'PS' and slot = 'BBB'),
+         100, 90,
+         (select id from managers where league_id = :'PS' and slot = 'AAA'),
+         true, false;
+
+-- And one playoff week, which is not the season.
+insert into matchups (league_id, week, home_manager, away_manager,
+                      home_points, away_points, winner, final, playoff, playoff_round)
+  select :'PS', 15,
+         (select id from managers where league_id = :'PS' and slot = 'AAA'),
+         (select id from managers where league_id = :'PS' and slot = 'BBB'),
+         120, 80,
+         (select id from managers where league_id = :'PS' and slot = 'AAA'),
+         true, true, 1;
+\o
+
+select expect('a title does not add a win to the regular season',
+  (select wins from standings(:'PS')
+    where manager_id = (select id from managers where league_id = :'PS' and slot = 'AAA')), 1);
+
+select expect('nor a loss to the beaten side',
+  (select losses from standings(:'PS')
+    where manager_id = (select id from managers where league_id = :'PS' and slot = 'BBB')), 1);
+
+select expect('and postseason points are not season points',
+  (select points_for from standings(:'PS')
+    where manager_id = (select id from managers where league_id = :'PS' and slot = 'AAA')), 100::numeric);
+
+-- The same table drives the League tab's points column, so it had the same
+-- hole from the day it was written.
+select expect('the season total agrees',
+  (select points_for from season_points_for(:'PS')
+    where manager_id = (select id from managers where league_id = :'PS' and slot = 'AAA')), 100.0);
+
+\echo ''
+\echo '════════ rolling into next season ════════'
+--
+-- The one moment in a dynasty league that cannot be done twice. What comes out
+-- of it is the rookie draft, and a rookie draft in the wrong order — or missing
+-- the picks people traded for — is a year of dealing thrown away.
+
+\o /dev/null
+\set RS  '99999999-0000-0000-0000-0000000000bc'
+\set RSU 'dd900000-1111-4000-8000-000000000001'
+
+insert into auth.users (id) values (:'RSU');
+insert into leagues (id, name, season, inaugural_season, commissioner_slot, settings, draft_state)
+values (:'RS', 'Rollover', 2033, 2033, 'AAA',
+        '{"starters":{"QB":1},"bench":20,"rounds":24,"rookieRounds":3}'::jsonb, 'complete');
+
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id) values
+  (:'RS', 'AAA', 'A', 'Alpha',   true,  :'RSU'),
+  (:'RS', 'BBB', 'B', 'Bravo',   false, null),
+  (:'RS', 'CCC', 'C', 'Charlie', false, null),
+  (:'RS', 'DDD', 'D', 'Delta',   false, null);
+
+-- A finished season, and deliberately not in alphabetical order: Bravo was
+-- worst and Alpha won it. Without that the two orderings coincide and a board
+-- built by franchise slot passes a test meant for reverse standings.
+insert into matchups (league_id, week, home_manager, away_manager,
+                      home_points, away_points, winner, final, playoff)
+  select :'RS', w.week, h.id, a.id, w.hp, w.ap,
+         case when w.hp > w.ap then h.id else a.id end, true, false
+    from (values
+      (1, 'AAA', 'BBB', 120, 60),
+      (1, 'CCC', 'DDD', 110, 100),
+      (2, 'AAA', 'DDD', 118, 90),
+      (2, 'CCC', 'BBB', 105, 70)
+    ) as w(week, home, away, hp, ap)
+    join managers h on h.league_id = :'RS' and h.slot = w.home
+    join managers a on a.league_id = :'RS' and a.slot = w.away;
+
+insert into league_champions (league_id, season, manager_id, franchise, decided_at)
+  select :'RS', 2033, id, 'Alpha', now()
+    from managers where league_id = :'RS' and slot = 'AAA';
+
+-- And a pick traded a year in advance, which is the whole point of holding
+-- them early: Delta's first rounder belongs to Alpha.
+select award_draft_picks(:'RS', 2034);
+update draft_pick_assets
+   set manager_id = (select id from managers where league_id = :'RS' and slot = 'BBB')
+ where league_id = :'RS' and season = 2034 and round = 1
+   and origin_manager = (select id from managers where league_id = :'RS' and slot = 'AAA');
+
+select signin(:'RSU');
+select roll_season(:'RS');
+\o
+
+select expect('the league is playing the next season',
+  (select season from leagues where id = :'RS'), 2034);
+
+-- A rookie draft, not a startup one.
+select expect('the board is as many rounds as a rookie draft has',
+  (select max(round)::int from draft_picks where league_id = :'RS'), 3);
+
+-- Reverse standings, read from the season that has just finished. Computed
+-- after the matchups and the seeds were deleted, there is nothing left to read
+-- and the order collapses to franchise slot.
+select expect('the worst team picks first',
+  (select m.slot from draft_picks p join managers m on m.id = p.manager_id
+    where p.league_id = :'RS' and p.overall = 1), 'BBB');
+
+-- In round three, where nobody has traded anything. Round one cannot answer
+-- this: the champion's own first belongs to Bravo now, so the last pick of
+-- that round is Bravo's, which is the point of having traded for it.
+select expect('and the champion picks last',
+  (select m.slot from draft_picks p join managers m on m.id = p.manager_id
+    where p.league_id = :'RS' and p.round = 3
+    order by p.overall desc limit 1), 'AAA');
+
+-- Snaking, as the startup draft does: the worst team goes first in round one
+-- and last in round two.
+select expect('the board snakes',
+  (select m.slot from draft_picks p join managers m on m.id = p.manager_id
+    where p.league_id = :'RS' and p.round = 2
+    order by p.overall desc limit 1), 'BBB');
+
+-- The pick Alpha traded for a year ago has to be on the board as Alpha's.
+select expect('a pick traded a year early belongs to whoever holds it',
+  (select count(*)::int from draft_picks p
+    join managers m on m.id = p.manager_id
+   where p.league_id = :'RS' and p.round = 1 and m.slot = 'BBB'), 2);
+
+select expect('and the manager who traded it away has none',
+  (select count(*)::int from draft_picks p
+    join managers m on m.id = p.manager_id
+   where p.league_id = :'RS' and p.round = 1 and m.slot = 'AAA'), 0);
+
+\echo ''
+\echo '════════ the phone in a pocket ════════'
+--
+-- Four kinds of notification and a manager who has asked for none of them by
+-- default, because turning notifications on is a thing somebody does and not
+-- a thing that happens to them. Everything here is about the queue refusing
+-- to hold what nobody asked for: an outbox that fills with messages no device
+-- wants is an outbox that never drains.
+
+\o /dev/null
+\set P  '99999999-0000-0000-0000-0000000000ae'
+\set PU 'cf900000-1111-4000-8000-000000000001'
+\set PU2 'cf900000-1111-4000-8000-000000000002'
+
+insert into auth.users (id) values (:'PU'), (:'PU2');
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'P', 'Pocket', 2030, 'AAA',
+        '{"starters":{"QB":1,"RB":1,"WR":1,"TE":1},"bench":20}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise, auth_user_id) values
+  (:'P', 'AAA', 'A', 'Alpha', :'PU'),
+  (:'P', 'BBB', 'B', 'Bravo', :'PU2');
+
+select signin(:'PU');
+\o
+
+select expect('nobody is signed up for anything to begin with',
+  (select push_scores or push_recap or push_injuries or push_projections
+     from managers where league_id = :'P' and slot = 'AAA'), false);
+
+\o /dev/null
+select subscribe_push('https://push.example/aaa', 'BKEY-AAA', 'AUTH-AAA');
+\o
+
+select expect('a browser can say it will accept them',
+  (select count(*)::int from push_subscriptions
+    where manager_id = (select id from managers where league_id = :'P' and slot = 'AAA')), 1);
+
+-- A browser hands back the same endpoint when it re-subscribes, and a second
+-- row would mean two copies of every notification on one phone.
+\o /dev/null
+select subscribe_push('https://push.example/aaa', 'BKEY-AAA2', 'AUTH-AAA2');
+\o
+
+select expect('subscribing twice is still one device',
+  (select count(*)::int from push_subscriptions where endpoint = 'https://push.example/aaa'), 1);
+
+select expect('with the keys it gave the second time',
+  (select p256dh from push_subscriptions where endpoint = 'https://push.example/aaa'), 'BKEY-AAA2');
+
+\echo ''
+\echo '--- and nothing is queued for a kind nobody asked for ---'
+
+select expect('a score nobody wants is not queued',
+  enqueue_push((select id from managers where league_id = :'P' and slot = 'AAA'),
+    'scores', 'Steel Cartel 104.6', 'You are up by 11.', '/lineup', 'w1-score'), false);
+
+select expect('and the outbox is empty',
+  (select count(*)::int from push_outbox where league_id = :'P'), 0);
+
+\o /dev/null
+update managers set push_scores = true
+ where league_id = :'P' and slot = 'AAA';
+\o
+
+select expect('once asked for, it is',
+  enqueue_push((select id from managers where league_id = :'P' and slot = 'AAA'),
+    'scores', 'Steel Cartel 104.6', 'You are up by 11.', '/lineup', 'w1-score'), true);
+
+-- The scoring cron runs every few minutes all afternoon. Without this it would
+-- say the same thing every few minutes.
+select expect('saying the same thing twice says it once',
+  enqueue_push((select id from managers where league_id = :'P' and slot = 'AAA'),
+    'scores', 'Steel Cartel 104.6', 'You are up by 11.', '/lineup', 'w1-score'), false);
+
+select expect('so there is one message waiting',
+  (select count(*)::int from push_outbox where league_id = :'P'), 1);
+
+select expect('a different thing is a different message',
+  enqueue_push((select id from managers where league_id = :'P' and slot = 'AAA'),
+    'scores', 'Steel Cartel 118.2', 'You are up by 4.', '/lineup', 'w1-score-2'), true);
+
+-- Asking for scores is not asking for everything.
+select expect('a kind they did not ask for is still refused',
+  enqueue_push((select id from managers where league_id = :'P' and slot = 'AAA'),
+    'injuries', 'Jahmyr Gibbs', 'Doubtful.', '/my-team', 'w1-gibbs'), false);
+
+\echo ''
+\echo '--- nor for somebody with nothing to be told on ---'
+
+\o /dev/null
+update managers set push_scores = true where league_id = :'P' and slot = 'BBB';
+\o
+
+select expect('a manager with no device queues nothing, however keen',
+  enqueue_push((select id from managers where league_id = :'P' and slot = 'BBB'),
+    'scores', 'Bravo 98.2', 'You are down by 6.', '/lineup', 'w1-score'), false);
+
+\echo ''
+\echo '--- claiming is what stops it being sent twice ---'
+
+select expect('both waiting messages are claimed',
+  (select count(*)::int from claim_push(40)), 2);
+
+select expect('and a second run claims nothing',
+  (select count(*)::int from claim_push(40)), 0);
+
+\o /dev/null
+-- One delivered, one the network would not take.
+select push_sent(
+  array(select id from push_outbox where league_id = :'P' and dedupe = 'w1-score'),
+  array['https://push.example/aaa']);
+select push_failed(
+  array(select id from push_outbox where league_id = :'P' and dedupe = 'w1-score-2'),
+  array[]::text[], array['https://push.example/aaa']);
+\o
+
+select expect('what went is marked gone',
+  (select sent_at is not null from push_outbox
+    where league_id = :'P' and dedupe = 'w1-score'), true);
+
+select expect('what did not is waiting again',
+  (select claimed_at is null from push_outbox
+    where league_id = :'P' and dedupe = 'w1-score-2'), true);
+
+select expect('so the next run picks it up rather than losing it',
+  (select count(*)::int from claim_push(40)), 1);
+
+-- A refusal is counted against the device, not against the message. This used
+-- to add one to exactly the rows it deleted on the next line, so the count
+-- never survived and a device behind a push service having a bad week was
+-- retried forever.
+select expect('and the device that refused has a mark against it',
+  (select failures from push_subscriptions where endpoint = 'https://push.example/aaa'), 1);
+
+\o /dev/null
+-- Five in a row and it is a device that is gone in every way but the row.
+select push_failed(array[]::uuid[], array[]::text[],
+  array['https://push.example/aaa','https://push.example/aaa',
+        'https://push.example/aaa','https://push.example/aaa']);
+\o
+
+select expect('five refusals and it stops being tried',
+  (select count(*)::int from claim_push(40)), 0);
+
+select expect('though the row is still there, waiting for it to come back',
+  (select count(*)::int from push_subscriptions where endpoint = 'https://push.example/aaa'), 1);
+
+\o /dev/null
+-- Coming back is coming back: subscribing again forgives whatever it owed.
+select signin(:'PU');
+select subscribe_push('https://push.example/aaa', 'BKEY-AAA2', 'AUTH-AAA2');
+\o
+
+select expect('and a device that comes back is tried again',
+  (select failures from push_subscriptions where endpoint = 'https://push.example/aaa'), 0);
+
+\echo ''
+\echo '--- a device the push service says is gone, goes ---'
+
+\o /dev/null
+select push_failed(array[]::uuid[], array['https://push.example/aaa'], array[]::text[]);
+\o
+
+select expect('a revoked endpoint is deleted rather than retried forever',
+  (select count(*)::int from push_subscriptions where endpoint = 'https://push.example/aaa'), 0);
+
+-- And with nothing to send to, the queue stops offering the message.
+select expect('and nothing is claimed for a manager with no devices left',
+  (select count(*)::int from claim_push(40)), 0);
+
+\echo ''
+\echo '--- and a subscription is nobody elses business ---'
+
+select expect('nobody has that device yet',
+  (select count(*)::int from push_subscriptions where endpoint = 'https://push.example/bbb'), 0);
+
+\o /dev/null
+select signin(:'PU2');
+select subscribe_push('https://push.example/bbb', 'BKEY-BBB', 'AUTH-BBB');
+select signin(:'PU');
+select forget_push('https://push.example/bbb');
+\o
+
+-- An endpoint is a capability: anybody holding one can send that browser a
+-- notification, so deleting somebody else's has to be impossible even knowing
+-- the string.
+select expect('another manager''s device survives being forgotten by you',
+  (select count(*)::int from push_subscriptions where endpoint = 'https://push.example/bbb'), 1);
+
+\o /dev/null
+select signin(:'PU2');
+select forget_push('https://push.example/bbb');
+\o
+
+select expect('but your own goes when you say so',
+  (select count(*)::int from push_subscriptions where endpoint = 'https://push.example/bbb'), 0);
+
+\echo ''
+\echo '--- and the four things it is worth being told ---'
+
+\o /dev/null
+-- Alpha wants all four; Bravo wants none, and is here to prove the queue is
+-- per manager rather than per league.
+update managers set push_scores = true, push_recap = true,
+                    push_injuries = true, push_projections = true
+ where league_id = :'P' and slot = 'AAA';
+update managers set push_scores = false where league_id = :'P' and slot = 'BBB';
+
+-- Alpha's, explicitly: the block above left Bravo signed in, and a device
+-- attached to the wrong manager makes every check below quietly pass by
+-- queueing nothing.
+select signin(:'PU');
+select subscribe_push('https://push.example/aaa2', 'BKEY', 'AUTH');
+
+insert into nfl_players (name, team, position) values
+  ('Pocket QB', 'SEA', 'QB'), ('Pocket RB', 'DAL', 'RB'),
+  ('Pocket Hurt', 'BUF', 'WR'), ('Pocket Fine', 'GB', 'TE')
+on conflict (name) do update set team = excluded.team, injury_status = null;
+
+-- With positions: best_ball_lineup reads the one on roster_slots, not the one
+-- on nfl_players, and a roster with none scores nought however much its
+-- players did.
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'P', m.id, t.n, 'BENCH', t.p from managers m,
+         unnest(array['Pocket QB','Pocket Hurt','Pocket Fine'],
+                array['QB','WR','TE']) as t(n, p)
+   where m.league_id = :'P' and m.slot = 'AAA';
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'P', m.id, 'Pocket RB', 'BENCH', 'RB'
+    from managers m where m.league_id = :'P' and m.slot = 'BBB';
+
+insert into matchups (league_id, week, home_manager, away_manager, final)
+  select :'P', 1,
+         (select id from managers where league_id = :'P' and slot = 'AAA'),
+         (select id from managers where league_id = :'P' and slot = 'BBB'),
+         false;
+
+-- Bravo is ahead.
+insert into player_scores (league_id, week, player_name, points)
+values (:'P', 1, 'Pocket QB', 8), (:'P', 1, 'Pocket RB', 28);
+\o
+
+
+select expect('a matchup in progress is worth one message to whoever asked',
+  push_score_news(:'P', 1), 1);
+
+select expect('and it says who is ahead, from the reader''s side',
+  (select body from push_outbox
+    where league_id = :'P' and dedupe = 'score:w1:a:0'),
+  'Behind Bravo by 20.0.');
+
+-- The cron runs again five minutes later and nothing has changed.
+select expect('running again while nothing has changed says nothing again',
+  push_score_news(:'P', 1), 0);
+
+\o /dev/null
+update player_scores set points = 48 where league_id = :'P' and player_name = 'Pocket QB';
+\o
+
+select expect('but the lead changing hands is worth saying',
+  push_score_news(:'P', 1), 1);
+
+select expect('and now it reads the other way',
+  (select body from push_outbox
+    where league_id = :'P' and kind = 'scores' and dedupe = 'score:w1:h:1'),
+  'Ahead of Bravo by 20.0.');
+
+select expect('a manager who did not ask is told nothing either way',
+  (select count(*)::int from push_outbox o join managers m on m.id = o.manager_id
+    where m.slot = 'BBB' and m.league_id = :'P'), 0);
+
+-- Every lead change, which is what the switch promises. The key used to be
+-- just who was ahead — three values for a whole week — so the first time each
+-- side took the lead was news and every flip after it was silently dropped.
+\o /dev/null
+update player_scores set points = 4 where league_id = :'P' and player_name = 'Pocket QB';
+select push_score_news(:'P', 1);
+update player_scores set points = 60 where league_id = :'P' and player_name = 'Pocket QB';
+select push_score_news(:'P', 1);
+\o
+
+select expect('a lead that changes back is said again',
+  (select count(*)::int from push_outbox
+    where league_id = :'P' and dedupe like 'score:w1:%'), 4);
+
+-- But a lead that merely stands is not repeated, or a Sunday is thirty
+-- notifications.
+\o /dev/null
+update player_scores set points = 70 where league_id = :'P' and player_name = 'Pocket QB';
+select push_score_news(:'P', 1);
+\o
+
+select expect('while a lead that only widens is not',
+  (select count(*)::int from push_outbox
+    where league_id = :'P' and dedupe like 'score:w1:%'), 4);
+
+\echo ''
+\echo '--- nought to nought is not news ---'
+
+\o /dev/null
+insert into matchups (league_id, week, home_manager, away_manager, final)
+  select :'P', 2,
+         (select id from managers where league_id = :'P' and slot = 'AAA'),
+         (select id from managers where league_id = :'P' and slot = 'BBB'),
+         false;
+\o
+
+select expect('a week nobody has played yet says nothing', push_score_news(:'P', 2), 0);
+
+\echo ''
+\echo '--- the week, once it is over ---'
+
+select expect('an ungraded week has no recap in it', push_recap_news(:'P', 1), 0);
+
+\o /dev/null
+update matchups
+   set final = true, home_points = 52, away_points = 20,
+       winner = (select id from managers where league_id = :'P' and slot = 'AAA')
+ where league_id = :'P' and week = 1;
+\o
+
+select expect('a graded week is recapped', push_recap_news(:'P', 1), 1);
+
+select expect('saying who won and by how much',
+  (select title || ' / ' || body from push_outbox
+    where league_id = :'P' and kind = 'recap'),
+  'Week 1: won / Alpha 52.0, Bravo 20.0.');
+
+-- A commissioner regrading a week must not send it round again.
+select expect('and grading it twice recaps it once', push_recap_news(:'P', 1), 0);
+
+\echo ''
+\echo '--- and somebody on your roster going down ---'
+
+\o /dev/null
+update nfl_players set injury_status = 'questionable' where name = 'Pocket Hurt';
+\o
+
+-- Questionable is a designation almost everybody carries by December. It
+-- changes nothing a best-ball manager would do, so it is not worth a buzz.
+select expect('a doubt is not worth waking somebody for', push_injury_news(:'P'), 0);
+
+\o /dev/null
+update nfl_players set injury_status = 'out', injury_detail = 'Hamstring'
+ where name = 'Pocket Hurt';
+\o
+
+select expect('being ruled out is', push_injury_news(:'P'), 1);
+
+select expect('and it says what is wrong with him',
+  (select title || ' / ' || body from push_outbox where league_id = :'P' and kind = 'injuries'),
+  'Pocket Hurt / Out — Hamstring.');
+
+select expect('the same news the next night is not news again', push_injury_news(:'P'), 0);
+
+\o /dev/null
+update nfl_players set injury_status = 'ir', injury_detail = 'Torn ACL'
+ where name = 'Pocket Hurt';
+\o
+
+-- A downgrade is a different fact, and the one that actually changes what a
+-- manager does with the roster spot.
+select expect('but being downgraded is', push_injury_news(:'P'), 1);
+
+\o /dev/null
+-- Once he is stashed the manager plainly knows, and saying so again is the
+-- app telling somebody what they just did.
+update roster_slots set lineup_slot = 'IR'
+ where league_id = :'P' and player_name = 'Pocket Hurt';
+update nfl_players set injury_status = 'out' where name = 'Pocket Hurt';
+\o
+
+select expect('a man already on the reserve is not reported again', push_injury_news(:'P'), 0);
+
+select expect('and a fit player is never mentioned at all',
+  (select count(*)::int from push_outbox
+    where league_id = :'P' and body like '%Pocket Fine%'), 0);
+
+\echo ''
 \echo '════════ a trade answers to the league ════════'
 --
 -- Two managers agreeing is no longer the end of it. The deal goes to the
@@ -4389,8 +5110,7 @@ insert into trades (id, league_id, from_manager, to_manager, offer, status,
     from (values
       (:'VT1'::uuid, '{"give":["Vote Alpha1"],"get":["Vote Bravo1"]}'::jsonb),
       (:'VT2'::uuid, '{"give":["Vote Alpha2"],"get":["Vote Bravo2"]}'::jsonb),
-      (:'VT3'::uuid, '{"give":["Vote Alpha3"],"get":["Vote Bravo3"]}'::jsonb),
-      (:'VT4'::uuid, '{"give":["Vote Alpha4"],"get":["Vote Bravo4"]}'::jsonb)
+      (:'VT3'::uuid, '{"give":["Vote Alpha3"],"get":["Vote Bravo3"]}'::jsonb)
     ) as t(id, offer);
 
 select signin(:'VA');
@@ -4543,10 +5263,19 @@ select expect('and its players move',
 \echo '--- the commissioner can put one through regardless ---'
 
 \o /dev/null
-select signin(:'VA'); select open_trade_vote(:'VT4');
-select signin(:'VC'); select cast_trade_vote(:'VT4', 'veto');
+-- A deal between two managers the commissioner is not one of, because forcing
+-- your own is the exact thing the vote exists to stop and is checked below.
+-- Bravo gives Charlie a man for nothing, which is the shape a league vetoes.
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted)
+values (:'VT4', :'V',
+        (select id from managers where league_id = :'V' and slot = 'BBB'),
+        (select id from managers where league_id = :'V' and slot = 'CCC'),
+        '{"give":["Vote Bravo4"],"get":[]}'::jsonb, 'agreed', true, true);
+
+select signin(:'VB'); select open_trade_vote(:'VT4');
 select signin(:'VD'); select cast_trade_vote(:'VT4', 'veto');
-select signin(:'VB');
+select signin(:'VE'); select cast_trade_vote(:'VT4', 'veto');
 \o
 
 select expect('a manager who is not the commissioner cannot force a trade',
@@ -4562,15 +5291,26 @@ select expect('nor can a voter who does not like how it is going',
   'Only the commissioner can force a trade');
 
 \o /dev/null
-select signin(:'VA'); select force_trade(:'VT4');
+select signin(:'VA');
+\o
+
+-- The one deal a commissioner may not put through is their own. Overriding a
+-- league vote on somebody else's trade is the job; overriding it on yours is
+-- the thing the vote exists to prevent.
+select expect('not even the commissioner forces a trade they are in',
+  refuses(format('select force_trade(%L)', :'VT1')),
+  'You are in this trade — the league decides it, not you');
+
+\o /dev/null
+select force_trade(:'VT4');
 \o
 
 select expect('the commissioner can, mid-vote',
   (select status from trades where id = :'VT4'), 'executed');
 
-select expect('and the players move',
+select expect('and the player moves to the manager it was forced for',
   (select m.slot from roster_slots r join managers m on m.id = r.manager_id
-    where r.league_id = :'V' and r.player_name = 'Vote Alpha4'), 'BBB');
+    where r.league_id = :'V' and r.player_name = 'Vote Bravo4'), 'CCC');
 
 -- Overriding a league vote is the kind of thing a commissioner should have to
 -- answer for, so it is written down with who did it.
@@ -4581,6 +5321,111 @@ select expect('overriding the league leaves a mark',
 select expect('naming the commissioner who did it',
   (select l.actor = (select id from managers where league_id = :'V' and slot = 'AAA')
      from admin_log l where l.league_id = :'V' and l.action = 'trade_forced'), true);
+
+\echo ''
+\echo '--- a vote on a deal that has fallen apart settles rather than sticking ---'
+--
+-- Forty-eight hours is long enough for a player in the offer to be somewhere
+-- else. apply_trade raises at that, and the raise used to take the deciding
+-- voter's ballot with it: a 403, the vote rolled back, and the trade stuck in
+-- 'voting' forever one short of the bar — and on the nightly pass, one such
+-- trade aborted the loop for every other trade in the league.
+
+\o /dev/null
+\set VT6 'ce111111-1111-4000-8000-000000000006'
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted)
+values (:'VT6', :'V',
+        (select id from managers where league_id = :'V' and slot = 'BBB'),
+        (select id from managers where league_id = :'V' and slot = 'CCC'),
+        '{"give":["Vote Bravo3"],"get":[]}'::jsonb, 'agreed', true, true);
+
+select signin(:'VB'); select open_trade_vote(:'VT6');
+
+-- And now the man is not where the offer says he is.
+delete from roster_slots where league_id = :'V' and player_name = 'Vote Bravo3';
+
+update trades set voting_opened_at = now() - interval '49 hours' where id = :'VT6';
+\o
+
+select expect('a trade whose players have moved is settled, not stuck',
+  settle_trade_vote(:'VT6'), 'declined');
+
+select expect('and it says so in the log rather than vanishing',
+  (select count(*)::int from admin_log
+    where league_id = :'V' and action = 'trade_void'), 1);
+
+-- The half that actually hurt: one broken trade took the whole run with it.
+\o /dev/null
+\set VT7 'ce111111-1111-4000-8000-000000000007'
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted, voting_opened_at)
+values (:'VT7', :'V',
+        (select id from managers where league_id = :'V' and slot = 'BBB'),
+        (select id from managers where league_id = :'V' and slot = 'CCC'),
+        '{"give":["Vote Gone"],"get":[]}'::jsonb, 'voting', true, true,
+        now() - interval '49 hours');
+
+\set VT8 'ce111111-1111-4000-8000-000000000008'
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted, voting_opened_at)
+values (:'VT8', :'V',
+        (select id from managers where league_id = :'V' and slot = 'BBB'),
+        (select id from managers where league_id = :'V' and slot = 'CCC'),
+        '{"give":["Vote Spare"],"get":[]}'::jsonb, 'voting', true, true,
+        now() - interval '49 hours');
+
+insert into nfl_players (name, team, position) values ('Vote Spare', 'LAC', 'QB')
+  on conflict (name) do update set team = excluded.team;
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'V', id, 'Vote Spare', 'BENCH', 'QB'
+    from managers where league_id = :'V' and slot = 'BBB';
+
+select settle_trade_votes(:'V');
+\o
+
+select expect('a broken trade does not take the good one down with it',
+  (select status from trades where id = :'VT8'), 'executed');
+
+select expect('and the broken one is declined',
+  (select status from trades where id = :'VT7'), 'declined');
+
+\echo ''
+\echo '--- and rewriting the terms throws away the votes cast on the old ones ---'
+--
+-- Three managers vetoing a lopsided deal must not have their vetoes counted
+-- against whatever it is rewritten into. They were also filtered off the home
+-- page as having already voted, so they could not correct it.
+
+\o /dev/null
+\set VT9 'ce111111-1111-4000-8000-000000000009'
+insert into trades (id, league_id, from_manager, to_manager, offer, status,
+                    from_accepted, to_accepted)
+values (:'VT9', :'V',
+        (select id from managers where league_id = :'V' and slot = 'BBB'),
+        (select id from managers where league_id = :'V' and slot = 'CCC'),
+        '{"give":["Vote Bravo1"],"get":[]}'::jsonb, 'agreed', true, true);
+
+select signin(:'VB'); select open_trade_vote(:'VT9');
+select signin(:'VD'); select cast_trade_vote(:'VT9', 'veto');
+select signin(:'VE'); select cast_trade_vote(:'VT9', 'veto');
+select signin(:'VF'); select cast_trade_vote(:'VT9', 'veto');
+\o
+
+select expect('three vetoes stand while the terms do',
+  (select count(*)::int from trade_votes where trade_id = :'VT9'), 3);
+
+\o /dev/null
+select signin(:'VB');
+update trades set offer = '{"give":["Vote Bravo1"],"get":["Vote Alpha1"]}'::jsonb
+ where id = :'VT9';
+\o
+
+select expect('changing them throws the ballots away',
+  (select count(*)::int from trade_votes where trade_id = :'VT9'), 0);
+
+select expect('and stops the clock, so the new terms get a full window',
+  (select voting_opened_at is null from trades where id = :'VT9'), true);
 
 \echo ''
 \echo '--- and only the two in a deal may put it to the league ---'
@@ -4617,7 +5462,7 @@ select expect('the league can see who voted which way',
 select expect('changing your mind replaces your vote rather than adding one',
   (select count(*)::int from trade_votes
     where trade_id = :'VT4' and manager_id =
-      (select id from managers where league_id = :'V' and slot = 'CCC')), 1);
+      (select id from managers where league_id = :'V' and slot = 'DDD')), 1);
 
 \echo ''
 \echo '--- and both managers are told what the league did ---'
@@ -4640,14 +5485,23 @@ select expect('nobody is told the other manager declined, because they did not',
   (select count(*)::int from notices n join managers m on m.id = n.manager_id
     where m.league_id = :'V' and n.body like '%declined your offer%'), 0);
 
-select expect('and going to the league is itself news to both of them',
+-- Both of them, not just the one who proposed it. Counted per manager rather
+-- than in total, because the total moves every time a test above opens another
+-- vote and an assertion that has to be retuned is an assertion nobody trusts.
+select expect('going to the league is news to the manager who offered',
   (select count(*)::int from notices n join managers m on m.id = n.manager_id
-    where m.league_id = :'V' and n.body like '%is with the league.'), 8);
+    where m.league_id = :'V' and m.slot = 'AAA'
+      and n.body = 'Your trade with Bravo is with the league.') > 0, true);
+
+select expect('and to the manager who accepted',
+  (select count(*)::int from notices n join managers m on m.id = n.manager_id
+    where m.league_id = :'V' and m.slot = 'BBB'
+      and n.body = 'Your trade with Alpha is with the league.') > 0, true);
 
 -- Eleven notices a trade is how a notice list becomes something nobody reads.
 select expect('but the voters are told nothing — the vote is on their home page',
   (select count(*)::int from notices n join managers m on m.id = n.manager_id
-    where m.league_id = :'V' and m.slot not in ('AAA','BBB')), 0);
+    where m.league_id = :'V' and m.slot not in ('AAA','BBB','CCC')), 0);
 
 \echo ''
 \echo '--- and being present is something only you can claim ---'
@@ -4664,3 +5518,47 @@ select expect('using the app marks you present',
 select expect('and marks nobody else',
   (select count(*)::int from managers
     where league_id = :'V' and slot <> 'CCC' and last_seen_at is not null), 0);
+
+\echo ''
+\echo '--- and a week is recapped once ---'
+
+-- The recap takes the whole screen. Nothing about it matters more than the
+-- marker that stops it taking the screen again on the next launch.
+
+select expect('nobody has seen a recap to begin with',
+  (select count(*)::int from managers
+    where league_id = :'V' and recap_seen_week is not null), 0);
+
+\o /dev/null
+select signin(:'VC');
+select see_recap(3);
+\o
+
+select expect('seeing one marks the week',
+  (select recap_seen_week from managers where league_id = :'V' and slot = 'CCC'), 3);
+
+select expect('and marks nobody else',
+  (select count(*)::int from managers
+    where league_id = :'V' and slot <> 'CCC' and recap_seen_week is not null), 0);
+
+-- Two tabs open on a Tuesday morning both dismiss the same recap. The second
+-- one must not be able to wind the marker back and play it again.
+\o /dev/null
+select see_recap(2);
+\o
+
+select expect('an older week cannot un-see a newer one',
+  (select recap_seen_week from managers where league_id = :'V' and slot = 'CCC'), 3);
+
+\o /dev/null
+select see_recap(4);
+\o
+
+select expect('but the next week moves it on',
+  (select recap_seen_week from managers where league_id = :'V' and slot = 'CCC'), 4);
+
+select expect('and the function says where it landed',
+  (select see_recap(4)), 4);
+
+select expect('a recap with no week is refused',
+  refuses($$select see_recap(null)$$), 'see_recap needs a week');

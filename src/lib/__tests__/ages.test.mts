@@ -47,8 +47,8 @@ console.log("\n--- and everybody has one ---");
   ok(`nearly all of them (${withAge.length} of ${skill.length})`, withAge.length / skill.length > 0.98);
   ok(`and nearly all from a real birthday (${from.length})`, from.length / skill.length > 0.97);
 
-  // A defence has no birthday, and asking for one must not invent a number.
-  eq("a team defence has no age", ageOf({ n: POOL.find((p) => p.p === "D/ST")!.n }), null);
+  // A defense has no birthday, and asking for one must not invent a number.
+  eq("a team defense has no age", ageOf({ n: POOL.find((p) => p.p === "D/ST")!.n }), null);
 }
 
 console.log("\n--- and none of them is absurd ---");

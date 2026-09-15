@@ -66,7 +66,7 @@ export function HealthBadge({ name, size = "small" }: { name: string; size?: "sm
  *
  * Dim and unlabelled, because a number beside a footballer's name is his age
  * and nothing else — "AGE 24" beside sixteen names is three hundred pixels
- * spent saying a word nobody needed. Silent for a defence, and for the
+ * spent saying a word nobody needed. Silent for a defense, and for the
  * handful of players nobody has a birthday for: a blank is honest, and a
  * guess in a column managers trade on is not.
  */

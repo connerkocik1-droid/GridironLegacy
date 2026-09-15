@@ -1,3 +1,5 @@
+import { seasonPointsFor } from "@/lib/points-for";
+import { isPresent, readManagers } from "@/lib/presence";
 import { ageOf } from "@/data/league-data";
 import { freshenWeek } from "@/lib/live-refresh";
 import { player, proj } from "@/lib/roster";
@@ -54,11 +56,13 @@ export async function GET() {
         .select("name, season, settings, draft_at, draft_state")
         .eq("id", me.league_id)
         .single(),
-      db
-        .from("managers")
-        .select("id, slot, name, franchise, division")
-        .eq("league_id", me.league_id)
-        .order("slot"),
+      readManagers<{
+          id: string;
+          slot: string;
+          name: string;
+          franchise: string;
+          division: string | null;
+        }>(db, me.league_id, "id, slot, name, franchise, division"),
       db.from("roster_slots").select("manager_id, player_name, lineup_slot").eq("league_id", me.league_id),
       db
         .from("matchups")
@@ -236,15 +240,15 @@ export async function GET() {
     ]),
   );
 
-  // Points scored across the whole season by the players a franchise holds.
-  // The standings table only counts graded weeks; this counts everything, so
-  // the ranking moves during a week rather than only at the end of one.
-  const scoredFor = new Map<string, number>();
-  for (const [name, points] of season) {
-    const holder = owner.get(name);
-    if (!holder) continue;
-    scoredFor.set(holder, (scoredFor.get(holder) ?? 0) + points);
-  }
+  // What each franchise's starting lineups have scored, graded weeks and the
+  // one in progress. Not what its roster has scored: an eighteen-man roster in
+  // a league that fields eleven has seven men who score for nobody, and adding
+  // them in made the power rank a ranking of who had the deepest bench.
+  //
+  // The standings table only counts graded weeks; this counts the live one
+  // too, which is what makes the rank move during a Sunday rather than only at
+  // the end of it.
+  const scoredFor = await seasonPointsFor(db, me.league_id);
 
   const teams: Team[] = roster.map((m) => {
     const r = record.get(m.id);
@@ -296,7 +300,7 @@ export async function GET() {
    * The average age of a roster, which is the one number that says what kind
    * of team somebody is building without saying anything about this week.
    *
-   * Skill players only: a team defence has no birthday, and counting it as a
+   * Skill players only: a team defense has no birthday, and counting it as a
    * nought would drag every roster down by two years.
    */
   const ageOfRoster = (managerId: string) => {
@@ -332,7 +336,18 @@ export async function GET() {
   const projections = new Map(roster.map((m) => [m.id, projectedFor(m.id)]));
 
   // Points scored so far, per franchise, for the gap between two of them.
-  const pfOf = (id: string) => Math.round((scoredFor.get(id) ?? 0) * 10) / 10;
+  /**
+   * A franchise's season coming into this game — settled weeks only.
+   *
+   * Deliberately not the number the power rank uses. That one counts the week
+   * in progress, so the rank moves on a Sunday; this one sits on a card beside
+   * the opponent's record and this week's margin, and both of those are about
+   * everything except right now. Counting the live week here made PF GAP creep
+   * upward through an afternoon in step with the margin printed next to it —
+   * two numbers that are supposed to say different things, quietly saying some
+   * of the same thing twice.
+   */
+  const pfOf = (id: string) => Math.round((record.get(id)?.pointsFor ?? 0) * 10) / 10;
 
   const recordOf = (id: string) => {
     const r = record.get(id);
@@ -379,24 +394,6 @@ export async function GET() {
       };
     });
 
-  /**
-   * When the next NFL game starts, for the countdown.
-   *
-   * The league's own fixtures rather than a feed: they are already stored for
-   * the pick-'em, and a home page should not wait on ESPN to say what time it
-   * is. Null once everything this week has kicked off, which is when a
-   * countdown has nothing left to count.
-   */
-  const { data: nextGame } = await db
-    .from("nfl_games")
-    .select("starts_at")
-    .eq("season", league?.season ?? 0)
-    .eq("state", "pre")
-    .gt("starts_at", new Date().toISOString())
-    .order("starts_at")
-    .limit(1)
-    .maybeSingle();
-
   const power = rank(teams, previous).map((t) => {
     const m = byId.get(t.id);
     return {
@@ -415,6 +412,9 @@ export async function GET() {
       // each: nothing to compare, and nothing changed.
       movement: t.movement,
       avgAge: ageOfRoster(t.id),
+      // Five minutes, the same window the League tab uses. One definition of
+      // "here" across the app, or the two pages disagree about who is about.
+      online: isPresent(m?.last_seen_at),
       mine: t.id === me.id,
     };
   });
@@ -540,7 +540,6 @@ export async function GET() {
     leaderBasis: basis,
     power,
     upcoming,
-    nextKickoff: nextGame?.starts_at ?? null,
     // Whether any week has actually been settled. The rankings say what they
     // are built on rather than implying a record nobody has yet.
     played: teams.some((t) => t.wins + t.losses + t.ties > 0),

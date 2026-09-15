@@ -12,10 +12,10 @@ export const ME = {
 
 const NAMES = [
   ["m0", "T01", "Conner", "Steel Cartel", "North"],
-  ["m1", "T02", "Dana", "Bay Area Brawlers", "North"],
+  ["m1", "T02", "Dana Whitfield", "Bay Area Brawlers", "North"],
   ["m2", "T03", "Open", "Open Team", "North"],
   ["m3", "T04", "Kim", "Kim's Very Long Franchise Name", "North"],
-  ["m4", "T05", "Alex", "Thunderbolts", "North"],
+  ["m4", "T05", "Dana Kowalczyk", "Thunderbolts", "North"],
   ["m5", "T06", "Sam", "Riverside Rattlesnakes", "North"],
   ["m6", "T07", "Jo", "Nine Lives", "South"],
   ["m7", "T08", "Pat", "Gold Coast Gladiators", "South"],
@@ -77,6 +77,52 @@ const side = (m, points, extra = {}) => ({
 const livingSide = (m, points, projected, yetToPlay, inPlay = 0) =>
   side(m, points, { projected, yetToPlay, inPlay });
 const ago = (mins) => new Date(Date.now() - mins * 60_000).toISOString();
+
+// The recap's own table. Built rather than typed out: twelve franchises over
+// three weeks is thirty-six numbers, and the shape of the season matters more
+// than any one of them. m0 wins weeks 1 and 3 and loses week 2, which gives
+// the strip a real streak to read and the standings a real move to report.
+const RECAP_WEEKS = [1, 2, 3];
+const RECAP_SCORES = MANAGERS.map((m, i) =>
+  RECAP_WEEKS.map((w) => Math.round((100 + i * 2.4 + w * 3.1) * 10) / 10));
+// m0 takes weeks 1 and 3 and drops week 2, whatever the generated numbers say.
+RECAP_SCORES[0] = [128.4, 96.2, 131.6];
+RECAP_SCORES[1] = [119.7, 140.8, 118.4];
+// Somebody else posts the week's best, so the crown beat has a name on it that
+// is not the reader's.
+RECAP_SCORES[3][2] = 152.9;
+
+const RECAP_GAMES = RECAP_WEEKS.flatMap((w) =>
+  // m0 plays m1 every week: a rematch, which is one of the branches.
+  MANAGERS.filter((_, i) => i % 2 === 0).map((m, pair) => ({
+    week: w,
+    home: MANAGERS[pair * 2].id,
+    away: MANAGERS[pair * 2 + 1].id,
+    homePoints: RECAP_SCORES[pair * 2][w - 1],
+    awayPoints: RECAP_SCORES[pair * 2 + 1][w - 1],
+    playoff: false,
+  })));
+
+export const RECAP = {
+  opensAt: Date.now() - 3_600_000,
+  recap: {
+    week: 3,
+    meId: "m0",
+    teams: MANAGERS.map((m) => ({ id: m.id, franchise: m.franchise, owner: m.name })),
+    games: RECAP_GAMES,
+    // The frozen best-ball lineup, out of points order the way the snapshot
+    // arrives — the MVP has to be derived, not taken off the top.
+    myWeek: [
+      { name: "Bijan Robinson", position: "RB", team: "ATL", points: 25.1 },
+      { name: "Trey McBride", position: "TE", team: "ARI", points: 11.0 },
+      { name: "Jayden Daniels", position: "QB", team: "WSH", points: 34.7 },
+      { name: "Brock Bowers", position: "TE", team: "LV", points: 12.3 },
+      { name: "Ja'Marr Chase", position: "WR", team: "CIN", points: 27.8 },
+      { name: "Jahmyr Gibbs", position: "RB", team: "DET", points: 20.7 },
+    ],
+    next: { week: 4, opponentId: "m1", kickoff: new Date(Date.now() + 3 * 86_400_000).toISOString() },
+  },
+};
 
 export function routes(page, over = {}) {
   const json = (body) => (r) => r.fulfill({ json: body });
@@ -226,7 +272,7 @@ export function routes(page, over = {}) {
   );
 
   // The commissioner's scoring check. Hostile on purpose in the way that page
-  // can actually be hostile: long names, a defence whose name is three words
+  // can actually be hostile: long names, a defense whose name is three words
   // and a suffix, deep breakdowns, and raw ESPN columns that want to run off
   // the side of a phone.
   const term = (stat, rule, points) => ({ stat, rule, points });
@@ -324,6 +370,9 @@ export function routes(page, over = {}) {
       story("s3", "A league-wide rule change lands", []),
       story("s4", "Ashton Jeanty impresses", ["Ashton Jeanty"]),
     ],
+    // Reached. The route answers 200 either way, so this flag is the only
+    // thing separating a quiet wire from an unreachable one.
+    ok: true,
   }));
   page.route("**/api/activity**", json({
     me: { id: "m0" }, managers: MANAGERS, total: 4, page: 0, hasMore: false,
@@ -416,6 +465,11 @@ export function routes(page, over = {}) {
       id: m.id, slot: m.slot, franchise: m.franchise, name: m.name,
       rank: i + 1, rating: 90 - i * 6, wins: 12 - i, losses: i, ties: 0,
       pointsFor: 340 - i * 12, mine: i === 0,
+      // The same four as the League tab, so the two pages agree about who is
+      // about rather than each having its own opinion. Never the open seat:
+      // an unclaimed franchise has nobody to be here, and the home strip
+      // would otherwise print a manager called "Open".
+      online: i < 5 && m.name !== "Open",
       // Up, down, and unmoved: all three chips have to be measured.
       movement: i === 0 ? 2 : i === 1 ? -3 : i === 2 ? null : (i % 3) - 1,
       avgAge: 24.6 + (i % 5) * 0.9,
@@ -437,8 +491,6 @@ export function routes(page, over = {}) {
       margin: 7.2 - n * 3.1,
       winProbability: 0.57 - n * 0.05,
     })),
-    // Two days out, so the countdown shows a day count as well as a clock.
-    nextKickoff: ago(-2880),
     played: true,
   }));
 
@@ -500,7 +552,7 @@ export function routes(page, over = {}) {
       ...m, id: m.id, claimed: m.name !== "Open", isCommissioner: i === 0,
       // Four of them are here, which is what the header counts and what the
       // dots beside the franchise names have to line up with.
-      online: i < 4,
+      online: i < 5 && m.name !== "Open",
       lastSeen: i < 4 ? new Date().toISOString() : null,
       pointsFor: 340 - i * 12,
       record: { wins: 12 - i, losses: i, ties: 0, divWins: 4, divLosses: 1,
@@ -836,7 +888,10 @@ export function routes(page, over = {}) {
     basis: "league",
   }));
 
-  page.route("**/api/players**", json({
+  // A function rather than a fixed answer: the sort and the position filter are
+  // both server-side now, so a fixture that ignores the query string would let
+  // a sort chip that does nothing pass.
+  const FREE_AGENTS = {
     me: ME, mode: "waivers", waiverDays: 1, capacity: 25, held: 13,
     // The reserve holds two and one is taken, so a free agent on IR can still
     // be signed to it — which is what puts an IR button beside Tyler Warren
@@ -855,22 +910,79 @@ export function routes(page, over = {}) {
       { name: "Jayden Reed", clearsAt: ago(-1800), position: "WR", team: "GB", mine: false },
     ],
     total: 5, page: 0, hasMore: false,
+    // What the position filter is showing. ALL fields points alone; a position
+    // adds the statistics that position is judged on, and the sort control
+    // follows the same list.
+    columns: [
+      { key: "total", label: "PTS", dp: 1, title: "Total fantasy points" },
+      { key: "ppg", label: "PPG", dp: 1, title: "Fantasy points per game" },
+    ],
+    sort: "adp",
     players: [
       { name: "Ashton Jeanty", position: "RB", team: "LV", adp: 10, posRank: "RB6",
-        bye: 10, clearsAt: null },
+        bye: 10, clearsAt: null,
+        points: 41.2, ppg: 20.6, games: 2,
+        stats: { attpg: 17.5, ypg: 82.5, tdpg: 0.5, recpg: 2.5, tgtpg: 3, scrimpg: 96 } },
       // His club kicked off an hour ago: not a pickup this week.
       { name: "Chris Godwin", position: "WR", team: "TB", adp: 44, posRank: "WR20",
-        bye: 9, clearsAt: null, locked: true },
+        bye: 9, clearsAt: null, locked: true,
+        points: 28.4, ppg: 14.2, games: 2,
+        stats: { recpg: 6.5, tgtpg: 9, ypg: 71, tdpg: 0.5, ypr: 10.9 } },
       { name: "Marvin Harrison Jr.", position: "WR", team: "ARI", adp: 22, posRank: "WR9",
-        bye: 8, clearsAt: ago(-300) },
+        bye: 8, clearsAt: ago(-300),
+        points: 22.6, ppg: 11.3, games: 2,
+        stats: { recpg: 4, tgtpg: 7.5, ypg: 58, tdpg: 0, ypr: 14.5 } },
       { name: "Seattle Seahawks D/ST", position: "D/ST", team: "SEA", adp: 240,
-        posRank: "DST1", bye: 8, clearsAt: null },
-      // On IR, so he can be signed to the reserve without a roster spot. The
-      // one row on this page that offers the move.
+        posRank: "DST1", bye: 8, clearsAt: null,
+        points: 18, ppg: 9, games: 2, stats: {} },
+      // Nothing recorded at all, which has to read as nothing rather than as a
+      // row of noughts and dashes.
       { name: "Tyler Warren", position: "TE", team: "IND", adp: 96, posRank: "TE11",
-        bye: 11, clearsAt: null },
+        bye: 11, clearsAt: null, points: 0, ppg: 0, games: 0, stats: {} },
     ],
-  }));
+  };
+
+  const WR_COLUMNS = [
+    { key: "total", label: "PTS", dp: 1, title: "Total fantasy points" },
+    { key: "ppg", label: "PPG", dp: 1, title: "Fantasy points per game" },
+    { key: "recpg", label: "REC/G", dp: 1, title: "Receptions per game" },
+    { key: "tgtpg", label: "TGT/G", dp: 1, title: "Targets per game" },
+    { key: "ypg", label: "YDS/G", dp: 1, title: "Receiving yards per game" },
+    { key: "tdpg", label: "TD/G", dp: 2, title: "Receiving touchdowns per game" },
+  ];
+
+  page.route("**/api/players**", (r) => {
+    const url = new URL(r.request().url());
+    const sort = url.searchParams.get("sort") ?? "adp";
+    const position = url.searchParams.get("position") ?? "ALL";
+
+    let players = FREE_AGENTS.players.filter(
+      (p) => position === "ALL" || p.position === position,
+    );
+
+    const key = (p) =>
+      sort === "adp" ? p.adp
+      : sort === "position" ? p.position
+      : sort === "total" ? -(p.points ?? 0)
+      : sort === "ppg" ? -(p.ppg ?? 0)
+      : -(p.stats?.[sort] ?? -Infinity);
+
+    players = [...players].sort((a, b) => {
+      const x = key(a);
+      const y = key(b);
+      return typeof x === "string" ? x.localeCompare(y) : x - y;
+    });
+
+    return r.fulfill({
+      json: {
+        ...FREE_AGENTS,
+        sort,
+        columns: position === "WR" ? WR_COLUMNS : FREE_AGENTS.columns,
+        players,
+        total: players.length,
+      },
+    });
+  });
 
   page.route("**/api/trades", json({
     me: ME, managers: MANAGERS, block: [], picks: [], inauguralSeason: 2026,
@@ -935,6 +1047,32 @@ export function routes(page, over = {}) {
   });
 
   page.route("**/api/rosters**", json({ players: ROSTER.map(([n]) => n) }));
+
+  // Notifications. Configured, this device not signed up, nothing chosen —
+  // which is the state a manager opening the panel for the first time is in,
+  // and the one whose copy has to make sense.
+  let pushPrefs = { scores: false, recap: false, injuries: false, projections: false };
+  page.route("**/api/push**", (r) => {
+    const method = r.request().method();
+
+    if (method === "PATCH") {
+      pushPrefs = { ...pushPrefs, ...JSON.parse(r.request().postData() ?? "{}") };
+      return r.fulfill({ json: { ok: true } });
+    }
+    if (method === "POST" || method === "DELETE") {
+      return r.fulfill({ json: { ok: true } });
+    }
+
+    return r.fulfill({
+      json: {
+        configured: true,
+        publicKey: "BC9fkm3t34BiNNcRL8Zm5tGoVQMV0HmkzJ-y8VDDAnI3ac4NOv7BdfWrQbprpuR_yrM4DwWA_sCT4r5fVl_haNA",
+        subscribed: false,
+        devices: 0,
+        prefs: pushPrefs,
+      },
+    });
+  });
 
   const PICKS = MANAGERS.map((m, i) => ({
     overall: i + 1, round: 1, manager_id: m.id,
@@ -1055,4 +1193,15 @@ export function routes(page, over = {}) {
   page.route("**/api/admin/season", json({
     season: 2026, champion: "Iron Rail", isCommissioner: true,
   }));
+
+  // ------------------------------------------------------------- the recap ---
+  // Three weeks played out across twelve franchises, so the recap has a real
+  // table to read: a result, a league-wide board, a standings move, and a
+  // fixture to come. Seen by default — the recap is a full-screen takeover and
+  // every other assertion about Home is made behind it — and recap-check turns
+  // it on by overriding this route with a manager who has not seen it.
+  page.route("**/api/recap", (r) => {
+    if (r.request().method() === "POST") return r.fulfill({ json: { seenWeek: 3, stored: true } });
+    return r.fulfill({ json: { ...RECAP, seenWeek: over.recapUnseen ? null : RECAP.recap.week } });
+  });
 }

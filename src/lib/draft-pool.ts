@@ -15,8 +15,8 @@ export interface AvailablePlayer {
  * This used to hand back the first two hundred by ADP, which sounds like a
  * sensible cap and is not one. The draft room filters by position in the
  * browser, so a player the server leaves out is a player nobody in the league
- * can draft — and kickers and defences carry the latest ADP there is. The top
- * two hundred held two kickers and no defences at all, in a draft of two
+ * can draft — and kickers and defenses carry the latest ADP there is. The top
+ * two hundred held two kickers and no defenses at all, in a draft of two
  * hundred and eighty-eight picks.
  *
  * So: no cap. The whole pool is about forty kilobytes of JSON, which is a

@@ -45,6 +45,8 @@ export interface PowerRow {
   /** The average age of the roster's skill players. Null for an empty one. */
   avgAge: number | null;
   mine: boolean;
+  /** In the app right now. Drawn either way, so silence is an answer. */
+  online?: boolean;
 }
 
 /** One of the next five weeks, from this manager's side. */
@@ -132,7 +134,5 @@ export interface Home {
   power: PowerRow[];
   /** The next five fixtures, for the hero. */
   upcoming: Upcoming[];
-  /** When the next NFL game starts, or null once they all have. */
-  nextKickoff: string | null;
   played: boolean;
 }

@@ -107,7 +107,7 @@ console.log("\n--- the roster ---");
   ok("and the numbers are sane", rates.every((r) => r >= 0 && r <= 100));
 
   // The chips mark the arrangement. Counted from the numbered ones and the
-  // defence only: "QB", "TE" and "K" are also the group headings above the
+  // defense only: "QB", "TE" and "K" are also the group headings above the
   // cards, so counting those measures the headings and passes either way.
   const numbered = ["RB1", "RB2", "WR1", "WR2", "FLEX1", "FLEX2", "DST"];
   const found = [];
@@ -244,11 +244,11 @@ console.log("\n--- how old everybody is ---");
 
   const aged = await page.locator('[aria-label^="Age "]').count();
   const named = await page.locator('a[href^="/player/"]').count();
-  // Everybody but the defence, which has no birthday and gets no guess.
+  // Everybody but the defense, which has no birthday and gets no guess.
   ok(`every footballer on the roster carries one (${aged} of ${named})`, aged === named - 1);
 
   const dst = await page.locator('a[href*="Ravens"]').first().locator("xpath=..").innerText();
-  ok(`and a defence is left blank rather than guessed (${dst.replace(/\n/g, " ")})`,
+  ok(`and a defense is left blank rather than guessed (${dst.replace(/\n/g, " ")})`,
     !/\b\d\d\b/.test(dst));
 
   // The real numbers, not a placeholder: two players whose birthdays are in
@@ -257,6 +257,54 @@ console.log("\n--- how old everybody is ---");
     .locator("xpath=..").innerText();
   ok(`and it is his actual age (${nacua.replace(/\n/g, " ")})`, /\b25\b/.test(nacua));
 
+}
+
+console.log("\n--- being told when the app is shut ---");
+{
+  await page.goto(`${BASE}/my-team/edit`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(900);
+
+  const opener = page.getByRole("button", { name: /Notify me on this device/ });
+  ok("the settings offer notifications", (await opener.count()) === 1);
+
+  await opener.click();
+  await page.waitForFunction(() => /Turn on notifications|cannot send notifications/.test(document.body.innerText),
+    null, { timeout: 8000 }).catch(() => {});
+
+  const t = await page.locator("body").innerText();
+
+  // Chromium here has no push service, so the panel lands on one of two
+  // honest states. Both are real; what must not happen is a dead switch.
+  const unsupported = /cannot send notifications/.test(t);
+  ok(`it says where it stands (${unsupported ? "unsupported" : "offering"})`,
+    unsupported || /Turn on notifications/.test(t));
+
+  if (!unsupported) {
+    ok("all four kinds are named", /Scoring updates/.test(t) && /Weekly recap/.test(t)
+      && /Injuries/.test(t) && /Weekly projections/.test(t));
+
+    // Each says what it will and will not wake you for, because "Injuries" on
+    // its own does not tell somebody whether every questionable tag buzzes.
+    ok("and each says what it will actually send", /lead in your matchup changes hands/.test(t)
+      && /A doubt is not worth waking you for/.test(t));
+
+    const boxes = page.locator('input[type="checkbox"]');
+    ok(`one switch each (${await boxes.count()})`, (await boxes.count()) === 4);
+    ok("and nothing is on to begin with",
+      (await boxes.evaluateAll((all) => all.every((b) => !b.checked))));
+
+    // A preference is the manager's, not the device's, so it saves whether or
+    // not this browser could ever receive one.
+    const before = page.locator("body");
+    await boxes.nth(1).check();
+    await page.waitForTimeout(400);
+    ok("a kind can be chosen before the device is signed up",
+      await boxes.nth(1).isChecked());
+    void before;
+
+    const row = await boxes.nth(1).locator("xpath=..").boundingBox();
+    ok(`a thumb can hit a row (${Math.round(row?.height ?? 0)}px)`, (row?.height ?? 0) >= 44);
+  }
 }
 
 await browser.close();

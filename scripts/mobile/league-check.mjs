@@ -152,6 +152,36 @@ console.log("\n--- the news is read off the table too ---");
   ok("and the points-for leader is named", /leads the league in points for/.test(t));
 }
 
+console.log("\n--- and the NFL's news is on the same tab ---");
+{
+  // /news existed from the beginning and nothing in the app linked to it, so
+  // a manager asking "what has happened" got the league's own generated items
+  // and nothing about actual football. Both answers belong here.
+  await open("News");
+  const t = await body();
+  ok("the wire is on the tab", /AROUND THE NFL/i.test(t));
+  ok("with real stories on it", /Bijan Robinson carries a heavy load/.test(t));
+  ok("and a way through to the whole thing",
+    (await page.locator('a[href="/news"]').count()) > 0);
+
+  // Roster-first: the fixture's roster holds Bijan and Marvin Harrison Jr.
+  // and does not hold Ashton Jeanty, so the two of theirs come before his.
+  const order = ["Bijan Robinson carries", "Marvin Harrison Jr. is limited", "Ashton Jeanty impresses"]
+    .map((h) => t.indexOf(h));
+  ok(`stories about your own players come first (${order.join(", ")})`,
+    order.every((i) => i >= 0) && order[0] < order[2] && order[1] < order[2]);
+
+  // Marked, not merely present — the highlight is what does the sorting work
+  // visible on the screen.
+  const marked = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-wire="nfl"] article')]
+      .filter((a) => a.querySelector('a[href^="/player/"]'))
+      .map((a) => a.innerText.split("\n")[0]));
+  ok(`and are marked as yours (${marked.length})`,
+    marked.some((h) => /Bijan Robinson carries/.test(h)) &&
+    !marked.some((h) => /Ashton Jeanty/.test(h)));
+}
+
 console.log("\n--- and every section renders ---");
 for (const [tab, wanted, label] of [
   ["Standings", /POINTS FOR|PF|Ordered by/i, "the table"],
@@ -246,6 +276,21 @@ console.log("\n--- ordering the board ---");
       (await page.locator("tbody tr").allInnerTexts()).slice(dashesFirst)
         .every((t) => /—\s*$/.test(t)));
 
+  // The one column that is not a number. Best-first for a name is A to Z, and
+  // the unit test only covered ascending, which is how a first press that
+  // answered with the bottom of the alphabet went unnoticed.
+  await page.getByRole("button", { name: /PLAYERS?$/ }).first().click();
+  await page.waitForTimeout(400);
+  const alphabetical = await names();
+  ok(`the first press on the name column starts at A (${alphabetical[0]})`,
+    alphabetical.length > 1 &&
+      alphabetical[0].localeCompare(alphabetical[alphabetical.length - 1]) <= 0);
+
+  // Back to points, or the checks below are reading whoever happens to be in
+  // the first fifty rows of the alphabet.
+  await page.getByRole("button", { name: /^PTS/ }).first().click();
+  await page.waitForTimeout(400);
+
   const header = await page.getByRole("button", { name: /^REC\/G/ }).first().boundingBox();
   ok(`a thumb can hit the heading (${Math.round(header?.height ?? 0)}px)`,
     (header?.height ?? 0) >= 32);
@@ -267,10 +312,50 @@ console.log("\n--- who is about ---");
   const t = await page.locator("body").innerText();
   ok("the league says how many of it are here", /4 managers here now/.test(t));
 
-  // A dot per manager who is present, and none for the eight who are not.
-  // The count and the dots disagreeing is the failure worth catching.
-  const dots = await page.locator('[role="img"][aria-label="Here now"]').count();
-  ok(`and marks which four (${dots})`, dots === 4);
+  // A dot beside every franchise, both ways round. Drawing one only for the
+  // managers who are here makes the eight who are not look like a different
+  // kind of row, and leaves a reader unable to tell "nobody is about" from
+  // "this app does not show that".
+  const here = await page.locator('.gl-presence.is-on').count();
+  const away = await page.locator('.gl-presence:not(.is-on)').count();
+  ok(`four are marked here (${here})`, here >= 4);
+  ok(`and the rest are marked away rather than left blank (${away})`, away >= 8);
+
+  // Green and pulsing, grey and flat. The colour is the state; the ring is
+  // how it is delivered.
+  const live = await page.locator('.gl-presence.is-on').first().evaluate((el) => ({
+    ring: getComputedStyle(el, "::after").animationName,
+    colour: getComputedStyle(el).backgroundColor,
+  }));
+  ok(`the online dot pulses (${live.ring})`, live.ring === "gl-presence-ping");
+
+  const idle = await page.locator('.gl-presence:not(.is-on)').first().evaluate((el) => ({
+    ring: getComputedStyle(el, "::after").animationName,
+    colour: getComputedStyle(el).backgroundColor,
+  }));
+  ok(`the offline one does not (${idle.ring})`, idle.ring === "none");
+  ok(`and they are not the same colour (${live.colour} / ${idle.colour})`,
+    live.colour !== idle.colour);
+
+  // Motion that cannot be turned off is motion imposed on somebody — but the
+  // green has to survive it, or somebody who asked for less movement is also
+  // told less.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.waitForTimeout(300);
+  const calm = await page.locator('.gl-presence.is-on').first().evaluate((el) => ({
+    ring: getComputedStyle(el, "::after").animationName,
+    colour: getComputedStyle(el).backgroundColor,
+  }));
+  ok(`asked for less motion, the ring stops (${calm.ring})`, calm.ring === "none");
+  ok("and the green stays, because the colour is the state",
+    calm.colour === live.colour);
+  await page.emulateMedia({ reducedMotion: null });
+  await page.waitForTimeout(200);
+
+  // Both say which they are, out loud. A colour alone is not a state.
+  ok("each says which it is",
+    (await page.locator('.gl-presence[aria-label*="is here now"]').count()) >= 4 &&
+    (await page.locator('.gl-presence[aria-label*="is not here"]').count()) >= 8);
 }
 
 await browser.close();

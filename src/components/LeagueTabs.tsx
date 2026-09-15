@@ -10,6 +10,7 @@ import PlayerRankings from "./PlayerRankings";
 import ActivityFeed from "./ActivityFeed";
 import LeagueStories from "./LeagueStories";
 import LeagueNewsWire from "./LeagueNewsWire";
+import LeagueWire from "./LeagueWire";
 import { useRefreshable } from "@/lib/use-refresh";
 import { seasonPlayers, standings, type Fixture, type Franchise } from "@/lib/league-story";
 
@@ -172,6 +173,15 @@ function Board() {
     };
   }, [schedule, totals, rostered]);
 
+  // Whose stories to put first on the wire. `rostered` is keyed by franchise
+  // rather than manager id, so this manager's franchise comes off the
+  // standings row the schedule marked as theirs.
+  const myRoster = useMemo(() => {
+    const mine = rows.find((r) => r.mine)?.franchise;
+    if (!mine) return [];
+    return Object.keys(rostered).filter((name) => rostered[name] === mine);
+  }, [rows, rostered]);
+
   const go = (next: Tab) => {
     const query = next === "Overview" ? "" : `?tab=${slugOf(next)}`;
     router.push(`/the-league${query}`, { scroll: false });
@@ -284,8 +294,11 @@ function Board() {
         ) : null}
 
         {tab === "News" ? (
-          <div style={{ padding: "0 18px" }}>
+          <div style={{ padding: "0 18px", display: "grid", gap: 22 }}>
             <LeagueNewsWire rows={rows} players={players} weeks={Math.max(graded, scored)} />
+            {/* The league's own news, then the NFL's. Both are "what has
+                happened"; only one of them was reachable. */}
+            <LeagueWire roster={myRoster} />
           </div>
         ) : null}
 

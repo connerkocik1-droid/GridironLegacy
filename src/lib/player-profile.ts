@@ -37,7 +37,7 @@ export interface PlayerProfile {
 
   /**
    * How old he is today, from his date of birth rather than a listed age.
-   * Null only for the handful nobody has a birthday for, and for a defence.
+   * Null only for the handful nobody has a birthday for, and for a defense.
    */
   age: number | null;
 

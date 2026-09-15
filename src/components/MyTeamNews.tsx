@@ -58,7 +58,9 @@ export default function MyTeamNews() {
         .catch(() => null),
     ]);
 
-    if (!wire) return setError("Could not reach the wire.");
+    // The route answers 200 with an empty list when ESPN is down, so the
+    // flag rather than the status is what says whether there is news.
+    if (!wire || wire.ok === false) return setError("Could not reach the wire.");
     setStories((wire.stories ?? []) as Story[]);
     setError(null);
 

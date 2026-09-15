@@ -171,7 +171,7 @@ near("Cook, who lost one", points("James Cook")!, 17.5);
 // One extra point made, one missed.
 near("Bass, who missed one", points("Tyler Bass")!, 0);
 
-console.log("\n--- the defences ---");
+console.log("\n--- the defenses ---");
 
 // 3 sacks (3) + 2 INT (4) + 1 genuine recovery (2) + 15 allowed (band 1).
 near("Kansas City allowed fifteen", points("Kansas City Chiefs D/ST")!, 10);

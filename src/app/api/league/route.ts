@@ -1,3 +1,16 @@
+import { seasonPointsFor } from "@/lib/points-for";
+import { isPresent, readManagers } from "@/lib/presence";
+
+/** The manager columns this route reads. */
+interface ManagerRow {
+  id: string;
+  slot: string;
+  name: string;
+  franchise: string;
+  is_commissioner: boolean;
+  pin_hash: string | null;
+  division: string | null;
+}
 import { isConfigured, serverClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -29,11 +42,11 @@ export async function GET() {
   const [{ data: league }, { data: managers }, { data: slots }, { data: scores }, { data: table }] =
     await Promise.all([
       db.from("leagues").select("name, season, settings").eq("id", me.league_id).single(),
-      db
-        .from("managers")
-        .select("id, slot, name, franchise, is_commissioner, pin_hash, division, last_seen_at")
-        .eq("league_id", me.league_id)
-        .order("slot"),
+      readManagers<ManagerRow>(
+        db,
+        me.league_id,
+        "id, slot, name, franchise, is_commissioner, pin_hash, division",
+      ),
       db
         .from("roster_slots")
         .select("manager_id, player_name, lineup_slot, acquired")
@@ -95,17 +108,12 @@ export async function GET() {
     (r: { wins: number; losses: number; ties: number }) => r.wins + r.losses + r.ties > 0,
   );
 
-  // Points for, by manager: every week a rostered player has scored. Without a
-  // season schedule there are no records to stand on, so this is the honest
-  // ordering — total production, not a fabricated W-L.
-  const owner = new Map((slots ?? []).map((s) => [s.player_name, s.manager_id]));
-  const pointsFor = new Map<string, number>();
-
-  for (const row of scores ?? []) {
-    const managerId = owner.get(row.player_name);
-    if (!managerId) continue;
-    pointsFor.set(managerId, (pointsFor.get(managerId) ?? 0) + Number(row.points));
-  }
+  // Points for, by manager: what their starting lineups have scored. Not what
+  // their rosters have — an eighteen-man roster in a league that fields eleven
+  // has seven men who score for nobody, and counting them rewarded hoarding.
+  // Worked out in the database, where best_ball_lineup already decides who
+  // started, so this number and the standings cannot drift apart.
+  const pointsFor = await seasonPointsFor(db, me.league_id);
 
   const weeks = new Set((scores ?? []).map((s) => s.week));
 
@@ -125,7 +133,7 @@ export async function GET() {
       // Five minutes, which is roughly how long somebody stays "here" before
       // it is a lie. The app touches this on every page load and every return
       // to the tab, so a manager reading a long page is still present.
-      online: m.last_seen_at != null && Date.now() - Date.parse(m.last_seen_at) < 5 * 60_000,
+      online: isPresent(m.last_seen_at),
       lastSeen: (m.last_seen_at as string | null) ?? null,
       pointsFor: Math.round((pointsFor.get(m.id) ?? 0) * 10) / 10,
       record: record.get(m.id) ?? null,

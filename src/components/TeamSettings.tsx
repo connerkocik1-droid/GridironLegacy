@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import PushSettings from "./PushSettings";
 import { patchMe } from "@/lib/use-me";
 import { squareImage } from "@/lib/square-image";
 import { refreshLogos } from "@/lib/use-logos";
@@ -28,7 +29,7 @@ export interface EditableManager {
   email_notices?: boolean;
 }
 
-type Section = "name" | "photo" | "email" | "pin" | null;
+type Section = "name" | "photo" | "email" | "push" | "pin" | null;
 
 const label: React.CSSProperties = {
   display: "block",
@@ -343,6 +344,20 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
               Save
             </button>
           </div>
+        </div>
+      ) : null}
+
+      {/* -------------------------------------------- notifications --- */}
+      {/* Under email, because it is the same question asked of a different
+          device: what should reach you when the app is shut. */}
+      <button onClick={() => show("push")} style={rowButton(section === "push")}>
+        Notify me on this device
+        <span aria-hidden style={{ color: "var(--text-dim)" }}>{section === "push" ? "\u2212" : "+"}</span>
+      </button>
+
+      {section === "push" ? (
+        <div style={{ padding: "12px 14px 14px" }}>
+          <PushSettings />
         </div>
       ) : null}
 

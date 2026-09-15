@@ -297,7 +297,7 @@ ok("a receiver", slotAccepts("FLEX", "WR"));
 ok("and a tight end", slotAccepts("FLEX", "TE"));
 ok("but not a quarterback — that would be a superflex", !slotAccepts("FLEX", "QB"));
 ok("nor a kicker", !slotAccepts("FLEX", "K"));
-ok("nor a defence", !slotAccepts("FLEX", "D/ST"));
+ok("nor a defense", !slotAccepts("FLEX", "D/ST"));
 
 const claiming = sources.filter((f) => /superflex/i.test(readFileSync(f, "utf8")));
 eq("and nothing in the app says it is one", claiming, []);

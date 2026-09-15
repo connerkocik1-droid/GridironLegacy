@@ -296,7 +296,7 @@ export async function preseasonWeek(
       });
     }
 
-    // Both team defences, scored the same way a real week scores them.
+    // Both team defenses, scored the same way a real week scores them.
     for (const [side, other] of [
       [game.home, game.away],
       [game.away, game.home],
@@ -322,7 +322,7 @@ export async function preseasonWeek(
         team: side.abbrev,
         position: "D/ST",
         positionSource: "espn",
-        // A defence is on the field for the whole game by definition, so
+        // A defense is on the field for the whole game by definition, so
         // ranking it by workload would be meaningless. It is here to be
         // checked, not to be picked.
         workload: 0,

@@ -17,7 +17,7 @@
  *   - a safety, likewise
  *   - a missed extra point and a missed field goal
  *   - a fumble recovered by the team that fumbled it, which is not a takeaway
- *     and must not score for a defence
+ *     and must not score for a defense
  *   - a quarterback ESPN spells with a suffix the league's own pool does not
  */
 
@@ -307,7 +307,7 @@ export const SUMMARY = {
   boxscore: {
     ...boxScore,
     // The row along the bottom of a box score. Total yards is the only place
-    // "what this defence gave up" is written down — no per-player line adds
+    // "what this defense gave up" is written down — no per-player line adds
     // up to it, because a hundred and forty rushing yards spread over four
     // backs has to be totalled by somebody.
     teams: [

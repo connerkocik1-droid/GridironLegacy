@@ -12,7 +12,7 @@
 -- has the early schema and no record of it; this file recognises that and
 -- writes the record down rather than failing on the tables already there.
 --
--- Built from 48 migrations:
+-- Built from 56 migrations:
 --   0001_schema.sql
 --   0002_trades.sql
 --   0003_draft.sql
@@ -61,6 +61,14 @@
 --   0046_injured_reserve.sql
 --   0047_trade_votes_and_presence.sql
 --   0048_counter_keeps_its_author.sql
+--   0049_push_notifications.sql
+--   0050_push_producers.sql
+--   0051_points_for_is_the_lineup.sql
+--   0052_a_signing_has_a_position.sql
+--   0053_a_vote_that_cannot_get_stuck.sql
+--   0054_the_postseason_is_not_the_season.sql
+--   0055_the_rookie_draft_is_the_one_you_earned.sql
+--   0056_a_week_is_recapped_once.sql
 
 begin;
 
@@ -12470,6 +12478,1632 @@ begin
 
     insert into schema_migrations (name) values ('0048_counter_keeps_its_author.sql');
     raise notice 'applied %', '0048_counter_keeps_its_author.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0049_push_notifications.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0049_push_notifications.sql') then
+    raise notice 'skipping %, already applied', '0049_push_notifications.sql';
+  else
+    -- Telling a manager something when the app is shut.
+
+    -- Everything the league knows happens while nobody is looking at it: a back
+    -- goes down on Friday, a matchup turns over on Sunday afternoon, a week gets
+    -- graded on Tuesday morning. Notices have always carried that inside the app
+    -- and email has carried it out of the app, but neither reaches somebody whose
+    -- phone is in their pocket, which is where the phone usually is.
+    --
+    -- Four kinds, and a manager picks which of them are worth a buzz. They are
+    -- separate because they are wanted by different people at different times:
+    -- scoring is a Sunday thing and a torn hamstring is a Wednesday one, and
+    -- somebody who wants the recap does not necessarily want either.
+
+    -- ------------------------------------------------------------ the devices ---
+
+    /**
+     * One row per browser that has agreed to be told.
+     *
+     * Keyed by endpoint rather than by manager, because a manager is a phone and a
+     * laptop and a tablet, and each of them subscribes separately. The keys are
+     * the browser's own: the app encrypts to them and cannot read anything back,
+     * which is the point of the specification.
+     */
+    create table if not exists push_subscriptions (
+      endpoint   text primary key,
+      manager_id uuid not null references managers(id) on delete cascade,
+      league_id  uuid not null references leagues(id) on delete cascade,
+      -- The subscriber's public key and auth secret, base64url as the browser
+      -- gives them. Useless to anybody who is not the push service.
+      p256dh     text not null,
+      auth       text not null,
+      created_at timestamptz not null default now(),
+      -- The last time a push service took a message for this device, and how many
+      -- times in a row it has not. A device that has been thrown in a drawer
+      -- stops being tried rather than being retried forever.
+      last_ok_at timestamptz,
+      failures   int not null default 0
+    );
+
+    create index if not exists push_subscriptions_manager
+      on push_subscriptions (manager_id);
+
+    alter table push_subscriptions enable row level security;
+
+    drop policy if exists push_subs_own on push_subscriptions;
+    -- Your own devices and nobody else's. The endpoint is a capability: anybody
+    -- holding one can send that browser a notification, so this is the one table
+    -- in the app where a manager reading another's row would be a real problem.
+    create policy push_subs_own on push_subscriptions for select to authenticated
+      using (manager_id in (select id from managers where auth_user_id = auth.uid()));
+
+    -- Written only through subscribe_push and forget_push, which check who.
+    revoke insert, update, delete on push_subscriptions from authenticated;
+    grant select on push_subscriptions to authenticated;
+
+    -- --------------------------------------------------------- what they want ---
+
+    /**
+     * Which of the four a manager wants.
+     *
+     * On the manager rather than in a table of its own: it is four booleans that
+     * are read every time anything is enqueued, and a join for four booleans is a
+     * join for nothing. Everything starts off, including for managers who already
+     * exist — turning notifications on is a thing somebody does, not a thing that
+     * happens to them.
+     */
+    alter table managers add column if not exists push_scores      boolean not null default false;
+    alter table managers add column if not exists push_recap       boolean not null default false;
+    alter table managers add column if not exists push_injuries    boolean not null default false;
+    alter table managers add column if not exists push_projections boolean not null default false;
+
+    -- A manager sets their own four, and only their own. The guard from 0010
+    -- decides which columns a session may write at all, so they are named here.
+    grant update (push_scores, push_recap, push_injuries, push_projections)
+      on managers to authenticated;
+
+    -- ------------------------------------------------------------- the outbox ---
+
+    /**
+     * What is waiting to be sent.
+     *
+     * A queue rather than each producer sending for itself, for the same reason
+     * the email has one: sending is the part that touches the network, and the
+     * network is the part that fails. A cron that knows nothing about football
+     * drains this; the crons that know about football only write to it, inside the
+     * transaction that noticed the thing worth saying.
+     *
+     * `dedupe` is what stops a scoring cron running every few minutes from saying
+     * the same thing every few minutes. It is the message's identity — "this
+     * manager, this week, this player, this status" — and a second insert with the
+     * same one is quietly dropped.
+     */
+    create table if not exists push_outbox (
+      id         uuid primary key default gen_random_uuid(),
+      league_id  uuid not null references leagues(id) on delete cascade,
+      manager_id uuid not null references managers(id) on delete cascade,
+      kind       text not null check (kind in ('scores', 'recap', 'injuries', 'projections')),
+      title      text not null,
+      body       text not null,
+      href       text,
+      dedupe     text not null,
+      created_at timestamptz not null default now(),
+      claimed_at timestamptz,
+      sent_at    timestamptz
+    );
+
+    create unique index if not exists push_outbox_dedupe on push_outbox (manager_id, dedupe);
+    create index if not exists push_outbox_waiting
+      on push_outbox (created_at) where claimed_at is null;
+
+    alter table push_outbox enable row level security;
+    -- Nobody reads this from a browser. What it holds is on the pages the
+    -- notifications point at; the queue itself is plumbing.
+    revoke all on push_outbox from authenticated, anon;
+
+    -- ------------------------------------------------------------- the doings ---
+
+    /**
+     * A browser saying it will accept notifications.
+     *
+     * Replaces by endpoint, because a browser hands back the same endpoint when it
+     * re-subscribes and a second row would mean two copies of every notification.
+     */
+    create or replace function subscribe_push(p_endpoint text, p_p256dh text, p_auth text)
+    returns void
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me managers;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null then
+        raise exception 'Not signed in' using errcode = '28000';
+      end if;
+
+      if coalesce(p_endpoint, '') = '' or coalesce(p_p256dh, '') = '' or coalesce(p_auth, '') = '' then
+        raise exception 'A subscription needs an endpoint and both keys' using errcode = '22023';
+      end if;
+
+      insert into push_subscriptions (endpoint, manager_id, league_id, p256dh, auth)
+      values (p_endpoint, v_me.id, v_me.league_id, p_p256dh, p_auth)
+          on conflict (endpoint) do update
+             set manager_id = excluded.manager_id,
+                 league_id  = excluded.league_id,
+                 p256dh     = excluded.p256dh,
+                 auth       = excluded.auth,
+                 -- A device coming back is a device that works. Whatever it owed
+                 -- from the last time it went quiet is forgiven.
+                 failures   = 0;
+    end;
+    $$;
+
+    grant execute on function subscribe_push(text, text, text) to authenticated;
+
+    /** A browser saying it will not. Only ever your own device. */
+    create or replace function forget_push(p_endpoint text)
+    returns void
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me uuid;
+    begin
+      select id into v_me from managers where auth_user_id = auth.uid();
+      if v_me is null then
+        raise exception 'Not signed in' using errcode = '28000';
+      end if;
+
+      delete from push_subscriptions where endpoint = p_endpoint and manager_id = v_me;
+    end;
+    $$;
+
+    grant execute on function forget_push(text) to authenticated;
+
+    /**
+     * Something worth telling one manager about.
+     *
+     * Says nothing and writes nothing when they have not asked for that kind, or
+     * have no device to be told on: the check belongs here rather than in each
+     * producer, so a new producer cannot forget it. Returns whether anything was
+     * queued, which is only of interest to a test.
+     */
+    create or replace function enqueue_push(
+      p_manager_id uuid,
+      p_kind       text,
+      p_title      text,
+      p_body       text,
+      p_href       text,
+      p_dedupe     text
+    )
+    returns boolean
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_m     managers;
+      v_wants boolean;
+    begin
+      select * into v_m from managers where id = p_manager_id;
+      if v_m.id is null then return false; end if;
+
+      v_wants := case p_kind
+        when 'scores'      then v_m.push_scores
+        when 'recap'       then v_m.push_recap
+        when 'injuries'    then v_m.push_injuries
+        when 'projections' then v_m.push_projections
+        else false
+      end;
+
+      if not v_wants then return false; end if;
+
+      -- No device, nothing to queue. A row nobody can be sent would sit in the
+      -- outbox forever being claimed and released.
+      if not exists (select 1 from push_subscriptions where manager_id = p_manager_id) then
+        return false;
+      end if;
+
+      insert into push_outbox (league_id, manager_id, kind, title, body, href, dedupe)
+      values (v_m.league_id, p_manager_id, p_kind, p_title, p_body, p_href, p_dedupe)
+          on conflict (manager_id, dedupe) do nothing;
+
+      return found;
+    end;
+    $$;
+
+    revoke all on function enqueue_push(uuid, text, text, text, text, text) from public;
+    -- The service key only. A session that could enqueue could push anything it
+    -- liked to anybody who had notifications on.
+
+    /**
+     * The next few messages, and the devices to send them to.
+     *
+     * One row per device, so a manager with a phone and a laptop gets both — and
+     * marked claimed before anything is sent, so two runs overlapping cannot send
+     * the same thing twice. Anything the network refuses is handed back.
+     */
+    create or replace function claim_push(p_limit int default 40)
+    returns table (
+      id         uuid,
+      endpoint   text,
+      p256dh     text,
+      auth       text,
+      kind       text,
+      title      text,
+      body       text,
+      href       text
+    )
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    begin
+      return query
+      with claimed as (
+        update push_outbox o
+           set claimed_at = now()
+         where o.id in (
+           select q.id from push_outbox q
+            where q.claimed_at is null
+              -- A notification nobody has sent within the day is not news any
+              -- more; a score from last Sunday buzzing on Wednesday is worse than
+              -- no score at all.
+              and q.created_at > now() - interval '1 day'
+            order by q.created_at
+            limit greatest(1, least(200, coalesce(p_limit, 40)))
+            for update skip locked
+         )
+        returning o.id, o.manager_id, o.kind, o.title, o.body, o.href
+      )
+      select c.id, s.endpoint, s.p256dh, s.auth, c.kind, c.title, c.body, c.href
+        from claimed c
+        join push_subscriptions s on s.manager_id = c.manager_id
+       -- Five refusals in a row is a device that is gone in every way but the
+       -- row. It stops being tried, and comes back the moment it re-subscribes.
+       where s.failures < 5;
+    end;
+    $$;
+
+    revoke all on function claim_push(int) from public;
+
+    /** Delivered. */
+    create or replace function push_sent(p_ids uuid[], p_endpoints text[])
+    returns void
+    language sql
+    security definer
+    set search_path = public
+    as $$
+      update push_outbox set sent_at = now() where id = any(p_ids);
+      update push_subscriptions
+         set last_ok_at = now(), failures = 0
+       where endpoint = any(p_endpoints);
+    $$;
+
+    revoke all on function push_sent(uuid[], text[]) from public;
+
+    /**
+     * Not delivered, and why it matters which kind of not.
+     *
+     * A message the network would not take goes back in the queue for the next
+     * run. A device the push service says no longer exists is deleted outright:
+     * retrying a revoked endpoint is a request that can never succeed, and leaving
+     * it there holds the manager's other devices behind it.
+     */
+    create or replace function push_failed(p_ids uuid[], p_dead_endpoints text[])
+    returns void
+    language sql
+    security definer
+    set search_path = public
+    as $$
+      update push_outbox set claimed_at = null where id = any(p_ids) and sent_at is null;
+      update push_subscriptions set failures = failures + 1 where endpoint = any(p_dead_endpoints);
+      delete from push_subscriptions where endpoint = any(p_dead_endpoints);
+    $$;
+
+    revoke all on function push_failed(uuid[], text[]) from public;
+
+    /** Everything sent, kept a week so a failure has somewhere to be seen from. */
+    create or replace function sweep_push()
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_gone int;
+    begin
+      delete from push_outbox
+       where (sent_at is not null and sent_at < now() - interval '7 days')
+          or created_at < now() - interval '30 days';
+      get diagnostics v_gone = row_count;
+      return v_gone;
+    end;
+    $$;
+
+    revoke all on function sweep_push() from public;
+
+    insert into schema_migrations (name) values ('0049_push_notifications.sql');
+    raise notice 'applied %', '0049_push_notifications.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0050_push_producers.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0050_push_producers.sql') then
+    raise notice 'skipping %, already applied', '0050_push_producers.sql';
+  else
+    -- The four things worth telling somebody about.
+
+    -- Written here rather than in the crons because all three of these read
+    -- rosters and scores, which live here, and because a producer inside the
+    -- database enqueues in the same transaction as the thing it noticed. What is
+    -- not here is the week's projections: a projection comes from the static
+    -- player pool, which the application holds and the database has never seen.
+    --
+    -- None of them decides who wants what. enqueue_push does that, once, so a
+    -- producer added later cannot forget to ask.
+
+    /**
+     * Where a matchup stands, while it is still standing.
+     *
+     * Only when the lead changes hands. A cron running every few minutes through a
+     * Sunday could say something every few minutes, and a phone that buzzes thirty
+     * times in an afternoon is a phone with notifications turned off by teatime.
+     * The dedupe key is who is ahead, so the first score of the day is one message
+     * and every lead change after it is one more — which is exactly the list of
+     * moments somebody would want to look up from their lunch for.
+     */
+    create or replace function push_score_news(p_league_id uuid, p_week int)
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_m      record;
+      v_home   numeric;
+      v_away   numeric;
+      v_lead   text;
+      v_queued int := 0;
+    begin
+      for v_m in
+        select m.id, m.home_manager, m.away_manager,
+               h.franchise as home_name, a.franchise as away_name
+          from matchups m
+          join managers h on h.id = m.home_manager
+          join managers a on a.id = m.away_manager
+         where m.league_id = p_league_id
+           and m.week = p_week
+           and not m.final
+      loop
+        v_home := lineup_points(p_league_id, v_m.home_manager, p_week);
+        v_away := lineup_points(p_league_id, v_m.away_manager, p_week);
+
+        -- Nothing has happened yet. A message saying nought to nought is a message
+        -- saying the games have not started, which the reader already knows.
+        continue when v_home = 0 and v_away = 0;
+
+        v_lead := case
+          when v_home > v_away then 'h'
+          when v_away > v_home then 'a'
+          else 't'
+        end;
+
+        if enqueue_push(v_m.home_manager, 'scores',
+             format('%s %s', v_m.home_name, round(v_home, 1)),
+             case v_lead
+               when 'h' then format('Ahead of %s by %s.', v_m.away_name, round(v_home - v_away, 1))
+               when 'a' then format('Behind %s by %s.', v_m.away_name, round(v_away - v_home, 1))
+               else format('Level with %s.', v_m.away_name)
+             end,
+             '/lineup',
+             format('score:w%s:%s', p_week, v_lead))
+        then v_queued := v_queued + 1; end if;
+
+        if enqueue_push(v_m.away_manager, 'scores',
+             format('%s %s', v_m.away_name, round(v_away, 1)),
+             case v_lead
+               when 'a' then format('Ahead of %s by %s.', v_m.home_name, round(v_away - v_home, 1))
+               when 'h' then format('Behind %s by %s.', v_m.home_name, round(v_home - v_away, 1))
+               else format('Level with %s.', v_m.home_name)
+             end,
+             '/lineup',
+             format('score:w%s:%s', p_week, v_lead))
+        then v_queued := v_queued + 1; end if;
+      end loop;
+
+      return v_queued;
+    end;
+    $$;
+
+    revoke all on function push_score_news(uuid, int) from public;
+
+    /**
+     * How the week finished, once it is finished.
+     *
+     * Reads the graded matchup rather than recomputing it, so the number in the
+     * notification is the number in the record. The dedupe key is the week, so
+     * regrading a week — which the commissioner can do — does not send it again.
+     */
+    create or replace function push_recap_news(p_league_id uuid, p_week int)
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_m      record;
+      v_queued int := 0;
+    begin
+      for v_m in
+        select m.home_manager, m.away_manager, m.home_points, m.away_points,
+               m.winner, m.is_tie,
+               h.franchise as home_name, a.franchise as away_name
+          from matchups m
+          join managers h on h.id = m.home_manager
+          join managers a on a.id = m.away_manager
+         where m.league_id = p_league_id
+           and m.week = p_week
+           and m.final
+      loop
+        if enqueue_push(v_m.home_manager, 'recap',
+             format('Week %s: %s', p_week,
+               case when v_m.is_tie then 'a draw'
+                    when v_m.winner = v_m.home_manager then 'won'
+                    else 'lost' end),
+             format('%s %s, %s %s.', v_m.home_name, round(v_m.home_points, 1),
+                                     v_m.away_name, round(v_m.away_points, 1)),
+             format('/matchup?week=%s', p_week),
+             format('recap:w%s', p_week))
+        then v_queued := v_queued + 1; end if;
+
+        if enqueue_push(v_m.away_manager, 'recap',
+             format('Week %s: %s', p_week,
+               case when v_m.is_tie then 'a draw'
+                    when v_m.winner = v_m.away_manager then 'won'
+                    else 'lost' end),
+             format('%s %s, %s %s.', v_m.away_name, round(v_m.away_points, 1),
+                                     v_m.home_name, round(v_m.home_points, 1)),
+             format('/matchup?week=%s', p_week),
+             format('recap:w%s', p_week))
+        then v_queued := v_queued + 1; end if;
+      end loop;
+
+      return v_queued;
+    end;
+    $$;
+
+    revoke all on function push_recap_news(uuid, int) from public;
+
+    /**
+     * Somebody on your roster is hurt.
+     *
+     * Reads the state rather than a change, and puts the state in the dedupe key,
+     * which does the same job without needing to remember what yesterday said: a
+     * man who is questionable for three weeks is announced once, and the morning
+     * he is downgraded to out is a different key and a second message. A man who
+     * gets better is not announced at all — nobody needs waking for good news
+     * about somebody who was going to play anyway.
+     *
+     * Only the ones that change what a manager would do. Probable is noise.
+     */
+    create or replace function push_injury_news(p_league_id uuid)
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_p      record;
+      v_queued int := 0;
+    begin
+      for v_p in
+        select r.manager_id, r.player_name, p.injury_status, p.injury_detail
+          from roster_slots r
+          join nfl_players p on p.name = r.player_name
+         where r.league_id = p_league_id
+           and p.injury_status in ('out', 'doubtful', 'ir', 'suspended')
+           -- Already stashed is already known. The manager put him there.
+           and r.lineup_slot <> 'IR'
+      loop
+        if enqueue_push(v_p.manager_id, 'injuries',
+             v_p.player_name,
+             format('%s%s',
+               case v_p.injury_status
+                 when 'out'       then 'Out'
+                 when 'doubtful'  then 'Doubtful'
+                 when 'ir'        then 'On injured reserve'
+                 when 'suspended' then 'Suspended'
+                 else initcap(v_p.injury_status)
+               end,
+               case when coalesce(v_p.injury_detail, '') = '' then '.'
+                    else format(' — %s.', v_p.injury_detail) end),
+             '/my-team',
+             format('injury:%s:%s', v_p.player_name, v_p.injury_status))
+        then v_queued := v_queued + 1; end if;
+      end loop;
+
+      return v_queued;
+    end;
+    $$;
+
+    revoke all on function push_injury_news(uuid) from public;
+
+    insert into schema_migrations (name) values ('0050_push_producers.sql');
+    raise notice 'applied %', '0050_push_producers.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0051_points_for_is_the_lineup.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0051_points_for_is_the_lineup.sql') then
+    raise notice 'skipping %, already applied', '0051_points_for_is_the_lineup.sql';
+  else
+    -- Points for is what a lineup scored, not what a roster did.
+
+    -- The standings table has always had this right: it sums the graded matchups,
+    -- and a graded matchup holds what the best-ball lineup actually scored. Two
+    -- other places added it up for themselves and both counted the whole roster —
+    -- every player a manager holds, bench included — which on an eighteen-man
+    -- roster in a league that fields eleven is roughly a third too much, and worse
+    -- than merely wrong: it rewards hoarding. A manager who never starts a player
+    -- all season still banks his points, and the ordering before any week is
+    -- graded is a ranking of who has the deepest bench.
+    --
+    -- So it is answered once, here, where best_ball_lineup already decides who
+    -- started.
+
+    /**
+     * Every manager's season, as their lineups actually scored it.
+     *
+     * Two halves, because a season has two kinds of week in it. A graded week is
+     * settled: the matchup holds the number that decided it, and recomputing it
+     * against today's roster would quietly rewrite history every time somebody
+     * made a trade. A week still being played has no matchup number yet, so it is
+     * worked out from the scores as they stand — which is what makes a table move
+     * on a Sunday afternoon rather than only on the Tuesday.
+     *
+     * A manager with nothing scored is still a row, at nought. Missing from the
+     * answer would mean missing from the table.
+     */
+    create or replace function season_points_for(p_league_id uuid)
+    returns table (manager_id uuid, points_for numeric, weeks int)
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      with settled as (
+        select m.home_manager as manager_id, m.home_points as points, m.week
+          from matchups m
+         where m.league_id = p_league_id and m.final
+        union all
+        select m.away_manager, m.away_points, m.week
+          from matchups m
+         where m.league_id = p_league_id and m.final
+      ),
+      -- Any week this league has scored anybody in and has not yet graded.
+      open_weeks as (
+        select distinct s.week
+          from player_scores s
+         where s.league_id = p_league_id
+           and not exists (
+             select 1 from matchups m
+              where m.league_id = p_league_id and m.week = s.week and m.final
+           )
+      ),
+      live as (
+        select mg.id as manager_id,
+               lineup_points(p_league_id, mg.id, w.week) as points,
+               w.week
+          from managers mg
+          cross join open_weeks w
+         where mg.league_id = p_league_id
+      ),
+      everything as (
+        select * from settled
+        union all
+        select * from live
+      )
+      select mg.id,
+             round(coalesce(sum(e.points), 0), 1),
+             count(distinct e.week) filter (where e.points is not null)::int
+        from managers mg
+        left join everything e on e.manager_id = mg.id
+       where mg.league_id = p_league_id
+       group by mg.id;
+    $$;
+
+    grant execute on function season_points_for(uuid) to authenticated;
+
+    insert into schema_migrations (name) values ('0051_points_for_is_the_lineup.sql');
+    raise notice 'applied %', '0051_points_for_is_the_lineup.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0052_a_signing_has_a_position.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0052_a_signing_has_a_position.sql') then
+    raise notice 'skipping %, already applied', '0052_a_signing_has_a_position.sql';
+  else
+    -- A man you signed scores for you.
+
+    -- Best ball fills the starting slots from roster_slots.position, because the
+    -- database has to know that a name is a running back now that nobody drags him
+    -- into a slot by hand. make_pick writes it. Nothing else did.
+    --
+    -- So a player signed off the wire or out of free agency arrived with no
+    -- position, and a player with no position is in no slot — not his own, and not
+    -- the flex, because best_ball_lineup tests both against the same column. He
+    -- sat on the roster looking perfectly normal, the app drew him with his
+    -- position beside his name out of its own player pool, and he scored nothing.
+    -- Nothing anywhere said so: the matchup was simply lower than it should have
+    -- been.
+    --
+    -- The score refresh backfilled positions afterwards, which is why this was
+    -- survivable rather than permanent — but "survivable" here means the points
+    -- came back at the next refresh, and if the week was graded first they never
+    -- did, because a graded matchup keeps the number it was graded with.
+    --
+    -- Fixed as a trigger rather than in the four functions that insert, because
+    -- there were four and a fifth would have been written eventually. It fills the
+    -- column only when the caller has not, so the draft still says what it knows.
+
+    create or replace function roster_slot_position()
+    returns trigger
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    begin
+      if coalesce(new.position, '') = '' then
+        select nullif(p.position, '') into new.position
+          from nfl_players p
+         where p.name = new.player_name;
+      end if;
+
+      return new;
+    end;
+    $$;
+
+    drop trigger if exists roster_slots_position on roster_slots;
+    create trigger roster_slots_position
+      before insert or update of player_name on roster_slots
+      for each row execute function roster_slot_position();
+
+    -- And everybody already sitting on a roster without one. These are the players
+    -- signed since best ball arrived whose position the score refresh has not yet
+    -- got to — every one of them is currently worth nought to his manager.
+    update roster_slots r
+       set position = p.position
+      from nfl_players p
+     where p.name = r.player_name
+       and coalesce(r.position, '') = ''
+       and coalesce(p.position, '') <> '';
+
+    insert into schema_migrations (name) values ('0052_a_signing_has_a_position.sql');
+    raise notice 'applied %', '0052_a_signing_has_a_position.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0053_a_vote_that_cannot_get_stuck.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0053_a_vote_that_cannot_get_stuck.sql') then
+    raise notice 'skipping %, already applied', '0053_a_vote_that_cannot_get_stuck.sql';
+  else
+    -- Four things a review found in the vote and the outbox.
+
+    -- ------------------------------------------------- a vote that settles ---
+
+    /**
+     * Settling a trade the rosters have moved under.
+     *
+     * settle_trade_vote called apply_trade bare, and apply_trade raises when a
+     * player in the offer is no longer where the offer said — which, over a
+     * forty-eight hour window, is an ordinary thing to happen. The raise took the
+     * whole transaction with it: the deciding voter got a 403 and their ballot was
+     * rolled back with it, so the trade sat in 'voting' forever with the count one
+     * short, and on the nightly pass one such trade aborted the loop for every
+     * other trade in the league.
+     *
+     * A trade that cannot be applied is declined, which is what settling a
+     * scheduled trade already does with the same problem, and for the same reason:
+     * the deal on the table is no longer a deal anybody can be held to. The reason
+     * goes in the log so it is not a trade that silently vanished.
+     */
+    create or replace function settle_trade_vote(p_trade_id uuid)
+    returns text
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_trade    trades;
+      v_bar      int;
+      v_vetoes   int;
+      v_approves int;
+      v_closes   timestamptz;
+    begin
+      select * into v_trade from trades where id = p_trade_id for update;
+      if v_trade.id is null or v_trade.status <> 'voting' then
+        return null;
+      end if;
+
+      v_bar := veto_threshold(v_trade.league_id);
+      select count(*) filter (where vote = 'veto'),
+             count(*) filter (where vote = 'approve')
+        into v_vetoes, v_approves
+        from trade_votes where trade_id = p_trade_id;
+
+      if v_vetoes >= v_bar then
+        update trades set status = 'declined' where id = p_trade_id;
+        insert into admin_log (league_id, actor, action, detail)
+        values (v_trade.league_id, null, 'trade_vetoed',
+                jsonb_build_object('trade_id', p_trade_id, 'vetoes', v_vetoes));
+        return 'declined';
+      end if;
+
+      v_closes := v_trade.voting_opened_at
+                  + make_interval(hours => trade_vote_hours(v_trade.league_id));
+
+      if v_approves >= v_bar or now() >= v_closes then
+        begin
+          -- apply_trade may still defer it to next week if somebody has played;
+          -- that is its decision, not the vote's.
+          perform apply_trade(p_trade_id, null);
+          return 'executed';
+        exception when others then
+          update trades set status = 'declined' where id = p_trade_id;
+          insert into admin_log (league_id, actor, action, detail)
+          values (v_trade.league_id, null, 'trade_void',
+                  jsonb_build_object('trade_id', p_trade_id, 'why', sqlerrm));
+          return 'declined';
+        end;
+      end if;
+
+      return null;
+    end;
+    $$;
+
+    revoke all on function settle_trade_vote(uuid) from public;
+    grant execute on function settle_trade_vote(uuid) to authenticated;
+
+    -- ------------------------------------------ a ballot on the terms voted on ---
+
+    /**
+     * Changing the terms throws away the votes cast on the old ones.
+     *
+     * Countering a trade that was out for a vote dropped it back to 'countered'
+     * and left every ballot standing. Re-opened, those ballots counted again — so
+     * three managers who vetoed a lopsided deal would have their vetoes applied to
+     * whatever it was rewritten into, and one more veto could kill terms nobody
+     * had rejected. They were also filtered off those managers' home pages as
+     * already voted, so they could not correct it.
+     *
+     * Extends the trigger from 0048 rather than adding a second one, so there is
+     * one place that says what changing the terms means.
+     */
+    create or replace function void_acceptance_on_change()
+    returns trigger
+    language plpgsql
+    set search_path = public
+    as $$
+    declare
+      v_me uuid;
+    begin
+      if new.offer is not distinct from old.offer then
+        return new;
+      end if;
+
+      new.status := 'countered';
+
+      -- The league voted on the deal as it was. Whatever it is now, nobody has
+      -- seen it.
+      delete from trade_votes where trade_id = new.id;
+      new.voting_opened_at := null;
+
+      if current_user in ('authenticated', 'anon') then
+        select id into v_me from managers where auth_user_id = auth.uid();
+      end if;
+
+      if v_me is null then
+        new.from_accepted := false;
+        new.to_accepted := false;
+        return new;
+      end if;
+
+      if v_me = new.from_manager then
+        new.to_accepted := false;
+      elsif v_me = new.to_manager then
+        new.from_accepted := false;
+      else
+        new.from_accepted := false;
+        new.to_accepted := false;
+      end if;
+
+      return new;
+    end;
+    $$;
+
+    -- ------------------------------------------- a commissioner is not exempt ---
+
+    /**
+     * The commissioner may put a trade through, but not their own.
+     *
+     * Overriding a league vote on somebody else's deal is a commissioner doing
+     * their job. Overriding it on a deal they are in is the exact thing the vote
+     * exists to prevent, and it was allowed: the check was is_commissioner and
+     * nothing else.
+     */
+    create or replace function force_trade(p_trade_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_trade trades;
+      v_me    managers;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner then
+        raise exception 'Only the commissioner can force a trade' using errcode = '42501';
+      end if;
+
+      select * into v_trade from trades where id = p_trade_id;
+      if v_trade.id is null then
+        raise exception 'No such trade' using errcode = 'P0002';
+      end if;
+
+      if v_me.league_id <> v_trade.league_id then
+        raise exception 'Not your league' using errcode = '42501';
+      end if;
+
+      if v_me.id = v_trade.from_manager or v_me.id = v_trade.to_manager then
+        raise exception 'You are in this trade — the league decides it, not you'
+          using errcode = '42501';
+      end if;
+
+      if not (v_trade.from_accepted and v_trade.to_accepted) then
+        raise exception 'Both managers must accept first' using errcode = '55000';
+      end if;
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (v_trade.league_id, v_me.id, 'trade_forced',
+              jsonb_build_object('trade_id', p_trade_id, 'wasStatus', v_trade.status));
+
+      return apply_trade(p_trade_id, v_me.id);
+    end;
+    $$;
+
+    grant execute on function force_trade(uuid) to authenticated;
+
+    -- ------------------------------------------------- retiring a dead device ---
+
+    /**
+     * Counting the refusals that are worth counting.
+     *
+     * This added one to `failures` on exactly the endpoints it deleted on the next
+     * line, so the counter never survived to reach anything and claim_push's
+     * `failures < 5` retirement could never fire. A device behind a push service
+     * that has been refusing for a week was retried forever.
+     *
+     * The two lists are now what they say they are: the ones that failed, and the
+     * ones that are gone.
+     */
+    create or replace function push_failed(
+      p_ids            uuid[],
+      p_dead_endpoints text[],
+      p_sick_endpoints text[] default '{}'
+    )
+    returns void
+    language sql
+    security definer
+    set search_path = public
+    as $$
+      update push_outbox set claimed_at = null where id = any(p_ids) and sent_at is null;
+      update push_subscriptions
+         set failures = failures + 1
+       where endpoint = any(p_sick_endpoints);
+      delete from push_subscriptions where endpoint = any(p_dead_endpoints);
+    $$;
+
+    revoke all on function push_failed(uuid[], text[], text[]) from public;
+
+    -- The two-argument shape is gone: leaving it would mean the cron could call
+    -- the old one by accident and count nothing.
+    drop function if exists push_failed(uuid[], text[]);
+
+    -- ---------------------------------------------- every lead change, not three ---
+
+    /**
+     * One manager's side of it, said from where they are sitting.
+     *
+     * Split out because it was the same eight lines twice with home and away
+     * swapped, and the swap was the part easy to get wrong.
+     */
+    create or replace function say_the_score(
+      p_manager_id uuid,
+      p_week       int,
+      p_lead       text,
+      p_mine       text,
+      p_theirs     text,
+      p_my_points  numeric,
+      p_their_points numeric
+    )
+    returns boolean
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_said int;
+      v_last text;
+    begin
+      -- What this manager was last told about this week, so a lead that merely
+      -- stands is not said twice and a lead that has changed is.
+      select count(*) into v_said
+        from push_outbox o
+       where o.manager_id = p_manager_id
+         and o.kind = 'scores'
+         and o.dedupe like format('score:w%s:%%', p_week);
+
+      -- The last thing said, by when it was said. max() over the key would answer
+      -- alphabetically, and 'h' sorts above 'a' whichever came first.
+      select o.dedupe into v_last
+        from push_outbox o
+       where o.manager_id = p_manager_id
+         and o.kind = 'scores'
+         and o.dedupe like format('score:w%s:%%', p_week)
+       order by o.created_at desc, o.dedupe desc
+       limit 1;
+
+      if v_last is not null and split_part(v_last, ':', 3) = p_lead then
+        return false;
+      end if;
+
+      return enqueue_push(p_manager_id, 'scores',
+        format('%s %s', p_mine, round(p_my_points, 1)),
+        case
+          when p_my_points > p_their_points
+            then format('Ahead of %s by %s.', p_theirs, round(p_my_points - p_their_points, 1))
+          when p_my_points < p_their_points
+            then format('Behind %s by %s.', p_theirs, round(p_their_points - p_my_points, 1))
+          else format('Level with %s.', p_theirs)
+        end,
+        '/lineup',
+        format('score:w%s:%s:%s', p_week, p_lead, v_said));
+    end;
+    $$;
+
+    revoke all on function say_the_score(uuid, int, text, text, text, numeric, numeric) from public;
+
+    /**
+     * A scoring update per lead change, which is what it says on the switch.
+     *
+     * The dedupe key was who is ahead — three values for a whole week — so the
+     * first time each side took the lead was news and every flip after it was
+     * silently dropped. A Sunday where a matchup changes hands five times sent two
+     * messages, and the settings panel promised otherwise.
+     *
+     * The key now carries how many have already gone out for this manager this
+     * week, so each flip is its own message while a lead that merely stands is
+     * still one. Deliberately not per score: only a change of leader gets this far.
+     */
+    create or replace function push_score_news(p_league_id uuid, p_week int)
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_m      record;
+      v_home   numeric;
+      v_away   numeric;
+      v_lead   text;
+      v_queued int := 0;
+    begin
+      for v_m in
+        select m.id, m.home_manager, m.away_manager,
+               h.franchise as home_name, a.franchise as away_name
+          from matchups m
+          join managers h on h.id = m.home_manager
+          join managers a on a.id = m.away_manager
+         where m.league_id = p_league_id
+           and m.week = p_week
+           and not m.final
+      loop
+        v_home := lineup_points(p_league_id, v_m.home_manager, p_week);
+        v_away := lineup_points(p_league_id, v_m.away_manager, p_week);
+
+        -- Nothing has happened yet. A message saying nought to nought is a message
+        -- saying the games have not started, which the reader already knows.
+        continue when v_home = 0 and v_away = 0;
+
+        v_lead := case
+          when v_home > v_away then 'h'
+          when v_away > v_home then 'a'
+          else 't'
+        end;
+
+        v_queued := v_queued
+          + say_the_score(v_m.home_manager, p_week, v_lead, v_m.home_name, v_m.away_name,
+                          v_home, v_away)::int
+          + say_the_score(v_m.away_manager, p_week, v_lead, v_m.away_name, v_m.home_name,
+                          v_away, v_home)::int;
+      end loop;
+
+      return v_queued;
+    end;
+    $$;
+
+    revoke all on function push_score_news(uuid, int) from public;
+
+    insert into schema_migrations (name) values ('0053_a_vote_that_cannot_get_stuck.sql');
+    raise notice 'applied %', '0053_a_vote_that_cannot_get_stuck.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0054_the_postseason_is_not_the_season.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0054_the_postseason_is_not_the_season.sql') then
+    raise notice 'skipping %, already applied', '0054_the_postseason_is_not_the_season.sql';
+  else
+    -- A title is not three more wins.
+
+    -- Playoff games are written into the same table as the regular season, with a
+    -- flag saying which they are. regular_season_weeks() reads the flag. standings()
+    -- was written before the postseason existed and never learned to — so from the
+    -- day the bracket was drawn, a champion's record on the League page picked up
+    -- a win for every round they won and their points for picked up every point
+    -- they scored winning it.
+    --
+    -- It is worse than a wrong number on a page. set_draft_pick_order reads the
+    -- same table, and it orders the draft by reverse standings: the team that won
+    -- the title came out with more wins than it had, and so drafted later than it
+    -- should — or, having lost in the first round, earlier. Every pick in the
+    -- rookie draft was off by however far the bracket moved people.
+    --
+    -- season_points_for, written last week, inherited the same hole from the same
+    -- table on its first day.
+
+    create or replace function standings(p_league_id uuid)
+    returns table (
+      manager_id uuid,
+      slot text,
+      franchise text,
+      division text,
+      wins int,
+      losses int,
+      ties int,
+      div_wins int,
+      div_losses int,
+      points_for numeric,
+      points_against numeric
+    )
+    language sql
+    stable
+    set search_path = public
+    as $$
+      with sides as (
+        select home_manager as manager_id, home_points as pf, away_points as pa,
+               winner, is_tie, final, divisional
+          from matchups where league_id = p_league_id and not playoff
+        union all
+        select away_manager, away_points, home_points, winner, is_tie, final, divisional
+          from matchups where league_id = p_league_id and not playoff
+      )
+      select m.id,
+             m.slot,
+             m.franchise,
+             m.division,
+             count(*) filter (where s.final and s.winner = m.id)::int,
+             count(*) filter (where s.final and s.winner is not null and s.winner <> m.id)::int,
+             count(*) filter (where s.final and s.is_tie)::int,
+             count(*) filter (where s.final and s.divisional and s.winner = m.id)::int,
+             count(*) filter (where s.final and s.divisional and s.winner is not null and s.winner <> m.id)::int,
+             coalesce(sum(s.pf) filter (where s.final), 0),
+             coalesce(sum(s.pa) filter (where s.final), 0)
+        from managers m
+        left join sides s on s.manager_id = m.id
+       where m.league_id = p_league_id
+       group by m.id, m.slot, m.franchise, m.division
+       order by m.division, 5 desc, 10 desc;
+    $$;
+
+    /** The same correction, in the function that adds the season up. */
+    create or replace function season_points_for(p_league_id uuid)
+    returns table (manager_id uuid, points_for numeric, weeks int)
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      with settled as (
+        select m.home_manager as manager_id, m.home_points as points, m.week
+          from matchups m
+         where m.league_id = p_league_id and m.final and not m.playoff
+        union all
+        select m.away_manager, m.away_points, m.week
+          from matchups m
+         where m.league_id = p_league_id and m.final and not m.playoff
+      ),
+      -- Any week this league has scored anybody in and has not yet graded. A week
+      -- whose only fixture is a playoff tie is not a week of the season.
+      open_weeks as (
+        select distinct s.week
+          from player_scores s
+         where s.league_id = p_league_id
+           and not exists (
+             select 1 from matchups m
+              where m.league_id = p_league_id and m.week = s.week and m.final and not m.playoff
+           )
+           and not exists (
+             select 1 from matchups m
+              where m.league_id = p_league_id and m.week = s.week and m.playoff
+           )
+      ),
+      live as (
+        select mg.id as manager_id,
+               lineup_points(p_league_id, mg.id, w.week) as points,
+               w.week
+          from managers mg
+          cross join open_weeks w
+         where mg.league_id = p_league_id
+      ),
+      everything as (
+        select * from settled
+        union all
+        select * from live
+      )
+      select mg.id,
+             round(coalesce(sum(e.points), 0), 1),
+             count(distinct e.week) filter (where e.points is not null)::int
+        from managers mg
+        left join everything e on e.manager_id = mg.id
+       where mg.league_id = p_league_id
+       group by mg.id;
+    $$;
+
+    grant execute on function season_points_for(uuid) to authenticated;
+
+    insert into schema_migrations (name) values ('0054_the_postseason_is_not_the_season.sql');
+    raise notice 'applied %', '0054_the_postseason_is_not_the_season.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0055_the_rookie_draft_is_the_one_you_earned.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0055_the_rookie_draft_is_the_one_you_earned.sql') then
+    raise notice 'skipping %, already applied', '0055_the_rookie_draft_is_the_one_you_earned.sql';
+  else
+    -- The board a season of dealing actually earned.
+
+    -- Three things went wrong at the moment a dynasty league is least able to
+    -- recover from them, and they compounded.
+    --
+    -- roll_season deleted the schedule, deleted the bracket and bumped the season,
+    -- and only then worked out the new draft's order. set_draft_pick_order reads
+    -- the standings, the seeds and the playoff rounds of the season just finished
+    -- — all three of which were gone by the time it ran — so every input was empty
+    -- and the order collapsed to its last tiebreaker, the franchise slot. The
+    -- rookie draft came out alphabetical, and it overwrote the correct reverse
+    -- standings the nightly job had been keeping all season.
+    --
+    -- rebuild_draft_board then laid out `rounds` rounds — twenty-four, the startup
+    -- draft's length — rather than the `rookieRounds` the picks were awarded for.
+    --
+    -- And it built the board from the franchise list, never once looking at
+    -- draft_pick_assets. Every pick traded in the preceding year was silently
+    -- handed back to the club it came from. In a league whose whole currency is
+    -- next year's first, that is the year's dealing thrown away.
+
+    -- ------------------------------------------------------- the board itself ---
+
+    /**
+     * The draft board, from the picks people actually hold.
+     *
+     * draft_pick_assets is the record of who owns what: one row per original pick,
+     * carrying the franchise it came from and the franchise holding it now. That
+     * is the only honest source for a board, because it is the only one that knows
+     * about trades.
+     *
+     * Falls back to a plain snake of the franchise list when there are no assets
+     * for the season, which is how a league that has never awarded them — or a
+     * commissioner resizing the league before the first draft — still gets a
+     * board.
+     *
+     * The seat an owner picks from is the seat of the pick's *origin*, not their
+     * own: a first-rounder acquired from the worst team in the league is the first
+     * pick of the round, and that is exactly what it was traded for.
+     */
+    create or replace function rebuild_draft_board(p_league_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_league  leagues;
+      v_rounds  int;
+      v_teams   int;
+      v_made    int;
+      v_order   uuid[];
+      v_round   int;
+      v_seat    int;
+      v_overall int := 0;
+      v_assets  int;
+    begin
+      select * into v_league from leagues where id = p_league_id for update;
+      if v_league.id is null then
+        raise exception 'No such league' using errcode = 'P0002';
+      end if;
+
+      select count(*) into v_made
+        from draft_picks
+       where league_id = p_league_id and player_name is not null;
+
+      if v_made > 0 then
+        raise exception 'The draft has already started — % picks are made', v_made
+          using errcode = '55000';
+      end if;
+
+      select count(*) into v_assets
+        from draft_pick_assets
+       where league_id = p_league_id and season = v_league.season;
+
+      -- Draft order: the lottery if one has been drawn, else by slot. Only used
+      -- for the fallback board; a board built from assets takes its order from
+      -- the assets, which the nightly job has already sorted by record.
+      if v_league.lottery_order is not null and array_length(v_league.lottery_order, 1) > 0 then
+        select array_agg(m.id order by idx)
+          into v_order
+          from unnest(v_league.lottery_order) with ordinality as lo(slot, idx)
+          join managers m on m.league_id = p_league_id and m.slot = lo.slot;
+      else
+        select array_agg(id order by slot) into v_order
+          from managers where league_id = p_league_id;
+      end if;
+
+      v_teams := coalesce(array_length(v_order, 1), 0);
+      if v_teams = 0 then
+        raise exception 'The league has no franchises' using errcode = '55000';
+      end if;
+
+      delete from draft_picks where league_id = p_league_id;
+
+      if v_assets > 0 then
+        -- One row per pick that exists, in the order the assets say, and to
+        -- whoever holds it now.
+        insert into draft_picks (league_id, overall, round, manager_id)
+        select p_league_id,
+               row_number() over (
+                 order by a.round,
+                          -- Snaking, as the startup draft does and as the board
+                          -- did before it read the assets: odd rounds run in
+                          -- order, even rounds back. The seat is the origin's, so
+                          -- a first acquired from the worst team is the first pick
+                          -- of the round — which is what it was traded for.
+                          case when a.round % 2 = 1
+                               then coalesce(a.slot, 9999)
+                               else -coalesce(a.slot, 9999)
+                          end,
+                          o.slot
+               ),
+               a.round,
+               a.manager_id
+          from draft_pick_assets a
+          join managers o on o.id = a.origin_manager
+         where a.league_id = p_league_id
+           and a.season = v_league.season;
+
+        get diagnostics v_overall = row_count;
+        select coalesce(max(round), 0) into v_rounds
+          from draft_pick_assets
+         where league_id = p_league_id and season = v_league.season;
+      else
+        v_rounds := coalesce((v_league.settings ->> 'rounds')::int, 24);
+
+        for v_round in 1..v_rounds loop
+          for v_seat in 1..v_teams loop
+            v_overall := v_overall + 1;
+            insert into draft_picks (league_id, overall, round, manager_id)
+            values (
+              p_league_id,
+              v_overall,
+              v_round,
+              -- Odd rounds run forward, even rounds back.
+              v_order[case when v_round % 2 = 1 then v_seat else v_teams - v_seat + 1 end]
+            );
+          end loop;
+        end loop;
+      end if;
+
+      update leagues
+         set current_pick = 1,
+             pick_started_at = null,
+             draft_state = case when draft_state = 'complete' then 'pending' else draft_state end
+       where id = p_league_id;
+
+      return jsonb_build_object('ok', true, 'teams', v_teams, 'rounds', v_rounds,
+                                'picks', v_overall, 'fromAssets', v_assets > 0);
+    end;
+    $$;
+
+    revoke all on function rebuild_draft_board(uuid) from public;
+
+    -- ------------------------------------------------------- the order of it ---
+
+    /**
+     * Working out the new draft before throwing away what decides it.
+     *
+     * Two changes, and the rest is 0029's function exactly as it was: the pick
+     * award moves above the deletions, and autodraft joins the flags that a new
+     * season clears.
+     */
+    create or replace function roll_season(p_league_id uuid, p_season int default null)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me      managers;
+      v_league  leagues;
+      v_next    int;
+      v_kept    int;
+      v_weeks   int;
+      v_saved   int;
+      v_picks   jsonb;
+      v_champ   text;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can start the next season' using errcode = '42501';
+      end if;
+
+      select * into v_league from leagues where id = p_league_id for update;
+      if v_league.id is null then
+        raise exception 'No such league' using errcode = 'P0002';
+      end if;
+
+      v_next := coalesce(p_season, v_league.season + 1);
+      if v_next <= v_league.season then
+        raise exception 'The next season must come after % ', v_league.season
+          using errcode = '22023';
+      end if;
+
+      -- A season is over when there is a champion. That is a stronger test than
+      -- "every week is graded": it also rules out a league whose regular season
+      -- finished last night and whose bracket has not been played.
+      if not exists (
+        select 1 from league_champions
+         where league_id = p_league_id and season = v_league.season
+      ) then
+        raise exception 'The % season has no champion yet — it is not over', v_league.season
+          using errcode = '55000';
+      end if;
+
+      select franchise into v_champ
+        from league_champions where league_id = p_league_id and season = v_league.season;
+
+      select count(*) into v_kept from roster_slots where league_id = p_league_id;
+      select count(distinct week) into v_weeks from matchups where league_id = p_league_id;
+
+      -- Photographed on the way past, like every other destructive thing in here.
+      -- The rosters survive this, but a rollover run by mistake is still the sort
+      -- of thing somebody wants back.
+      -- Before anything is deleted. award_draft_picks calls set_draft_pick_order,
+      -- which reads the table, the seeds and how far each franchise got in the
+      -- bracket — all three about the season being closed, and in a moment none of
+      -- it will be here. It ran three statements too late, so every input was
+      -- empty and the order fell through to its last tiebreaker, the franchise
+      -- slot: an alphabetical rookie draft, overwriting the reverse standings the
+      -- nightly job had kept all season.
+      v_picks := award_draft_picks(p_league_id, v_next);
+
+      v_saved := snapshot_rosters(p_league_id, 'season_roll');
+
+      -- Everything that was true only of last season. Rosters and the record book
+      -- are deliberately not in this list.
+      delete from matchups      where league_id = p_league_id;
+      delete from player_scores where league_id = p_league_id;
+      delete from waiver_claims where league_id = p_league_id;
+      delete from waiver_wire   where league_id = p_league_id;
+      delete from trade_block   where league_id = p_league_id;
+      delete from draft_queue   where league_id = p_league_id;
+      delete from pickem_picks  where league_id = p_league_id;
+      delete from playoff_seeds where league_id = p_league_id and season = v_league.season;
+      delete from notices       where league_id = p_league_id;
+
+      -- An offer names players against a season that no longer exists, and a pick
+      -- for a draft that has now happened. Declined rather than deleted, so a
+      -- manager's work leaves a trace rather than vanishing.
+      update trades
+         set status = 'declined'
+       where league_id = p_league_id
+         and status in ('open', 'countered', 'agreed');
+
+      -- Everybody keeps their players; nobody keeps their lineup. Last year's
+      -- starters mean nothing against a schedule that does not exist yet, and a
+      -- player on IR in December is not necessarily hurt in September.
+      update roster_slots
+         set lineup_slot = 'BENCH',
+             overall_pick = null
+       where league_id = p_league_id;
+
+      -- Waiver order back to the league's own order. Last season's rolling order
+      -- is a consequence of last season.
+      update managers m
+         set waiver_priority = seq.rn,
+             ready = false,
+             -- A manager who let the machine draft for him one year has not asked
+             -- it to do so forever. Cleared with the rest of last season, beside
+             -- the two flags that always were.
+             autodraft = false
+        from (
+          select id, row_number() over (order by slot) as rn
+            from managers where league_id = p_league_id
+        ) seq
+       where seq.id = m.id;
+
+      update leagues
+         set season = v_next,
+             draft_state = 'pending',
+             current_pick = 1,
+             pick_started_at = null,
+             draft_at = null,
+             -- A lottery is drawn for one draft, and the next order comes from the
+             -- record instead.
+             lottery_order = null
+       where id = p_league_id;
+
+      -- The board for the new draft, from the picks awarded above — so a pick
+      -- traded a year ago lands on it as its new owner's.
+      delete from draft_picks where league_id = p_league_id;
+      perform rebuild_draft_board(p_league_id);
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'season_rolled',
+              jsonb_build_object('from', v_league.season, 'to', v_next,
+                                 'champion', v_champ, 'players_kept', v_kept,
+                                 'weeks_removed', v_weeks, 'roster_rows_saved', v_saved));
+
+      return jsonb_build_object(
+        'ok', true,
+        'from', v_league.season,
+        'season', v_next,
+        'champion', v_champ,
+        'playersKept', v_kept,
+        'weeksRemoved', v_weeks,
+        'rosterRowsSaved', v_saved,
+        'picks', v_picks
+      );
+    end;
+    $$;
+
+    revoke all on function roll_season(uuid, int) from public;
+    grant execute on function roll_season(uuid, int) to authenticated;
+
+    insert into schema_migrations (name) values ('0055_the_rookie_draft_is_the_one_you_earned.sql');
+    raise notice 'applied %', '0055_the_rookie_draft_is_the_one_you_earned.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0056_a_week_is_recapped_once.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0056_a_week_is_recapped_once.sql') then
+    raise notice 'skipping %, already applied', '0056_a_week_is_recapped_once.sql';
+  else
+    -- ============================================================================
+    -- 0056 — a week is recapped once
+    --
+    -- The recap plays over the home screen the first time a manager opens the app
+    -- after the NFL week has ended. "The first time" is the whole feature: a
+    -- takeover that fires on every launch is not a recap, it is an obstacle.
+    --
+    -- So the app has to remember, per manager, which week they have already been
+    -- shown. One integer on the manager does it — there is exactly one recap per
+    -- week and they arrive in order, so the highest week seen is the whole state.
+    -- A table of rows would record the same thing at more cost and let the two
+    -- disagree.
+    -- ============================================================================
+
+    alter table managers
+      add column if not exists recap_seen_week int;
+
+    comment on column managers.recap_seen_week is
+      'The last week whose recap this manager has been shown. Null means none.';
+
+    /**
+     * Mark this manager's recap as seen, up to and including a week.
+     *
+     * Only ever forward. Two tabs open on a Tuesday morning both dismiss the same
+     * recap, and the second one must not be able to wind the marker back and make
+     * the recap play again — and a manager reading back an old week (which the
+     * app does not offer today, but might) must not un-see the current one.
+     *
+     * Returns what the marker now says, so the caller can settle its own state on
+     * the answer rather than on what it asked for.
+     */
+    create or replace function see_recap(p_week int)
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_week int;
+    begin
+      if p_week is null then
+        raise exception 'see_recap needs a week';
+      end if;
+
+      update managers
+         set recap_seen_week = greatest(coalesce(recap_seen_week, 0), p_week)
+       where auth_user_id = auth.uid()
+      returning recap_seen_week into v_week;
+
+      return v_week;
+    end;
+    $$;
+
+    grant execute on function see_recap(int) to authenticated;
+
+    insert into schema_migrations (name) values ('0056_a_week_is_recapped_once.sql');
+    raise notice 'applied %', '0056_a_week_is_recapped_once.sql';
   end if;
 end
 $__migration__$;
