@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
+<script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
+<style>
+  body { margin:0; background:#0b0d16; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  a { color:#b5abfc; text-decoration:none; }
+  a:hover { color:#d2cefd; }
+  @keyframes pr-pulse { 0%,100% { opacity:.3; transform:scale(1);} 50% { opacity:1; transform:scale(1.3);} }
+  @keyframes pr-rise { from { opacity:0; transform:translateY(10px);} to { opacity:1; transform:none;} }
+  @keyframes pr-grow { from { width:0;} }
+  @keyframes pr-sweep { 0% { background-position:0% 50%;} 100% { background-position:200% 50%;} }
+</style>
+</helmet>
+
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+
+<div style="height:100%;display:flex;flex-direction:column;background:radial-gradient(560px 380px at 8% -6%, #23274a 0%, rgba(18,20,42,0) 62%), radial-gradient(420px 320px at 108% 10%, #2b1e3d 0%, rgba(18,20,42,0) 60%), #0f111c;color:var(--color-text);font-family:var(--font-body);font-variant-numeric:tabular-nums;overflow:hidden">
+
+  <div style="flex:1;overflow:auto">
+
+    <div style="padding:58px 18px 0;position:sticky;top:0;z-index:30;background:linear-gradient(180deg,rgba(15,17,28,.97) 88%,rgba(15,17,28,0));backdrop-filter:blur(14px)">
+      <div style="display:flex;align-items:center;gap:9px">
+        <div style="flex:0 0 auto;width:8px;height:18px;clip-path:polygon(28% 0,100% 0,72% 100%,0 100%);background:linear-gradient(180deg,#ffb066,#e0682a);box-shadow:0 0 14px rgba(224,104,42,.55)"></div>
+        <div style="font-family:var(--font-heading);font-size:17px;line-height:1;letter-spacing:-.02em;min-width:0;flex:1">The Pylon Report</div>
+        <span style="width:5px;height:5px;border-radius:50%;flex:0 0 auto;background:#7fd8a8;box-shadow:0 0 8px #7fd8a8;animation:pr-pulse 1.9s infinite"></span>
+        <span style="font-size:9px;letter-spacing:.1em;color:#75798c;flex:0 0 auto">{{ asOf }}</span>
+      </div>
+
+      <div style="display:flex;gap:4px;margin-top:11px">
+        <sc-for list="{{ leagues }}" as="l" hint-placeholder-count="2">
+          <button onClick="{{ l.onClick }}" style="{{ l.style }}">{{ l.label }}</button>
+        </sc-for>
+      </div>
+      <div style="height:1px;background:rgba(145,132,217,.2)"></div>
+    </div>
+
+    <div style="padding:14px 18px 24px">
+
+      <sc-for list="{{ spotlight }}" as="s" hint-placeholder-count="1">
+        <div style="border:1px solid rgba(145,132,217,.32);border-radius:14px;overflow:hidden;background:linear-gradient(160deg,rgba(38,32,64,.92),rgba(20,22,36,.87));position:relative;box-shadow:0 14px 32px rgba(0,0,0,.42);animation:pr-rise .4s ease">
+          <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 44%,rgba(181,171,252,.13) 50%,transparent 56%);background-size:220% 100%;animation:pr-sweep 6s linear infinite"></div>
+          <div style="padding:13px;position:relative">
+            <div style="display:flex;align-items:center;gap:11px">
+              <div style="{{ s.crestStyle }}">{{ s.abbr }}</div>
+              <div style="min-width:0;flex:1">
+                <div style="font-size:7px;letter-spacing:.2em;color:#b5abfc">{{ s.rankLabel }}</div>
+                <div style="font-family:var(--font-heading);font-size:17px;line-height:1.15;letter-spacing:-.025em;margin-top:4px;text-wrap:pretty">{{ s.team }}</div>
+                <div style="font-size:9px;letter-spacing:.1em;color:#75798c;margin-top:4px">{{ s.meta }}</div>
+              </div>
+            </div>
+            <div style="font-size:11px;line-height:1.5;color:#c8ccdb;margin-top:11px;text-wrap:pretty">{{ s.read }}</div>
+          </div>
+        </div>
+      </sc-for>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+        <sc-for list="{{ movers }}" as="m" hint-placeholder-count="2">
+          <div style="{{ m.wrapStyle }}">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="{{ m.tagStyle }}">{{ m.tag }}</span>
+              <span style="{{ m.deltaStyle }}">{{ m.delta }}</span>
+            </div>
+            <div style="font-size:11px;line-height:1.2;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.team }}</div>
+            <div style="font-size:8px;letter-spacing:.1em;color:#75798c;margin-top:3px">{{ m.line }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;align-items:baseline;padding:18px 0 9px">
+        <span style="font-size:9px;letter-spacing:.28em;color:#75798c">{{ listLabel }}</span>
+        <span style="margin-left:auto;font-size:9px;letter-spacing:.12em;color:#595d6c">TAP A TEAM</span>
+      </div>
+
+      <div style="border:1px solid rgba(145,132,217,.2);border-radius:14px;overflow:hidden;background:rgba(22,24,38,.72)">
+        <sc-for list="{{ rows }}" as="r" hint-placeholder-count="14">
+          <div style="{{ r.wrapStyle }}">
+            <div onClick="{{ r.onClick }}" style="display:flex;align-items:center;gap:11px;padding:11px 13px;cursor:pointer">
+              <span style="font-family:var(--font-heading);font-size:14px;color:#8f94a8;width:20px;flex:0 0 auto">{{ r.rank }}</span>
+              <span style="{{ r.deltaStyle }}">{{ r.delta }}</span>
+              <div style="min-width:0;flex:1">
+                <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.team }}</div>
+                <div style="font-size:9px;letter-spacing:.1em;color:#75798c;margin-top:3px">{{ r.meta }}</div>
+              </div>
+              <span style="{{ r.chevStyle }}">›</span>
+            </div>
+
+            <sc-for list="{{ r.detail }}" as="d" hint-placeholder-count="0">
+              <div style="padding:0 13px 14px;animation:pr-rise .25s ease">
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:11px 0 13px;border-top:1px solid rgba(145,132,217,.14)">
+                  <sc-for list="{{ d.stats }}" as="x" hint-placeholder-count="4">
+                    <div>
+                      <div style="{{ x.valueStyle }}">{{ x.value }}</div>
+                      <div style="font-size:7px;letter-spacing:.12em;color:#75798c;margin-top:4px;line-height:1.3">{{ x.label }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <div style="font-size:8px;letter-spacing:.2em;color:#595d6c;padding-bottom:8px">WHAT MOVES THEM</div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <sc-for list="{{ d.inputs }}" as="b" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;gap:9px">
+                      <span style="font-size:9px;letter-spacing:.1em;color:#8f94a8;flex:0 0 74px">{{ b.label }}</span>
+                      <div style="flex:1;height:4px;border-radius:99px;background:rgba(145,132,217,.13);overflow:hidden">
+                        <div style="{{ b.barStyle }}"></div>
+                      </div>
+                      <span style="{{ b.valStyle }}">{{ b.value }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <div style="font-size:8px;letter-spacing:.2em;color:#595d6c;padding:16px 0 8px">THE RESUME</div>
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <sc-for list="{{ d.games }}" as="g" hint-placeholder-count="3">
+                    <div style="{{ g.rowStyle }}">
+                      <span style="{{ g.badgeStyle }}">{{ g.result }}</span>
+                      <span style="font-size:11px;min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ g.line }}</span>
+                      <span style="font-size:9px;letter-spacing:.08em;color:#75798c;flex:0 0 auto">{{ g.note }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <div style="margin-top:13px;padding:10px 12px;border-radius:10px;background:rgba(145,132,217,.1);border:1px solid rgba(145,132,217,.2);font-size:11px;line-height:1.55;color:#d2cefd;text-wrap:pretty">{{ d.read }}</div>
+
+                <div style="display:flex;align-items:center;gap:8px;margin-top:11px">
+                  <span style="font-size:8px;letter-spacing:.16em;color:#595d6c;flex:0 0 auto">NEXT</span>
+                  <span style="font-size:11px;color:#a8adc0;min-width:0;text-wrap:pretty">{{ d.next }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+
+      <button onClick="{{ onMethod }}" style="{{ methodBtnStyle }}">{{ methodLabel }}</button>
+      <sc-for list="{{ method }}" as="m" hint-placeholder-count="0">
+        <div style="margin-top:10px;padding:13px 14px;border-radius:12px;border:1px solid rgba(145,132,217,.2);background:rgba(20,22,36,.6);animation:pr-rise .25s ease">
+          <div style="font-size:11px;line-height:1.6;color:#a8adc0;text-wrap:pretty">{{ m.text }}</div>
+          <div style="display:flex;flex-direction:column;gap:7px;margin-top:12px">
+            <sc-for list="{{ m.weights }}" as="w" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:9px">
+                <span style="font-size:9px;letter-spacing:.1em;color:#8f94a8;flex:0 0 86px">{{ w.label }}</span>
+                <div style="flex:1;height:4px;border-radius:99px;background:rgba(145,132,217,.13);overflow:hidden">
+                  <div style="{{ w.barStyle }}"></div>
+                </div>
+                <span style="font-family:var(--font-heading);font-size:10px;color:#b5abfc;flex:0 0 auto;width:34px;text-align:right">{{ w.value }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid rgba(145,132,217,.22);background:rgba(14,16,26,.96);backdrop-filter:blur(14px);padding-bottom:24px;position:relative;z-index:20">
+    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+      <button onClick="{{ t.onClick }}" style="{{ t.style }}">
+        <span style="{{ t.markStyle }}"></span>
+        <svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor"><path d="{{ t.path }}"></path></svg>
+        <span style="font-size:10px">{{ t.label }}</span>
+      </button>
+    </sc-for>
+  </div>
+</div>
+
+</x-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:940},&quot;startLeague&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;NFL&quot;,&quot;CFB&quot;],&quot;default&quot;:&quot;NFL&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Report&quot;}}">
+const P = {
+  home: "M218.8 103.7 138.8 33a16 16 0 0 0-21.6 0l-80 70.7A16 16 0 0 0 32 115.7V208a16 16 0 0 0 16 16h48a8 8 0 0 0 8-8v-56h48v56a8 8 0 0 0 8 8h48a16 16 0 0 0 16-16v-92.3a16 16 0 0 0-5.2-12Z",
+  team: "M180 32h-24a8 8 0 0 0-8 8 20 20 0 0 1-40 0 8 8 0 0 0-8-8H76a8 8 0 0 0-4.4 1.3l-40 26.7A8 8 0 0 0 28 66.7v45.9a8 8 0 0 0 8 8h24V208a16 16 0 0 0 16 16h104a16 16 0 0 0 16-16v-87.4h24a8 8 0 0 0 8-8V66.7a8 8 0 0 0-3.6-6.7l-40-26.7A8 8 0 0 0 180 32Z",
+  league: "M40 68h176a8 8 0 0 0 0-16H40a8 8 0 0 0 0 16Zm176 52H40a8 8 0 0 0 0 16h176a8 8 0 0 0 0-16Zm0 68H40a8 8 0 0 0 0 16h176a8 8 0 0 0 0-16Z",
+  moves: "M221.7 82.3 189.7 50.3a8 8 0 0 0-11.4 11.4L196.7 80H40a8 8 0 0 0 0 16h156.7l-18.4 18.3a8 8 0 0 0 11.4 11.4l32-32a8 8 0 0 0 0-11.4ZM216 160H59.3l18.4-18.3a8 8 0 0 0-11.4-11.4l-32 32a8 8 0 0 0 0 11.4l32 32a8 8 0 0 0 11.4-11.4L59.3 176H216a8 8 0 0 0 0-16Z",
+  office: "M128 64a64 64 0 1 0 64 64 64 64 0 0 0-64-64Zm0 112a48 48 0 1 1 48-48 48 48 0 0 1-48 48Zm0-136a8 8 0 0 0 8-8V16a8 8 0 0 0-16 0v16a8 8 0 0 0 8 8Zm0 176a8 8 0 0 0-8 8v16a8 8 0 0 0 16 0v-16a8 8 0 0 0-8-8ZM40 128a8 8 0 0 0-8-8H16a8 8 0 0 0 0 16h16a8 8 0 0 0 8-8Zm200-8h-16a8 8 0 0 0 0 16h16a8 8 0 0 0 0-16ZM58.3 47a8 8 0 0 0-11.3 11.3l11.3 11.3A8 8 0 0 0 69.6 58.3Zm128.1 139.4a8 8 0 0 0-11.3 11.3l11.3 11.3a8 8 0 0 0 11.3-11.3Zm0-116.8 11.3-11.3A8 8 0 0 0 186.4 47l-11.3 11.3a8 8 0 0 0 11.3 11.3ZM58.3 186.4 47 197.7a8 8 0 0 0 11.3 11.3l11.3-11.3a8 8 0 0 0-11.3-11.3Z"
+};
+
+// ─────────────────────────────────────────────────────────────
+// Two source tables per league and nothing else: the team list
+// with its preseason ranking, and a reciprocal results grid.
+// Ranking, movement, resume, strength of schedule and every
+// sentence on the page are derived from these — no rank, no delta
+// and no prose is authored anywhere in this file.
+// ─────────────────────────────────────────────────────────────
+
+const NFL = {
+  key: "NFL",
+  label: "NFL",
+  listLabel: "POWER RANKINGS 2-15",
+  seasonLabel: "2026 · THROUGH WEEK 2",
+  // [team, abbrev, division, preseason rank]
+  teams: [
+    ["Kansas City Chiefs", "KC", "AFC West", 1],
+    ["Baltimore Ravens", "BAL", "AFC North", 2],
+    ["Philadelphia Eagles", "PHI", "NFC East", 3],
+    ["Detroit Lions", "DET", "NFC North", 4],
+    ["Buffalo Bills", "BUF", "AFC East", 5],
+    ["San Francisco 49ers", "SF", "NFC West", 6],
+    ["Houston Texans", "HOU", "AFC South", 7],
+    ["Green Bay Packers", "GB", "NFC North", 8],
+    ["Cincinnati Bengals", "CIN", "AFC North", 9],
+    ["Los Angeles Rams", "LAR", "NFC West", 10],
+    ["Minnesota Vikings", "MIN", "NFC North", 11],
+    ["Washington Commanders", "WAS", "NFC East", 12],
+    ["Denver Broncos", "DEN", "AFC West", 13],
+    ["Tampa Bay Buccaneers", "TB", "NFC South", 14],
+    ["Pittsburgh Steelers", "PIT", "AFC North", 15],
+    ["Los Angeles Chargers", "LAC", "AFC West", 16]
+  ],
+  // Each week: [homeIdx, awayIdx, homePts, awayPts]. Reciprocal by
+  // construction, so strength of schedule is real rather than asserted.
+  weeks: [
+    [[0, 15, 27, 20], [1, 8, 31, 17], [2, 13, 24, 13], [3, 10, 30, 27],
+     [4, 6, 21, 24], [5, 9, 17, 23], [7, 11, 20, 26], [12, 14, 34, 14]],
+    [[8, 0, 20, 23], [10, 1, 14, 28], [13, 2, 16, 20], [6, 3, 27, 34],
+     [9, 4, 31, 24], [11, 5, 13, 22], [14, 7, 21, 18], [15, 12, 25, 22]]
+  ],
+  // The week ahead, unplayed: [homeIdx, awayIdx]
+  next: [[0, 4], [1, 2], [3, 5], [6, 9], [7, 13], [8, 10], [11, 15], [12, 14]]
+};
+
+const CFB = {
+  key: "CFB",
+  label: "College Football",
+  listLabel: "TOP 25 POLL 2-15",
+  seasonLabel: "2026 · THROUGH WEEK 3",
+  teams: [
+    ["Georgia Bulldogs", "UGA", "SEC", 1],
+    ["Ohio State Buckeyes", "OSU", "Big Ten", 2],
+    ["Texas Longhorns", "TEX", "SEC", 3],
+    ["Oregon Ducks", "ORE", "Big Ten", 4],
+    ["Alabama Crimson Tide", "BAMA", "SEC", 5],
+    ["Penn State Nittany Lions", "PSU", "Big Ten", 6],
+    ["Notre Dame Fighting Irish", "ND", "Independent", 7],
+    ["Michigan Wolverines", "MICH", "Big Ten", 8],
+    ["LSU Tigers", "LSU", "SEC", 9],
+    ["Ole Miss Rebels", "MISS", "SEC", 10],
+    ["Tennessee Volunteers", "TENN", "SEC", 11],
+    ["Clemson Tigers", "CLEM", "ACC", 12],
+    ["Miami Hurricanes", "MIA", "ACC", 13],
+    ["Oklahoma Sooners", "OU", "SEC", 14],
+    ["Utah Utes", "UTAH", "Big 12", 15],
+    ["Missouri Tigers", "MIZZ", "SEC", 16]
+  ],
+  weeks: [
+    [[0, 12, 34, 17], [1, 9, 24, 27], [2, 14, 45, 20], [3, 11, 31, 24],
+     [4, 6, 17, 20], [5, 13, 38, 10], [7, 15, 28, 21], [8, 10, 30, 33]],
+    [[9, 0, 21, 28], [10, 1, 17, 41], [14, 2, 24, 38], [11, 3, 13, 35],
+     [6, 4, 31, 27], [13, 5, 20, 24], [15, 7, 26, 23], [12, 8, 27, 30]],
+    [[0, 1, 26, 23], [2, 4, 34, 24], [3, 6, 20, 27], [5, 7, 31, 28],
+     [8, 12, 24, 21], [9, 13, 38, 14], [10, 14, 20, 17], [11, 15, 33, 16]]
+  ],
+  next: [[1, 3], [0, 2], [4, 8], [6, 5], [7, 9], [10, 11], [12, 14], [13, 15]]
+};
+
+// ── derivation ──────────────────────────────────────────────
+
+// Every played game for one team, most recent first.
+function gamesOf(L, idx, throughWeek) {
+  const out = [];
+  L.weeks.slice(0, throughWeek).forEach((wk, w) => {
+    wk.forEach(([h, a, hp, ap]) => {
+      if (h === idx) out.push({ week: w + 1, opp: a, pts: hp, oppPts: ap, home: true });
+      if (a === idx) out.push({ week: w + 1, opp: h, pts: ap, oppPts: hp, home: false });
+    });
+  });
+  return out.reverse();
+}
+
+function recordOf(L, idx, throughWeek) {
+  const g = gamesOf(L, idx, throughWeek);
+  const w = g.filter(x => x.pts > x.oppPts).length;
+  return { w, l: g.length - w, played: g.length };
+}
+
+// Mean win percentage of everyone a team has actually faced.
+function sosOf(L, idx, throughWeek) {
+  const g = gamesOf(L, idx, throughWeek);
+  if (!g.length) return 0.5;
+  return g.reduce((sum, x) => {
+    const r = recordOf(L, x.opp, throughWeek);
+    return sum + (r.played ? r.w / r.played : 0.5);
+  }, 0) / g.length;
+}
+
+// The rating and its parts. Early in a season results are thin, so the
+// preseason ranking still carries weight and decays as games accumulate —
+// which is why a week-2 board is not simply ordered by record.
+function rate(L, idx, throughWeek) {
+  const r = recordOf(L, idx, throughWeek);
+  const g = gamesOf(L, idx, throughWeek);
+  const pre = L.teams[idx][3];
+  const preScore = (L.teams.length + 1 - pre) / L.teams.length;
+  const winPct = r.played ? r.w / r.played : 0;
+  const rawMargin = g.length
+    ? g.reduce((s, x) => s + Math.max(-24, Math.min(24, x.pts - x.oppPts)), 0) / g.length
+    : 0;
+  const marginScore = (rawMargin + 24) / 48;
+  const sos = sosOf(L, idx, throughWeek);
+  const perf = 0.46 * winPct + 0.32 * marginScore + 0.22 * sos;
+  const preWeight = Math.max(0, 1 - throughWeek / 5);
+  return {
+    idx, record: r, games: g, sos, winPct, rawMargin, preRank: pre,
+    preWeight,
+    parts: { winPct, marginScore, sos, preScore },
+    rating: 100 * (preWeight * preScore + (1 - preWeight) * perf)
+  };
+}
+
+function boardAfter(L, throughWeek) {
+  return L.teams.map((t, i) => rate(L, i, throughWeek))
+    .sort((a, b) => b.rating - a.rating || a.preRank - b.preRank);
+}
+
+const ord = n => n + (n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th");
+const signed = n => (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n).toFixed(1);
+
+class Component extends DCLogic {
+  state = { league: null, nav: "League", open: -1, method: false };
+
+  league_() { return this.state.league || this.props.startLeague || "NFL"; }
+
+  league() { return this.league_() === "NFL" ? NFL : CFB; }
+
+  renderVals() {
+    const S = { ...this.state, league: this.league_() };
+    const self = this;
+    const L = this.league();
+    const wk = L.weeks.length;
+
+    const board = boardAfter(L, wk);
+    const prev = boardAfter(L, wk - 1).map(x => x.idx);
+    const rankOf = idx => board.map(x => x.idx).indexOf(idx) + 1;
+    const prevRankOf = idx => prev.indexOf(idx) + 1;
+
+    const name = i => L.teams[i][0];
+    const abbr = i => L.teams[i][1];
+    const group = i => L.teams[i][2];
+
+    const metaOf = e => {
+      const r = e.record;
+      return r.w + "-" + r.l + " · " + group(e.idx) + " · " + signed(e.rawMargin) + " MARGIN";
+    };
+
+    const delta = idx => prevRankOf(idx) - rankOf(idx);
+    const deltaChip = (d, big) => ({
+      label: d === 0 ? "—" : (d > 0 ? "▲" : "▼") + Math.abs(d),
+      style: "font-family:var(--font-heading);font-size:" + (big ? "11px" : "10px") +
+        ";width:" + (big ? "30px" : "26px") + ";flex:0 0 auto;text-align:center;color:" +
+        (d > 0 ? "#7fd8a8" : d < 0 ? "#e07a7a" : "#595d6c")
+    });
+
+    // Biggest riser and faller, straight out of the two boards.
+    const ranked = board.map(e => ({ e, d: delta(e.idx) }));
+    const riser = ranked.slice().sort((a, b) => b.d - a.d)[0];
+    const faller = ranked.slice().sort((a, b) => a.d - b.d)[0];
+
+    const statCell = (value, label, tone) => ({
+      value, label,
+      valueStyle: "font-family:var(--font-heading);font-size:16px;line-height:1;color:" +
+        (tone === "up" ? "#7fd8a8" : tone === "down" ? "#e07a7a" : tone === "accent" ? "#b5abfc" : "#e9e9ed")
+    });
+
+    const nextFor = idx => {
+      let out = null;
+      L.next.forEach(([h, a]) => {
+        if (h === idx) out = { opp: a, home: true };
+        if (a === idx) out = { opp: h, home: false };
+      });
+      if (!out) return "Idle week " + (wk + 1) + ".";
+      const r = recordOf(L, out.opp, wk);
+      const oRank = rankOf(out.opp);
+      return (out.home ? "hosts " : "at ") + name(out.opp) + " (" + r.w + "-" + r.l +
+        (oRank <= 15 ? ", No. " + oRank : ", unranked") + ") in week " + (wk + 1) + ".";
+    };
+
+    const resumeOf = e => e.games.map(g => {
+      const won = g.pts > g.oppPts;
+      const oppRank = rankOf(g.opp);
+      return {
+        result: won ? "W" : "L",
+        line: (g.home ? "vs " : "at ") + abbr(g.opp) + " " + g.pts + "–" + g.oppPts,
+        note: "WK " + g.week + (oppRank <= 15 ? " · NO. " + oppRank : ""),
+        badgeStyle: "font-family:var(--font-heading);font-size:9px;width:17px;height:17px;flex:0 0 auto;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#161826;background:" +
+          (won ? "#7fd8a8" : "#e07a7a"),
+        rowStyle: "display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;background:" +
+          (oppRank <= 15 ? "rgba(145,132,217,.1)" : "rgba(20,22,36,.55)")
+      };
+    });
+
+    // The written read is assembled from whichever facts are true of this
+    // team, so it changes shape as the season does.
+    const readOf = e => {
+      const r = e.record;
+      const rank = rankOf(e.idx);
+      const d = delta(e.idx);
+      const quality = e.games.filter(g => g.pts > g.oppPts && rankOf(g.opp) <= 15);
+      const bad = e.games.filter(g => g.pts < g.oppPts && rankOf(g.opp) > 15);
+      const sosRank = board.slice().sort((a, b) => b.sos - a.sos).map(x => x.idx).indexOf(e.idx) + 1;
+
+      const bits = [];
+      bits.push(r.l === 0
+        ? "Unbeaten at " + r.w + "-0"
+        : r.w === 0
+          ? "Still looking for a first win at 0-" + r.l
+          : r.w + "-" + r.l + " with a " + signed(e.rawMargin) + " average margin");
+      if (quality.length) {
+        bits.push("the win over " + abbr(quality[0].opp) + " is the best on the board here");
+      } else if (bad.length) {
+        bits.push("the loss to " + abbr(bad[0].opp) + " is the one holding this ranking down");
+      } else {
+        bits.push("nothing on the schedule has tested them yet");
+      }
+      bits.push(sosRank <= 5
+        ? "and the " + ord(sosRank) + "-toughest slate played so far backs it up"
+        : sosRank >= board.length - 4
+          ? "against the " + ord(board.length + 1 - sosRank) + "-softest slate in the league"
+          : "on a middling schedule");
+      let out = bits.join(", ") + ".";
+      if (Math.abs(d) >= 3) {
+        out += " " + (d > 0 ? "Up " : "Down ") + Math.abs(d) + " spots from last week" +
+          (e.preWeight > 0 ? ", with the preseason board still carrying " +
+            Math.round(e.preWeight * 100) + "% of the weight." : ".");
+      } else if (e.preWeight > 0 && rank <= 5) {
+        out += " Preseason position still carries " + Math.round(e.preWeight * 100) +
+          "% of the weight this early.";
+      }
+      return out;
+    };
+
+    const top = board[0];
+
+    return {
+      asOf: L.seasonLabel,
+      listLabel: L.listLabel,
+
+      leagues: [CFB, NFL].map(x => ({
+        label: x.label,
+        onClick: () => self.setState({ league: x.key, open: -1 }),
+        style: "cursor:pointer;flex:1;font-family:var(--font-body);font-size:10px;letter-spacing:.1em;padding:9px 4px;border-radius:8px 8px 0 0;border:0;background:" +
+          (S.league === x.key ? "rgba(145,132,217,.18)" : "transparent") + ";color:" +
+          (S.league === x.key ? "#e9e9ed" : "#75798c") + ";box-shadow:" +
+          (S.league === x.key ? "inset 0 -2px 0 #b5abfc" : "none")
+      })),
+
+      movers: [
+        { tag: "BIGGEST RISER", e: riser.e, d: riser.d, tone: "up" },
+        { tag: "BIGGEST FALLER", e: faller.e, d: faller.d, tone: "down" }
+      ].map(m => ({
+        tag: m.tag,
+        team: name(m.e.idx),
+        delta: (m.d > 0 ? "▲" : m.d < 0 ? "▼" : "—") + (m.d === 0 ? "" : Math.abs(m.d)),
+        line: "NO. " + prevRankOf(m.e.idx) + " → NO. " + rankOf(m.e.idx),
+        wrapStyle: "padding:10px 11px;border-radius:11px;border:1px solid " +
+          (m.tone === "up" ? "rgba(127,216,168,.28);background:rgba(22,36,30,.5)"
+                           : "rgba(224,122,122,.26);background:rgba(36,24,26,.5)"),
+        tagStyle: "font-size:7px;letter-spacing:.14em;color:" + (m.tone === "up" ? "#7fd8a8" : "#e07a7a"),
+        deltaStyle: "font-family:var(--font-heading);font-size:11px;margin-left:auto;color:" +
+          (m.tone === "up" ? "#7fd8a8" : "#e07a7a")
+      })),
+
+      spotlight: [{
+        abbr: abbr(top.idx),
+        team: name(top.idx),
+        meta: metaOf(top),
+        rankLabel: L.key === "CFB" ? "NO. 1 IN THE POLL" : "NO. 1 POWER RANK",
+        crestStyle: "width:44px;height:44px;flex:0 0 auto;border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:12px;letter-spacing:.04em;color:#161826;background:linear-gradient(150deg,#b5abfc,#5d5294);border:1.5px solid rgba(181,171,252,.7)",
+        read: readOf(top)
+      }],
+
+      rows: board.slice(1, 15).map((e, n) => {
+        const rank = n + 2;
+        const open = S.open === e.idx;
+        const d = delta(e.idx);
+        const chip = deltaChip(d);
+        const sosRank = board.slice().sort((a, b) => b.sos - a.sos).map(x => x.idx).indexOf(e.idx) + 1;
+        return {
+          rank, team: name(e.idx), meta: metaOf(e),
+          delta: chip.label, deltaStyle: chip.style,
+          chevStyle: "font-size:15px;flex:0 0 auto;color:#595d6c;transition:transform .2s ease;transform:rotate(" +
+            (open ? "90deg" : "0deg") + ")",
+          onClick: () => self.setState({ open: open ? -1 : e.idx }),
+          wrapStyle: (n ? "border-top:1px solid rgba(145,132,217,.13);" : "") +
+            (open ? "background:rgba(145,132,217,.07);box-shadow:inset 2px 0 0 #b5abfc;" : ""),
+          detail: open ? [{
+            stats: [
+              statCell(e.record.w + "-" + e.record.l, "RECORD"),
+              statCell(signed(e.rawMargin), "AVG MARGIN", e.rawMargin > 0 ? "up" : "down"),
+              statCell("No. " + sosRank, "SOS RANK", "accent"),
+              statCell("No. " + e.preRank, "PRESEASON")
+            ],
+            inputs: [
+              { label: "WIN PCT", v: e.parts.winPct, show: (e.parts.winPct * 100).toFixed(0) + "%" },
+              { label: "MARGIN", v: e.parts.marginScore, show: signed(e.rawMargin) },
+              { label: "SCHEDULE", v: e.parts.sos, show: (e.parts.sos * 100).toFixed(0) },
+              { label: "PRESEASON", v: e.parts.preScore, show: "No. " + e.preRank }
+            ].map(b => ({
+              label: b.label, value: b.show,
+              barStyle: "height:100%;width:" + (b.v * 100).toFixed(0) +
+                "%;border-radius:99px;animation:pr-grow .6s ease;background:linear-gradient(90deg,#5d5294,#b5abfc)",
+              valStyle: "font-family:var(--font-heading);font-size:10px;flex:0 0 auto;width:42px;text-align:right;color:#8f94a8"
+            })),
+            games: resumeOf(e),
+            read: readOf(e),
+            next: nextFor(e.idx)
+          }] : []
+        };
+      }),
+
+      onMethod: () => this.setState({ method: !S.method }),
+      methodLabel: S.method ? "HIDE METHODOLOGY" : "HOW THIS IS RANKED",
+      methodBtnStyle: "cursor:pointer;width:100%;margin-top:16px;font-family:var(--font-body);font-size:10px;letter-spacing:.16em;padding:12px 0;border-radius:10px;background:transparent;color:#b5abfc;border:1px solid " +
+        (S.method ? "rgba(181,171,252,.6)" : "rgba(145,132,217,.28)"),
+      method: S.method ? [{
+        text: "Every position on this board is computed, not voted. Four inputs set the order: win percentage, average scoring margin capped at 24 to keep blowouts from running away with it, the mean win percentage of opponents actually faced, and the preseason ranking. " +
+          (top.preWeight > 0
+            ? "Three weeks of football is not much evidence, so the preseason board still carries " +
+              Math.round(top.preWeight * 100) + "% of the weight and decays to nothing by week five."
+            : "Enough has been played that the preseason board no longer counts."),
+        weights: [
+          { label: "WIN PCT", w: 0.46 * (1 - top.preWeight) },
+          { label: "AVG MARGIN", w: 0.32 * (1 - top.preWeight) },
+          { label: "SCHEDULE", w: 0.22 * (1 - top.preWeight) },
+          { label: "PRESEASON", w: top.preWeight }
+        ].map(x => ({
+          label: x.label,
+          value: Math.round(x.w * 100) + "%",
+          barStyle: "height:100%;width:" + (x.w * 100).toFixed(0) +
+            "%;border-radius:99px;animation:pr-grow .6s ease;background:linear-gradient(90deg,#5d5294,#b5abfc)"
+        }))
+      }] : [],
+
+      tabs: ["Home,home", "My Team,team", "League,league", "Moves,moves", "Office,office"].map(v => {
+        const [label, key] = v.split(",");
+        const on = S.nav === label;
+        return {
+          label, path: P[key],
+          onClick: () => self.setState({ nav: label }),
+          style: "cursor:pointer;background:" + (on ? "rgba(145,132,217,.12)" : "transparent") +
+            ";border:0;padding:11px 0 9px;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative;font-family:var(--font-body);color:" +
+            (on ? "#e9e9ed" : "#75798c"),
+          markStyle: "position:absolute;top:0;left:50%;transform:translateX(-50%);width:" + (on ? "34px" : "0") +
+            ";height:2px;border-radius:99px;background:#b5abfc;box-shadow:0 0 10px #b5abfc;transition:width .25s ease"
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

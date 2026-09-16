@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
+import ReportDesk from "./ReportDesk";
 import DraftSettings from "./DraftSettings";
 import { readPickClock, type ClockTier } from "@/lib/draft-clock";
 import { useNavHeight } from "@/lib/use-nav-height";
@@ -52,6 +53,16 @@ interface Admin {
   managers: Manager[];
   board: { picks: number; made: number };
   canResize: boolean;
+  /** What the advance-week switch would act on. */
+  season?: {
+    /** The week the league is on, or null once every week has settled. */
+    week: number | null;
+    openFixtures: number;
+    /** How many scoring rows the week has, which is whether it is worth closing. */
+    scored: number;
+    weeks: number;
+    settled: number;
+  };
 }
 
 const card: React.CSSProperties = {
@@ -372,6 +383,41 @@ export default function Commissioner() {
         setNotice(
           `Schedule built: ${body.matchups} matchups over ${body.weeks} weeks` +
             (body.byes ? `, with ${body.byes} byes.` : "."),
+        );
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Closing the week the league is on.
+   *
+   * The one control here that changes what every other screen says. A week
+   * only ends when somebody says so — grade_week will not settle one until the
+   * fixture mirror reports every NFL game complete, which is right when the
+   * mirror is current and leaves a league stranded on week one when it is not.
+   */
+  async function advanceWeek() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const res = await fetch("/api/admin/league", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ advanceWeek: true }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not advance the week.");
+      else
+        setNotice(
+          `Week ${body.locked} is settled. ` +
+            (body.week
+              ? `The league is on week ${body.week}, and everybody's recap of week ${body.locked} plays the next time they open the app.`
+              : "That was the last week on the schedule."),
         );
       await load();
     } finally {
@@ -879,6 +925,48 @@ export default function Commissioner() {
         </button>
       </div>
 
+      <div id="office-week" style={card}>
+        <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>The week</h6>
+        {admin.season?.week == null ? (
+          <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: 0 }}>
+            Every week on the schedule has been settled. Build a schedule, or roll
+            the league into next season below.
+          </p>
+        ) : (
+          <>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 10px" }}>
+              The league is on{" "}
+              <strong style={{ color: "var(--accent-text)", fontWeight: 500 }}>
+                week {admin.season.week}
+              </strong>
+              {admin.season.settled > 0
+                ? `, with ${admin.season.settled} ${admin.season.settled === 1 ? "week" : "weeks"} settled behind it.`
+                : ", and nothing settled behind it yet."}{" "}
+              Advancing locks it: every fixture takes the score its best-ball
+              lineup has right now, the results stand, and the whole app moves
+              to the next week — the home page, the ticker and the gamecast all
+              read the week off the fixtures rather than being told.
+            </p>
+            <p style={{ fontSize: 11.5, color: "var(--text-dim)", lineHeight: 1.6, margin: "0 0 14px" }}>
+              {admin.season.scored === 0
+                ? "Nobody has been scored in this week yet, so there is nothing to lock in. Pull the scores first."
+                : `A settled week is never recomputed, so a trade later cannot change who won it. ` +
+                  `${admin.season.openFixtures} ${admin.season.openFixtures === 1 ? "fixture" : "fixtures"} would close, ` +
+                  `and everybody's recap of week ${admin.season.week} plays the next time they open the app.`}
+            </p>
+            <button
+              onClick={advanceWeek}
+              disabled={busy || admin.season.scored === 0}
+              style={action(!busy && admin.season.scored > 0)}
+            >
+              {`Lock week ${admin.season.week} and advance`}
+            </button>
+          </>
+        )}
+      </div>
+
+      <ReportDesk week={admin.season?.week ?? null} onPublished={() => void load()} />
+
       <div id="office-franchises" style={card}>
         <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>Franchises and divisions</h6>
         <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 10px" }}>
@@ -1139,6 +1227,8 @@ function OfficeMenu() {
     ["office-tab", "Fourth tab"],
     ["office-rosters", "Rosters"],
     ["office-schedule", "Schedule"],
+    ["office-week", "The week"],
+    ["office-report", "The report"],
     ["office-franchises", "Franchises"],
     ["office-rules", "Rules"],
     ["office-intro", "Intro film"],

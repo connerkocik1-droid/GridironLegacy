@@ -181,6 +181,66 @@ export const RANKINGS = {
   basis: "league",
 };
 
+/**
+ * A published Pylon Report, two weeks deep so the arrows have something to be
+ * measured against. Taken from the real sheet: the college board's top five
+ * and the NFL board's, with the honourable mentions at sixteen to twenty.
+ */
+const REPORT_TEAMS = {
+  college: ["Georgia", "Miami", "Texas", "Ohio State", "Notre Dame"],
+  nfl: ["San Francisco 49ers", "Chicago Bears", "Kansas City Chiefs",
+        "Jacksonville Jaguars", "Seattle Seahawks"],
+};
+
+const REPORT_HM = {
+  college: ["Louisville", "SMU", "Utah", "Iowa", "Missouri"],
+  nfl: ["New England Patriots", "Carolina Panthers", "Pittsburgh Steelers",
+        "Houston Texans", "New York Jets"],
+};
+
+const board = (teams, hm, note) => ({
+  ranked: teams.map((team, i) => ({
+    rank: i + 1,
+    team,
+    record: i % 2 ? "1-0" : "2-0",
+    // Not every team gets a write-up: a row with nothing behind it must not
+    // pretend to open.
+    note: i === 4 ? "" : `${note} ${team} did something worth a paragraph.`,
+  })),
+  honorable: hm.map((team, i) => ({ rank: 16 + i, team, record: "1-1", note: "" })),
+});
+
+export const REPORT = {
+  isCommissioner: true,
+  report: {
+    week: 2,
+    publishedAt: new Date(Date.now() - 3 * 3_600_000).toISOString(),
+    against: 1,
+    college: board(REPORT_TEAMS.college, REPORT_HM.college, "College:"),
+    nfl: board(REPORT_TEAMS.nfl, REPORT_HM.nfl, "NFL:"),
+    // Every kind of arrow, so none of them is drawn only in theory: a climb,
+    // a fall, a team that held, a newcomer, and an honourable mention that
+    // broke into the fifteen.
+    moves: {
+      college: {
+        georgia: { kind: "held" },
+        miami: { kind: "up", places: 4 },
+        texas: { kind: "down", places: 1 },
+        "ohio state": { kind: "new" },
+        "notre dame": { kind: "up", places: 12 },
+        louisville: { kind: "down", places: 3 },
+      },
+      nfl: {
+        "san francisco 49ers": { kind: "held" },
+        "chicago bears": { kind: "up", places: 6 },
+        "kansas city chiefs": { kind: "down", places: 2 },
+        "jacksonville jaguars": { kind: "new" },
+        "seattle seahawks": { kind: "up", places: 1 },
+      },
+    },
+  },
+};
+
 export function routes(page, over = {}) {
   const json = (body) => (r) => r.fulfill({ json: body });
 
@@ -1189,17 +1249,47 @@ export function routes(page, over = {}) {
     })),
   }));
 
-  page.route("**/api/admin/league**", json({
-    isCommissioner: true,
-    league: { id: "l1", name: "Pylon Fantasy", season: 2026, settings: SETTINGS,
-      draft_state: "pending", current_pick: 1, draft_at: null, lottery_order: null },
-    managers: MANAGERS.map((m, i) => ({ ...m, claimed: m.name !== "Open",
-      isCommissioner: i === 0,
-      // Mid-collection: two still owing, so the office shows both states of
-      // the row and the "everybody has paid" button is live.
-      duesPaid: i > 1 })),
-    board: { picks: 288, made: 0 }, canResize: true,
-  }));
+  // The week the office would close, and whether there is anything in it. The
+  // check overrides `over.season` to put the card in its other states: a week
+  // nobody has been scored in, and a season with nothing left.
+  let season = over.season ?? { week: 2, openFixtures: 6, scored: 148, weeks: 13, settled: 1 };
+
+  page.route("**/api/admin/league**", (r) => {
+    if (r.request().method() === "PATCH") {
+      const body = JSON.parse(r.request().postData() ?? "{}");
+      if (body.advanceWeek === true) {
+        if (!season.week) return r.fulfill({ status: 409, json: { error: "Every week has been settled." } });
+        if (!season.scored) {
+          return r.fulfill({
+            status: 409,
+            json: { error: `Nobody has been scored in week ${season.week} yet.` },
+          });
+        }
+        const locked = season.week;
+        season = { ...season, week: locked + 1, settled: season.settled + 1, scored: 0 };
+        return r.fulfill({ json: { ok: true, locked, week: season.week } });
+      }
+      return r.fulfill({ json: { ok: true } });
+    }
+
+    return r.fulfill({ json: {
+      isCommissioner: true,
+      league: { id: "l1", name: "Pylon Fantasy", season: 2026, settings: SETTINGS,
+        draft_state: "pending", current_pick: 1, draft_at: null, lottery_order: null },
+      managers: MANAGERS.map((m, i) => ({ ...m, claimed: m.name !== "Open",
+        isCommissioner: i === 0,
+        // Mid-collection: two still owing, so the office shows both states of
+        // the row and the "everybody has paid" button is live.
+        duesPaid: i > 1 })),
+      board: { picks: 288, made: 0 }, canResize: true,
+      season,
+    } });
+  });
+  page.route("**/api/report", (r) => {
+    if (r.request().method() === "POST") return r.fulfill({ json: { ok: true, week: 2 } });
+    return r.fulfill({ json: over.noReport ? { isCommissioner: true, report: null } : REPORT });
+  });
+
   page.route("**/api/admin/roster", json({
     managers: MANAGERS,
     players: ROSTER.map(([n]) => ({ name: n, managerId: "m0",

@@ -16,6 +16,7 @@ import WeekRecap from "./WeekRecap";
 import GamecastButton from "./GamecastButton";
 import MatchupHero from "./MatchupHero";
 import PowerRank from "./PowerRank";
+import PylonReport from "./PylonReport";
 import { useRefreshable } from "@/lib/use-refresh";
 import type { Home } from "@/lib/home-types";
 
@@ -153,6 +154,18 @@ export default function HomeBoard() {
             find out somebody is waiting on them. */}
         <TradeBallots ballots={home?.ballots ?? []} onVoted={load} />
       </Section>
+
+      {/* Below the league's own week and above the doors. It is a read rather
+          than a place to go, which is what everything above it is; and it is
+          about football beyond this league, which is what everything below it
+          is not.
+
+          Not wrapped in a Section, deliberately: a Section draws its heading
+          whether or not its child renders anything, and this renders nothing
+          at all until a week has been published. The card carries its own
+          title so that the whole thing can be absent rather than be a heading
+          over an empty box. */}
+      <PylonReport />
 
       {/* Three doors, directly under the score, because the score is what
           raises every question any of them answers. Yours first: on a Sunday

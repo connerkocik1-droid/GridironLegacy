@@ -12,7 +12,7 @@
 -- has the early schema and no record of it; this file recognises that and
 -- writes the record down rather than failing on the tables already there.
 --
--- Built from 57 migrations:
+-- Built from 59 migrations:
 --   0001_schema.sql
 --   0002_trades.sql
 --   0003_draft.sql
@@ -70,6 +70,8 @@
 --   0055_the_rookie_draft_is_the_one_you_earned.sql
 --   0056_a_week_is_recapped_once.sql
 --   0057_a_league_that_says_nothing_still_fields_a_team.sql
+--   0058_the_commissioner_says_when_the_week_is_over.sql
+--   0059_the_pylon_report.sql
 
 begin;
 
@@ -14297,6 +14299,257 @@ begin
 
     insert into schema_migrations (name) values ('0057_a_league_that_says_nothing_still_fields_a_team.sql');
     raise notice 'applied %', '0057_a_league_that_says_nothing_still_fields_a_team.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0058_the_commissioner_says_when_the_week_is_over.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0058_the_commissioner_says_when_the_week_is_over.sql') then
+    raise notice 'skipping %, already applied', '0058_the_commissioner_says_when_the_week_is_over.sql';
+  else
+    -- The week ends when the league says it does.
+
+    -- Until now a week closed itself: grade_week refuses to mark anything final
+    -- until every NFL game that week is complete, which is right when the fixture
+    -- mirror is up to date and useless when it is not. A league whose games never
+    -- arrived, or arrived incomplete, sat on week one forever — the scores were
+    -- there, the matchups were scored, and nothing would settle them, so the
+    -- standings stayed empty and every screen in the app kept saying week one.
+    --
+    -- So the commissioner gets a switch. It locks the current week with whatever
+    -- the lineups actually scored, decides the results, and the league moves on —
+    -- because the week the app is on is derived from the fixtures rather than
+    -- stored, every screen follows without being told.
+    --
+    -- It refuses on a week nobody has been scored in. Locking one of those would
+    -- write a tie into every fixture in the league and call it a result, and a
+    -- recorded result is the one thing this app will not recompute.
+
+    create or replace function advance_week(p_league_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me      managers;
+      v_week    int;
+      v_scored  int;
+      v_m       matchups;
+      v_home    numeric;
+      v_away    numeric;
+      v_locked  int := 0;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can advance the week' using errcode = '42501';
+      end if;
+
+      -- The week the league is on: the first fixture still to be settled. The same
+      -- rule currentWeek() uses in the app, so the button closes the week every
+      -- screen is showing rather than one of its own choosing.
+      select min(week) into v_week
+        from matchups
+       where league_id = p_league_id and not final;
+
+      if v_week is null then
+        return jsonb_build_object('ok', false, 'error', 'Every week has been settled.');
+      end if;
+
+      select count(*) into v_scored
+        from player_scores
+       where league_id = p_league_id and week = v_week;
+
+      if v_scored = 0 then
+        return jsonb_build_object(
+          'ok', false,
+          'week', v_week,
+          'error', format('Nobody has been scored in week %s yet.', v_week));
+      end if;
+
+      for v_m in
+        select * from matchups
+         where league_id = p_league_id and week = v_week and not final
+      loop
+        v_home := lineup_points(p_league_id, v_m.home_manager, v_week);
+        v_away := lineup_points(p_league_id, v_m.away_manager, v_week);
+
+        update matchups
+           set home_points    = v_home,
+               away_points    = v_away,
+               -- The same photograph grade_week takes, and for the same reason:
+               -- once the week is closed the arrangement is never recomputed, so a
+               -- trade in November cannot change who won in September.
+               home_starters  = best_ball_starters(p_league_id, v_m.home_manager, v_week),
+               away_starters  = best_ball_starters(p_league_id, v_m.away_manager, v_week),
+               winner = case
+                 when v_home > v_away then v_m.home_manager
+                 when v_away > v_home then v_m.away_manager
+                 else null
+               end,
+               is_tie   = v_home = v_away,
+               final    = true,
+               graded_at = now()
+         where id = v_m.id;
+
+        v_locked := v_locked + 1;
+      end loop;
+
+      return jsonb_build_object(
+        'ok', true,
+        'locked', v_week,
+        -- What the league is on now. Null once the last week has been settled,
+        -- which is a season that is over rather than a week nobody can find.
+        'week', (select min(week) from matchups
+                  where league_id = p_league_id and not final),
+        'games', v_locked);
+    end;
+    $$;
+
+    revoke all on function advance_week(uuid) from public;
+    grant execute on function advance_week(uuid) to authenticated;
+
+    insert into schema_migrations (name) values ('0058_the_commissioner_says_when_the_week_is_over.sql');
+    raise notice 'applied %', '0058_the_commissioner_says_when_the_week_is_over.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0059_the_pylon_report.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0059_the_pylon_report.sql') then
+    raise notice 'skipping %, already applied', '0059_the_pylon_report.sql';
+  else
+    -- The Pylon Report.
+
+    -- A weekly column the commissioner writes elsewhere and pastes in: a fifteen
+    -- deep college ranking and a fifteen deep NFL power ranking, five honourable
+    -- mentions apiece, and a paragraph on each team. It is the one thing in this
+    -- app that is somebody's opinion rather than something derived, so it is
+    -- stored as written rather than computed from anything.
+    --
+    -- One row per league per week, holding both boards. Not a row per team: the
+    -- report is published whole and read whole, and a table of three hundred rows
+    -- a season would be a normalisation nobody ever queries across.
+    --
+    -- The arrows are not stored. Where a team sat last week is already written
+    -- down in last week's row, so storing the movement too would be storing the
+    -- same fact twice and letting the two disagree the moment a week is edited.
+
+    create table if not exists pylon_reports (
+      league_id     uuid not null references leagues(id) on delete cascade,
+      week          int  not null,
+      -- { ranked: [{rank, team, record, note}], honorable: [...] }
+      college       jsonb not null default '{"ranked": [], "honorable": []}'::jsonb,
+      nfl           jsonb not null default '{"ranked": [], "honorable": []}'::jsonb,
+      published_at  timestamptz not null default now(),
+      published_by  uuid references managers(id) on delete set null,
+      primary key (league_id, week)
+    );
+
+    alter table pylon_reports enable row level security;
+
+    -- Everybody in the league reads it. That is the whole point of it.
+    create policy pylon_reports_read on pylon_reports for select to authenticated
+      using (league_id in (select league_id from managers where auth_user_id = auth.uid()));
+
+    -- Written only through publish_pylon_report, which checks who is asking.
+    revoke insert, update, delete on pylon_reports from authenticated;
+
+    /**
+     * Publish, or replace, a week's report.
+     *
+     * Replacing rather than refusing: the commissioner will paste a week, notice a
+     * team missing its write-up, and paste it again. A publish that had to be
+     * deleted first would be a publish nobody corrects.
+     */
+    create or replace function publish_pylon_report(
+      p_week    int,
+      p_college jsonb,
+      p_nfl     jsonb
+    )
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me managers;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner then
+        raise exception 'Only the commissioner can publish the report' using errcode = '42501';
+      end if;
+
+      if p_week is null or p_week < 1 then
+        raise exception 'The report needs a week';
+      end if;
+
+      -- An empty report is a paste that did not work. Storing it would replace a
+      -- good week with a blank one, which is the one way this can lose writing.
+      if coalesce(jsonb_array_length(p_college -> 'ranked'), 0) = 0
+         and coalesce(jsonb_array_length(p_nfl -> 'ranked'), 0) = 0 then
+        raise exception 'That report has nothing ranked in it';
+      end if;
+
+      insert into pylon_reports (league_id, week, college, nfl, published_at, published_by)
+      values (v_me.league_id, p_week,
+              coalesce(p_college, '{"ranked": [], "honorable": []}'::jsonb),
+              coalesce(p_nfl, '{"ranked": [], "honorable": []}'::jsonb),
+              now(), v_me.id)
+      on conflict (league_id, week) do update
+        set college      = excluded.college,
+            nfl          = excluded.nfl,
+            published_at = now(),
+            published_by = excluded.published_by;
+
+      return jsonb_build_object('ok', true, 'week', p_week);
+    end;
+    $$;
+
+    revoke all on function publish_pylon_report(int, jsonb, jsonb) from public;
+    grant execute on function publish_pylon_report(int, jsonb, jsonb) to authenticated;
+
+    /** Take a week's report down, for one pasted against the wrong week. */
+    create or replace function unpublish_pylon_report(p_week int)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me managers;
+      v_gone int;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner then
+        raise exception 'Only the commissioner can take the report down' using errcode = '42501';
+      end if;
+
+      delete from pylon_reports
+       where league_id = v_me.league_id and week = p_week;
+      get diagnostics v_gone = row_count;
+
+      return jsonb_build_object('ok', v_gone > 0, 'week', p_week);
+    end;
+    $$;
+
+    revoke all on function unpublish_pylon_report(int) from public;
+    grant execute on function unpublish_pylon_report(int) to authenticated;
+
+    insert into schema_migrations (name) values ('0059_the_pylon_report.sql');
+    raise notice 'applied %', '0059_the_pylon_report.sql';
   end if;
 end
 $__migration__$;

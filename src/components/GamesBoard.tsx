@@ -60,7 +60,7 @@ export default function GamesBoard() {
 
   const load = useCallback(async () => {
     const [slate, lineup] = await Promise.all([
-      fetch("/api/scoreboard", { cache: "no-store" })
+      fetch("/api/scoreboard?league=1", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null),
       // Whose players are in which game. A failure here costs the counts and

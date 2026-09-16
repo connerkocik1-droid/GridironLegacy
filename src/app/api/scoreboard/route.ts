@@ -1,4 +1,6 @@
 import { fetchScoreboard, type Game, type SeasonType } from "@/lib/espn";
+import { isConfigured, serverClient } from "@/lib/supabase";
+import { currentWeek } from "@/lib/week";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +68,13 @@ async function latestPlayed(year?: number): Promise<Game[]> {
  * Monday — but only within the run of games it is already showing, never back
  * across the start of the season. Naming a `week` or a `seasontype` pins it
  * exactly: `?seasontype=1&week=3` is preseason week three, played or not.
+ *
+ * `?league=1` pins it to the week the league is on instead. That is the answer
+ * the ticker and the games page want: a league whose commissioner has not
+ * advanced past week one should be looking at week one's football, not at
+ * whatever ESPN happens to have live. Falls back to asking ESPN when there is
+ * no league to read — signed out, or a database that is not configured — so
+ * the board never goes blank over it.
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -75,6 +84,11 @@ export async function GET(req: Request) {
   if (weekParam && !Number.isInteger(week)) {
     return Response.json({ error: "week must be an integer" }, { status: 400 });
   }
+
+  // The week the league is on, which overrides "whatever is live" but never
+  // an explicitly named week: asking for a week and being given another is a
+  // lie whoever tells it.
+  const leagueWeek = weekParam ? null : url.searchParams.get("league") === "1" ? await weekOfLeague() : null;
 
   const typeParam = url.searchParams.get("seasontype");
   const asked = typeParam ? Number(typeParam) : null;
@@ -95,12 +109,17 @@ export async function GET(req: Request) {
 
   // Only meaningful when no particular week was named; asking for a week and
   // then being given a different one would be a lie.
-  const preferResults = url.searchParams.get("prefer") === "results" && seasonType == null;
+  const preferResults =
+    url.searchParams.get("prefer") === "results" && seasonType == null && leagueWeek == null;
 
   try {
     const games = preferResults
       ? await latestPlayed(year)
-      : await fetchScoreboard(week, seasonType, year);
+      : await fetchScoreboard(
+          week ?? leagueWeek?.week,
+          seasonType ?? (leagueWeek ? 2 : null),
+          year ?? leagueWeek?.season,
+        );
 
     return Response.json(
       {
@@ -111,7 +130,15 @@ export async function GET(req: Request) {
         played: hasResults(games),
         fetchedAt: new Date().toISOString(),
       },
-      { headers: { "cache-control": "public, s-maxage=30, stale-while-revalidate=60" } },
+      {
+        headers: {
+          // A league-pinned board is one league's answer, so it is never put in
+          // a cache twelve other leagues read from.
+          "cache-control": leagueWeek
+            ? "private, no-store"
+            : "public, s-maxage=30, stale-while-revalidate=60",
+        },
+      },
     );
   } catch (err) {
     // ESPN is undocumented and unreliable; a failure degrades to an empty
@@ -128,5 +155,44 @@ export async function GET(req: Request) {
       },
       { status: 200 },
     );
+  }
+}
+
+
+/**
+ * The week the signed-in manager's league is on, and the season it is playing.
+ *
+ * Null for anybody who is not signed in, and for a database that is not
+ * configured — the board falls back to ESPN's own idea of now rather than
+ * refusing, because a scoreboard is worth showing to somebody signed out.
+ */
+async function weekOfLeague(): Promise<{ week: number; season: number } | null> {
+  if (!isConfigured()) return null;
+
+  try {
+    const db = await serverClient();
+    const {
+      data: { user },
+    } = await db.auth.getUser();
+    if (!user) return null;
+
+    const { data: me } = await db
+      .from("managers")
+      .select("league_id")
+      .eq("auth_user_id", user.id)
+      .single();
+    if (!me) return null;
+
+    const { data: league } = await db
+      .from("leagues")
+      .select("season")
+      .eq("id", me.league_id)
+      .single();
+    if (!league?.season) return null;
+
+    return { week: await currentWeek(db, me.league_id), season: Number(league.season) };
+  } catch (err) {
+    console.warn("[scoreboard] could not read the league's week", err);
+    return null;
   }
 }

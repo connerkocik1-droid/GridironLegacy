@@ -101,17 +101,14 @@ export async function GET() {
     (f) => f.week === week + 1 && (f.home_manager === me.id || f.away_manager === me.id),
   );
 
-  const [kickoff, last] = await Promise.all([
-    nextFixture ? firstKickoff(db, league?.season, week + 1) : Promise.resolve(null),
-    lastKickoff(db, league?.season, week),
-  ]);
+  const kickoff = nextFixture ? await firstKickoff(db, league?.season, week + 1) : null;
 
   return Response.json({
     seenWeek: me.recap_seen_week,
-    // When this week's recap is allowed to play: the Tuesday midnight in New
-    // York after the week's last game. Sent as an instant so the browser is
-    // never asked what day it is where it happens to be standing.
-    opensAt: recapOpensAt(last, gradedAtOf(graded, week)),
+    // When this week's recap is allowed to play: the moment the commissioner
+    // locked the week. Sent as an instant, so the browser is never asked what
+    // day it is where it happens to be standing.
+    opensAt: recapOpensAt(gradedAtOf(graded, week)),
     recap: {
       week,
       meId: me.id,
@@ -196,21 +193,11 @@ async function readMe(
   return { ...plain.data, recap_seen_week: null };
 }
 
-/** When the last game of a week kicked off, which is what dates its Tuesday. */
-async function lastKickoff(db: Db, season: number | undefined, week: number): Promise<string | null> {
-  return kickoffAt(db, season, week, false);
-}
-
 /** When the next week's football starts, for the "next up" card. */
-async function firstKickoff(db: Db, season: number | undefined, week: number): Promise<string | null> {
-  return kickoffAt(db, season, week, true);
-}
-
-async function kickoffAt(
+async function firstKickoff(
   db: Db,
   season: number | undefined,
   week: number,
-  ascending: boolean,
 ): Promise<string | null> {
   if (!season) return null;
   const { data } = await db
@@ -218,13 +205,13 @@ async function kickoffAt(
     .select("starts_at")
     .eq("season", season)
     .eq("week", week)
-    .order("starts_at", { ascending })
+    .order("starts_at", { ascending: true })
     .limit(1)
     .maybeSingle();
   return (data?.starts_at as string | null) ?? null;
 }
 
-/** When a week was graded, as a fallback for dating a league with no fixtures. */
+/** When the week was locked, which is when its recap becomes due. */
 function gradedAtOf(
   graded: { week: number; graded_at?: string | null }[],
   week: number,
