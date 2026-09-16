@@ -66,37 +66,20 @@ const DATA: RecapData = {
 
 console.log("--- when the recap opens ---");
 {
-  // Monday Night Football, week 3 of 2026: 8:15pm ET on 21 September, which is
-  // 00:15 UTC on the 22nd. The recap belongs to the Tuesday after it.
-  const mnf = "2026-09-22T00:15:00Z";
-  const opens = recapOpensAt(mnf, null);
-  const et = new Date(opens!).toLocaleString("en-US", { timeZone: "America/New_York" });
-  ok(`Monday night's game opens the Tuesday after it (${et})`, et.startsWith("9/22/2026, 12:00:00 AM"));
-
-  // A week whose last game is on the Sunday still waits for Tuesday, not for
-  // the next midnight — the football week has a shape and Monday is in it.
-  const sunday = recapOpensAt("2026-09-20T20:25:00Z", null);
-  const sundayEt = new Date(sunday!).toLocaleString("en-US", { timeZone: "America/New_York" });
-  ok(`a Sunday finish still waits for Tuesday (${sundayEt})`,
-    sundayEt.startsWith("9/22/2026, 12:00:00 AM"));
-
-  // March, when New York is on daylight time and the naive UTC arithmetic is
-  // an hour out. The recap must still open at midnight local.
-  const spring = recapOpensAt("2026-03-09T23:15:00Z", null);
-  const springEt = new Date(spring!).toLocaleString("en-US", { timeZone: "America/New_York" });
-  ok(`daylight saving does not shift midnight (${springEt})`,
-    springEt.startsWith("3/10/2026, 12:00:00 AM"));
-
-  // No fixtures on record. A graded week means the football is over, so the
-  // grade itself is the best answer available rather than no answer at all.
-  const graded = recapOpensAt(null, "2026-09-22T04:00:00Z");
-  ok("with no kickoff on record the grade stands in", graded === Date.parse("2026-09-22T04:00:00Z"));
-  ok("and with neither, there is nothing to open", recapOpensAt(null, null) === null);
+  // The league's weeks do not end on a clock. The commissioner closes one, and
+  // that is the moment there is a week to recap — an earlier version waited
+  // for the Tuesday midnight in New York after the week's last kickoff, which
+  // was right about the NFL's week and wrong about this league's.
+  const locked = "2026-09-22T00:15:00Z";
+  ok("the recap opens when the week was locked",
+    recapOpensAt(locked) === Date.parse(locked));
+  ok("and a week nobody has locked has no recap to open", recapOpensAt(null) === null);
+  ok("nor one whose timestamp is nonsense", recapOpensAt("not a date") === null);
 }
 
 console.log("\n--- and whether it is due ---");
 {
-  const opens = recapOpensAt("2026-09-22T00:15:00Z", null)!;
+  const opens = Date.parse("2026-09-22T00:15:00Z");
   ok("not before it opens", !recapIsDue({ week: 3, seenWeek: null, opensAt: opens, now: opens - 1 }));
   ok("due the moment it does", recapIsDue({ week: 3, seenWeek: null, opensAt: opens, now: opens }));
   ok("not once it has been seen", !recapIsDue({ week: 3, seenWeek: 3, opensAt: opens, now: opens + 1 }));

@@ -47,7 +47,39 @@ export async function GET() {
 
   const made = (picks ?? []).filter((p) => p.player_name).length;
 
+  // What the advance-week switch would act on: the week the league is on, how
+  // many of its fixtures are still open, and whether anybody has been scored in
+  // it. A button that says "advance" without saying what it would close is a
+  // button nobody presses twice.
+  const { data: fixtures } = await db
+    .from("matchups")
+    .select("week, final")
+    .eq("league_id", me.league_id)
+    .order("week");
+
+  const open = (fixtures ?? []).filter((f) => !f.final);
+  const week = open.length ? Math.min(...open.map((f) => f.week)) : null;
+
+  const { count: scored } =
+    week == null
+      ? { count: 0 }
+      : await db
+          .from("player_scores")
+          .select("player_name", { count: "exact", head: true })
+          .eq("league_id", me.league_id)
+          .eq("week", week);
+
   return Response.json({
+    season: {
+      /** The week the league is on, or null once every week has settled. */
+      week,
+      /** Fixtures in it still to be closed. */
+      openFixtures: week == null ? 0 : open.filter((f) => f.week === week).length,
+      /** Whether there is anything to lock in. */
+      scored: Number(scored ?? 0),
+      weeks: new Set((fixtures ?? []).map((f) => f.week)).size,
+      settled: (fixtures ?? []).length - open.length,
+    },
     isCommissioner: me.is_commissioner,
     league,
     // Never send the hash, only whether the franchise is spoken for.
@@ -97,6 +129,7 @@ export async function PATCH(req: Request) {
     waiverDays?: unknown;
     movesTab?: unknown;
     duesNote?: unknown;
+    advanceWeek?: unknown;
   };
   try {
     body = await req.json();
@@ -388,6 +421,43 @@ export async function PATCH(req: Request) {
     if (error) {
       return Response.json({ error: error.message }, { status: error.code === "42501" ? 403 : 409 });
     }
+  }
+
+  /**
+   * Closing the week the league is on.
+   *
+   * Answered before the other commands rather than beside them because it is
+   * the one that returns something the caller needs: which week was locked and
+   * which the league is on now. Everything else here reports ok and lets the
+   * page refetch.
+   */
+  if (body.advanceWeek === true) {
+    if (!me.is_commissioner) {
+      return Response.json({ error: "Only the commissioner can advance the week" }, { status: 403 });
+    }
+
+    const { data, error } = await db.rpc("advance_week", { p_league_id: me.league_id });
+    if (error) {
+      return Response.json(
+        {
+          error:
+            error.code === "42P01" || error.code === "PGRST202"
+              ? "The advance-week function is not in the database yet. Run supabase/all-migrations.sql."
+              : error.message,
+        },
+        { status: error.code === "42501" ? 403 : 409 },
+      );
+    }
+
+    const answer = (data ?? {}) as { ok?: boolean; error?: string; locked?: number; week?: number };
+    // The function refuses rather than raising for the two ordinary reasons —
+    // a season with nothing left to settle, and a week nobody has scored in —
+    // so those come back as a message rather than as a failure.
+    if (answer.ok !== true) {
+      return Response.json({ error: answer.error ?? "The week could not be advanced." }, { status: 409 });
+    }
+
+    return Response.json({ ok: true, locked: answer.locked ?? null, week: answer.week ?? null });
   }
 
   return Response.json({ ok: true });

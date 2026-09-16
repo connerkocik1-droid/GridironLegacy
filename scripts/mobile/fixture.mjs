@@ -1189,17 +1189,42 @@ export function routes(page, over = {}) {
     })),
   }));
 
-  page.route("**/api/admin/league**", json({
-    isCommissioner: true,
-    league: { id: "l1", name: "Pylon Fantasy", season: 2026, settings: SETTINGS,
-      draft_state: "pending", current_pick: 1, draft_at: null, lottery_order: null },
-    managers: MANAGERS.map((m, i) => ({ ...m, claimed: m.name !== "Open",
-      isCommissioner: i === 0,
-      // Mid-collection: two still owing, so the office shows both states of
-      // the row and the "everybody has paid" button is live.
-      duesPaid: i > 1 })),
-    board: { picks: 288, made: 0 }, canResize: true,
-  }));
+  // The week the office would close, and whether there is anything in it. The
+  // check overrides `over.season` to put the card in its other states: a week
+  // nobody has been scored in, and a season with nothing left.
+  let season = over.season ?? { week: 2, openFixtures: 6, scored: 148, weeks: 13, settled: 1 };
+
+  page.route("**/api/admin/league**", (r) => {
+    if (r.request().method() === "PATCH") {
+      const body = JSON.parse(r.request().postData() ?? "{}");
+      if (body.advanceWeek === true) {
+        if (!season.week) return r.fulfill({ status: 409, json: { error: "Every week has been settled." } });
+        if (!season.scored) {
+          return r.fulfill({
+            status: 409,
+            json: { error: `Nobody has been scored in week ${season.week} yet.` },
+          });
+        }
+        const locked = season.week;
+        season = { ...season, week: locked + 1, settled: season.settled + 1, scored: 0 };
+        return r.fulfill({ json: { ok: true, locked, week: season.week } });
+      }
+      return r.fulfill({ json: { ok: true } });
+    }
+
+    return r.fulfill({ json: {
+      isCommissioner: true,
+      league: { id: "l1", name: "Pylon Fantasy", season: 2026, settings: SETTINGS,
+        draft_state: "pending", current_pick: 1, draft_at: null, lottery_order: null },
+      managers: MANAGERS.map((m, i) => ({ ...m, claimed: m.name !== "Open",
+        isCommissioner: i === 0,
+        // Mid-collection: two still owing, so the office shows both states of
+        // the row and the "everybody has paid" button is live.
+        duesPaid: i > 1 })),
+      board: { picks: 288, made: 0 }, canResize: true,
+      season,
+    } });
+  });
   page.route("**/api/admin/roster", json({
     managers: MANAGERS,
     players: ROSTER.map(([n]) => ({ name: n, managerId: "m0",

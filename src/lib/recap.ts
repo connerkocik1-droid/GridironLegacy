@@ -4,11 +4,9 @@
  * Two separable things live here, and both are pure so they can be tested
  * without a browser or a database.
  *
- * The first is *when*. The NFL week ends on Monday night, so the recap belongs
- * to Tuesday — and the app has to agree with the league about when Tuesday is,
- * which is Tuesday in New York, not Tuesday wherever the manager happens to be
- * standing. A manager in Sydney opening the app on their Tuesday morning has
- * not reached the end of the football week yet.
+ * The first is *when*: the first time somebody opens the app after the
+ * commissioner has closed a week. Not a calendar rule — this league's weeks
+ * end when the league says they do.
  *
  * The second is *what*. Nothing the recap says is authored copy: every
  * sentence, badge and number falls out of the same fixtures and scores the
@@ -18,78 +16,22 @@
  * them is flattened into a single string that is true in one case.
  */
 
-const ET = "America/New_York";
-
-/** An instant's wall-clock fields as they read in New York. */
-function etFields(at: number): { y: number; m: number; d: number; h: number; mi: number; s: number } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: ET,
-    hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).formatToParts(new Date(at));
-
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
-  // Midnight formats as hour 24 rather than 0 in some ICU versions.
-  return { y: get("year"), m: get("month"), d: get("day"), h: get("hour") % 24, mi: get("minute"), s: get("second") };
-}
-
 /**
- * The instant at which a wall-clock New York time occurs.
+ * When the recap for a week is allowed to play: the moment the week was locked.
  *
- * Guess in UTC, see where the guess actually lands in New York, and correct by
- * the difference. Twice, because the correction itself can cross a daylight
- * saving boundary — the second pass lands on the right side of it.
+ * The league's weeks do not end on a clock. The commissioner closes one with
+ * the advance button, which is what settles the results and moves every screen
+ * on — so that is the moment there is a week to recap, and waiting for a
+ * calendar Tuesday after it would hold the recap back from a league that had
+ * already moved.
+ *
+ * An earlier version of this worked out the Tuesday midnight in New York after
+ * the week's last kickoff. It was right about when an NFL week ends and wrong
+ * about when this league's week ends, which is the only one the recap is about.
  */
-function etInstant(y: number, m: number, d: number, h = 0): number {
-  const target = Date.UTC(y, m - 1, d, h);
-  let guess = target;
-  for (let pass = 0; pass < 2; pass++) {
-    const f = etFields(guess);
-    guess += target - Date.UTC(f.y, f.m - 1, f.d, f.h, f.mi, f.s);
-  }
-  return guess;
-}
-
-/** 0 for Sunday through 6 for Saturday, in New York. */
-function etWeekday(at: number): number {
-  const f = etFields(at);
-  return new Date(Date.UTC(f.y, f.m - 1, f.d)).getUTCDay();
-}
-
-/**
- * When the recap for a week is allowed to play: the first Tuesday midnight in
- * New York strictly after the week's last kickoff.
- *
- * Anchored on the kickoff rather than on when the week was graded. Grading is
- * a job that runs when the last game ends, so it lands late on Monday night in
- * a normal week and at some arbitrary hour in an abnormal one — and a recap
- * whose availability moved with the cron would fire at 11:45 on a Monday one
- * week and be a day late the next. The last kickoff is football, and football
- * is what the manager is waiting for.
- *
- * With no fixtures on record — an imported season, a league playing to its own
- * schedule — grading is all there is to go on, and a graded week means the
- * football is over.
- */
-export function recapOpensAt(lastKickoff: string | null, gradedAt: string | null): number | null {
-  const kick = lastKickoff ? Date.parse(lastKickoff) : NaN;
-  if (!Number.isFinite(kick)) {
-    const graded = gradedAt ? Date.parse(gradedAt) : NaN;
-    return Number.isFinite(graded) ? graded : null;
-  }
-
-  const f = etFields(kick);
-  const midnight = etInstant(f.y, f.m, f.d);
-  // Days to the next Tuesday. A game that kicks off on a Tuesday — which the
-  // NFL does not do, but a rescheduled game could — waits for the one after,
-  // because the week it belongs to has not finished being played.
-  const ahead = ((2 - etWeekday(kick) + 7) % 7) || 7;
-  return midnight + ahead * 86_400_000;
+export function recapOpensAt(gradedAt: string | null): number | null {
+  const at = gradedAt ? Date.parse(gradedAt) : NaN;
+  return Number.isFinite(at) ? at : null;
 }
 
 /** Whether this manager has a recap waiting for them right now. */

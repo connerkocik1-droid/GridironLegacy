@@ -5682,3 +5682,140 @@ select grade_week(:'SL', 1);
 
 select expect('re-grading it writes down what the lineup actually scored',
   (select home_points from matchups where league_id = :'SL' and week = 1), 60.0);
+
+\echo ''
+\echo '════════ the commissioner says when the week is over ════════'
+--
+-- grade_week refuses to settle anything until the fixture mirror reports every
+-- NFL game complete. Right when the mirror is current; a league whose games
+-- never arrived sat on week one forever with the scores in front of it.
+
+\set AW '99999999-0000-0000-0000-0000000000e1'
+\set AWU 'bbbb0000-0000-0000-0000-0000000000e1'
+\set AWV 'bbbb0000-0000-0000-0000-0000000000e2'
+
+\o /dev/null
+insert into auth.users (id) values (:'AWU'), (:'AWV');
+insert into leagues (id, name, season, settings) values
+  (:'AW', 'Advancing', 2026, '{"starters": {"QB": 1}, "bench": 4, "rounds": 1}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise, auth_user_id, is_commissioner) values
+  (:'AW', 'AAA', 'A', 'Alpha', :'AWU', true),
+  (:'AW', 'BBB', 'B', 'Bravo', :'AWV', false);
+
+insert into nfl_players (name, team, position) values
+  ('Advance QB A', 'SEA', 'QB'), ('Advance QB B', 'DAL', 'QB')
+on conflict (name) do update set team = excluded.team;
+
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot, position)
+  select :'AW', m.id, case m.slot when 'AAA' then 'Advance QB A' else 'Advance QB B' end,
+         'BENCH', 'QB'
+    from managers m where m.league_id = :'AW';
+
+insert into player_scores (league_id, week, player_name, points) values
+  (:'AW', 1, 'Advance QB A', 30), (:'AW', 1, 'Advance QB B', 20);
+
+insert into matchups (league_id, week, home_manager, away_manager, final)
+  select :'AW', w,
+         (select id from managers where league_id = :'AW' and slot = 'AAA'),
+         (select id from managers where league_id = :'AW' and slot = 'BBB'),
+         false
+    from generate_series(1, 3) as w;
+
+-- Nothing has been mirrored, so the week cannot close itself. This is the
+-- state a stranded league is actually in.
+select grade_week(:'AW', 1);
+\o
+
+select expect('a week with no fixtures mirrored will not settle itself',
+  (select final from matchups where league_id = :'AW' and week = 1), false);
+
+\echo ''
+\echo '--- and only the commissioner may say so ---'
+
+\o /dev/null
+select signin(:'AWV');
+\o
+
+select expect('a manager cannot advance the week',
+  refuses(format('select advance_week(%L)', :'AW')),
+  'Only the commissioner can advance the week');
+
+select expect('and the week is still open',
+  (select final from matchups where league_id = :'AW' and week = 1), false);
+
+\echo ''
+\echo '--- what advancing does ---'
+
+\o /dev/null
+select signin(:'AWU');
+-- Kept, because every field of the one answer is worth checking and calling
+-- the function again would advance another week to read it.
+create temp table advanced as select advance_week(:'AW') as r;
+\o
+
+select expect('the commissioner can', (select r ->> 'ok' from advanced), 'true');
+select expect('it says which week it closed', (select r ->> 'locked' from advanced), '1');
+select expect('and which the league is on now', (select r ->> 'week' from advanced), '2');
+
+select expect('week one is settled',
+  (select final from matchups where league_id = :'AW' and week = 1), true);
+
+select expect('with the score the lineup actually had',
+  (select home_points from matchups where league_id = :'AW' and week = 1), 30.0);
+
+select expect('and a winner rather than a tie',
+  (select slot from managers m
+     join matchups x on x.winner = m.id
+    where x.league_id = :'AW' and x.week = 1), 'AAA');
+
+-- The photograph. Once the week is closed the arrangement is never recomputed,
+-- so a trade in November cannot change who won it in September.
+select expect('the lineup that won it is written down',
+  (select home_starters -> 0 ->> 'name' from matchups
+    where league_id = :'AW' and week = 1), 'Advance QB A');
+
+select expect('and when it was closed',
+  (select graded_at is not null from matchups where league_id = :'AW' and week = 1), true);
+
+-- Which is what the recap reads to decide it is due: the moment the week was
+-- locked, not a calendar Tuesday after it.
+select expect('the week after it is untouched',
+  (select final from matchups where league_id = :'AW' and week = 2), false);
+
+\echo ''
+\echo '--- and what it refuses ---'
+
+-- Week two has nobody scored in it. Closing that would write a tie into every
+-- fixture in the league and call it a result.
+select expect('a week nobody has been scored in is not closed',
+  (select advance_week(:'AW') ->> 'ok'), 'false');
+
+select expect('and it says why',
+  (select advance_week(:'AW') ->> 'error'), 'Nobody has been scored in week 2 yet.');
+
+select expect('so the week stays open',
+  (select final from matchups where league_id = :'AW' and week = 2), false);
+
+\o /dev/null
+insert into player_scores (league_id, week, player_name, points) values
+  (:'AW', 2, 'Advance QB A', 10), (:'AW', 2, 'Advance QB B', 10),
+  (:'AW', 3, 'Advance QB A', 12), (:'AW', 3, 'Advance QB B', 4);
+select advance_week(:'AW');
+\o
+
+select expect('once there are scores it closes',
+  (select final from matchups where league_id = :'AW' and week = 2), true);
+
+select expect('a level week is recorded as a tie',
+  (select is_tie from matchups where league_id = :'AW' and week = 2), true);
+
+select expect('with nobody named the winner',
+  (select winner is null from matchups where league_id = :'AW' and week = 2), true);
+
+\o /dev/null
+select advance_week(:'AW');
+\o
+
+select expect('and a season with nothing left says so',
+  (select advance_week(:'AW') ->> 'error'), 'Every week has been settled.');

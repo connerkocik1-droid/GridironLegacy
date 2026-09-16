@@ -132,7 +132,7 @@ export default function ScoreTicker() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/scoreboard?prefer=results", { cache: "no-store" });
+      const res = await fetch("/api/scoreboard?league=1&prefer=results", { cache: "no-store" });
       if (!res.ok) return;
       setBoard(await res.json());
     } catch {
