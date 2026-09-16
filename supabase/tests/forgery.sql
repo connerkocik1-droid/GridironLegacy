@@ -770,3 +770,48 @@ select expect('while the author stays behind what they wrote',
 \o /dev/null
 reset role;
 \o
+
+\echo ''
+\echo '--- the Pylon Report is one league''s column ---'
+
+-- Who may write it is a check inside the function, asserted in rules.sql.
+-- Who may read it is a policy, and a policy is only in force under the
+-- authenticated role — which is what this file takes on.
+
+\o /dev/null
+reset role;
+
+insert into pylon_reports (league_id, week, college, nfl)
+values
+  (:'L',  9, '{"ranked":[{"rank":1,"team":"Our own column"}],"honorable":[]}'::jsonb,
+             '{"ranked":[],"honorable":[]}'::jsonb),
+  (:'XL', 9, '{"ranked":[{"rank":1,"team":"Another league entirely"}],"honorable":[]}'::jsonb,
+             '{"ranked":[],"honorable":[]}'::jsonb);
+
+select set_config('test.uid', :'U2', false);
+set role authenticated;
+\o
+
+select expect('a manager reads their own league''s report',
+  (select count(*)::int from pylon_reports), 1);
+
+select expect('and it is theirs',
+  (select college -> 'ranked' -> 0 ->> 'team' from pylon_reports), 'Our own column');
+
+select expect('another league''s is not visible at all',
+  (select count(*)::int from pylon_reports
+    where college -> 'ranked' -> 0 ->> 'team' = 'Another league entirely'), 0);
+
+-- Written only through the function, so a manager cannot put a column up
+-- under their own name by writing the table.
+select expect('nobody writes the table directly',
+  refuses(format(
+    'insert into pylon_reports (league_id, week) values (%L, 10)', :'L')) is not null, true);
+
+select expect('nor edits one that is up',
+  refuses('update pylon_reports set college = ''{}''::jsonb') is not null or
+    (select college -> 'ranked' -> 0 ->> 'team' from pylon_reports) = 'Our own column', true);
+
+\o /dev/null
+reset role;
+\o

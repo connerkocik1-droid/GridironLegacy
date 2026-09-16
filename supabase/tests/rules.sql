@@ -5819,3 +5819,143 @@ select advance_week(:'AW');
 
 select expect('and a season with nothing left says so',
   (select advance_week(:'AW') ->> 'error'), 'Every week has been settled.');
+
+\echo ''
+\echo '════════ the Pylon Report ════════'
+--
+-- The one thing in this app that is somebody's opinion rather than something
+-- derived. So the rules are about who may write it and who may read it, and
+-- about not losing a week's writing to a paste that did not work.
+
+\set PR '77770000-0000-0000-0000-000000000001'
+\set PRU '77770000-0000-0000-0000-0000000000a1'
+\set PRV '77770000-0000-0000-0000-0000000000a2'
+\set PRX '77770000-0000-0000-0000-000000000009'
+\set PRW '77770000-0000-0000-0000-0000000000a9'
+
+\o /dev/null
+insert into auth.users (id) values (:'PRU'), (:'PRV'), (:'PRW');
+insert into leagues (id, name, season, settings) values
+  (:'PR', 'Reporting', 2026, '{"starters": {"QB": 1}, "bench": 4}'::jsonb),
+  (:'PRX', 'Some Other League', 2026, '{"starters": {"QB": 1}, "bench": 4}'::jsonb);
+
+insert into managers (league_id, slot, name, franchise, auth_user_id, is_commissioner) values
+  (:'PR',  'AAA', 'A', 'Alpha',   :'PRU', true),
+  (:'PR',  'BBB', 'B', 'Bravo',   :'PRV', false),
+  (:'PRX', 'AAA', 'X', 'Xray',    :'PRW', true);
+\o
+
+\echo ''
+\echo '--- only the commissioner writes it ---'
+
+\o /dev/null
+select signin(:'PRV');
+\o
+
+select expect('a manager cannot publish the report',
+  refuses(format($q$select publish_pylon_report(1, '{"ranked":[{"rank":1,"team":"Georgia"}]}'::jsonb, '{"ranked":[]}'::jsonb)$q$)),
+  'Only the commissioner can publish the report');
+
+select expect('nor take one down',
+  refuses('select unpublish_pylon_report(1)'),
+  'Only the commissioner can take the report down');
+
+\echo ''
+\echo '--- and everybody in the league reads it ---'
+
+\o /dev/null
+select signin(:'PRU');
+select publish_pylon_report(
+  1,
+  '{"ranked":[{"rank":1,"team":"Georgia","record":"2-0","note":"They were fine."}],"honorable":[{"rank":16,"team":"Louisville"}]}'::jsonb,
+  '{"ranked":[{"rank":1,"team":"San Francisco 49ers","record":"1-0","note":"Shanahan."}],"honorable":[]}'::jsonb);
+\o
+
+select expect('the commissioner can publish',
+  (select count(*)::int from pylon_reports where league_id = :'PR'), 1);
+
+select expect('and what was written is what is stored',
+  (select college -> 'ranked' -> 0 ->> 'note' from pylon_reports
+    where league_id = :'PR' and week = 1), 'They were fine.');
+
+select expect('both boards land',
+  (select nfl -> 'ranked' -> 0 ->> 'team' from pylon_reports
+    where league_id = :'PR' and week = 1), 'San Francisco 49ers');
+
+select expect('and the honourable mentions with them',
+  (select jsonb_array_length(college -> 'honorable') from pylon_reports
+    where league_id = :'PR' and week = 1), 1);
+
+\o /dev/null
+select signin(:'PRV');
+\o
+
+select expect('a manager in the league reads it',
+  (select count(*)::int from pylon_reports where league_id = :'PR'), 1);
+
+\o /dev/null
+select signin(:'PRW');
+\o
+
+-- Another league's commissioner. Publishing goes to their own league, not to
+-- this one — whose row reading it is allowed to see is a policy, and policies
+-- are only in force under the authenticated role, so that half is asserted in
+-- forgery.sql where the role is actually taken on.
+select expect('another league''s commissioner publishes to their own league',
+  (select publish_pylon_report(1, '{"ranked":[{"rank":1,"team":"Nobody"}]}'::jsonb, '{"ranked":[]}'::jsonb) ->> 'ok'),
+  'true');
+
+\o /dev/null
+select signin(:'PRU');
+\o
+
+select expect('their publish went to their own league, not this one',
+  (select college -> 'ranked' -> 0 ->> 'team' from pylon_reports
+    where league_id = :'PR' and week = 1), 'Georgia');
+
+\echo ''
+\echo '--- a week is republished rather than duplicated ---'
+
+-- The commissioner will paste a week, notice a team missing its write-up, and
+-- paste it again. A publish that had to be deleted first is one nobody
+-- corrects.
+\o /dev/null
+select publish_pylon_report(
+  1,
+  '{"ranked":[{"rank":1,"team":"Georgia","record":"2-0","note":"Corrected."}],"honorable":[]}'::jsonb,
+  '{"ranked":[],"honorable":[]}'::jsonb);
+\o
+
+select expect('pasting week one again replaces it',
+  (select count(*)::int from pylon_reports where league_id = :'PR' and week = 1), 1);
+
+select expect('with the corrected writing',
+  (select college -> 'ranked' -> 0 ->> 'note' from pylon_reports
+    where league_id = :'PR' and week = 1), 'Corrected.');
+
+\echo ''
+\echo '--- and an empty paste never replaces a good week ---'
+
+select expect('a report with nothing ranked is refused',
+  refuses($q$select publish_pylon_report(1, '{"ranked":[]}'::jsonb, '{"ranked":[]}'::jsonb)$q$),
+  'That report has nothing ranked in it');
+
+select expect('so last week''s writing is still there',
+  (select college -> 'ranked' -> 0 ->> 'note' from pylon_reports
+    where league_id = :'PR' and week = 1), 'Corrected.');
+
+select expect('a report needs a week',
+  refuses($q$select publish_pylon_report(null, '{"ranked":[{"rank":1,"team":"Georgia"}]}'::jsonb, '{"ranked":[]}'::jsonb)$q$),
+  'The report needs a week');
+
+\echo ''
+\echo '--- taking one down ---'
+
+select expect('the commissioner can take a week down',
+  (select unpublish_pylon_report(1) ->> 'ok'), 'true');
+
+select expect('and it is gone',
+  (select count(*)::int from pylon_reports where league_id = :'PR' and week = 1), 0);
+
+select expect('taking down a week that was never up says so rather than pretending',
+  (select unpublish_pylon_report(9) ->> 'ok'), 'false');
