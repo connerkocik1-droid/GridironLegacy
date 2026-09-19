@@ -435,7 +435,7 @@ function Board() {
 
       <div style={{ padding: "14px 0 24px" }}>
         {tab === "Roster" ? <MyTeamRoster /> : null}
-        {tab === "Matchup" ? <MatchupBoard embedded /> : null}
+        {tab === "Matchup" ? <MatchupBoard /> : null}
         {tab === "News" ? <MyTeamNews /> : null}
         {tab === "Watch" ? <WatchlistBoard embedded /> : null}
         {tab === "Trades" ? (

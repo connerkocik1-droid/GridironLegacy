@@ -7,7 +7,7 @@ export default function CommissionerPage() {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "var(--screen)",
         background:
           "radial-gradient(120% 80% at 50% -10%,rgb(var(--glow-rgb) / .4),transparent 60%),var(--bg)",
       }}

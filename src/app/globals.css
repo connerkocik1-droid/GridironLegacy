@@ -523,10 +523,10 @@ a:hover {
      recognise at thirty-two pixels is not worth the forty it costs the name
      beside it. */
   .gl-matchup-row {
-    gap: 5px !important;
-    padding: 10px 8px !important;
+    gap: 4px !important;
+    padding: 7px 6px !important;
     /* The slot chip in the middle only has to hold "FLEX" and "DST". */
-    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 1fr) 31px minmax(0, 1fr) !important;
   }
   .gl-matchup-row > :nth-child(2) {
     font-size: 10px !important;
@@ -534,7 +534,7 @@ a:hover {
     padding: 5px 2px !important;
   }
   .gl-mcell {
-    gap: 5px !important;
+    gap: 4px !important;
     padding: 0 !important;
   }
   .gl-mcell-face,
@@ -551,6 +551,52 @@ a:hover {
   }
   .gl-mcell-name > span {
     flex: 1 1 auto;
+  }
+}
+
+/* --------------------------------------------- the matchup row, in one line ---
+   One line per player, name first.
+
+   PlayerName wraps on purpose — everywhere else a narrow column should drop
+   the age and the injury badge below the name rather than squeeze the name to
+   a letter per line. On the matchup that was costing a whole screen: the name
+   column in a row is about a hundred pixels, so the age wrapped under every
+   one of twenty-two names and set the height of all eleven rows, and the page
+   a manager opens to read a score during a game opened at one and a
+   half screens of it.
+
+   Nothing below the fold is worth two digits, so here the row stays a row and
+   a long name ends in an ellipsis — he is still a tap away from the profile
+   that spells him out.
+
+   Not below 361px, though, and that is the whole reason this is a block of
+   its own. On a 320px screen the two halves of a row are about a hundred
+   pixels each; take the score, the age and an OUT badge out of that and the
+   name is left with twelve, which is not a name and not a tap target either.
+   There the original wrapping stands and the page is a little taller, which
+   on the smallest phone in the audit is the right way round. */
+@media (min-width: 361px) and (max-width: 720px) {
+  .gl-mcell-name > span > span {
+    flex-wrap: nowrap !important;
+    /* Block-level, not inline-flex. An inline-flex box is sized shrink-to-fit
+       against its parent, and the floor of shrink-to-fit is the row's own
+       min-content — which for a nowrap row of a name and an age is the name
+       and the age, whole. So it drew a hundred and forty pixels inside a
+       hundred and eighteen and spilled the difference over the score, with
+       the ellipsis it had been given never reached. Filling the parent
+       instead gives the name a width to be too long for. */
+    display: flex !important;
+    width: 100%;
+    min-width: 0;
+  }
+  .gl-mcell-name > span > span > a,
+  .gl-mcell-name > span > span > a > span,
+  .gl-mcell-name > span > span > span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow-wrap: normal !important;
   }
 }
 
@@ -800,6 +846,14 @@ button[disabled]:active {
      itself, because a stylesheet cannot know whether anybody is signed in. */
   html[data-tabbar] body {
     padding-bottom: calc(58px + env(safe-area-inset-bottom));
+  }
+
+  /* And a page that fills the screen fills what is left of it. Without this
+     the padding above is added to a wrapper already as tall as the viewport,
+     and every page scrolls by exactly the height of the bar — including the
+     ones whose content fits with a hundred pixels spare. */
+  html[data-tabbar] {
+    --screen: calc(100dvh - 58px - env(safe-area-inset-bottom));
   }
 
   /* The add-to-home-screen hint sits above the bar rather than behind it. */

@@ -113,6 +113,28 @@
   --color-text: var(--text);
   --color-bg: var(--bg);
   --color-divider: rgb(var(--accent-rgb) / .28);
+
+  /* ------------------------------------------------------------ a screen ---
+     How tall one screenful is, for the page wrappers that want to fill it.
+
+     They all said 100vh, and on a phone that was wrong twice over. The tab
+     bar is fixed, so the body carries a 58px bottom padding to keep the last
+     row of a long page out from under it — and a child asking for the whole
+     viewport plus that padding is 58px taller than the viewport, so every
+     page in the app scrolled a little even when its content fitted with room
+     to spare. And 100vh on a phone browser is the viewport with the address
+     bar hidden, which is not the viewport you are looking at.
+
+     One token, so the two corrections are made once rather than in
+     twenty-eight files, and so a page that genuinely wants the raw viewport
+     can still say so. */
+  --screen: 100vh;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --screen: 100dvh;
+  }
 }
 
 /* ----------------------------------------------------------------- light ---

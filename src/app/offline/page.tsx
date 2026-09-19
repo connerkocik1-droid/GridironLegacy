@@ -18,7 +18,7 @@ export default function OfflinePage() {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "var(--screen)",
         display: "grid",
         placeItems: "center",
         padding: "40px 26px",

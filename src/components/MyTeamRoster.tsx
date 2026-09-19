@@ -280,18 +280,23 @@ export default function MyTeamRoster() {
         </div>
       ) : null}
 
+      {/* Four lines to say two things, on a page a manager opens every week.
+          The second half of it described the two chips under each name —
+          which are labelled "QB2" and "26.2 PPG" and carry the long version
+          in their titles, so the paragraph was explaining a thing that says
+          itself. What is left is the one rule of the format that is not
+          visible anywhere on the screen. */}
       <p
         style={{
-          padding: "2px 0 14px",
+          padding: "2px 0 12px",
           fontSize: 12,
-          lineHeight: 1.6,
+          lineHeight: 1.55,
           color: "var(--text-quiet)",
           margin: 0,
         }}
       >
-        Best ball — the highest-scoring legal lineup is taken for you every week. Highlighted
-        players are the ones it would take right now. Under each man: where he ranks at his
-        position across the league&rsquo;s whole pool, and what he has been worth a week.
+        Best ball — the highest-scoring legal lineup is taken for you every week. The highlighted
+        men are the ones it would take right now.
       </p>
 
       {groups.map((group) => {
@@ -299,8 +304,8 @@ export default function MyTeamRoster() {
         const starts = ir ? "" : startsLabel(group.pos, feed.settings);
 
         return (
-          <div key={group.pos} style={{ marginBottom: 14 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8, paddingBottom: 8 }}>
+          <div key={group.pos} style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8, paddingBottom: 6 }}>
               <span
                 style={{
                   fontFamily: "var(--font-heading)",
@@ -352,11 +357,12 @@ export default function MyTeamRoster() {
                 return (
                   <div
                     key={name}
+                    className="gl-mt-row"
                     style={{
                       display: "flex",
                       alignItems: "center",
                       gap: 11,
-                      padding: "11px 13px",
+                      padding: "9px 13px",
                       borderTop: i ? "1px solid rgb(var(--accent-rgb) / .13)" : undefined,
                       background: slot ? "rgb(var(--accent-rgb) / .12)" : undefined,
                       boxShadow: slot ? "inset 2px 0 0 var(--accent-link)" : undefined,
@@ -406,17 +412,12 @@ export default function MyTeamRoster() {
                         ))}
                       </div>
 
-                      {line ? (
-                        <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 3 }}>
-                          {line}
-                        </div>
-                      ) : null}
-
                       <FormChips
                         position={p?.p ?? ""}
                         standing={standing}
                         fielded={fieldedAt(p?.p ?? "", feed.settings?.starters, teams)}
                         out={ir}
+                        lead={line}
                       />
                     </div>
 
@@ -506,17 +507,46 @@ function FormChips({
   standing,
   fielded,
   out,
+  lead,
 }: {
   position: string;
   standing: { rank: number; ppg: number; games: number; bestPpg: number } | null;
   fielded: number;
   out: boolean;
+  /** His club and his role, which used to have a line to themselves. */
+  lead?: string;
 }) {
+  // Three words on a line of their own cost the roster a screen and a half.
+  //
+  // "WSH · WR2" is seventeen pixels of text and twenty of line box, on every
+  // one of fifteen rows, sitting above two chips that leave most of their own
+  // line empty. Put in front of them it reads the same and is free — and the
+  // chips keep their order, so a manager scanning down the column of ranks
+  // still scans down a column.
+  const before = lead ? (
+    <span
+      style={{
+        ...MICRO,
+        letterSpacing: 0,
+        fontSize: 11,
+        color: "var(--text-dim)",
+        flex: "0 1 auto",
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        alignSelf: "center",
+      }}
+    >
+      {lead}
+    </span>
+  ) : null;
   // Stashed on injured reserve. He is out of the week entirely, and a rank
   // beside a man who cannot play is a number about somebody who is not there.
   if (out) {
     return (
-      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 5 }}>
+        {before}
         <span style={{ ...CHIP, ...FLAT, color: "var(--text-dim)" }}>ON RESERVE</span>
       </div>
     );
@@ -526,7 +556,8 @@ function FormChips({
   // the first Sunday. A chip claiming a rank here would be inventing one.
   if (!standing || !position) {
     return (
-      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 5 }}>
+        {before}
         <span style={{ ...CHIP, ...FLAT, color: "var(--text-dim)" }}>NOT YET RANKED</span>
       </div>
     );
@@ -542,7 +573,8 @@ function FormChips({
     standing.bestPpg > 0 ? Math.max(0, Math.min(1, standing.ppg / standing.bestPpg)) : 0;
 
   return (
-    <div style={{ display: "flex", alignItems: "stretch", gap: 6, marginTop: 8 }}>
+    <div style={{ display: "flex", alignItems: "stretch", gap: 7, marginTop: 5 }}>
+      {before}
       <span
         data-chip="rank"
         title={
