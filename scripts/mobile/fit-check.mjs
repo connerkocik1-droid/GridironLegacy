@@ -29,10 +29,25 @@ import { sessionCookie } from "./session.mjs";
 
 const BASE = process.env.AUDIT_BASE ?? "http://localhost:3123";
 
-/** [label, path, what says it has loaded, how many screens it may take] */
+/**
+ * [label, path, what says it has loaded, how many screens it may take]
+ *
+ * A null budget is reported and not failed. Most of these pages are lists
+ * and a list is as long as the league made it — a ceiling on the standings
+ * would be a ceiling on the number of franchises. They are measured anyway,
+ * because the number is the only way to notice a page that has quietly
+ * doubled, and because the two that do carry budgets got them by being
+ * measured first.
+ */
 const PAGES = [
   ["matchup", "/lineup", /PROJ|PTS|SCORED|WIN PROBABILITY/, 1.0],
   ["roster", "/my-team", /PPG|NOT YET RANKED/, 2.25],
+  ["home", "/", /WEEK|MATCHUP|STANDINGS/, null],
+  ["league", "/the-league", /STANDINGS|POWER|W-L/, null],
+  ["moves", "/moves", /WAIVER|FREE AGENT|ADD/, null],
+  ["week", "/matchups", /WEEK|VS/, null],
+  ["profile", "/player/Jayden%20Daniels", /PROJ|SEASON|QB/, null],
+  ["games", "/games", /WEEK|FINAL|ET/, null],
 ];
 
 const browser = await chromium.launch(
@@ -52,12 +67,12 @@ for (const [label, url, waitFor, budget] of PAGES) {
   // The live numbers count up on arrival and the enter animation is 200ms.
   await page.waitForTimeout(800);
 
-  const m = await page.evaluate(() => {
+  const m = await page.evaluate((deep) => {
     // Every block that takes real vertical space, so a failure says which
     // one to go and look at rather than only that the page is too tall.
     const blocks = [];
     const walk = (el, depth) => {
-      if (depth > 3) return;
+      if (depth > deep) return;
       for (const kid of el.children) {
         const h = Math.round(kid.getBoundingClientRect().height);
         if (h >= 40) {
@@ -68,17 +83,18 @@ for (const [label, url, waitFor, budget] of PAGES) {
     };
     walk(document.body, 0);
     return { page: Math.round(document.documentElement.scrollHeight), screen: window.innerHeight, blocks };
-  });
+  }, Number(process.env.FIT_DEPTH ?? 3));
 
   const screens = m.page / m.screen;
   // A pixel of slack, because scrollHeight rounds and a border can land on a
   // half. A page that is one pixel over is not a page anybody scrolls.
-  const pass = m.page <= Math.round(budget * m.screen) + 1;
+  const pass = budget == null || m.page <= Math.round(budget * m.screen) + 1;
   if (!pass) failed++;
 
   console.log(
-    `${pass ? "PASS" : "FAIL"}  ${label} (${url})  ${m.page}px / ${m.screen}px = ` +
-    `${screens.toFixed(2)} screens, budget ${budget.toFixed(2)}`,
+    `${budget == null ? "····" : pass ? "PASS" : "FAIL"}  ` +
+    `${label.padEnd(8)} ${url.padEnd(24)} ${String(m.page).padStart(5)}px = ` +
+    `${screens.toFixed(2)} screens` + (budget == null ? "" : `, budget ${budget.toFixed(2)}`),
   );
   if (!pass || process.env.FIT_VERBOSE) {
     for (const b of m.blocks) console.log(`${"  ".repeat(b.depth + 1)}${String(b.h).padStart(5)}px  ${b.text}`);
