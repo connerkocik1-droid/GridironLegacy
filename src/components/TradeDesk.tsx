@@ -1,9 +1,10 @@
 "use client";
 import { PlayerAge } from "./PlayerName";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import TeamMark from "./TeamMark";
+import Skeleton from "./Skeleton";
 import { player, proj } from "@/lib/roster";
 import { balancer, fitScore, pickValue, verdict, type Held } from "@/lib/moves-story";
 
@@ -197,7 +198,25 @@ async function fetchRoster(managerId: string): Promise<string[]> {
   }
 }
 
+/**
+ * The desk reads the address, so the address has to be waited for.
+ *
+ * useSearchParams makes the tree above it client-rendered up to the nearest
+ * Suspense boundary, and this page is prerendered — with no boundary the
+ * build fails outright on "useSearchParams() should be wrapped in a suspense
+ * boundary at page /trade-builder", which is exactly what it did the moment a
+ * player's profile started linking here with a name in the query. Same shape
+ * as LineupScreen, which reads the address for the same reason.
+ */
 export default function TradeDesk() {
+  return (
+    <Suspense fallback={<Skeleton rows={8} />}>
+      <Board />
+    </Suspense>
+  );
+}
+
+function Board() {
   // A player's profile links here with the franchise and the man already
   // named. The desk is the right place to make an offer and the wrong place
   // to have to find somebody again, having just been looking at him.
