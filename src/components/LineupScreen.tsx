@@ -1,25 +1,23 @@
 "use client";
 
 import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
 import MatchupBoard from "./MatchupBoard";
-import RosterBoard from "./RosterBoard";
 import Skeleton from "./Skeleton";
 
 /**
- * Your roster and what it is playing into — or, when the address names
- * somebody else's fixture, only that fixture.
+ * The matchup, and only the matchup.
  *
- * Pressing a game between two other franchises used to land here with the
- * reader's own roster filling the screen and the game they had asked for
- * somewhere below it. That is the same page answering a question nobody put
- * to it: the tap said "show me Kim against Priya", and the answer opened with
- * eighteen of the reader's own players.
+ * This used to open with the reader's whole roster above the head-to-head, on
+ * the reasoning that the second question after "who is scoring for me" is
+ * "against what". The reasoning was right and the layout was not: the
+ * head-to-head already answers the first question in its left-hand column, so
+ * the roster above it was the same eleven men listed twice, and the page came
+ * to just under four phone screens — the score a manager opened it for sat
+ * two screens down.
  *
- * `home` in the address is what distinguishes the two. It is set only by a
- * link to a fixture the reader is not in — choosing an opponent from the
- * board's own dropdown sets `opponent` alone, which is still your game and
- * still wants your roster above it.
+ * The roster went to My Team, where it now says more than this page ever did
+ * about each man. What is left here is the thing this page is named for, and
+ * it fits on one screen.
  */
 export default function LineupScreen() {
   // Reading the address needs a boundary while the page is served static.
@@ -31,17 +29,8 @@ export default function LineupScreen() {
 }
 
 function Screen() {
-  const params = useSearchParams();
-  const elsewhere = Boolean(params.get("home"));
-
-  return (
-    <>
-      {elsewhere ? null : <RosterBoard />}
-
-      {/* The heading lives inside the board, which is the only place that
-          knows whose game is being shown. Printed above it, it said "Your
-          matchup" over a fixture between two other franchises. */}
-      <MatchupBoard />
-    </>
-  );
+  // The heading lives inside the board, which is the only place that knows
+  // whose game is being shown. Printed above it, it said "Your matchup" over a
+  // fixture between two other franchises.
+  return <MatchupBoard />;
 }

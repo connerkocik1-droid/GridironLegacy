@@ -2,6 +2,7 @@
 import { PlayerAge } from "./PlayerName";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import TeamMark from "./TeamMark";
 import { player, proj } from "@/lib/roster";
 import { balancer, fitScore, pickValue, verdict, type Held } from "@/lib/moves-story";
@@ -197,6 +198,14 @@ async function fetchRoster(managerId: string): Promise<string[]> {
 }
 
 export default function TradeDesk() {
+  // A player's profile links here with the franchise and the man already
+  // named. The desk is the right place to make an offer and the wrong place
+  // to have to find somebody again, having just been looking at him.
+  const params = useSearchParams();
+  const askedFor = params.get("want");
+  const askedFrom = params.get("with");
+  const askedToGive = params.get("give");
+
   const [desk, setDesk] = useState<Desk | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [partner, setPartner] = useState("");
@@ -266,6 +275,43 @@ export default function TradeDesk() {
       cancelled.current = true;
     };
   }, [desk?.me.id]);
+
+  /**
+   * Opening on a franchise the link named.
+   *
+   * Once, and only while nothing has been picked: a manager who has started
+   * building an offer and then hits back is not asking for their work to be
+   * replaced by the link they arrived on an hour ago.
+   */
+  const arrived = useRef(false);
+  useEffect(() => {
+    if (arrived.current || !desk) return;
+    if (!askedFrom && !askedFor && !askedToGive) return;
+
+    arrived.current = true;
+    // Seeding editable state from the address, once. The ref above is what
+    // makes it a one-shot rather than a loop, and the alternative — deriving
+    // the basket from the URL — would mean a manager could not then change it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (askedFrom && desk.managers.some((m) => m.id === askedFrom)) setPartner(askedFrom);
+    if (askedToGive) setGive([askedToGive]);
+  }, [desk, askedFrom, askedFor, askedToGive]);
+
+  /**
+   * And on the player, once his side of the board has actually loaded.
+   *
+   * Separate from the effect above because the roster arrives a request later:
+   * putting him in the basket before the basket knows he exists drops him.
+   */
+  const took = useRef(false);
+  useEffect(() => {
+    if (took.current || !askedFor) return;
+    if (!theirRoster.includes(askedFor)) return;
+
+    took.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setWant([askedFor]);
+  }, [theirRoster, askedFor]);
 
   useEffect(() => {
     const cancelled = { current: false };

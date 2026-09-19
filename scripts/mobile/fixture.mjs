@@ -241,6 +241,49 @@ export const REPORT = {
   },
 };
 
+/**
+ * The four states a player's profile can be in, keyed by name so one check can
+ * walk all of them. Anybody not named here is one of this manager's own.
+ */
+const FREE_AGENT = {
+  where: "free", locked: false, irEligible: false, onIr: false,
+  irRoom: true, rosterRoom: true, claim: false, clearsAt: null, tradeWith: null,
+};
+
+const PROFILE_STATE = {
+  // Somebody else's. One thing you can do about that.
+  "Held Elsewhere": {
+    owner: { id: "m3", slot: "T04", franchise: "Kim's Very Long Franchise Name", mine: false, lineupSlot: "WR" },
+    actions: { ...FREE_AGENT, where: "theirs", tradeWith: "m3" },
+  },
+  // On the wire, so an add is a claim.
+  "On The Wire": {
+    owner: null,
+    actions: { ...FREE_AGENT, claim: true, clearsAt: new Date(Date.now() + 5 * 3_600_000).toISOString() },
+  },
+  // Free, hurt enough for the reserve, and this manager has no room left on
+  // the roster — which is the case the reserve exists for.
+  "Hurt And Free": {
+    owner: null,
+    actions: { ...FREE_AGENT, irEligible: true, rosterRoom: false },
+  },
+  // One of this manager's own, whose club has kicked off.
+  "Already Playing": {
+    owner: { slot: "T01", franchise: "Steel Cartel", mine: true, lineupSlot: "WR" },
+    actions: { ...FREE_AGENT, where: "mine", locked: true },
+  },
+  // One of this manager's own, hurt, with room on the reserve.
+  "Hurt And Mine": {
+    owner: { slot: "T01", franchise: "Steel Cartel", mine: true, lineupSlot: "BENCH" },
+    actions: { ...FREE_AGENT, where: "mine", irEligible: true },
+  },
+  // Already stashed there.
+  "On My Reserve": {
+    owner: { slot: "T01", franchise: "Steel Cartel", mine: true, lineupSlot: "IR" },
+    actions: { ...FREE_AGENT, where: "mine", irEligible: true, onIr: true },
+  },
+};
+
 export function routes(page, over = {}) {
   const json = (body) => (r) => r.fulfill({ json: body });
 
@@ -318,6 +361,7 @@ export function routes(page, over = {}) {
         },
         news: [], season: { year: 2026, total: 0, best: 0, statLine: "", weeks: [] },
         owner: null,
+        actions: FREE_AGENT,
       } });
     }
 
@@ -331,7 +375,7 @@ export function routes(page, over = {}) {
           adp: null, posRank: null, rostered: null,
           archetype: null, insight: null, career: [],
         },
-        news: [], season: null, owner: null,
+        news: [], season: null, owner: null, actions: FREE_AGENT,
       } });
     }
 
@@ -356,7 +400,13 @@ export function routes(page, over = {}) {
         { week: 2, points: 14.8, statLine: "8 tgt \u00b7 6 rec \u00b7 88 rec yds", stats: null },
         { week: 3, points: 11.4, statLine: "6 tgt \u00b7 4 rec \u00b7 74 rec yds", stats: null },
       ] },
-      owner: { slot: "T01", franchise: "Steel Cartel", mine: true, lineupSlot: "WR" },
+      ...PROFILE_STATE[name] ?? {
+        owner: { slot: "T01", franchise: "Steel Cartel", mine: true, lineupSlot: "WR" },
+        actions: {
+          where: "mine", locked: false, irEligible: false, onIr: false,
+          irRoom: true, rosterRoom: true, claim: false, clearsAt: null, tradeWith: null,
+        },
+      },
     } });
   });
 

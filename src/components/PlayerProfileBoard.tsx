@@ -58,13 +58,28 @@ interface Payload {
     total: number;
     best: number;
   } | null;
-  owner: { slot: string; franchise: string; mine: boolean; lineupSlot: string } | null;
+  owner: { id?: string; slot: string; franchise: string; mine: boolean; lineupSlot: string } | null;
+  /** What this manager can do with him right now, and why not where not. */
+  actions: {
+    where: "mine" | "theirs" | "free";
+    locked: boolean;
+    irEligible: boolean;
+    onIr: boolean;
+    irRoom: boolean;
+    rosterRoom: boolean;
+    claim: boolean;
+    clearsAt: string | null;
+    tradeWith: string | null;
+  } | null;
 }
 
 export default function PlayerProfileBoard({ name }: { name: string }) {
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [openWeeks, setOpenWeeks] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [trouble, setTrouble] = useState<string | null>(null);
   const report = useHealthReport();
 
   const load = useCallback(async () => {
@@ -83,6 +98,44 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
     void load();
   }, [load]);
 
+  /**
+   * Every move this page can make, through the endpoints the Moves screen
+   * already uses.
+   *
+   * Reloading afterwards rather than moving the button optimistically: the
+   * roster has a capacity, the reserve has a size and a claim is not an add,
+   * and all three are decided in the database. A page that guessed would be
+   * wrong in exactly the cases a manager needs it to be right.
+   */
+  const act = useCallback(
+    async (
+      what: "add" | "drop" | "stash" | "recall",
+      body: Record<string, unknown>,
+      said: (answer: Record<string, unknown>) => string,
+    ) => {
+      if (busy) return;
+      setBusy(true);
+      setNotice(null);
+      setTrouble(null);
+      try {
+        const res = await fetch(what === "drop" ? "/api/waivers" : endpointFor(what), {
+          method: what === "drop" ? "PATCH" : "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const answer = await res.json().catch(() => ({}));
+        if (!res.ok) setTrouble(typeof answer.error === "string" ? answer.error : "That did not work.");
+        else setNotice(said(answer));
+        await load();
+      } catch {
+        setTrouble("That did not work.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, load],
+  );
+
   if (error) {
     return (
       <div style={{ maxWidth: 700, margin: "40px auto", padding: "0 18px", fontSize: 12.5, color: "var(--warn)" }}>
@@ -99,7 +152,7 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
     );
   }
 
-  const { profile, news, season, owner } = data;
+  const { profile, news, season, owner, actions } = data;
   const health = healthOf(report, profile.name);
   const weeks = season?.weeks ?? [];
   const played = weeks.filter((w) => w.points !== 0 || w.statLine);
@@ -194,18 +247,58 @@ export default function PlayerProfileBoard({ name }: { name: string }) {
         </div>
       </div>
 
-      {owner ? (
-        <div style={{ ...card, padding: "11px 16px", fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
-          {owner.mine ? (
-            <>
-              On <span style={{ color: "var(--good)" }}>your roster</span>
-              {owner.lineupSlot === "IR" ? ", on injured reserve" : ""}.
-            </>
-          ) : (
-            <>
-              Held by <span style={{ color: "var(--text)" }}>{owner.franchise}</span>.
-            </>
-          )}
+      {/* Where he is, and what you can do about it.
+          
+          One card rather than a line of prose and a row of buttons somewhere
+          else: the answer to "whose is he" and the answer to "can I have him"
+          are the same question asked twice, and a manager who has just read
+          his numbers is asking it now rather than after walking to the Moves
+          screen to find out. */}
+      {owner || actions ? (
+        <div style={{ ...card, padding: "11px 16px", marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            {owner ? (
+              owner.mine ? (
+                <>
+                  On <span style={{ color: "var(--good)" }}>your roster</span>
+                  {owner.lineupSlot === "IR" ? ", on injured reserve" : ""}.
+                </>
+              ) : (
+                <>
+                  Held by <span style={{ color: "var(--text)" }}>{owner.franchise}</span>.
+                </>
+              )
+            ) : actions?.claim && actions.clearsAt ? (
+              <>
+                On waivers — he clears{" "}
+                <span style={{ color: "var(--text)" }}>{clearsIn(actions.clearsAt)}</span>.
+              </>
+            ) : (
+              <>
+                A <span style={{ color: "var(--accent-text)" }}>free agent</span>.
+              </>
+            )}
+          </div>
+
+          {actions ? (
+            <Actions
+              actions={actions}
+              name={profile.name}
+              busy={busy}
+              act={act}
+            />
+          ) : null}
+
+          {trouble ? (
+            <div style={{ fontSize: 11.5, color: "var(--warn)", marginTop: 9, lineHeight: 1.5 }}>
+              {trouble}
+            </div>
+          ) : null}
+          {notice ? (
+            <div style={{ fontSize: 11.5, color: "var(--good)", marginTop: 9, lineHeight: 1.5 }}>
+              {notice}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -465,3 +558,247 @@ function Stat({ label: name, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+/** Which endpoint a move goes to. Drop and add share one; the reserve has two. */
+function endpointFor(what: "add" | "stash" | "recall"): string {
+  // Signing a free agent straight onto the reserve is a waiver move; moving
+  // one of your own on or off it is a lineup move. Two endpoints because they
+  // are two different rules, not because they are two different words.
+  return what === "add" ? "/api/waivers" : "/api/lineup";
+}
+
+/** "in 4 hours", or "on Tuesday" once it is further off than a day. */
+function clearsIn(at: string): string {
+  const when = new Date(at);
+  if (Number.isNaN(when.getTime())) return "soon";
+  const mins = Math.round((when.getTime() - Date.now()) / 60_000);
+  if (mins <= 0) return "any moment";
+  if (mins < 60) return `in ${mins} minute${mins === 1 ? "" : "s"}`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `in ${hours} hour${hours === 1 ? "" : "s"}`;
+  return `on ${when.toLocaleDateString(undefined, { weekday: "long" })}`;
+}
+
+/**
+ * The buttons.
+ *
+ * Which ones appear is the whole of it, and it is decided by where he is
+ * rather than by what the reader might like: a man on somebody else's roster
+ * cannot be added however much you want him, and offering the button anyway
+ * is a tap that ends in a refusal.
+ *
+ * Yours — drop him, trade him away, and send him to the reserve when the
+ * injury report puts him there. Somebody else's — a trade, and nothing else.
+ * A free agent — add him, or claim him when he is on the wire, and the one
+ * add that costs no roster spot when he is hurt enough to sit outside it.
+ *
+ * A button that cannot be pressed says why on itself rather than disappearing.
+ * A move that has vanished is a move a manager goes looking for; a move that
+ * is greyed out with "his game has started" on it is an answer.
+ */
+function Actions({
+  actions,
+  name,
+  busy,
+  act,
+}: {
+  actions: NonNullable<Payload["actions"]>;
+  name: string;
+  busy: boolean;
+  act: (
+    what: "add" | "drop" | "stash" | "recall",
+    body: Record<string, unknown>,
+    said: (answer: Record<string, unknown>) => string,
+  ) => void;
+}) {
+  const { where, locked, irEligible, onIr, irRoom, rosterRoom, claim } = actions;
+
+  const row: React.CSSProperties = {
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
+    marginTop: 11,
+  };
+
+  if (where === "mine") {
+    return (
+      <div style={row}>
+        <Button
+          label="Drop"
+          tone="warn"
+          busy={busy}
+          why={locked ? "His game has started" : null}
+          onClick={() =>
+            act("drop", { drop: name }, (answer) =>
+              answer.clearsAt
+                ? `${name} is on waivers — he ${clearsIn(String(answer.clearsAt))}.`
+                : `${name} was dropped.`,
+            )
+          }
+        />
+
+        <TradeButton />
+
+        {/* Only where the database will take it. The reserve is for the men
+            the injury report puts there, and it has a size. */}
+        {onIr ? (
+          <Button
+            label="Off reserve"
+            busy={busy}
+            why={!rosterRoom ? "Your roster is full" : null}
+            onClick={() =>
+              act("recall", { player: name, ir: false }, () => `${name} is back on your roster.`)
+            }
+          />
+        ) : irEligible ? (
+          <Button
+            label="To reserve"
+            busy={busy}
+            why={!irRoom ? "Your reserve is full" : locked ? "His game has started" : null}
+            onClick={() =>
+              act("stash", { player: name, ir: true }, () =>
+                `${name} is on your injured reserve. He costs you no roster spot.`,
+              )
+            }
+          />
+        ) : null}
+      </div>
+    );
+  }
+
+  if (where === "theirs") {
+    // One button, because there is genuinely one thing you can do. A roster
+    // is somebody's property and the only way through it is an offer.
+    return (
+      <div style={row}>
+        <TradeButton with={actions.tradeWith} want={name} />
+      </div>
+    );
+  }
+
+  return (
+    <div style={row}>
+      <Button
+        label={claim ? "Claim" : "Add"}
+        tone="go"
+        busy={busy}
+        // A full roster refuses this one whatever his fitness. The reserve is
+        // the other button, and it is the other button precisely because it
+        // does not cost a roster spot — folding the two together here made
+        // this one claim it would work when the database would refuse it.
+        why={
+          locked
+            ? "His game has started"
+            : !rosterRoom
+              ? "Your roster is full — drop somebody first"
+              : null
+        }
+        onClick={() =>
+          act("add", { add: name }, (answer) =>
+            answer.mode === "now"
+              ? `${name} is on your roster.`
+              : `Claim placed for ${name}. It settles on the next waiver run.`,
+          )
+        }
+      />
+
+      {/* The one add that costs no roster spot, and the reason it is safe:
+          he cannot play. Offered even on a full roster, which is the whole
+          point of it. */}
+      {irEligible ? (
+        <Button
+          label="Add to reserve"
+          busy={busy}
+          why={!irRoom ? "Your reserve is full" : null}
+          onClick={() =>
+            act("add", { add: name, ir: true }, () =>
+              `${name} is on your injured reserve. He costs you no roster spot.`,
+            )
+          }
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/** A way into the trade desk, already pointed at the right franchise. */
+function TradeButton({ with: partner, want }: { with?: string | null; want?: string } = {}) {
+  const query = new URLSearchParams({ tab: "trade-builder" });
+  if (partner) query.set("with", partner);
+  if (want) query.set("want", want);
+
+  return (
+    <Link
+      href={`/moves?${query.toString()}`}
+      style={{
+        ...buttonBase,
+        border: "1px solid rgb(var(--accent-rgb) / .4)",
+        color: "var(--accent-text)",
+        textDecoration: "none",
+      }}
+    >
+      Trade
+    </Link>
+  );
+}
+
+function Button({
+  label,
+  onClick,
+  busy,
+  why,
+  tone,
+}: {
+  label: string;
+  onClick: () => void;
+  busy: boolean;
+  /** Why it cannot be pressed, which is also what it says. */
+  why: string | null;
+  tone?: "go" | "warn";
+}) {
+  const off = busy || why != null;
+
+  return (
+    <button
+      type="button"
+      onClick={off ? undefined : onClick}
+      disabled={off}
+      title={why ?? undefined}
+      style={{
+        ...buttonBase,
+        cursor: off ? "default" : "pointer",
+        border: `1px solid ${
+          off
+            ? "rgb(var(--accent-rgb) / .2)"
+            : tone === "go"
+              ? "rgb(var(--good-rgb) / .5)"
+              : tone === "warn"
+                ? "rgb(var(--bad-rgb) / .45)"
+                : "rgb(var(--accent-rgb) / .4)"
+        }`,
+        color: off
+          ? "var(--text-off)"
+          : tone === "go"
+            ? "var(--good)"
+            : tone === "warn"
+              ? "var(--bad-text)"
+              : "var(--accent-text)",
+        background: "transparent",
+      }}
+    >
+      {why ?? label}
+    </button>
+  );
+}
+
+const buttonBase: React.CSSProperties = {
+  fontFamily: "var(--font-body)",
+  fontSize: 11.5,
+  letterSpacing: ".1em",
+  // A thumb needs somewhere to land.
+  minHeight: 40,
+  padding: "0 14px",
+  display: "inline-flex",
+  alignItems: "center",
+  borderRadius: "var(--radius-sm)",
+};

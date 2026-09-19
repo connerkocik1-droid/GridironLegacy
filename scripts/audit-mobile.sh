@@ -13,6 +13,8 @@
 #   ./scripts/audit-mobile.sh --recap     # does the week recap play, once?
 #   ./scripts/audit-mobile.sh --week      # does the commissioner end the week?
 #   ./scripts/audit-mobile.sh --report    # does the Pylon Report read and publish?
+#   ./scripts/audit-mobile.sh --profile   # does a profile offer the right moves?
+#   ./scripts/audit-mobile.sh --fit       # how many screens tall is each page?
 #
 # Loads each page at 320px and 390px against a fixture of twelve franchises
 # with long names, and fails on anything that runs off the screen, is too small
@@ -47,6 +49,8 @@ MOVES=""
 RECAP=""
 WEEK=""
 REPORT=""
+PROFILE=""
+FIT=""
 
 # --console is the other lens on the same app. The audit answers /api/* in the
 # browser from a fixture, which is right for measuring layout and means it
@@ -70,6 +74,8 @@ while [ $# -gt 0 ]; do
     --recap) RECAP="1"; shift ;;
     --week) WEEK="1"; shift ;;
     --report) REPORT="1"; shift ;;
+    --profile) PROFILE="1"; shift ;;
+    --fit) FIT="1"; shift ;;
     --console) CONSOLE="1"; shift ;;
     --pull) PULL="1"; shift ;;
     --) shift; break ;;
@@ -160,6 +166,11 @@ elif [ -n "$MYTEAM" ]; then
 elif [ -n "$LEAGUE" ]; then
   AUDIT_BASE="http://localhost:$PORT" AUDIT_SHOTS="$SHOTS" \
     node "$ROOT/scripts/mobile/league-check.mjs"
+elif [ -n "$FIT" ]; then
+  AUDIT_BASE="http://localhost:$PORT" node "$ROOT/scripts/mobile/fit-check.mjs"
+elif [ -n "$PROFILE" ]; then
+  AUDIT_BASE="http://localhost:$PORT" AUDIT_SHOTS="$SHOTS" \
+    node "$ROOT/scripts/mobile/profile-check.mjs"
 elif [ -n "$REPORT" ]; then
   AUDIT_BASE="http://localhost:$PORT" AUDIT_SHOTS="$SHOTS" \
     node "$ROOT/scripts/mobile/report-check.mjs"
