@@ -13,6 +13,7 @@ import { headshot } from "@/data/league-data";
 import { useLogos } from "@/lib/use-logos";
 import PlayerName from "./PlayerName";
 import { useRefreshable } from "@/lib/use-refresh";
+import { setStatLines, useStatLines } from "@/lib/use-stat-lines";
 import type { MatchupRow, SideEntry } from "@/lib/matchup";
 
 interface Side {
@@ -66,10 +67,13 @@ function PlayerCell({
   entry,
   align,
   leading,
+  lines,
 }: {
   entry: SideEntry | null;
   align: "left" | "right";
   leading: boolean;
+  /** Whether the stat line is showing. Off, a row is about half as tall. */
+  lines: boolean;
 }) {
   const reverse = align === "right";
   // His own game, not the league's week: at one o'clock half a lineup has
@@ -117,8 +121,8 @@ function PlayerCell({
         className="gl-mcell-face"
         src={headshot(entry.name) || BLANK}
         alt=""
-        width={32}
-        height={32}
+        width={26}
+        height={26}
         style={{
           borderRadius: "50%",
           objectFit: "contain",
@@ -142,7 +146,7 @@ function PlayerCell({
         <span style={{ minWidth: 0 }}>
           <PlayerName
             name={entry.name}
-            style={{ fontFamily: "var(--font-heading)", fontSize: 14 }}
+            style={{ fontFamily: "var(--font-heading)", fontSize: 13 }}
           />
         </span>
         <TeamMark team={entry.team} size={14} opacity={0.85} className="gl-mcell-team" />
@@ -150,7 +154,7 @@ function PlayerCell({
 
       <div
         className="gl-mcell-pts"
-        style={{ flex: "0 0 auto", textAlign: align === "left" ? "right" : "left", width: 46 }}
+        style={{ flex: "0 0 auto", textAlign: align === "left" ? "right" : "left", width: 42 }}
       >
         {/* What he has scored, and under it what he was expected to. Both,
             always, because either alone is unreadable: a bare 0.0 could be a
@@ -161,38 +165,57 @@ function PlayerCell({
         <div
           style={{
             fontFamily: "var(--font-heading)",
-            fontSize: 16,
+            fontSize: 15,
+            lineHeight: 1.1,
             color: leading ? "var(--accent-text)" : "var(--text-3)",
           }}
         >
           {started ? <LiveNumber key={entry.name} value={entry.points} /> : "–"}
         </div>
-        <div style={{ fontSize: 11, color: "var(--text-dim)", fontVariantNumeric: "tabular-nums" }}>
+        {/* Tight against the score on purpose: the two numbers are one
+            reading, and on its default line box this one alone made the
+            points column taller than the headshot beside it — which set the
+            height of all eleven rows and put the bottom of the game off the
+            screen. */}
+        <div
+          style={{
+            fontSize: 10,
+            lineHeight: 1,
+            color: "var(--text-dim)",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
           {entry.projected.toFixed(2)}
         </div>
       </div>
 
-      {/* Wraps rather than clips. These columns are narrow and a quarterback's
-          line is five parts long, so an ellipsis would hide exactly the
-          touchdowns somebody opened the page to see. */}
-      <div
-        className="gl-mcell-line"
-        style={{
-          flexBasis: "100%",
-          fontSize: 10,
-          color: "var(--text-dim)",
-          lineHeight: 1.45,
-          overflowWrap: "anywhere",
-          textAlign: align,
-        }}
-      >
-        {/* Before kickoff the useful thing is who he plays and when; once
-            there is a stat line, that is. Falls back to the position and team
-            for a man whose game the league does not know about. */}
-        {entry.statLine ||
-          gameLabel(entry.game) ||
-          `${entry.position}${entry.team ? ` · ${entry.team}` : ""}`}
-      </div>
+      {/* Wraps rather than clips, and is what made every row a hundred pixels
+          tall: these columns are half a phone wide and a quarterback's line is
+          five parts long, so it ran to three lines. Clipping it would hide
+          exactly the touchdowns somebody opened the page to see, so it is
+          hidden whole instead, behind one switch above the card — a reader
+          who wants the lines gets all of them, and the default is a screen
+          with the whole game on it. */}
+      {lines ? (
+        <div
+          className="gl-mcell-line"
+          style={{
+            flexBasis: "100%",
+            fontSize: 10,
+            color: "var(--text-dim)",
+            lineHeight: 1.45,
+            overflowWrap: "anywhere",
+            textAlign: align,
+          }}
+        >
+          {/* Before kickoff the useful thing is who he plays and when; once
+              there is a stat line, that is. Falls back to the position and
+              team for a man whose game the league does not know about. */}
+          {entry.statLine ||
+            gameLabel(entry.game) ||
+            `${entry.position}${entry.team ? ` · ${entry.team}` : ""}`}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -322,12 +345,16 @@ function HeadSide({
 }
 
 /**
- * `embedded` drops the small heading above the scoreline. Under the My Team
- * screen the sub-tab already says "Matchup" over a header that already names
- * the franchise, and a second "Your matchup" under both is a label repeating
- * itself.
+ * The head-to-head, on /lineup and on the Matchup tab of My Team.
+ *
+ * It used to take an `embedded` flag, which dropped the small heading above
+ * the scoreline on the My Team side because the sub-tab there already says
+ * "Matchup". The heading now goes by whose game is on screen instead — over
+ * your own it repeated the card directly beneath it on both pages, and over
+ * somebody else's it is the only thing naming them, on both pages too. So
+ * there was nothing left for the flag to decide.
  */
-export default function MatchupBoard({ embedded = false }: { embedded?: boolean } = {}) {
+export default function MatchupBoard() {
   const [board, setBoard] = useState<Board | null>(null);
   const [bye, setBye] = useState<Bye | null>(null);
   // Who the schedule says you are playing, remembered from the load that had
@@ -335,6 +362,11 @@ export default function MatchupBoard({ embedded = false }: { embedded?: boolean 
   // and without this there is no way back to your own game.
   const [scheduled, setScheduled] = useState<{ id: string; franchise: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Whether each player's stat line is showing under his name. Kept in the
+  // browser rather than in the address: a reader who prefers the long form
+  // gets it every week without asking twice, and a reader who does not gets
+  // the whole game on one screen. use-stat-lines says more about the trade.
+  const lines = useStatLines();
   const logos = useLogos();
   const router = useRouter();
   // The board is on two pages — /lineup and the Matchup tab of /my-team — so
@@ -489,10 +521,12 @@ export default function MatchupBoard({ embedded = false }: { embedded?: boolean 
 
   return (
     <>
-      {/* Kept when the game on screen is somebody else's, because then the
-          heading is the only thing saying whose it is. */}
+      {/* Kept only when the game on screen is somebody else's, because then
+          the heading is the only thing saying whose it is. Over your own game
+          it repeated the card directly underneath it and cost sixty-eight
+          pixels of a screen this page is trying to fit inside. */}
       <div
-        hidden={embedded && mine}
+        hidden={mine}
         style={{ margin: "8px 20px 0", paddingTop: 22, borderTop: "1px solid rgb(var(--accent-rgb) / .18)" }}
       >
         <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>
@@ -527,7 +561,7 @@ export default function MatchupBoard({ embedded = false }: { embedded?: boolean 
           gridTemplateColumns: "minmax(0,1fr) auto minmax(0,1fr)",
           alignItems: "start",
           gap: 14,
-          padding: "22px 20px 14px",
+          padding: "16px 18px 10px",
         }}
       >
         <HeadSide
@@ -666,7 +700,7 @@ export default function MatchupBoard({ embedded = false }: { embedded?: boolean 
           the share of the points, which said "DOWN 2.8" over a game the reader
           was not playing in. */}
       {board.winProbability != null ? (
-        <div style={{ padding: "0 20px 14px" }}>
+        <div style={{ padding: "0 18px 10px" }}>
           <WinProbability p={board.winProbability} final={board.final} note={margin} />
         </div>
       ) : null}
@@ -693,30 +727,54 @@ export default function MatchupBoard({ embedded = false }: { embedded?: boolean 
         </div>
       ) : null}
 
-      <div
-        style={{
-          padding: "0 26px 10px",
-          fontSize: 11.5,
-          color: "var(--text-dim)",
-          lineHeight: 1.6,
-          maxWidth: "70ch",
-        }}
-      >
-        {/* Short, because the roster above this on the same page has already
-            said what best ball is. What this line adds is that it is true of
-            both sides — the rest was said twice. */}
-        {board.final
-          ? "Neither manager chose these: best ball filled the slots."
-          : board.started
-            ? "Best ball, both sides: the highest scorers are filling the slots."
-            : "Best ball, both sides. A projection until the games start."}
-      </div>
 
       {error ? (
         <div style={{ padding: "0 26px 8px", fontSize: 12, color: "var(--warn)" }}>{error}</div>
       ) : null}
 
-      <div style={{ padding: "0 26px 40px" }}>
+      {/* Twelve pixels rather than eighteen, and the head above keeps its
+          eighteen. The gutter is not decoration here — every pixel of it
+          comes off the two name columns, which are the only things in the row
+          that can give, and six pixels a side is most of a syllable. */}
+      <div style={{ padding: "0 12px 14px" }}>
+        {/* The switch the rows are hidden behind. Right-aligned against the
+            card below it and small, because it is a preference and not the
+            thing the page is for — but it is on the page rather than in a
+            settings screen, because the reader who wants a stat line wants it
+            about four seconds after seeing a score he does not believe. */}
+        <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 2px 5px" }}>
+          <button
+            type="button"
+            onClick={() => setStatLines(!lines)}
+            aria-pressed={lines}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              minHeight: 34,
+              padding: "0 11px",
+              fontSize: 10,
+              letterSpacing: ".16em",
+              fontFamily: "var(--font-heading)",
+              color: lines ? "var(--accent-text)" : "var(--text-dim)",
+              background: lines ? "rgb(var(--accent-rgb) / .14)" : "transparent",
+              border: `1px solid rgb(var(--accent-rgb) / ${lines ? ".34" : ".18"})`,
+              borderRadius: 999,
+              cursor: "pointer",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: lines ? "var(--accent-text)" : "rgb(var(--accent-rgb) / .35)",
+              }}
+            />
+            STAT LINES
+          </button>
+        </div>
         <div
           style={{
             border: "1px solid rgb(var(--accent-rgb) / .22)",
@@ -739,11 +797,11 @@ export default function MatchupBoard({ embedded = false }: { embedded?: boolean 
                   gridTemplateColumns: "minmax(0,1fr) 62px minmax(0,1fr)",
                   alignItems: "center",
                   gap: 8,
-                  padding: "11px 14px",
+                  padding: "7px 12px",
                   borderTop: i === 0 ? "none" : "1px solid rgb(var(--accent-rgb) / .12)",
                 }}
               >
-                <PlayerCell entry={row.home} align="left" leading={homePoints > awayPoints} />
+                <PlayerCell entry={row.home} align="left" leading={homePoints > awayPoints} lines={lines} />
 
                 <div
                   style={{
@@ -760,7 +818,7 @@ export default function MatchupBoard({ embedded = false }: { embedded?: boolean 
                   {row.slot === "D/ST" ? "DST" : row.slot}
                 </div>
 
-                <PlayerCell entry={row.away} align="right" leading={awayPoints > homePoints} />
+                <PlayerCell entry={row.away} align="right" leading={awayPoints > homePoints} lines={lines} />
               </div>
             );
           })}
