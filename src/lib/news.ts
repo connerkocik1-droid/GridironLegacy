@@ -1,4 +1,30 @@
-const NEWS_URL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/news?limit=40";
+import { POOL } from "@/data/league-data";
+import { normalizeName } from "./player-names";
+import { buildIndex, isFresh, playersIn } from "./player-search";
+
+/**
+ * Forty was the old limit, and forty league-wide NFL articles is how a manager
+ * ends up with no news about any of his own men. The endpoint is the one the
+ * app has always used — only the number changed — and ESPN caps it wherever it
+ * caps it; asking for more can return fewer but never fewer than before.
+ */
+const NEWS_URL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/news?limit=100";
+
+/**
+ * The pool, indexed once per server process rather than once per request.
+ * Nine hundred names against a hundred headlines is cheap; rebuilding the
+ * index for each of them is not.
+ *
+ * Built on first use rather than at import. NewsWire is a client component and
+ * imports timeAgo from this module, so anything done at the top level here is
+ * done in every visitor's browser — and the index is only ever read on the
+ * server, where the wire is fetched.
+ */
+let index: ReturnType<typeof buildIndex> | null = null;
+function pool() {
+  if (!index) index = buildIndex(POOL as { n: string }[]);
+  return index;
+}
 
 export interface Story {
   id: string;
@@ -58,19 +84,46 @@ export async function readNews(
 
     const body = (await res.json()) as { articles?: EspnStory[] };
 
-    const stories = (body.articles ?? []).map((a, i) => ({
-      id: String(a.id ?? i),
-      headline: a.headline ?? "Untitled",
-      description: a.description ?? "",
-      published: a.published ?? "",
-      byline: a.byline ?? "",
-      link: a.links?.web?.href ?? null,
-      image: a.images?.[0]?.url ?? null,
-      // The athletes ESPN tagged, so a story can be matched to a roster.
-      players: (a.categories ?? [])
-        .filter((c) => c.type === "athlete" && c.athlete?.displayName)
-        .map((c) => c.athlete!.displayName!),
-    }));
+    const names = pool();
+
+    const stories = (body.articles ?? [])
+      .map((a, i) => {
+        const headline = a.headline ?? "Untitled";
+        const description = a.description ?? "";
+
+        // Who ESPN says it is about, and who it actually names. The union,
+        // because the two disagree in both directions: ESPN tags a man the
+        // text never mentions about as often as it leaves out one it does.
+        //
+        // ESPN's own tag is kept as ESPN spelled it only when the pool has no
+        // spelling of its own — everything downstream matches these against
+        // rosters by string equality, so "Marvin Harrison Jr" and
+        // "Marvin Harrison Jr." have to arrive as one name.
+        const tagged = (a.categories ?? [])
+          .filter((c) => c.type === "athlete" && c.athlete?.displayName)
+          .map((c) => c.athlete!.displayName!);
+
+        const players = [...new Set([
+          ...playersIn(`${headline} ${description}`, names),
+          ...tagged.map((t) => names.full.get(normalizeName(t)) ?? t),
+        ])];
+
+        return {
+          id: String(a.id ?? i),
+          headline,
+          description,
+          published: a.published ?? "",
+          byline: a.byline ?? "",
+          link: a.links?.web?.href ?? null,
+          image: a.images?.[0]?.url ?? null,
+          players,
+        };
+      })
+      // Two weeks, newest first. A wire is only a wire while it is current:
+      // an item from October at the top of a feed in December reads as the
+      // feature being broken, which is how it was being read.
+      .filter((s) => isFresh(s.published))
+      .sort((a, b) => Date.parse(b.published) - Date.parse(a.published));
 
     // Reached, and it had nothing: that is a quiet wire, not a broken one.
     return { stories, ok: true };

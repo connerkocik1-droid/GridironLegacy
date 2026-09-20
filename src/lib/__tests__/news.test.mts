@@ -23,21 +23,47 @@ const SAMPLE = {
         { type: "athlete", athlete: { displayName: "Tee Higgins" } },
       ],
     },
-    // A sparse article: every optional field missing.
-    { headline: "Bare story" },
+    // A sparse article: every optional field missing but the date, which is
+    // now load-bearing — an undated item is dropped, so one without a date
+    // could no longer stand in for "everything else is missing".
+    { headline: "Bare story", published: new Date(Date.now() - 7200_000).toISOString() },
+    // Out of the window. Six weeks ago was a designation that either became
+    // an absence everybody knows about or stopped being true.
+    {
+      id: 9001,
+      headline: "Puka Nacua signs extension",
+      published: new Date(Date.now() - 42 * 86400_000).toISOString(),
+    },
+    // No date at all: an undated item sorts to the top of a feed ordered by
+    // date and stays there forever, so it is dropped.
+    { id: 9002, headline: "Bijan Robinson rushes for 100" },
   ],
 };
 
 globalThis.fetch = (async () => ({ ok: true, json: async () => SAMPLE })) as never;
 const stories = await fetchNews();
 
-ok("parses both articles", stories.length === 2);
+ok("keeps the two stories inside the window", stories.length === 2);
 ok("keeps the headline", stories[0].headline === "Chase questionable for Sunday");
 ok("keeps the link", stories[0].link === "https://espn.com/story/1");
-ok("pulls only athlete categories", JSON.stringify(stories[0].players) === JSON.stringify(["Ja'Marr Chase", "Tee Higgins"]));
+
+// The athlete tags ESPN sent, plus the men the text actually names. "Chase"
+// in the headline is Ja'Marr Chase whether or not ESPN said so, and this
+// fixture is the case where it did.
+ok("keeps ESPN's athlete tags", stories[0].players.includes("Tee Higgins"));
+ok("and names the man in the headline", stories[0].players.includes("Ja'Marr Chase"));
+ok("without listing him twice", stories[0].players.filter((p) => p === "Ja'Marr Chase").length === 1);
+ok("and nobody else", stories[0].players.length === 2);
+
 ok("a sparse article still parses", stories[1].headline === "Bare story");
 ok("and gets safe defaults", stories[1].link === null && stories[1].players.length === 0);
 ok("an article with no id still gets one", Boolean(stories[1].id));
+
+// The window, at the seam where it matters: both of these name a real pool
+// player, so only the date can be keeping them out.
+ok("six weeks ago is gone", !stories.some((s) => s.headline.includes("Puka Nacua")));
+ok("and an undated story is gone", !stories.some((s) => s.headline.includes("Bijan Robinson")));
+ok("newest first", Date.parse(stories[0].published) >= Date.parse(stories[1].published));
 
 // Failure paths: a bad status, a thrown fetch, and malformed JSON must all
 // return an empty list rather than throwing into the page.

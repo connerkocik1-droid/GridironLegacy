@@ -1,0 +1,41 @@
+# Does the wire carry news about this league's footballers?
+#
+# A button rather than a schedule. scripts/verify-news.mjs needs to reach
+# ESPN, which not every machine that works on this repo can do — the sandbox
+# the news search was written in cannot — so it runs here, where the network is
+# open and nobody has to install anything.
+#
+#   Actions -> Check the news wire -> Run workflow
+#
+# Then read the log. It prints how many of the fortnight's articles name
+# somebody in the pool, how many players get a mention, and whether ESPN has a
+# per-athlete feed worth reading. It needs no secrets: everything it touches is
+# public.
+#
+# It also runs on a push that changes the script or this file. That is not
+# belt and braces: GitHub only offers the Run workflow button for workflows on
+# the default branch, so until this is merged the push is the only way to run
+# it at all — and the path filter means it stays quiet on every other commit.
+name: Check the news wire
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/verify-news.mjs
+      - .github/workflows/verify-news.yml
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No install step. The script reads two files out of src/data and talks
+      # to ESPN with the built-in fetch, so there is nothing to download.
+      - name: Read the wire
+        run: node scripts/verify-news.mjs
