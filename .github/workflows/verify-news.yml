@@ -11,10 +11,19 @@
 # somebody in the pool, how many players get a mention, and whether ESPN has a
 # per-athlete feed worth reading. It needs no secrets: everything it touches is
 # public.
+#
+# It also runs on a push that changes the script or this file. That is not
+# belt and braces: GitHub only offers the Run workflow button for workflows on
+# the default branch, so until this is merged the push is the only way to run
+# it at all — and the path filter means it stays quiet on every other commit.
 name: Check the news wire
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - scripts/verify-news.mjs
+      - .github/workflows/verify-news.yml
 
 jobs:
   verify:
