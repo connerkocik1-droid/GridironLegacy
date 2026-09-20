@@ -144,8 +144,17 @@ if (!sample) {
 const [sampleName, sampleUrl] = sample;
 const id = sampleUrl.match(/\/(\d+)\.png/)[1];
 
+// A second athlete, so the filter can be caught ignoring its argument. An
+// endpoint that returns the same fifty articles whatever id you hand it is
+// not a per-athlete feed, and "20 articles" from it means nothing.
+const other = Object.entries(headshots).find(
+  ([n, url]) => n !== sampleName && /\/(\d+)\.png/.test(url),
+);
+const otherId = other ? other[1].match(/\/(\d+)\.png/)[1] : null;
+
 console.log(`\nlooking for a per-athlete feed, using ${sampleName} (id ${id}) …`);
 
+const shapes = [];
 for (const url of [
   `${SITE}/athletes/${id}/news?limit=20`,
   `${SITE}/news?limit=20&athlete=${id}`,
@@ -156,13 +165,45 @@ for (const url of [
     const found = body.articles ?? body.items ?? [];
     console.log(`  OK    ${found.length} article(s)  ${url}`);
     if (found[0]) console.log(`          e.g. "${found[0].headline ?? found[0].title ?? "?"}"`);
+    if (found.length) shapes.push({ url, found });
   } catch (err) {
     console.log(`  none  ${err.message}  ${url}`);
   }
 }
 
+// ------------------------------------------------- is the filter real?
+// Two tests, and an endpoint has to pass both. Returning articles is not
+// enough: the league-wide wire also returns articles, and a "per-athlete"
+// feed that quietly ignores the id would hand every player the same fifty
+// stories — which is the exact complaint this whole change exists to fix,
+// rebuilt more expensively.
+for (const { url, found } of shapes) {
+  console.log(`\n  testing ${url}`);
+
+  const ids = found.map((a) => String(a.id ?? a.headline)).join(",");
+  const wireIds = articles.slice(0, found.length).map((a) => String(a.id ?? a.headline)).join(",");
+  console.log(`    same as the league-wide wire? ${ids === wireIds ? "YES — the id is being ignored" : "no"}`);
+
+  if (otherId) {
+    try {
+      const body = await getJson(url.replace(id, otherId));
+      const theirs = (body.articles ?? body.items ?? [])
+        .map((a) => String(a.id ?? a.headline)).join(",");
+      console.log(`    same for a different athlete?  ${theirs === ids ? "YES — the id is being ignored" : "no"}`);
+    } catch {
+      console.log("    same for a different athlete?  could not fetch the second one");
+    }
+  }
+
+  // And the one that actually matters: does he turn up in his own feed?
+  const his = key(sampleName);
+  const naming = found.filter((a) => ` ${fold(`${a.headline ?? ""} ${a.description ?? ""}`)} `.includes(` ${his} `));
+  console.log(`    ${naming.length} of ${found.length} actually name ${sampleName}`);
+  if (naming[0]) console.log(`      e.g. "${naming[0].headline}"`);
+}
+
 console.log(
-  "\nIf one of those answered with articles, per-player news is available and" +
-  "\nsrc/lib/news.ts can read it for a roster instead of relying on the" +
-  "\nleague-wide wire. If none did, the wire plus name matching is what there is.",
+  "\nAn endpoint is worth reading only if it says \"no\" to both ignored-id" +
+  "\nquestions. One that returns the league-wide wire under a player's name is" +
+  "\nworse than no per-player feed at all.",
 );
