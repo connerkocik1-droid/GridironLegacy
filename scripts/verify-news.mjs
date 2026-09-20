@@ -24,6 +24,30 @@
  *
  * It does not fail on a small number. A quiet fortnight in June is a real
  * answer, and so is a busy one in October — the point is to know which.
+ *
+ * ---------------------------------------------------------------------------
+ * What it answered on 20 September 2026, which is why the app is built the way
+ * it is. Re-run it rather than trusting this; ESPN can change any of it.
+ *
+ *   50 articles returned (asked for 100)  — the endpoint caps at 50
+ *   50 of them inside 14 days             — oldest was 2 days old
+ *    0 carry an ESPN athlete tag  ->  0 pool players
+ *   22 name a pool player in text -> 20 pool players
+ *
+ * Nought. Not "few" — none of the fifty carried a single athlete tag, which is
+ * the whole of why the app showed a manager no news about his own men: the
+ * mechanism it used returned nothing, and had been returning nothing.
+ *
+ * And there is no per-athlete feed. news?athlete=<id> answers with twenty
+ * articles and looks like one, but it is the league-wide wire with the id
+ * thrown away — identical to the unfiltered call, identical for a different
+ * player, and nought of the twenty named the man asked for. athletes/<id>/news
+ * answers 200 with an empty list. The common/v3 path 404s. So the wire plus
+ * name matching is what there is, and anything deeper has to come from keeping
+ * the wire ourselves rather than from asking ESPN a better question.
+ *
+ * The two-day span is the other thing worth knowing: the fortnight window is
+ * real but rarely binding, because ESPN does not serve anything older.
  */
 import { readFileSync } from "node:fs";
 
