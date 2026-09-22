@@ -207,7 +207,10 @@ const board = (teams, hm, note) => ({
     // pretend to open.
     note: i === 4 ? "" : `${note} ${team} did something worth a paragraph.`,
   })),
-  honorable: hm.map((team, i) => ({ rank: 16 + i, team, record: "1-1", note: "" })),
+  // Past the end of whatever this board holds. Sixteen was right when both
+  // boards ran fifteen deep; the ranks now differ per board, and a mention
+  // numbered inside the ranking above it is a fixture describing nothing real.
+  honorable: hm.map((team, i) => ({ rank: teams.length + 1 + i, team, record: "1-1", note: "" })),
 });
 
 export const REPORT = {

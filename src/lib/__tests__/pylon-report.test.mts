@@ -21,13 +21,19 @@ const eq = (label: string, got: unknown, want: unknown) =>
 // team and record. Tab separated, with the corruptions a real paste carries —
 // "1.0" for a rank, a date serial where "2-0" was typed, a trailing space on a
 // team's name.
+//
+// Twenty-five deep on the college side and thirty-two on the NFL, which is the
+// shape the boards are now. The two being different lengths is the part worth
+// having a fixture for: rows twenty-six to thirty-two carry an NFL club and an
+// empty college pair, so the column positions only hold if the empty cells
+// survive the split.
 const SHEET = [
   "College Football\t\t\tNFL\t",
   "1.0\tGeorgia\t2-0\tSan Francisco 49ers\t1-0",
-  "2.0\tMiami\t2-0\tChicago Bears\t1-0",
+  "2.0\tMiami\t2-0\tChicago Bears\t0-1",
   "3\tTexas\t2-0\tKansas City Chiefs\t1-0",
   "4\tOhio State\t46023.0\tJacksonville Jaguars\t1-0",
-  "5\tNotre Dame\t2-0\tSeattle Seahawks\t1-0",
+  "5\tNotre Dame\t2-0\tSeattle Seahawks\t0-1",
   "6\tIndiana\t2-0\tNew York Giants\t1-0",
   "7\tLSU\t2-0\tBaltimore Ravens\t1-0",
   "8\tOle Miss\t2-0\tLos Angeles Rams\t0-1",
@@ -38,32 +44,46 @@ const SHEET = [
   "13\tBYU\t2-0\tPhiladelphia Eagles\t1-0",
   "14\tTennessee\t2-0\tGreen Bay Packers \t0-1",
   "15\tTexas Tech\t2-0\tBuffalo Bills\t1-0",
-  "16\tLouisville\t46023.0\tNew England Patriots\t0-1",
+  "16\tLouisville\t2-0\tNew England Patriots\t1-0",
   "17\tSMU\t2-0\tCarolina Panthers\t0-1",
   "18\tUtah\t2-0\tPittsburgh Steelers\t1-0",
-  "19\tIowa\t2-0\tHouston Texans\t0-1",
-  "20\tMissouri\t2-0\tNew York Jets\t1-0",
+  "19\tIowa\t2-0\tHouston Texans\t1-0",
+  "20\tMissouri\t2-0\tNew York Jets\t0-1",
+  "21\tOregon\t2-0\tDallas Cowboys\t1-0",
+  "22\tMichigan\t2-0\tAtlanta Falcons\t1-0",
+  "23\tClemson\t2-0\tLas Vegas Raiders\t0-1",
+  "24\tFlorida State\t2-0\tTampa Bay Buccaneers\t1-0",
+  "25\tAuburn\t2-0\tArizona Cardinals\t1-0",
+  "26\t\t\tCleveland Browns\t0-1",
+  "27\t\t\tIndianapolis Colts\t1-0",
+  "28\t\t\tLos Angeles Chargers\t1-0",
+  "29\t\t\tNew Orleans Saints\t0-1",
+  "30\t\t\tTennessee Titans\t1-0",
+  "31\t\t\tWashington Commanders\t1-0",
+  "32\t\t\tMiami Dolphins\t0-1",
 ].join("\n");
 
 console.log("--- the sheet, as it is actually kept ---");
 {
   const r = parseRankings(SHEET);
 
-  eq("fifteen ranked on each board",
-    [r.college.ranked.length, r.nfl.ranked.length], [15, 15]);
-  eq("and five honourable mentions on each",
-    [r.college.honorable.length, r.nfl.honorable.length], [5, 5]);
+  eq("twenty-five college and thirty-two NFL",
+    [r.college.ranked.length, r.nfl.ranked.length], [25, 32]);
+  eq("and no honourable mentions, because nothing ran past the end",
+    [r.college.honorable.length, r.nfl.honorable.length], [0, 0]);
+  eq("nothing was left unread", r.ignored.length, 0);
 
   eq("the header decides which column is which board",
     [r.college.ranked[0].team, r.nfl.ranked[0].team], ["Georgia", "San Francisco 49ers"]);
   eq("ranks are in order", r.nfl.ranked.map((e) => e.rank).join(","),
-    "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15");
+    Array.from({ length: 32 }, (_, i) => i + 1).join(","));
 
-  // Sixteen to twenty are the honourable mentions. They are not labelled as
-  // such on the sheet; they are simply the rows past fifteen.
-  eq("the last five are the honourable mentions",
-    r.nfl.honorable.map((e) => e.team),
-    ["New England Patriots", "Carolina Panthers", "Pittsburgh Steelers", "Houston Texans", "New York Jets"]);
+  // The rows where only one board has a team. The college column is empty from
+  // twenty-six on, and the NFL club must not slide into its place.
+  eq("an empty college cell does not shift the NFL column",
+    r.nfl.ranked[31].team, "Miami Dolphins");
+  eq("and college stops where it stops", r.college.ranked[24].team, "Auburn");
+  eq("the thirty-second NFL club keeps its rank", r.nfl.ranked[31].rank, 32);
 
   eq("records come through", r.nfl.ranked[0].record, "1-0");
   eq("and a rank Excel wrote as 1.0 is still 1", r.college.ranked[0].rank, 1);
@@ -77,6 +97,31 @@ console.log("--- the sheet, as it is actually kept ---");
   eq("a trailing space is not part of a name",
     r.nfl.ranked[13].team.endsWith(" "), false);
   eq("nothing was left unread", r.ignored, []);
+}
+
+console.log("\n--- where each board's ranking ends ---");
+{
+  // The boards are different depths, so the same rank number means different
+  // things on each: twenty-six is past the end of a college top twenty-five
+  // and comfortably inside an NFL thirty-two.
+  const r = parseRankings(
+    [
+      "College Football\t\t\tNFL\t",
+      "25\tAuburn\t2-0\tArizona Cardinals\t1-0",
+      "26\tKansas State\t2-0\tCleveland Browns\t1-0",
+      "32\t\t\tMiami Dolphins\t0-1",
+      "33\t\t\tOakland Raiders\t0-1",
+    ].join("\n"),
+  );
+
+  eq("twenty-five is the last college rank", r.college.ranked.map((e) => e.team), ["Auburn"]);
+  eq("twenty-six is a college honourable mention",
+    r.college.honorable.map((e) => e.team), ["Kansas State"]);
+
+  eq("but twenty-six is a ranked NFL club",
+    r.nfl.ranked.map((e) => e.team), ["Arizona Cardinals", "Cleveland Browns", "Miami Dolphins"]);
+  eq("and thirty-three is past the end of even that",
+    r.nfl.honorable.map((e) => e.team), ["Oakland Raiders"]);
 }
 
 console.log("\n--- half the sheet ---");
@@ -145,7 +190,7 @@ console.log("\n--- joining the two ---");
       "Baltimore Ravens - Lamar Jackson looked great.",
       "green bay packers - A concerning loss.",
       "Cincinnati Bengals - The defense looked good?",
-      "Los Angeles Chargers - Nobody ranked them.",
+      "Oakland Raiders - A write-up under a name the board does not use.",
     ].join("\n"),
   );
 
@@ -169,7 +214,7 @@ console.log("\n--- joining the two ---");
   eq("a genuine misspelling does not silently match", noteOf("Cincinatti Bengals"), "");
   ok(`and is reported rather than swallowed (${joined.unmatched.join(", ")})`,
     joined.unmatched.includes("Cincinnati Bengals") &&
-      joined.unmatched.includes("Los Angeles Chargers"));
+      joined.unmatched.includes("Oakland Raiders"));
 
   eq("a matched write-up is not reported as missing",
     joined.unmatched.includes("Baltimore Ravens"), false);
@@ -184,10 +229,10 @@ console.log("\n--- the arrows ---");
       "1\tBaltimore Ravens\t2-0",       // was 7
       "2\tSan Francisco 49ers\t2-0",    // was 1
       "3\tChicago Bears\t1-1",          // was 2
-      "4\tNew York Jets\t2-0",          // was 20, an honourable mention
-      "5\tLas Vegas Raiders\t2-0",      // never ranked
+      "4\tNew York Jets\t2-0",          // was 20
+      "5\tLas Vegas Raiders\t2-0",      // was 23
       ...Array.from({ length: 10 }, (_, i) => `${i + 6}\tTeam ${i}\t1-1`),
-      "16\tKansas City Chiefs\t1-1",    // was 3, out of the fifteen
+      "16\tKansas City Chiefs\t1-1",    // was 3
       ...Array.from({ length: 4 }, (_, i) => `${i + 17}\tOther ${i}\t0-2`),
     ].join("\n"),
   );
@@ -199,14 +244,24 @@ console.log("\n--- the arrows ---");
   eq("and a fall counts them too", at("San Francisco 49ers"), "Down 1 place");
   eq("one place is singular", at("Chicago Bears"), "Down 1 place");
 
-  // The honourable mentions are part of the same ladder. A team that was 20th
+  // The far end of the board is part of the same ladder. A club that was 20th
   // and is now 4th moved sixteen places; calling it NEW throws that away.
-  eq("an honourable mention that breaks in has moved, not arrived",
+  eq("a climb from the bottom of the board has moved, not arrived",
     at("New York Jets"), "Up 16 places");
-  eq("and a ranked team that drops out has fallen",
+  eq("and a fall down it is a fall",
     at("Kansas City Chiefs"), "Down 13 places");
 
-  eq("somebody who was nowhere is new", at("Las Vegas Raiders"), "New this week");
+  // Nobody can be new to a board that already holds all thirty-two clubs, so
+  // the case is tested where it is real: college ranks twenty-five out of a
+  // hundred and thirty, and a team can genuinely arrive from nowhere.
+  const collegeAfter = parseRankings(
+    ["College Football", "1\tKansas State\t3-0", "2\tGeorgia\t3-0"].join("\n"),
+  );
+  const cm = movement(collegeAfter.college, before.college);
+  eq("somebody who was nowhere is new",
+    moveLabel(cm.get(keyOf("Kansas State"))), "New this week");
+  eq("and somebody who was there is not",
+    moveLabel(cm.get(keyOf("Georgia"))), "Down 1 place");
 
   // The first report of a season has nothing to move against. Twenty NEW
   // badges says nothing and reads as a bug.
@@ -218,7 +273,7 @@ console.log("\n--- what the office is told before it publishes ---");
 {
   const r = parseRankings(SHEET);
   const s = summarise(r, ["Cincinnati Bengals"]);
-  ok(`it counts both boards (${s})`, /College 15\+5/.test(s) && /NFL 15\+5/.test(s));
+  ok(`it counts both boards (${s})`, /College 25\+0/.test(s) && /NFL 32\+0/.test(s));
   ok("and names the trouble", /1 write-ups unmatched/.test(s));
   ok("a clean paste says nothing about trouble", !/unmatched|unread/.test(summarise(r)));
 }

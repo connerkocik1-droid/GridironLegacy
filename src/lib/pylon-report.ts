@@ -5,12 +5,14 @@
  * a format invented here. That turns out to be two documents:
  *
  * A spreadsheet, two boards side by side — a rank, a team and a record per
- * column pair, twenty rows deep. The first fifteen are the ranking and the
- * last five are the honourable mentions; they are not labelled as such,
- * they are simply rows sixteen to twenty.
+ * column pair. College runs to twenty-five and the NFL to thirty-two, which is
+ * every club in the league; anything pasted past those is taken as an
+ * honourable mention, the way the first version of this board worked when it
+ * ran fifteen deep with five behind it. Nothing is labelled as such in the
+ * sheet: a mention is simply a row past the end of the ranking.
  *
  * And a write-up, one paragraph per team: "Baltimore Ravens - Lamar Jackson
- * looked great…", in ranking order, for the fifteen.
+ * looked great…", in ranking order.
  *
  * So the two are pasted separately and joined here on the team's name. The
  * joining is the part that needs care: the sheet says "Cincinatti Bengals" and
@@ -22,8 +24,19 @@
 
 export type Board = "college" | "nfl";
 
-/** How many of the twenty rows are the ranking proper. */
-export const RANKED = 15;
+/**
+ * How deep each board's ranking runs, past which a row is an honourable
+ * mention.
+ *
+ * Per board rather than one number for both, because the two are not the same
+ * size and never were the same thing: thirty-two is every club in the NFL, so
+ * that board cannot have a mention at all, while a college top twenty-five is
+ * a choice out of a hundred and thirty and may well have some behind it.
+ */
+export const RANKED: Record<Board, number> = { college: 25, nfl: 32 };
+
+/** Past this a row is not a rank, it is a stray number in the paste. */
+const MAX_RANK = 60;
 
 export interface Entry {
   rank: number;
@@ -35,9 +48,9 @@ export interface Entry {
 }
 
 export interface BoardReport {
-  /** Ranks 1 to 15, in order. */
+  /** The ranking proper — 1 to 25 for college, 1 to 32 for the NFL. */
   ranked: Entry[];
-  /** Ranks 16 to 20 — the honourable mentions, in order. */
+  /** Anything pasted past the end of the ranking, in order. */
   honorable: Entry[];
 }
 
@@ -111,7 +124,7 @@ export function parseRankings(text: string): ParsedReport {
 
     // Excel writes a whole-number cell as "1.0". The rank is the integer.
     const rank = Number((cells[0] ?? "").replace(/\.0+$/, ""));
-    if (!Number.isInteger(rank) || rank < 1 || rank > 40) {
+    if (!Number.isInteger(rank) || rank < 1 || rank > MAX_RANK) {
       ignored.push(line);
       continue;
     }
@@ -123,14 +136,15 @@ export function parseRankings(text: string): ParsedReport {
       const team = (rest[pair * 2] ?? "").trim();
       if (!team) continue;
 
-      const into = (order[pair] ?? (pair === 0 ? "college" : "nfl")) === "college" ? college : nfl;
+      const board = order[pair] ?? (pair === 0 ? "college" : "nfl");
+      const into = board === "college" ? college : nfl;
       const entry: Entry = {
         rank,
         team,
         record: readRecord(rest[pair * 2 + 1] ?? ""),
         note: "",
       };
-      (rank <= RANKED ? into.ranked : into.honorable).push(entry);
+      (rank <= RANKED[board] ? into.ranked : into.honorable).push(entry);
     }
   }
 
@@ -276,15 +290,16 @@ export type Move =
 /**
  * How each team has moved since the week before.
  *
- * Measured across the whole twenty, not the fifteen: a team that was
- * honourable at 17 and is ranked at 12 has moved five places, and calling that
- * NEW would throw away the only interesting thing about it.
+ * Measured across the ranking and the mentions together, not the ranking
+ * alone: a team that was an honourable mention and is ranked this week has
+ * moved a definite number of places, and calling that NEW would throw away the
+ * only interesting thing about it.
  */
 export function movement(now: BoardReport, before: BoardReport | null): Map<string, Move> {
   const out = new Map<string, Move>();
   // No report to compare against is not the same as every team being new. The
-  // first week of a season would otherwise be twenty NEW badges, which says
-  // nothing and reads as a bug.
+  // first week of a season would otherwise be a NEW badge on every row, which
+  // says nothing and reads as a bug.
   if (!before) return out;
 
   const was = new Map([...before.ranked, ...before.honorable].map((e) => [keyOf(e.team), e.rank]));

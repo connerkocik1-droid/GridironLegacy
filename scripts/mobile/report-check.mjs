@@ -62,8 +62,9 @@ let page, ctx;
     /BIGGEST RISER/.test(t) && /BIGGEST FALLER/.test(t));
   ok("each naming where it came from and where it landed", /NO\. \d+ → NO\. \d+/.test(t));
   // The list starts at two, and No. 1 is in the spotlight rather than in both
-  // places: the label says 2-15 and the rows have to agree with it.
-  ok("and the list starts at two", /POWER RANKINGS 2-15/.test(t));
+  // places: the label counts the board and the rows have to agree with it.
+  // Five NFL clubs in this fixture, so "2-5".
+  ok("and the list starts at two", /POWER RANKINGS 2-5/.test(t));
   const ranks = await page.evaluate(() =>
     [...document.querySelectorAll('[data-report="pylon"] button[aria-expanded], [data-report="pylon"] button[aria-disabled]')]
       .map((b) => b.textContent?.trim().match(/^\d+/)?.[0])
@@ -183,7 +184,9 @@ console.log("\n--- and the other board ---");
     /Georgia/.test(t) && !/San Francisco 49ers/.test(t));
   ok("with its own honourable mentions", /Louisville/.test(t));
   ok("its own spotlight", /NO\. 1 IN THE POLL/.test(t));
-  ok("and the poll's own label", /TOP 15 POLL 2-15/.test(t));
+  // Counted off the board rather than written into the component: this
+  // fixture publishes five college teams, so the heading has to say five.
+  ok("and the poll's own label, counted off the board", /TOP 5 POLL 2-5/.test(t));
 
   // Switching boards closes whatever was open, or a breakdown from the other
   // board is left hanging under a team that is no longer there. Asked of the
@@ -247,7 +250,9 @@ console.log("\n--- and the office puts one up ---");
       "College Football\t\t\tNFL\t",
       "1\tGeorgia\t2-0\tSan Francisco 49ers\t1-0",
       "2\tMiami\t46023.0\tGreen Bay Packers \t0-1",
-      "16\tLouisville\t1-1\tNew York Jets\t1-0",
+      // Past the college twenty-five, so a mention — and with no NFL club
+      // beside it, because twenty-six is still a ranked place on that board.
+      "26\tLouisville\t1-1",
     ].join("\n"),
   );
   await desk.getByLabel("Write-up").fill(
@@ -262,7 +267,7 @@ console.log("\n--- and the office puts one up ---");
 
   const preview = await page.locator('[data-preview="report"]').innerText();
   ok(`the preview counts both boards (${preview.split("\n")[0]})`,
-    /College 2\+1/.test(preview) && /NFL 2\+1/.test(preview));
+    /College 2\+1/.test(preview) && /NFL 2\+0/.test(preview));
   ok("it shows what would be published", /1\. Georgia/.test(preview) && /HM: Louisville/.test(preview));
   ok("and how many carry a write-up", /2 of 2 WITH A WRITE-UP/.test(preview));
 
