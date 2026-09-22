@@ -15,6 +15,7 @@ import PlayerName from "./PlayerName";
 import { useRefreshable } from "@/lib/use-refresh";
 import { setStatLines, useStatLines } from "@/lib/use-stat-lines";
 import type { MatchupRow, SideEntry } from "@/lib/matchup";
+import { recordText } from "@/lib/record";
 
 interface Side {
   id: string;
@@ -220,15 +221,9 @@ function PlayerCell({
   );
 }
 
-/** "0-0", or "0-0-1" only once somebody has actually tied. */
-function recordText(record?: { w: number; l: number; t: number }): string {
-  if (!record) return "";
-  return `${record.w}-${record.l}${record.t ? `-${record.t}` : ""}`;
-}
-
 /** Who they are and how their year has gone, under the score. */
 function SideFooter({ side, align }: { side: Side; align: "left" | "right" }) {
-  const who = [side.name, side.record ? recordText(side.record) : ""].filter(Boolean).join(" · ");
+  const who = [side.name, side.record ? recordText(side.record.w, side.record.l, side.record.t) : ""].filter(Boolean).join(" · ");
   const line: React.CSSProperties = {
     display: "block",
     fontSize: 10.5,

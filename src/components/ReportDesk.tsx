@@ -95,9 +95,10 @@ export default function ReportDesk({
       <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
         Paste the rankings sheet into the first box and the write-up into the
         second. The sheet can be both boards side by side, the way it is kept —
-        a rank, a team and a record per column pair. Rows sixteen to twenty are
-        the honourable mentions. Nothing is published until you press the
-        button, and what it would publish is shown underneath.
+        a rank, a team and a record per column pair. College runs to
+        twenty-five and the NFL to thirty-two; anything past that is taken as
+        an honourable mention. Nothing is published until you press the button,
+        and what it would publish is shown underneath.
       </p>
 
       <label style={label}>

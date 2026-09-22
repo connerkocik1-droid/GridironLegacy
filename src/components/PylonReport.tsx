@@ -34,9 +34,10 @@ import {
  * screenful of invented authority.
  *
  * What survives is everything the design is actually for — the spotlight on
- * No. 1, the riser and faller, ranks two to fifteen as tap-to-expand rows with
- * the movement chip against the rank — and one thing the prototype has no
- * equivalent for, because this report has it: the five honourable mentions.
+ * No. 1, the riser and faller, the rest of the board as tap-to-expand rows
+ * with the movement chip against the rank — and one thing the prototype has no
+ * equivalent for, because this report can have it: the honourable mentions,
+ * which are whatever the sheet carried past the end of the ranking.
  *
  * The movement is still real and still not stored: it is last week's published
  * board against this week's, which is the same relationship the prototype has
@@ -53,9 +54,23 @@ interface Report {
 }
 
 const BOARDS = [
-  { key: "college", label: "College Football", list: "TOP 15 POLL 2-15", crown: "NO. 1 IN THE POLL" },
-  { key: "nfl", label: "NFL", list: "POWER RANKINGS 2-15", crown: "NO. 1 POWER RANK" },
+  { key: "college", label: "College Football", list: "TOP $N POLL", crown: "NO. 1 IN THE POLL" },
+  { key: "nfl", label: "NFL", list: "POWER RANKINGS", crown: "NO. 1 POWER RANK" },
 ] as const;
+
+/**
+ * "TOP 25 POLL 2-25", counted off the board rather than written down.
+ *
+ * It used to say "2-15" on both, which was true of both when both ran fifteen
+ * deep. They do not any more — college is twenty-five and the NFL is
+ * thirty-two — and a heading that states a depth is the one piece of copy that
+ * cannot be allowed to drift from the rows underneath it. Counting the rows
+ * means the week somebody pastes a short board it says so instead of lying.
+ */
+function listLabel(template: string, ranked: number): string {
+  const label = template.replace("$N", String(ranked));
+  return ranked > 1 ? `${label} 2-${ranked}` : label;
+}
 
 type BoardKey = (typeof BOARDS)[number]["key"];
 
@@ -334,7 +349,7 @@ export default function PylonReport() {
 
           <div style={{ display: "flex", alignItems: "baseline", padding: "18px 0 9px" }}>
             <span style={{ fontSize: 10, letterSpacing: ".28em", color: "var(--text-dim)" }}>
-              {showing.list}
+              {listLabel(showing.list, current.ranked.length)}
             </span>
             <span
               style={{ marginLeft: "auto", fontSize: 10, letterSpacing: ".12em", color: "var(--text-faint)" }}

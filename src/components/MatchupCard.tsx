@@ -4,6 +4,7 @@ import Link from "next/link";
 import TeamCrest from "./TeamCrest";
 import LiveNumber from "./LiveNumber";
 import WinProbability from "./WinProbability";
+import { recordText } from "@/lib/record";
 
 /**
  * One fixture, as a card you press.
@@ -46,12 +47,6 @@ export interface CardGame {
   home: CardSide;
   away: CardSide;
   winProbability?: number | null;
-}
-
-/** "0-0", or "0-0-1" only when somebody has actually tied. */
-function recordText(record?: { w: number; l: number; t: number }): string {
-  if (!record) return "";
-  return `${record.w}-${record.l}${record.t ? `-${record.t}` : ""}`;
 }
 
 function Side({
@@ -133,7 +128,7 @@ function Side({
           }}
         >
           {side.claimed ? side.name : "Open"}
-          {side.record ? ` · ${recordText(side.record)}` : ""}
+          {side.record ? ` · ${recordText(side.record.w, side.record.l, side.record.t)}` : ""}
         </div>
         {/* How much football is left. Only while a week is actually running:
             before kickoff "yet to play (9)" is every card in the league

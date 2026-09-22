@@ -4,6 +4,7 @@ import Link from "next/link";
 import PresenceDot from "./PresenceDot";
 import { useState } from "react";
 import type { PowerRow } from "@/lib/home-types";
+import { recordText } from "@/lib/record";
 
 /**
  * Who is actually good, and who is moving.
@@ -80,9 +81,16 @@ export default function PowerRank({ power }: { power: PowerRow[] }) {
               {t.mine ? <span style={{ color: "var(--accent-link)", fontSize: 10 }}> · YOU</span> : null}
             </div>
             <div style={{ fontSize: 10.5, color: "var(--text-dim)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {/* The record first, because it is the fact a power ranking is
+                  answering to: a rating that disagrees with a 1-2 start is the
+                  interesting case, and it cannot be read as interesting if the
+                  record is not there. Age last of the four — it is the slowest
+                  fact here, and this line ellipsises on a narrow phone, so the
+                  order is also which one can afford to go. */}
               {t.name}
-              {t.avgAge != null ? ` · avg age ${t.avgAge.toFixed(1)}` : ""}
+              {` · ${recordText(t.wins, t.losses, t.ties)}`}
               {` · ${t.pointsFor.toFixed(1)} PF`}
+              {t.avgAge != null ? ` · avg age ${t.avgAge.toFixed(1)}` : ""}
             </div>
             {/* The rating as a bar as well as a number: twelve numbers in a
                 column are hard to compare, twelve bars are not. */}
