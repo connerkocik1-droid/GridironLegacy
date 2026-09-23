@@ -1,4 +1,7 @@
+"use client";
+
 import { logo } from "@/data/league-data";
+import { usePixelArt } from "@/lib/use-pixel-art";
 
 /**
  * The little shield beside a player's name — or nothing at all.
@@ -30,13 +33,22 @@ export default function TeamMark({
   className?: string;
 }) {
   const src = team ? logo(team) : "";
+
+  // The thirty-two club marks, redrawn as sprites. This is what stands in for
+  // hand-drawn pixel-art versions of each one — the same filter the fantasy
+  // crests go through, so the two sit side by side in a matchup row looking
+  // like they came out of the same machine.
+  //
+  // Above the early return, because a hook cannot be called conditionally.
+  const sprite = usePixelArt(src, 18);
+
   if (!src) return null;
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       className={className}
-      src={src}
+      src={sprite}
       alt=""
       width={size}
       height={size}

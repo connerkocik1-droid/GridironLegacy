@@ -119,6 +119,27 @@ function subscribe(onChange: () => void) {
   };
 }
 
+/** What the root element is actually set to, once "system" is resolved. */
+export type Resolved = "light" | "dark" | "16bit";
+
+function resolved(): Resolved {
+  return choice === "system" ? systemIs() : choice;
+}
+
+/**
+ * The theme in force, rather than the choice that produced it.
+ *
+ * useTheme answers "what did they pick", which is what the picker needs and
+ * is the wrong question for anything that renders differently per theme:
+ * "system" is not a look. This answers "what is on screen", so a component can
+ * ask whether it is in the retro theme without caring how it got there.
+ *
+ * Dark on the server, matching the pre-paint script's own fallback.
+ */
+export function useResolvedTheme(): Resolved {
+  return useSyncExternalStore(subscribe, resolved, () => "dark");
+}
+
 export function useTheme(): Choice {
   return useSyncExternalStore(
     subscribe,

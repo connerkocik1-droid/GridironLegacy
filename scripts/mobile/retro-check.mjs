@@ -79,6 +79,13 @@ for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/
       // is the request, not the rendering.
       heading: getComputedStyle(document.documentElement).getPropertyValue("--font-heading").trim(),
       fontLink: Boolean(document.getElementById("pylon-pixel-font")),
+      // Exactly one element animates, and it is the pylon and wordmark pair.
+      // A bounce that spread to anything else would be a selector too broad.
+      bounce: [...document.querySelectorAll("*")]
+        .filter((el) => getComputedStyle(el).animationName === "gl-bounce").length,
+      faces: document.querySelectorAll('img[src*="/headshots/"]').length,
+      idle: [...document.querySelectorAll('img[src*="/headshots/"]')]
+        .filter((el) => getComputedStyle(el).animationName === "gl-idle").length,
     };
   });
 
@@ -93,8 +100,57 @@ for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/
   ok("a crest is square", m.crest === "0px" || m.crest === "none", m.crest);
   ok("headings ask for the pixel face first", m.heading.startsWith('"Pixelify Sans"'), m.heading);
   ok("and it is only fetched once the theme is on", m.fontLink);
+  ok("the header mark is the one thing that bounces", m.bounce === 1, String(m.bounce));
+  ok(`every headshot idles (${m.idle})`, m.idle > 0 || m.faces === 0, `${m.idle} of ${m.faces}`);
 
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/16bit-${label}.png`, fullPage: true });
+}
+
+// ------------------------------------------------------- the sprite filter
+// The crests and club marks are redrawn through a canvas at render. Two ways
+// that can go wrong and neither is visible in a screenshot: the conversion
+// silently failing everywhere (a tainted canvas, a CDN that will not send
+// CORS) and leaving the original photograph, or the conversion running in a
+// theme that did not ask for it.
+console.log("\n===== the sprite filter");
+{
+  await page.goto(`${BASE}/lineup`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(1800);
+
+  const marks = await page.evaluate(() =>
+    [...document.querySelectorAll("img")]
+      .map((el) => el.getAttribute("src") ?? "")
+      .filter((src) => src && !src.startsWith("data:image/gif")));
+  console.log(`    (${marks.length} images: ${marks.map((m) => m.slice(0, 28)).join(" | ")})`);
+
+  const sprites = marks.filter((src) => src.startsWith("data:image/png"));
+  ok(`something was converted (${sprites.length} of ${marks.length} images)`, sprites.length > 0);
+
+  // A sprite is tiny by construction — a 24px-square PNG — and that is what
+  // keeps a page of them cheap. A conversion that quietly emitted the full
+  // image would still be a data URL and would still look right.
+  const biggest = Math.max(0, ...sprites.map((s) => s.length));
+  ok(`and the sprites are small (largest ${biggest} chars)`, biggest > 0 && biggest < 12_000);
+}
+
+console.log("\n===== and not in the other themes");
+{
+  const plain = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
+  await plain.addCookies([sessionCookie()]);
+  await plain.addInitScript(() => {
+    try { localStorage.setItem("pylon:theme", "dark"); } catch { /* storage off */ }
+  });
+  const dark = await plain.newPage();
+  dark.setDefaultNavigationTimeout(120_000);
+  await routes(dark);
+  await dark.goto(`${BASE}/the-league`, { waitUntil: "networkidle" });
+  await dark.waitForTimeout(1200);
+
+  const converted = await dark.evaluate(() =>
+    [...document.querySelectorAll("img")]
+      .filter((el) => (el.getAttribute("src") ?? "").startsWith("data:image/png")).length);
+  ok("the dark theme does no canvas work at all", converted === 0, String(converted));
+  await plain.close();
 }
 
 // And the switch itself: three themes have to be reachable, and picking one

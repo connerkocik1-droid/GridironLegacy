@@ -2,6 +2,7 @@ import Link from "next/link";
 import CommissionerOnly from "./CommissionerOnly";
 import Notices from "./Notices";
 import ProfileMenu from "./ProfileMenu";
+import HeaderMark from "./HeaderMark";
 
 // Three doors and the draft room, and that is the whole bar.
 //
@@ -71,34 +72,7 @@ const primaryLink = (active: boolean): React.CSSProperties => ({
 export default function Nav({ current, note }: { current: string; note?: string }) {
   return (
     <div className="gl-nav" style={bar}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" }}>
-        {/* The mark, and the same one as the home-screen icon: a pylon, in the
-            pylon's own colour. It was an abstract purple slab, which was fine
-            when the app was called something else and is a missed opportunity
-            now that it is named after this object. */}
-        <svg
-          width="11"
-          height="18"
-          viewBox="0 0 11 18"
-          aria-hidden
-          style={{ flex: "0 0 auto", filter: "drop-shadow(0 0 9px rgba(226,102,42,.55))" }}
-        >
-          <path d="M2.6 0 h4.2 l2.6 18 h-9.4 z" fill="#f0913f" />
-          <path d="M6.8 0 h1.6 l2.2 18 h-1.6 z" fill="#b8511f" />
-        </svg>
-        <span
-          className="gl-wordmark"
-          style={{
-            fontFamily: "var(--font-heading)",
-            letterSpacing: ".2em",
-            textTransform: "uppercase",
-            fontSize: 12,
-            whiteSpace: "nowrap",
-          }}
-        >
-          Pylon<span style={{ color: "var(--accent-link)" }}> Fantasy</span>
-        </span>
-      </div>
+      <HeaderMark />
 
       {/* Hidden on a phone, where the same four sit in a bar at the bottom
           within a thumb's reach. Rendered either way rather than swapped, so
