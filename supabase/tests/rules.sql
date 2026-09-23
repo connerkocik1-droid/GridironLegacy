@@ -4146,6 +4146,7 @@ insert into nfl_players (name, team, position, injury_status) values
   ('Res Wrecked',   'CAR', 'WR', 'ir'),
   ('Res Doubt',     'ATL', 'TE', 'questionable'),
   ('Res Sidelined', 'NO',  'WR', 'out'),
+  ('Res Benched',   'SEA', 'RB', 'out'),
   ('Res Fit',       'CLE', 'QB', null),
   ('Res Spare',     'JAX', 'RB', null)
 on conflict (name) do update
@@ -4161,8 +4162,14 @@ select signin(:'RU');
 
 select expect('a torn knee may be stashed', ir_eligible('Res Torn'), true);
 select expect('so may a suspension', ir_eligible('Res Banned'), true);
+-- Out joined the other two in 0060. It is the loosest of the three and the
+-- commonest by a distance, and leaving it out was what made the reserve feel
+-- broken: the designation most men carry was the one it would not take.
+select expect('and so may out for the week', ir_eligible('Res Sidelined'), true);
+-- The line has to hold somewhere, and it holds here. A doubt is not an
+-- absence: a questionable player usually plays, and a reserve that took him
+-- would be a roster spot anybody could conjure on a Friday.
 select expect('a doubt may not', ir_eligible('Res Doubt'), false);
-select expect('nor may out for the week', ir_eligible('Res Sidelined'), false);
 select expect('nor a fit player', ir_eligible('Res Fit'), false);
 select expect('nor one nobody has heard of', ir_eligible('Res Nobody'), false);
 
@@ -4177,13 +4184,36 @@ select expect('the torn knee goes to the reserve',
   (select lineup_slot from roster_slots
     where league_id = :'R' and player_name = 'Res Torn'), 'IR');
 
+-- The one the whole of 0060 is for. A man ruled out for Sunday is the
+-- commonest designation there is, and until 0060 the reserve would not take
+-- him — so this asserts the move itself, not only that the predicate says yes.
+--
+-- He is put on the roster and taken off again inside this block rather than
+-- added to the fixture above: the roster counts asserted further down are
+-- written against those three men, and a fourth quietly makes every one of
+-- them wrong for a reason that has nothing to do with what is being tested.
+\o /dev/null
+insert into roster_slots (league_id, manager_id, player_name, lineup_slot)
+  select :'R', id, 'Res Benched', 'BENCH'
+    from managers where managers.league_id = :'R' and managers.slot = 'AAA';
+select set_injured_reserve('Res Benched', true);
+\o
+
+select expect('and so does a man ruled out for the week',
+  (select lineup_slot from roster_slots
+    where league_id = :'R' and player_name = 'Res Benched'), 'IR');
+
+\o /dev/null
+delete from roster_slots where league_id = :'R' and player_name = 'Res Benched';
+\o
+
 select expect('a doubtful player is refused',
   refuses($$select set_injured_reserve('Res Doubt', true)$$),
-  'The reserve is for players on IR or suspended — Res Doubt is not');
+  'The reserve is for players out, on IR or suspended — Res Doubt is not');
 
 select expect('and a fit one is refused',
   refuses($$select set_injured_reserve('Res Fit', true)$$),
-  'The reserve is for players on IR or suspended — Res Fit is not');
+  'The reserve is for players out, on IR or suspended — Res Fit is not');
 
 select expect('the refused player stayed on the bench',
   (select lineup_slot from roster_slots
@@ -4208,7 +4238,7 @@ select expect('and the roster is no fuller for it',
 
 select expect('a fit free agent cannot be signed to the reserve',
   refuses(format('select add_player_to_ir(%L, %L)', :'R', 'Res Spare')),
-  'Only a player on IR or suspended can be signed to the reserve');
+  'Only a player out, on IR or suspended can be signed to the reserve');
 
 select expect('and the reserve has a size',
   refuses(format('select add_player_to_ir(%L, %L)', :'R', 'Res Broken')),

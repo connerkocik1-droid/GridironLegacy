@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * Light, dark, or whatever the phone is set to.
+ * Light, dark, sixteen-bit, or whatever the phone is set to.
  *
  * The choice lives in one localStorage key and is written onto the root
  * element as data-theme, which is the only thing the stylesheet reads. Two
@@ -18,7 +18,15 @@ import { useSyncExternalStore } from "react";
  *   home-screen launch is the first thing anybody sees.
  */
 
-export type Choice = "light" | "dark" | "system";
+/**
+ * "16bit" is a theme rather than a mode: it is not a darker dark or a lighter
+ * light, and no phone setting resolves to it. So it can be chosen and it can
+ * be stored, but "system" never means it.
+ */
+export type Choice = "light" | "dark" | "16bit" | "system";
+
+/** Everything a stored value is allowed to be. */
+const CHOICES = new Set<string>(["light", "dark", "16bit"]);
 
 export const THEME_KEY = "pylon:theme";
 
@@ -29,7 +37,7 @@ let started = false;
 function readStored(): Choice {
   try {
     const said = localStorage.getItem(THEME_KEY);
-    return said === "light" || said === "dark" ? said : "system";
+    return said && CHOICES.has(said) ? (said as Choice) : "system";
   } catch {
     // A browser with storage turned off follows the system and cannot choose.
     return "system";
@@ -43,9 +51,37 @@ function systemIs(): "light" | "dark" {
     : "dark";
 }
 
+/**
+ * The pixel font, fetched the first time somebody actually picks the theme.
+ *
+ * Not through next/font, and not in the document head. next/font downloads at
+ * build time and bakes the face into every page, so a font two managers will
+ * ever see would be paid for by all twelve on every load — and a plain <link>
+ * in the layout is the render-blocking request to somebody else's CDN that
+ * this app deliberately removed when it self-hosted Inter.
+ *
+ * So it is fetched here, once, by the only person it is for. Everything using
+ * it falls back to Inter, so a blocked CDN or a phone offline costs the theme
+ * its letterforms and nothing else — the colours, the square corners and the
+ * scanlines are all local.
+ */
+const PIXEL_FONT =
+  "https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&display=swap";
+
+function loadPixelFont() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById("pylon-pixel-font")) return;
+  const link = document.createElement("link");
+  link.id = "pylon-pixel-font";
+  link.rel = "stylesheet";
+  link.href = PIXEL_FONT;
+  document.head.appendChild(link);
+}
+
 function paint() {
   const resolved = choice === "system" ? systemIs() : choice;
   document.documentElement.dataset.theme = resolved;
+  if (resolved === "16bit") loadPixelFont();
 }
 
 export function setTheme(next: Choice) {

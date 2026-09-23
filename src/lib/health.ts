@@ -87,6 +87,26 @@ export function toHealth(espn: string | null | undefined): Health {
 }
 
 /** Whether a status is worth taking up room beside a name. */
+/**
+ * The designations the reserve will take.
+ *
+ * This lived in three API routes and a Postgres function, written out longhand
+ * in each, and the day it had to change all four were wrong until the last one
+ * was found. It is one list now, and ir_eligible() in migration 0060 is its
+ * opposite number in the database — the two have to agree, because the button
+ * this decides is drawn from here and refused from there.
+ *
+ * OUT is in it. It is the loosest of the three — a man ruled out for Sunday is
+ * not a man whose season is over — but it is far and away the commonest, and
+ * leaving it out was what made the reserve feel broken.
+ */
+export const IR_ELIGIBLE: readonly Health[] = ["out", "ir", "suspended"];
+
+/** Whether a designation, as the injury report spells it, earns the reserve. */
+export function canStash(status: string | null | undefined): boolean {
+  return IR_ELIGIBLE.includes(String(status ?? "") as Health);
+}
+
 export function worthShowing(status: Health): boolean {
   return status !== "active";
 }

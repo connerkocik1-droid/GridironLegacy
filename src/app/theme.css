@@ -214,6 +214,98 @@
      with gl-on-dark, below. */
 }
 
+/* ----------------------------------------------------------------- 16-bit ---
+   The same app on a CRT.
+
+   A third choice beside light and dark rather than a skin bolted over one of
+   them: it is the same token list again, so every screen in the app follows it
+   without knowing it exists, and nothing here is a filter or an overlay on the
+   other two.
+
+   What makes it read as sixteen-bit is three things, and only the first is in
+   this file. The palette is a console palette — few hues, all of them pushed
+   to the edge of the gamut, on a near-black indigo that is the colour a CRT
+   shows when it is showing nothing. The corners are square and the shadows are
+   hard, which is in globals.css because it is geometry rather than colour. And
+   the screen has scanlines, which is there too.
+
+   The text scale is brighter than the dark theme's overall: saturated violets
+   and cyans on near-black eat contrast at the quiet end, so the quiet tones
+   are lifted rather than carried over. --text-faint here measures about 4.6:1
+   on a card, which is where the dark theme had to be pushed to as well. */
+
+:root[data-theme="16bit"] {
+  --bg: #12102a;
+  --bg-rgb: 18 16 42;
+  --surface-rgb: 26 22 58;
+  --sunken-rgb: 12 10 30;
+  --raised-rgb: 40 34 82;
+  --glow-rgb: 88 60 160;
+  --board-solid: #1a1638;
+  --well: #0a0820;
+
+  /* Violet and cyan, the pairing every console of the era reached for. The
+     bright one is the cyan: it is what "this, now" looks like on a CRT. */
+  --accent-rgb: 158 92 255;
+  --accent-bright-rgb: 92 225 255;
+  --accent-text: #9df7ff;
+  --accent-link: #5ce1ff;
+  --accent-solid: #9e5cff;
+  --accent-deep: #5a2ea6;
+  --accent-mid: #9e5cff;
+  --accent-soft: #c79bff;
+
+  --text: #f4f2ff;
+  --text-2: #e0daff;
+  --text-3: #cbc3f6;
+  --text-muted: #b3aae8;
+  --text-quiet: #a79edd;
+  --text-dim: #9a91d0;
+  --text-faint: #8f86cc;
+  --text-off: #605796;
+
+  /* Full-strength signal colours. On this ground a muted green reads as grey,
+     so nothing here is muted. */
+  --good: #3dffa6;
+  --good-rgb: 61 255 166;
+  --warn: #ffd23d;
+  --warn-rgb: 255 210 61;
+  --bad: #ff5c7a;
+  --bad-text: #ff7d95;
+  --bad-rgb: 255 92 122;
+  --bad-soft: #ff8fa3;
+  --suspended: #ff7ae0;
+
+  --pos-qb: #ff6b6b;
+  --pos-qb-rgb: 255 107 107;
+  --pos-rb: #3dffa6;
+  --pos-rb-rgb: 61 255 166;
+  --pos-wr: #5ce1ff;
+  --pos-wr-rgb: 92 225 255;
+  --pos-te: #ffb03d;
+  --pos-te-rgb: 255 176 61;
+  --pos-k: #c79bff;
+  --pos-k-rgb: 199 155 255;
+  --pos-dst: #a8a8d8;
+  --pos-dst-rgb: 168 168 216;
+
+  --scrim-rgb: 6 4 20;
+  --reveal-rgb: 52 28 110;
+  --danger-ground-rgb: 70 20 44;
+
+  /* Headings only. A pixel face at ten pixels with a third of an em of
+     letter-spacing — which is what the eyebrow labels are — is unreadable, and
+     body copy in it is worse; the heading token covers the scores, the names
+     and the franchise titles, which are the places with room for it.
+
+     Inter is the fallback and is a real one: the font is fetched from a CDN by
+     use-theme.ts only once this theme is picked, so a phone offline gets the
+     palette, the square corners and the scanlines with the ordinary
+     letterforms, rather than getting nothing. */
+  --font-heading: "Pixelify Sans", var(--font-inter), "Inter", system-ui, sans-serif;
+  --font-heading-weight: 600;
+}
+
 /* ------------------------------------------------------------ on the dark ---
    The two places that stay dark in a light app: the film, and the pick reveal.
    Both are full-screen and both are lit rather than laid out, so the text on

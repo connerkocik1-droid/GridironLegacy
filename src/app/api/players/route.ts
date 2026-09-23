@@ -3,6 +3,7 @@ import { teamGames } from "@/lib/nfl-week";
 import { COLUMNS, rank, sortRows, type Group, type Row } from "@/lib/rankings";
 import { isConfigured, serverClient } from "@/lib/supabase";
 import { currentWeek } from "@/lib/week";
+import { IR_ELIGIBLE } from "@/lib/health";
 
 export const dynamic = "force-dynamic";
 
@@ -192,7 +193,7 @@ export async function GET(req: Request) {
   const { data: hurt } = await db
     .from("nfl_players")
     .select("name")
-    .in("injury_status", ["ir", "suspended"]);
+    .in("injury_status", [...IR_ELIGIBLE]);
 
   const stashable = new Set((hurt ?? []).map((r: { name: string }) => r.name));
 

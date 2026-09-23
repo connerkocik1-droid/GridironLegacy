@@ -197,7 +197,7 @@ export default function ProfileMenu() {
 }
 
 /**
- * Light, dark, or whatever the phone says.
+ * Light, dark, sixteen-bit, or whatever the phone says.
  *
  * Here rather than in a settings page because it is a preference about this
  * screen, not about this franchise — and because the profile menu is the one
@@ -210,10 +210,14 @@ export default function ProfileMenu() {
 function ThemeChoice() {
   const choice = useTheme();
 
+  // 16-bit is last and named for what it is rather than for a mood. It is not
+  // a third brightness — no phone setting resolves to it — so it sits at the
+  // end of the row rather than between the two that are.
   const options: [Choice, string][] = [
     ["system", "System"],
     ["light", "Light"],
     ["dark", "Dark"],
+    ["16bit", "16-bit"],
   ];
 
   return (
@@ -243,9 +247,11 @@ function ThemeChoice() {
               aria-pressed={on}
               style={{
                 flex: 1,
+                minWidth: 0,
                 minHeight: 34,
-                padding: "6px 4px",
+                padding: "6px 3px",
                 fontSize: 11,
+                whiteSpace: "nowrap",
                 border: `1px solid ${on ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
                 background: on ? "rgb(var(--accent-rgb) / .26)" : "transparent",
                 color: on ? "var(--text)" : "var(--text-muted)",

@@ -152,8 +152,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         */}
         <Script id="pylon-theme" strategy="beforeInteractive">
           {'(function(){try{var c=localStorage.getItem("pylon:theme");' +
-            'document.documentElement.dataset.theme=(c==="light"||c==="dark")?c:' +
-            '(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");}' +
+            'var t=(c==="light"||c==="dark"||c==="16bit")?c:' +
+            '(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");' +
+            'document.documentElement.dataset.theme=t;' +
+            // The pixel face, asked for here rather than by the theme store:
+            // the store does not start until something calls useTheme, and the
+            // only thing that does is the appearance picker inside the profile
+            // menu — so the font arrived when you opened that menu rather than
+            // when you loaded the page, which is a page of Inter and then a
+            // reflow. Requested only for the one theme that names it.
+            'if(t==="16bit"&&!document.getElementById("pylon-pixel-font")){' +
+            'var l=document.createElement("link");l.id="pylon-pixel-font";' +
+            'l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?' +
+            'family=Pixelify+Sans:wght@400;600&display=swap";' +
+            'document.head.appendChild(l);}}' +
             'catch(e){document.documentElement.dataset.theme="dark";}})()'}
         </Script>
 

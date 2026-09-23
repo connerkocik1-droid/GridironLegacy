@@ -6,7 +6,7 @@
  * words mean. Getting one wrong shows the wrong badge beside a name on every
  * screen at once, which is the sort of thing that costs somebody a Sunday.
  */
-import { toHealth, worthShowing, HEALTH_LABEL, HEALTH_SHORT } from "../health";
+import { canStash, toHealth, worthShowing, HEALTH_LABEL, HEALTH_SHORT } from "../health";
 import { healthOf } from "../use-player-health";
 import { normalizeName } from "../player-names";
 import { POOL } from "../../data/league-data";
@@ -144,6 +144,28 @@ console.log("\n--- and who makes it onto the report at all ---");
   // The word ESPN used is kept beside our five, because it is more precise.
   eq("ESPN's own word is carried through",
     report[normalizeName("Trey McBride")]?.detail, "Injured Reserve");
+}
+
+console.log("\n--- who the reserve will take ---");
+{
+  // The app's half of a rule the database also holds. ir_eligible() in
+  // migration 0060 is the other half, and supabase/tests/rules.sql asserts the
+  // same five answers against it — if these two ever disagree, the profile
+  // draws a button the database refuses, which is the one outcome this whole
+  // arrangement exists to prevent.
+  eq("a man ruled out for the week", canStash("out"), true);
+  eq("one on injured reserve", canStash("ir"), true);
+  eq("one under suspension", canStash("suspended"), true);
+
+  // The line, and where it holds. A questionable player usually plays, so a
+  // reserve that took him would be a roster spot anybody could conjure.
+  eq("but not a doubt", canStash("questionable"), false);
+  eq("nor a fit player", canStash("active"), false);
+
+  // The report says nothing about most of the league, and silence is fitness.
+  eq("nor one the report has never mentioned", canStash(null), false);
+  eq("nor an empty string", canStash(""), false);
+  eq("nor a status nobody recognises", canStash("dayto-day"), false);
 }
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");

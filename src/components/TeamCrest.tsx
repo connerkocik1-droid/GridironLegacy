@@ -42,6 +42,10 @@ export default function TeamCrest({
   return (
     <span
       aria-hidden
+      /* Named so a theme can reach it. The radius is inline and computed from
+         the size, which no token can override — and a round crest is the one
+         thing that stops the sixteen-bit theme reading as sixteen-bit. */
+      className="gl-crest"
       style={{
         width: size,
         height: size,
