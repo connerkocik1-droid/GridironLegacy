@@ -12,6 +12,8 @@
  * a page is noise that hides the two that matter.
  */
 
+import { normalizeName } from "./player-names";
+
 export type Health = "active" | "questionable" | "out" | "ir" | "suspended";
 
 export interface PlayerHealth {
@@ -105,6 +107,34 @@ export const IR_ELIGIBLE: readonly Health[] = ["out", "ir", "suspended"];
 /** Whether a designation, as the injury report spells it, earns the reserve. */
 export function canStash(status: string | null | undefined): boolean {
   return IR_ELIGIBLE.includes(String(status ?? "") as Health);
+}
+
+/**
+ * Whether the live injury report puts a man where the reserve may hold him.
+ *
+ * The other half of canStash, and the half that is true right now. canStash
+ * reads nfl_players.injury_status, which a cron fills once a night; this reads
+ * the report itself. The two disagree for most of the week, because an OUT
+ * designation is not a fact about Tuesday — it firms up on Friday and again on
+ * Sunday morning, and the table is as old as the last sync.
+ *
+ * That disagreement was the bug. The profile drew a live OUT badge from the
+ * report and then decided the button from the table, so a man the page had
+ * just called OUT had no way to be sent to the reserve.
+ *
+ * On the report at all, and not merely questionable. Deliberately broader than
+ * canStash's three: everybody on the report is on it for a reason, and a word
+ * we do not recognise is still a reason. Questionable is the one exclusion — a
+ * doubt is not an absence, and a reserve that took him would be a roster spot
+ * anybody could conjure on a Friday.
+ */
+export function reportStashable(
+  report: readonly { name: string; status: string }[],
+  name: string,
+): boolean {
+  const key = normalizeName(name);
+  const entry = report.find((e) => normalizeName(e.name) === key);
+  return entry ? toHealth(entry.status) !== "questionable" : false;
 }
 
 export function worthShowing(status: Health): boolean {

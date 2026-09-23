@@ -1,6 +1,5 @@
 import { fetchInjuries } from "@/lib/espn";
-import { toHealth } from "@/lib/health";
-import { NameIndex } from "@/lib/player-names";
+import { syncReport } from "@/lib/injury-sync";
 import { serviceClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -37,17 +36,6 @@ export async function GET(req: Request) {
   // and they disagree often enough to matter — a suffix, an accent, a man who
   // goes by his middle name. Same index the scorer matches box scores with, so
   // a name that scores correctly is a name that can be stashed correctly.
-  const { data: known, error: readError } = await db
-    .from("nfl_players")
-    .select("name");
-
-  if (readError) {
-    console.error("[cron/health] could not read the player list", readError);
-    return Response.json({ error: readError.message }, { status: 500 });
-  }
-
-  const index = new NameIndex((known ?? []).map((row: { name: string }) => row.name));
-
   let entries: { name: string; status: string; detail?: string }[];
   try {
     entries = await fetchInjuries();
@@ -56,44 +44,16 @@ export async function GET(req: Request) {
     return Response.json({ error: "The injury report is not reachable" }, { status: 502 });
   }
 
-  const names: string[] = [];
-  const statuses: string[] = [];
-  const details: string[] = [];
-  let unmatched = 0;
+  // The same writer the stash route uses. It used to be written out here and
+  // nowhere else, which was fine until a second caller needed it — and a
+  // second copy of "which entries are worth writing" is a second answer.
+  const { changed, unmatched, reported } = await syncReport(db, entries);
 
-  for (const entry of entries) {
-    // Being on a list is not a diagnosis: an entry whose word we cannot read
-    // is dropped rather than turned into a designation somebody acts on.
-    const status = toHealth(entry.status);
-    if (status === "active") continue;
-
-    const name = index.lookup(entry.name);
-    if (!name) {
-      unmatched += 1;
-      continue;
-    }
-
-    names.push(name);
-    statuses.push(status);
-    details.push(entry.detail || entry.status || "");
-  }
-
-  if (!names.length) {
+  if (!reported) {
     // Not an error. A quiet week in June genuinely has nobody on it, and the
     // database refuses to clear anybody on the strength of an empty report
     // either way.
     return Response.json({ reported: 0, changed: 0, unmatched });
-  }
-
-  const { data, error } = await db.rpc("sync_player_health", {
-    p_names: names,
-    p_statuses: statuses,
-    p_details: details,
-  });
-
-  if (error) {
-    console.error("[cron/health] failed", error);
-    return Response.json({ error: error.message }, { status: 500 });
   }
 
   // And tell the managers who hold them. Reads the report as it now stands
@@ -109,5 +69,5 @@ export async function GET(req: Request) {
     else queued = news.data ?? 0;
   }
 
-  return Response.json({ reported: names.length, changed: data, unmatched, queued });
+  return Response.json({ reported, changed, unmatched, queued });
 }
