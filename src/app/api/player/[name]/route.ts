@@ -5,7 +5,8 @@ import { formatStatLine, sumStatLines, type StatLine } from "@/lib/scoring";
 import { fetchNews } from "@/lib/news";
 import { normalizeName } from "@/lib/player-names";
 import { isConfigured, serverClient } from "@/lib/supabase";
-import { canStash } from "@/lib/health";
+import { canStash, reportStashable } from "@/lib/health";
+import { fetchInjuries } from "@/lib/espn";
 
 export const dynamic = "force-dynamic";
 
@@ -132,12 +133,34 @@ export async function GET(_req: Request, ctx: { params: Promise<{ name: string }
   // Whether the injury report puts him where the reserve is allowed to hold
   // him. The one add that costs no roster spot, and the reason it is safe: he
   // cannot play.
+  //
+  // Read from the live report rather than from nfl_players, because this
+  // decides whether a button is drawn and the button has to agree with two
+  // things it sits beside: the OUT badge on this same card, which is drawn
+  // from the live report, and /api/lineup, which allows or refuses the move
+  // from the live report too. It was reading the table — filled once a night —
+  // so a man ruled out on Friday carried an OUT badge all weekend with no way
+  // to be stashed, which is what "the button never appears" was.
+  //
+  // The table is the fallback, not the source: when ESPN is unreachable a
+  // night-old answer is better than refusing to draw the button at all.
+  let report: { name: string; status: string }[] = [];
+  let reportOk = true;
+  try {
+    report = await fetchInjuries();
+  } catch {
+    reportOk = false;
+  }
+
   const { data: fitness } = await db
     .from("nfl_players")
     .select("injury_status")
     .eq("name", profile.name)
     .maybeSingle();
-  const irEligible = canStash(fitness?.injury_status);
+
+  const irEligible = reportOk
+    ? reportStashable(report, profile.name)
+    : canStash(fitness?.injury_status);
 
   const roster = mine ?? [];
   const onIr = roster.filter((r) => r.lineup_slot === "IR").length;

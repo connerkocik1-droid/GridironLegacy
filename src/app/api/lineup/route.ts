@@ -1,12 +1,11 @@
 import { fetchInjuries } from "@/lib/espn";
-import { toHealth } from "@/lib/health";
 import { freshenWeek } from "@/lib/live-refresh";
-import { normalizeName } from "@/lib/player-names";
 import { weekFrom } from "@/lib/week";
 import { player } from "@/lib/roster";
 import { formatStatLine } from "@/lib/scoring";
 import { isConfigured, serverClient } from "@/lib/supabase";
-import { canStash } from "@/lib/health";
+import { canStash, reportStashable } from "@/lib/health";
+import { syncReport } from "@/lib/injury-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -225,15 +224,20 @@ export async function POST(req: Request) {
     let hurt: boolean;
     try {
       const report = await fetchInjuries();
-      const key = normalizeName(name);
-      // Everybody on the report is on it for a reason, so an entry whose word
-      // we do not recognise still counts — the check is "is he on it at all".
-      hurt = report.some((entry) => normalizeName(entry.name) === key);
-      if (hurt) {
-        const entry = report.find((e) => normalizeName(e.name) === key)!;
-        // Questionable is not a reason to stash somebody for the season.
-        hurt = toHealth(entry.status) !== "questionable";
-      }
+      hurt = reportStashable(report, name);
+
+      // Hand the database the same report this route just read.
+      //
+      // set_injured_reserve calls ir_eligible(), which reads
+      // nfl_players.injury_status — a column the nightly cron fills. So this
+      // route could pass its own live check and then be refused by the RPC on
+      // the strength of a table that had not caught up, which is a refusal the
+      // manager cannot do anything about.
+      //
+      // The whole report, never one name: sync_player_health clears everybody
+      // who is not in the array it is handed, which is right for a full report
+      // and would wipe the league's designations if it were handed one man.
+      if (hurt) await syncReport(db, report);
     } catch {
       return Response.json(
         { error: "The injury report is unavailable right now — try again shortly." },
