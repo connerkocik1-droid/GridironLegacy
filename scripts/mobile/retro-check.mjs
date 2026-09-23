@@ -33,7 +33,12 @@ const browser = await chromium.launch(
   process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
 if (SHOTS) await mkdir(SHOTS, { recursive: true });
 
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+// Three times the pixels, so a two-pixel shadow is something a person can
+// actually judge in the screenshot. Device pixels do not change CSS layout,
+// so nothing measured here moves.
+const ctx = await browser.newContext({
+  viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3,
+});
 await ctx.addCookies([sessionCookie()]);
 // Set before any document runs, the same way the pre-paint script would find
 // it: if this theme only works after a click, it flashes the wrong one first.
@@ -83,6 +88,10 @@ for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/
       // A bounce that spread to anything else would be a selector too broad.
       bounce: [...document.querySelectorAll("*")]
         .filter((el) => getComputedStyle(el).animationName === "gl-bounce").length,
+      hops: getComputedStyle(document.querySelector(".gl-mark") ?? document.body).animationIterationCount,
+      pylonShadow: getComputedStyle(document.querySelector(".gl-mark svg") ?? document.body).filter,
+      wordShadow: getComputedStyle(
+        document.querySelector(".gl-mark .gl-wordmark") ?? document.body).textShadow,
       faces: document.querySelectorAll('img[src*="/headshots/"]').length,
       idle: [...document.querySelectorAll('img[src*="/headshots/"]')]
         .filter((el) => getComputedStyle(el).animationName === "gl-idle").length,
@@ -101,9 +110,26 @@ for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/
   ok("headings ask for the pixel face first", m.heading.startsWith('"Pixelify Sans"'), m.heading);
   ok("and it is only fetched once the theme is on", m.fontLink);
   ok("the header mark is the one thing that bounces", m.bounce === 1, String(m.bounce));
+  ok(`and it hops more than once (${m.hops})`, m.hops === "3", m.hops);
+  // The shadow is the part a still screenshot can actually show, and the part
+  // that has to beat an inline filter on the svg.
+  ok(`the pylon casts a hard shadow (${m.pylonShadow})`,
+    /drop-shadow\(.*2px 2px 0/.test(m.pylonShadow) && !/9px/.test(m.pylonShadow));
+  ok(`and so does the wordmark (${m.wordShadow})`, /2px 2px/.test(m.wordShadow));
   ok(`every headshot idles (${m.idle})`, m.idle > 0 || m.faces === 0, `${m.idle} of ${m.faces}`);
 
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/16bit-${label}.png`, fullPage: true });
+  if (SHOTS) {
+    await page.screenshot({ path: `${SHOTS}/16bit-${label}.png`, fullPage: true });
+    // The header on its own and close up. The bounce has finished by the time
+    // any screenshot is taken, but the shadow has not, and two pixels of it in
+    // a 390px-wide full-page shot is not something a person can judge.
+    if (label === "home") {
+      const mark = page.locator(".gl-mark");
+      if (await mark.count()) {
+        await mark.screenshot({ path: `${SHOTS}/16bit-mark.png`, scale: "device" });
+      }
+    }
+  }
 }
 
 // ------------------------------------------------------- the sprite filter

@@ -1462,10 +1462,10 @@ button[disabled]:active {
 
 @keyframes gl-bounce {
   0%   { transform: scale(1, 1)       translateY(0); }
-  20%  { transform: scale(1.18, .82)  translateY(0); }
-  42%  { transform: scale(.92, 1.14)  translateY(-6px); }
-  62%  { transform: scale(1.06, .94)  translateY(0); }
-  80%  { transform: scale(.98, 1.02)  translateY(-2px); }
+  18%  { transform: scale(1.22, .78)  translateY(0); }
+  40%  { transform: scale(.90, 1.16)  translateY(-9px); }
+  58%  { transform: scale(1.08, .92)  translateY(0); }
+  76%  { transform: scale(.97, 1.03)  translateY(-3px); }
   100% { transform: scale(1, 1)       translateY(0); }
 }
 
@@ -1481,7 +1481,14 @@ button[disabled]:active {
 
 :root[data-theme="16bit"] .gl-mark,
 :root[data-theme="16bit"] .gl-mark.gl-bounce {
-  animation: gl-bounce 640ms steps(12, end) both;
+  /* Three hops, not one.
+     
+     One was the right instinct and the wrong number: six hundred milliseconds
+     of it finishes while the rest of the page is still painting, so the thing
+     a manager was told to look for had already happened. Three lands at just
+     under two seconds — long enough to be seen arriving, short enough that it
+     is over before anybody wants it to be. Still not infinite. */
+  animation: gl-bounce 620ms steps(12, end) 3 both;
 }
 
 /* A replay is the class going off and back on, so the second run needs a name
@@ -1491,7 +1498,39 @@ button[disabled]:active {
   animation-name: gl-bounce;
 }
 
-/* Asked for less motion, and answered here rather than in the component. */
+/* The shadow a sprite casts: offset, hard-edged, and the same on both halves.
+
+   A blur is the one thing a console could not draw, so it is two pixels down
+   and two across with no softening at all.
+
+   Violet rather than black, which is the part that took looking at a
+   screenshot to get right. A near-black shadow is what a title screen of the
+   era used, and it worked because those screens had a light or a busy
+   background to lift the wordmark off. This theme's ground is #12102a — a
+   black shadow on it is a black shape on a black field, and the first attempt
+   was invisible at the size it is actually drawn. The deep accent violet is
+   dark enough to read as shadow rather than as a second copy of the word, and
+   far enough from the ground to be seen at all.
+
+   The pylon's own glow has to be overridden rather than joined. It is a nine
+   pixel soft orange drop-shadow written inline on the svg, which is right in
+   the other two themes and is exactly the thing this theme is not: !important
+   because an inline filter cannot be reached any other way.
+
+   The shadow travels with the bounce, because it is behind the mark rather
+   than under it — a shadow that stayed on the ground while the sprite hopped
+   would be a different and much fussier effect than the one asked for. */
+:root[data-theme="16bit"] .gl-mark svg {
+  filter: drop-shadow(2px 2px 0 var(--accent-deep)) !important;
+}
+
+:root[data-theme="16bit"] .gl-mark .gl-wordmark {
+  text-shadow: 2px 2px 0 var(--accent-deep);
+}
+
+/* Asked for less motion, and answered here rather than in the component. The
+   shadow stays: it is not motion, and a title without it is a title that
+   looks unfinished rather than calmer. */
 @media (prefers-reduced-motion: reduce) {
   :root[data-theme="16bit"] .gl-mark,
   :root[data-theme="16bit"] .gl-mark.gl-bounce {
