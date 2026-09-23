@@ -1364,3 +1364,82 @@ button[disabled]:active {
     transform: none;
   }
 }
+
+
+/* ----------------------------------------------------- the sixteen-bit set ---
+   The half of the retro theme that is not colour. theme.css carries the
+   palette; a palette alone reads as "a dark app with brighter purples", and
+   what makes a screen look like a console is its geometry.
+
+   Three rules, in the order they matter:
+
+   Square. Every radius token goes to nought, so every card, chip, button and
+   avatar in the app squares off at once without a single component knowing
+   about it. This is the single biggest part of the effect.
+
+   Hard shadows. A blurred shadow is a thing a CRT cannot draw. The app's
+   shadows are inline and cannot be reached from here, but the glow under a
+   live element can be, and a sharp offset block reads as a sprite's drop
+   shadow rather than as depth.
+
+   Pixelated images. A headshot scaled from five hundred pixels to twenty-six
+   is resampled smooth by default; nearest-neighbour instead makes it a sprite.
+   This is the detail that stops the theme reading as a colour scheme. */
+
+:root[data-theme="16bit"] {
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+}
+
+:root[data-theme="16bit"] img {
+  image-rendering: pixelated;
+}
+
+/* A crest or a headshot is a circle in every other theme and a square here,
+   which is the point — but a few are drawn with an inline border-radius that
+   no token reaches, so they are squared off by name. */
+:root[data-theme="16bit"] .gl-mcell-face,
+:root[data-theme="16bit"] .gl-crest {
+  border-radius: 0 !important;
+}
+
+/* The scanlines.
+
+   Fixed rather than on a wrapper, so it does not scroll with the page — a
+   scanline that moves with the content is a texture, and the point is that it
+   belongs to the screen rather than to the app. pointer-events: none is
+   load-bearing: without it this eats every tap in the app.
+
+   Two pixels, and faint. At full strength it is a novelty that gets switched
+   off within a week; at this weight it is the thing you notice only when you
+   go back to the flat theme. */
+:root[data-theme="16bit"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgb(0 0 0 / .16) 0px,
+    rgb(0 0 0 / .16) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* Somebody who has asked for less motion has not asked for less texture — the
+   scanlines do not move — but a CRT on a phone at night is a lot of contrast,
+   so it lightens rather than disappears. */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="16bit"] body::after {
+    background: repeating-linear-gradient(
+      to bottom,
+      rgb(0 0 0 / .08) 0px,
+      rgb(0 0 0 / .08) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  }
+}

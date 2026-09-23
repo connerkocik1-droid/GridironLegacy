@@ -6,6 +6,7 @@ import { weekFrom } from "@/lib/week";
 import { player } from "@/lib/roster";
 import { formatStatLine } from "@/lib/scoring";
 import { isConfigured, serverClient } from "@/lib/supabase";
+import { canStash } from "@/lib/health";
 
 export const dynamic = "force-dynamic";
 
@@ -126,7 +127,7 @@ export async function GET(req: Request) {
   const irEligible = Object.fromEntries(
     (eligible ?? []).map((r: { name: string; injury_status: string | null }) => [
       r.name,
-      r.injury_status === "ir" || r.injury_status === "suspended",
+      canStash(r.injury_status),
     ]),
   );
 

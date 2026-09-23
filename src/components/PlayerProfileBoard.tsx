@@ -652,7 +652,7 @@ function Actions({
           />
         ) : irEligible ? (
           <Button
-            label="To reserve"
+            label="Send to IR Slot"
             busy={busy}
             why={!irRoom ? "Your reserve is full" : locked ? "His game has started" : null}
             onClick={() =>

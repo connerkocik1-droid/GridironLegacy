@@ -5,6 +5,7 @@ import { formatStatLine, sumStatLines, type StatLine } from "@/lib/scoring";
 import { fetchNews } from "@/lib/news";
 import { normalizeName } from "@/lib/player-names";
 import { isConfigured, serverClient } from "@/lib/supabase";
+import { canStash } from "@/lib/health";
 
 export const dynamic = "force-dynamic";
 
@@ -136,7 +137,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ name: string }
     .select("injury_status")
     .eq("name", profile.name)
     .maybeSingle();
-  const irEligible = ["ir", "suspended"].includes(String(fitness?.injury_status ?? ""));
+  const irEligible = canStash(fitness?.injury_status);
 
   const roster = mine ?? [];
   const onIr = roster.filter((r) => r.lineup_slot === "IR").length;

@@ -44,7 +44,7 @@ async function open(who) {
         off: el.hasAttribute("disabled"),
         href: el.getAttribute("href"),
       }))
-      .filter((b) => /^(Drop|Trade|Add|Claim|To reserve|Off reserve|Add to reserve|His game|Your roster|Your reserve)/.test(b.text)));
+      .filter((b) => /^(Drop|Trade|Add|Claim|Send to IR Slot|Off reserve|Add to reserve|His game|Your roster|Your reserve)/.test(b.text)));
 }
 
 console.log("--- one of your own ---");
@@ -66,7 +66,7 @@ console.log("\n--- one of your own, hurt ---");
   const buttons = await open("Hurt And Mine");
   const has = (t) => buttons.some((b) => b.text === t);
   ok(`the reserve is offered too (${buttons.map((b) => b.text).join(", ")})`,
-    has("Drop") && has("Trade") && has("To reserve"));
+    has("Drop") && has("Trade") && has("Send to IR Slot"));
   ok("and it is the way in, not the way out", !has("Off reserve"));
 }
 
@@ -74,7 +74,7 @@ console.log("\n--- one of your own, already on the reserve ---");
 {
   const buttons = await open("On My Reserve");
   ok(`the offer is to bring him back (${buttons.map((b) => b.text).join(", ")})`,
-    buttons.some((b) => b.text === "Off reserve") && !buttons.some((b) => b.text === "To reserve"));
+    buttons.some((b) => b.text === "Off reserve") && !buttons.some((b) => b.text === "Send to IR Slot"));
   ok("the card says where he is", /on injured reserve/.test(await page.locator("body").innerText()));
 }
 
@@ -163,7 +163,7 @@ console.log("\n--- a thumb can hit them ---");
   await open("Hurt And Mine");
   const small = await page.evaluate(() =>
     [...document.querySelectorAll("button, a")]
-      .filter((el) => /^(Drop|Trade|To reserve)$/.test(el.textContent?.trim() ?? ""))
+      .filter((el) => /^(Drop|Trade|Send to IR Slot)$/.test(el.textContent?.trim() ?? ""))
       .map((el) => ({ text: el.textContent?.trim(), h: Math.round(el.getBoundingClientRect().height) }))
       .filter((b) => b.h < 40));
   ok(`every button is at least 40px tall (${small.length} too small)`, small.length === 0);
