@@ -57,3 +57,54 @@ export async function readManagers<T>(
     data: (plain.data as unknown as (T & { last_seen_at?: string | null })[] | null) ?? null,
   };
 }
+
+/**
+ * When somebody was last in the app, said two ways.
+ *
+ * A grey dot answers "is Alpha here?" and nothing else. For eleven of twelve
+ * rows that is the whole answer, and it is the least interesting one — a
+ * manager who was here an hour ago and one who has not opened the app since
+ * the draft look identical, and they are not remotely the same thing. The
+ * difference is what tells you whether a trade offer will be seen tonight or
+ * whether somebody has stopped playing.
+ *
+ * Two forms because the places this goes are dense tables: `short` sits beside
+ * the dot in a couple of characters, and `long` is the sentence the tooltip
+ * and the screen reader get. Anything past a week stops being a duration and
+ * becomes a date — "23d" is arithmetic nobody does in their head.
+ *
+ * Null when there is no stamp at all, which is a manager who has never opened
+ * the app since presence was added rather than one who has been away a long
+ * time. The dot already says they are not here; inventing a duration for them
+ * would be making it up.
+ */
+export function lastActive(
+  lastSeenAt: string | null | undefined,
+  now = Date.now(),
+): { short: string; long: string } | null {
+  if (!lastSeenAt) return null;
+  const at = Date.parse(lastSeenAt);
+  if (!Number.isFinite(at)) return null;
+
+  const mins = (now - at) / 60_000;
+  // A clock that is behind the server's would otherwise read "-3m ago".
+  if (mins < 1) return { short: "now", long: "Last active just now" };
+
+  const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"} ago`;
+
+  if (mins < 60) {
+    const n = Math.round(mins);
+    return { short: `${n}m`, long: `Last active ${plural(n, "minute")}` };
+  }
+  if (mins < 60 * 24) {
+    const n = Math.round(mins / 60);
+    return { short: `${n}h`, long: `Last active ${plural(n, "hour")}` };
+  }
+  if (mins < 60 * 24 * 7) {
+    const n = Math.round(mins / (60 * 24));
+    return { short: `${n}d`, long: `Last active ${plural(n, "day")}` };
+  }
+
+  const on = new Date(at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return { short: on, long: `Last active ${on}` };
+}
