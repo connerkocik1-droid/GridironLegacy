@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import CommissionerOnly from "./CommissionerOnly";
 import { useMe } from "@/lib/use-me";
 import { useChatUnread } from "@/lib/use-chat-unread";
+import { useResolvedTheme } from "@/lib/use-theme";
+import { playTabSound, primeTabSound } from "@/lib/retro-sfx";
 
 /**
  * The four places, where a thumb can reach them.
@@ -182,6 +184,15 @@ export default function TabBar({
   // in, where there is room for it.
   const unread = useChatUnread(me.status === "signed-in");
 
+  // The blip a tab makes in the sixteen-bit theme, and nowhere else. Fetched
+  // as soon as the theme is on rather than on the first press, because a
+  // twenty-five kilobyte file that starts downloading when you tap plays after
+  // you have arrived, which is a sound with no press attached to it.
+  const retro = useResolvedTheme() === "16bit";
+  useEffect(() => {
+    if (retro) primeTabSound();
+  }, [retro]);
+
   // Nothing for a signed-out visitor. The home page turns into the sign-in
   // screen and deliberately shows no navigation, because every destination
   // behind it would only ask them to sign in — a bar of four such links across
@@ -250,20 +261,37 @@ export default function TabBar({
           key={tab.href}
           tab={tab}
           active={active === tab.href}
+          sound={retro}
           dot={tab.href === "/the-league" && unread > 0 && !pathname.startsWith("/chat")}
         />
       ))}
       <CommissionerOnly>
-        <TabLink tab={OFFICE} active={active === OFFICE.href} />
+        <TabLink tab={OFFICE} active={active === OFFICE.href} sound={retro} />
       </CommissionerOnly>
     </nav>
   );
 }
 
-function TabLink({ tab, active, dot }: { tab: Tab; active: boolean; dot?: boolean }) {
+function TabLink({
+  tab,
+  active,
+  dot,
+  sound,
+}: {
+  tab: Tab;
+  active: boolean;
+  dot?: boolean;
+  /** Whether a press makes a noise, which is only true in the retro theme. */
+  sound?: boolean;
+}) {
   return (
     <Link
       href={tab.href}
+      // On the link rather than on the router, so it fires on the press
+      // itself: a sound that waits for the next page to render arrives a
+      // couple of hundred milliseconds late and stops reading as a button.
+      // It plays for the tab you are already on as well — the press happened.
+      onClick={sound ? () => playTabSound() : undefined}
       aria-current={active ? "page" : undefined}
       // The dot is decoration and carries no text, so the link says what it
       // means instead. Without this a screen reader gets "League" either way.

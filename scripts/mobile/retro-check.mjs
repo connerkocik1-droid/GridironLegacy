@@ -107,6 +107,18 @@ for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/
       wordShadow: getComputedStyle(
         document.querySelector(".gl-mark .gl-wordmark") ?? document.body).textShadow,
       musicButton: Boolean(document.querySelector(".gl-music")),
+      // It used to be fixed to the bottom-left corner, which put a forty-pixel
+      // square on top of a roster row. Nothing in this app covers content.
+      musicFixed: (() => {
+        const b = document.querySelector(".gl-music");
+        return b ? getComputedStyle(b).position === "fixed" : null;
+      })(),
+      // And it is in the header, with the other two standing controls, rather
+      // than merely somewhere that happens not to be fixed.
+      musicInNav: (() => {
+        const b = document.querySelector(".gl-music");
+        return b ? Boolean(b.closest(".gl-nav")) : null;
+      })(),
       musicPlaying: (() => {
         const a = document.querySelector("audio[src*='16bit-theme']");
         return a ? !a.paused : null;
@@ -152,6 +164,8 @@ for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/
   // noise on arrival is the thing everybody hates, and no browser would allow
   // it before an interaction anyway.
   ok("there is a mute switch", m.musicButton);
+  ok("and it covers nothing", m.musicFixed === false, `position ${m.musicFixed}`);
+  ok("because it lives in the header", m.musicInNav === true, String(m.musicInNav));
   ok("and it starts silent", m.musicPlaying === false, String(m.musicPlaying));
   ok("the track is not fetched until it is wanted", m.musicPreload === "none", m.musicPreload);
 
@@ -255,6 +269,75 @@ console.log("\n===== the mute switch");
   const remembered = await page.evaluate(() => localStorage.getItem("gl.retro.music"));
   ok("and is remembered", remembered === "on", String(remembered));
   await page.evaluate(() => localStorage.setItem("gl.retro.music", "off"));
+}
+
+// ---------------------------------------------------------- the tab sound
+// The bottom bar makes a noise in this theme and in no other. Nothing about
+// that is visible, so it is checked the only way it can be: by recording every
+// play() the page attempts and pressing a tab.
+console.log("\n===== the tab sound");
+{
+  const record = () => {
+    window.__plays = [];
+    const orig = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function play(...args) {
+      window.__plays.push(this.getAttribute("src") ?? this.src ?? "");
+      return orig.apply(this, args);
+    };
+  };
+
+  const tapATab = async (target) => {
+    // The League tab, which is a tab nobody starts on, so the press is a real
+    // navigation rather than a no-op on the current page.
+    await target.locator('.gl-tabbar a[href="/the-league"]').click();
+    await target.waitForTimeout(500);
+    return target.evaluate(() => window.__plays ?? []);
+  };
+
+  const retroCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await retroCtx.addCookies([sessionCookie()]);
+  await retroCtx.addInitScript(() => {
+    try { localStorage.setItem("pylon:theme", "16bit"); localStorage.setItem("gl.retro.music", "off"); } catch { /* storage off */ }
+  });
+  await retroCtx.addInitScript(record);
+  const retro = await retroCtx.newPage();
+  retro.setDefaultNavigationTimeout(120_000);
+  await routes(retro);
+
+  // The file itself has to be there. A 404 is a silent tab in production and
+  // nothing here would otherwise notice.
+  const head = await retro.request.get(`${BASE}/assets/16bit-tab.mp3`);
+  ok(`the sound is served (${head.status()})`, head.ok());
+
+  await retro.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await retro.waitForTimeout(600);
+
+  const before = await retro.evaluate(() => (window.__plays ?? []).length);
+  ok("nothing plays on arrival", before === 0, String(before));
+
+  const plays = await tapATab(retro);
+  ok(`pressing a tab plays it (${JSON.stringify(plays)})`,
+    plays.some((src) => src.includes("16bit-tab")));
+  // The theme's music is off; the only thing that should have made a sound is
+  // the press. A tab that started the soundtrack would be a different bug.
+  ok("and nothing else", plays.every((src) => src.includes("16bit-tab")), JSON.stringify(plays));
+  await retroCtx.close();
+
+  const plainCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await plainCtx.addCookies([sessionCookie()]);
+  await plainCtx.addInitScript(() => {
+    try { localStorage.setItem("pylon:theme", "dark"); } catch { /* storage off */ }
+  });
+  await plainCtx.addInitScript(record);
+  const quiet = await plainCtx.newPage();
+  quiet.setDefaultNavigationTimeout(120_000);
+  await routes(quiet);
+  await quiet.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await quiet.waitForTimeout(600);
+
+  const silent = await tapATab(quiet);
+  ok("the dark theme presses silently", silent.length === 0, JSON.stringify(silent));
+  await plainCtx.close();
 }
 
 // And the switch itself: three themes have to be reachable, and picking one
