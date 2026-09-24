@@ -106,6 +106,12 @@ for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/
       pylonShadow: getComputedStyle(document.querySelector(".gl-mark svg") ?? document.body).filter,
       wordShadow: getComputedStyle(
         document.querySelector(".gl-mark .gl-wordmark") ?? document.body).textShadow,
+      musicButton: Boolean(document.querySelector(".gl-music")),
+      musicPlaying: (() => {
+        const a = document.querySelector("audio[src*='16bit-theme']");
+        return a ? !a.paused : null;
+      })(),
+      musicPreload: document.querySelector("audio[src*='16bit-theme']")?.getAttribute("preload") ?? "",
       faces: document.querySelectorAll(".gl-face").length,
       // Counted off the alt-less faces in player rows: once converted the src
       // is a data URL, so the /headshots/ selector no longer finds them.
@@ -141,6 +147,13 @@ for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/
   // actually been through it — which means a data: src, not a CDN URL.
   ok(`and every face is a sprite (${m.spriteFaces} of ${m.allFaces})`,
     m.spriteFaces === m.allFaces);
+
+  // The music. Silent by default is the whole contract: a page that makes a
+  // noise on arrival is the thing everybody hates, and no browser would allow
+  // it before an interaction anyway.
+  ok("there is a mute switch", m.musicButton);
+  ok("and it starts silent", m.musicPlaying === false, String(m.musicPlaying));
+  ok("the track is not fetched until it is wanted", m.musicPreload === "none", m.musicPreload);
 
   if (SHOTS) {
     await page.screenshot({ path: `${SHOTS}/16bit-${label}.png`, fullPage: true });
@@ -200,7 +213,48 @@ console.log("\n===== and not in the other themes");
     [...document.querySelectorAll("img")]
       .filter((el) => (el.getAttribute("src") ?? "").startsWith("data:image/png")).length);
   ok("the dark theme does no canvas work at all", converted === 0, String(converted));
+  const noise = await dark.evaluate(() => ({
+    audio: document.querySelectorAll("audio[src*='16bit-theme']").length,
+    button: document.querySelectorAll(".gl-music").length,
+  }));
+  // 1.3MB of Genesis soundtrack that nobody on the dark theme asked for.
+  ok("and never fetches the music", noise.audio === 0 && noise.button === 0,
+    JSON.stringify(noise));
   await plain.close();
+}
+
+// ------------------------------------------------------------- the music
+// A switch that exists is not a switch that works. A real click is a user
+// gesture, which is the thing the browser was holding out for.
+console.log("\n===== the mute switch");
+{
+  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(600);
+
+  await page.locator(".gl-music").click();
+  await page.waitForTimeout(900);
+
+  const playing = await page.evaluate(() => {
+    const a = document.querySelector("audio[src*='16bit-theme']");
+    return a ? { paused: a.paused, loop: a.loop, t: a.currentTime } : null;
+  });
+  ok(`pressing it starts the track (${JSON.stringify(playing)})`, playing?.paused === false);
+  ok("and it loops", playing?.loop === true);
+
+  await page.locator(".gl-music").click();
+  await page.waitForTimeout(400);
+  const after = await page.evaluate(() =>
+    document.querySelector("audio[src*='16bit-theme']")?.paused);
+  ok("pressing it again stops it", after === true);
+
+  // And the choice outlives the page, like every other preference here.
+  await page.locator(".gl-music").click();
+  await page.waitForTimeout(300);
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForTimeout(800);
+  const remembered = await page.evaluate(() => localStorage.getItem("gl.retro.music"));
+  ok("and is remembered", remembered === "on", String(remembered));
+  await page.evaluate(() => localStorage.setItem("gl.retro.music", "off"));
 }
 
 // And the switch itself: three themes have to be reachable, and picking one
