@@ -537,9 +537,23 @@ a:hover {
     gap: 4px !important;
     padding: 0 !important;
   }
-  .gl-mcell-face,
+  /* The club badge goes and the face stays.
+     
+     Both used to go. The reasoning was that a face you cannot recognise at
+     thirty-two pixels is not worth the forty it costs the name beside it, and
+     that was right about the size and wrong about the trade: at twenty pixels
+     it costs twenty-four, the name still fits, and a row of faces is how
+     anybody actually reads a lineup. The badge does go — it says the same
+     thing the stat line says, in a picture nobody was looking at.
+     
+     Not at 320px. There the name is already down to its last few characters
+     and there is nothing to give. */
   .gl-mcell-team {
     display: none !important;
+  }
+  .gl-mcell-face {
+    width: 20px !important;
+    height: 20px !important;
   }
   /* The score sizes itself rather than holding forty-six pixels open in a
      column that has about ninety. */
@@ -575,6 +589,15 @@ a:hover {
    name is left with twelve, which is not a name and not a tap target either.
    There the original wrapping stands and the page is a little taller, which
    on the smallest phone in the audit is the right way round. */
+/* The smallest phone keeps the old bargain: no face, all name. Below 361px
+   the name is already down to its last few characters and there is nothing
+   left to give. */
+@media (max-width: 360px) {
+  .gl-mcell-face {
+    display: none !important;
+  }
+}
+
 @media (min-width: 361px) and (max-width: 720px) {
   .gl-mcell-name > span > span {
     flex-wrap: nowrap !important;
