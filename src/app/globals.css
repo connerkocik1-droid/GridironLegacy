@@ -340,6 +340,18 @@ a:hover {
     align-items: center;
   }
 
+  /* The same problem for the one control in the header that is not round.
+     The mute switch is a square and cannot use .gl-round, but it stands
+     between two things that do — and the two rules above leave it thirty-four
+     by forty, a rectangle in a row of circles. Squared off at the same thumb
+     size, which is also six pixels the bar was spending on nothing. */
+  .gl-music {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+  }
+
   /* The header, given room. Two round controls and a wordmark on a 320px
      screen is most of the width; the tracking comes in a little and the two
      controls sit closer together, which is fifteen pixels back without
