@@ -726,8 +726,16 @@ export interface Play {
   awayScore: number;
 }
 
-/** How many pages to walk before giving up. A game is about two. */
-const MAX_PAGES = 6;
+/**
+ * How many pages to walk before giving up.
+ *
+ * A game is about two at the limit this asks for, and the loop stops itself on
+ * ESPN's own pageCount long before this — so the only job left is to stop an
+ * undocumented API from paging for ever. Twelve rather than six because the
+ * cost of being wrong is asymmetric: an extra page is one request, and a page
+ * short is the end of the game missing.
+ */
+const MAX_PAGES = 12;
 
 /**
  * Every play of one game, oldest first.
@@ -757,12 +765,41 @@ export async function fetchPlayByPlay(eventId: string, competitionId = eventId):
 
     const pageCount = Number(body.pageCount ?? 1);
     if (!items.length || !Number.isFinite(pageCount) || page >= pageCount) break;
+
+    // The cap is a safety stop, not a budget, and hitting it drops the NEWEST
+    // plays — the pages arrive oldest first. Silently that looks exactly like
+    // a game that stopped, so it says so.
+    if (page === MAX_PAGES) {
+      console.error(
+        `[espn] play feed for ${eventId} truncated at ${MAX_PAGES} pages of ${pageCount}`,
+      );
+    }
   }
 
-  // ESPN's sequence numbers are zero-padded strings, so they sort as numbers
-  // do without being parsed as numbers — which matters, because some of them
-  // are longer than a safe integer.
-  return out.sort((a, b) => a.sequence.localeCompare(b.sequence));
+  return out.sort(bySequence);
+}
+
+/**
+ * Play order, from sequence strings of any width.
+ *
+ * These were believed to be zero-padded to a fixed width, and a plain string
+ * compare is right exactly while that holds. Unpadded, it is not merely
+ * imprecise — it is wrong at the end, which is the end anybody looks at:
+ * "9" sorts above "160", so the last play of the sorted feed becomes play
+ * nine and stays there. A gamecast whose LAST PLAY card stops updating a few
+ * minutes into the first quarter is this line.
+ *
+ * Leading zeros come off and the shorter number is the smaller one, which is
+ * numeric order for non-negative integers however they are written — and it
+ * gets there without parsing, because some of these are longer than a safe
+ * integer. For the padded feed the comparison is unchanged: equal widths fall
+ * straight through to the same string compare as before.
+ */
+export function bySequence(a: { sequence: string }, b: { sequence: string }): number {
+  const x = a.sequence.replace(/^0+(?=.)/, "");
+  const y = b.sequence.replace(/^0+(?=.)/, "");
+  if (x.length !== y.length) return x.length - y.length;
+  return x < y ? -1 : x > y ? 1 : 0;
 }
 
 function readPlay(raw: unknown): Play {

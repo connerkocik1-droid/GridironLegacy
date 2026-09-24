@@ -5,7 +5,9 @@
  * one that matters most is the misspelt city: that is not hypothetical, the
  * first published board said "Cincinatti".
  */
+import { existsSync } from "node:fs";
 import { clubAbbrev, monogram } from "../club-mark";
+import { logo, LOGOS } from "../../data/league-data.js";
 
 let failed = 0;
 const eq = (label: string, got: string, want: string) => {
@@ -50,6 +52,30 @@ eq("a numeric word is stepped over", monogram("San Francisco 49ers"), "SF");
 eq("one word gives three letters", monogram("Georgia"), "GEO");
 eq("an acronym survives whole", monogram("LSU"), "LSU");
 eq("and nothing gives a question", monogram(""), "?");
+
+console.log("\n--- the marks themselves ---");
+// The gamecast's header draws these at thirty pixels, which is the first place
+// in the app where a missing file is the whole tile rather than a gap beside a
+// name. logo() falls back to ESPN's CDN for anything it does not hold, so a
+// renamed asset does not fail here — it silently starts costing a request to
+// somebody else's server on every game. So the file is checked, not the string.
+{
+  // This helper compares strings, so the failures are joined into one: a list
+  // of the clubs that are wrong reads better than a count anyway.
+  const abbrevs = Object.keys(LOGOS);
+  eq("all thirty-two clubs are held", String(abbrevs.length), "32");
+
+  const missing = abbrevs.filter((a) => !existsSync(new URL(`../../../public${logo(a)}`, import.meta.url)));
+  eq("and every one of them is a file on disk", missing.join(","), "");
+
+  const remote = abbrevs.filter((a) => !logo(a).startsWith("/assets/logos/"));
+  eq("so none of them reaches for the CDN", remote.join(","), "");
+
+  // The one ESPN spells differently from everybody else.
+  eq("Washington answers to ESPN's spelling too", logo("WAS"), logo("WSH"));
+  // And the non-club that used to be requested 404 times a page.
+  eq("a free agent has no mark", logo("FA"), "");
+}
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);

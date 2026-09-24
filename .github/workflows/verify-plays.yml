@@ -1,0 +1,43 @@
+# Why did the gamecast's LAST PLAY card stop updating?
+#
+# A button rather than a schedule. scripts/verify-plays.mjs needs to reach
+# ESPN's core API, which the sandbox this repo is often worked on cannot — so
+# it runs here, where the network is open.
+#
+#   Actions -> Check the play feed -> Run workflow
+#
+# Then read the log. It prints how the feed pages, how wide the sequence
+# strings are, and whether a plain string compare and a numeric one disagree
+# about which play is the newest. Disagreement is the freeze. It needs no
+# secrets: everything it touches is public.
+#
+# It also runs on a push that changes the script or this file, because GitHub
+# only offers the Run workflow button for workflows already on the default
+# branch — so until this is merged the push is the only way to run it.
+name: Check the play feed
+
+on:
+  workflow_dispatch:
+    inputs:
+      game:
+        description: An ESPN event id to read (blank picks one off the slate)
+        required: false
+        type: string
+  push:
+    paths:
+      - scripts/verify-plays.mjs
+      - .github/workflows/verify-plays.yml
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No install step: the script talks to ESPN with the built-in fetch.
+      - name: Read the feed
+        run: node scripts/verify-plays.mjs ${{ github.event.inputs.game }}
