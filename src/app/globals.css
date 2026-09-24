@@ -1046,6 +1046,17 @@ button[disabled]:active {
     animation: gl-launch-timeout 320ms ease 4s forwards;
   }
 
+  /* LaunchIntro ties its own fallback to whichever cut it is playing — the
+     10s full cut or the 4s short one — so this can't cut its animation
+     short the way the plain 4s default above would. Higher specificity than
+     #gl-launch alone, so it wins regardless of source order. */
+  html[data-intro="full"] #gl-launch {
+    animation: gl-launch-timeout 320ms ease 10.5s forwards;
+  }
+  html[data-intro="short"] #gl-launch {
+    animation: gl-launch-timeout 320ms ease 4.5s forwards;
+  }
+
   /* The app said it is ready. */
   html[data-launched] #gl-launch {
     opacity: 0;
