@@ -49,6 +49,20 @@ const page = await ctx.newPage();
 page.setDefaultNavigationTimeout(120_000);
 await routes(page);
 
+// Headshots come from ESPN's CDN, which this sandbox cannot reach — so they
+// never load, the canvas never runs, and the conversion cannot be checked
+// where it matters most. Answering the CDN with a real PNG puts the whole
+// path under test offline: the image loads, the filter runs, and a failure
+// here is a failure in our code rather than in the network.
+const FACE = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAXUlEQVR42u3QMQEAAAjDMMC/56EB" +
+  "3RJInbTVAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAg" +
+  "QIAAAQIECBAgQIDAjwUXHAABm2JhGwAAAABJRU5ErkJggg==",
+  "base64",
+);
+await page.route("**a.espncdn.com/**", (route) =>
+  route.fulfill({ status: 200, contentType: "image/png", body: FACE }));
+
 for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/my-team"]]) {
   await page.goto(`${BASE}${url}`, { waitUntil: "networkidle" });
   await page.waitForTimeout(700);
@@ -92,8 +106,13 @@ for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/
       pylonShadow: getComputedStyle(document.querySelector(".gl-mark svg") ?? document.body).filter,
       wordShadow: getComputedStyle(
         document.querySelector(".gl-mark .gl-wordmark") ?? document.body).textShadow,
-      faces: document.querySelectorAll('img[src*="/headshots/"]').length,
-      idle: [...document.querySelectorAll('img[src*="/headshots/"]')]
+      faces: document.querySelectorAll(".gl-face").length,
+      // Counted off the alt-less faces in player rows: once converted the src
+      // is a data URL, so the /headshots/ selector no longer finds them.
+      allFaces: document.querySelectorAll(".gl-face").length,
+      spriteFaces: [...document.querySelectorAll(".gl-face")]
+        .filter((el) => (el.getAttribute("src") ?? "").startsWith("data:image/png")).length,
+      idle: [...document.querySelectorAll(".gl-face")]
         .filter((el) => getComputedStyle(el).animationName === "gl-idle").length,
     };
   });
@@ -117,6 +136,11 @@ for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/
     /drop-shadow\(.*2px 2px 0/.test(m.pylonShadow) && !/9px/.test(m.pylonShadow));
   ok(`and so does the wordmark (${m.wordShadow})`, /2px 2px/.test(m.wordShadow));
   ok(`every headshot idles (${m.idle})`, m.idle > 0 || m.faces === 0, `${m.idle} of ${m.faces}`);
+  // The one the theme was missing. image-rendering: pixelated does nothing to
+  // a downscaled image, so a face only becomes a sprite if the canvas has
+  // actually been through it — which means a data: src, not a CDN URL.
+  ok(`and every face is a sprite (${m.spriteFaces} of ${m.allFaces})`,
+    m.spriteFaces === m.allFaces);
 
   if (SHOTS) {
     await page.screenshot({ path: `${SHOTS}/16bit-${label}.png`, fullPage: true });

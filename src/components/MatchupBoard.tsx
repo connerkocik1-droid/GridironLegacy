@@ -1,5 +1,6 @@
 "use client";
 
+import Headshot from "./Headshot";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -9,7 +10,6 @@ import LiveNumber from "./LiveNumber";
 import TeamCrest from "./TeamCrest";
 import WinProbability from "./WinProbability";
 import { gameLabel } from "@/lib/nfl-week";
-import { headshot } from "@/data/league-data";
 import { useLogos } from "@/lib/use-logos";
 import PlayerName from "./PlayerName";
 import { useRefreshable } from "@/lib/use-refresh";
@@ -56,9 +56,6 @@ interface Board {
   /** The chance the left-hand side wins. See win-probability.ts. */
   winProbability?: number | null;
 }
-
-const BLANK =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 /**
  * One player in one half of a row. `align` flips the layout so the two sides
@@ -117,10 +114,9 @@ function PlayerCell({
         padding: "0 4px",
       }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <Headshot
         className="gl-mcell-face"
-        src={headshot(entry.name) || BLANK}
+        name={entry.name}
         alt=""
         width={26}
         height={26}
@@ -424,7 +420,6 @@ export default function MatchupBoard() {
     [params, pathname, router],
   );
 
-
   const load = useCallback(async () => {
     try {
       const params = new URLSearchParams();
@@ -721,7 +716,6 @@ export default function MatchupBoard() {
           </Link>
         </div>
       ) : null}
-
 
       {error ? (
         <div style={{ padding: "0 26px 8px", fontSize: 12, color: "var(--warn)" }}>{error}</div>

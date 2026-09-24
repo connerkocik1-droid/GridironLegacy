@@ -1,7 +1,7 @@
 "use client";
 
+import Headshot from "./Headshot";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import {
   COLUMNS,
@@ -23,8 +23,6 @@ import {
  * and points per game stay put across all of them, because that is the
  * comparison every manager is actually making.
  */
-
-const BLANK = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 const ORDER: Group[] = ["ALL", "QB", "RB", "WR", "TE", "FLEX", "K", "D/ST"];
 
@@ -386,9 +384,8 @@ function PlayerRow({
           >
             {rank}
           </span>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={headshot(row.name) || BLANK}
+          <Headshot
+            name={row.name}
             alt=""
             width={28}
             height={28}

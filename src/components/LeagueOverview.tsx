@@ -1,7 +1,7 @@
 "use client";
 
+import Headshot from "./Headshot";
 import Link from "next/link";
-import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import type { Home } from "@/lib/home-types";
 
@@ -14,8 +14,6 @@ import type { Home } from "@/lib/home-types";
  * points scored, so a team winning by three points a week and a team winning
  * by forty do not look identical.
  */
-
-const BLANK = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 const panel: React.CSSProperties = {
   border: "1px solid rgb(var(--accent-rgb) / .22)",
@@ -91,9 +89,8 @@ export default function LeagueOverview({ home }: { home: Home }) {
 
               {l.player ? (
                 <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={headshot(l.player.name) || BLANK}
+                  <Headshot
+                    name={l.player.name}
                     alt=""
                     width={28}
                     height={28}

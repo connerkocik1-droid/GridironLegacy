@@ -1,9 +1,10 @@
 "use client";
 
+import Headshot from "./Headshot";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Skeleton from "./Skeleton";
-import { headshot, statLine } from "@/data/league-data";
+import { statLine } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import LiveNumber from "./LiveNumber";
 import TeamCrest from "./TeamCrest";
@@ -13,12 +14,8 @@ import { bestLineup, bubbleGaps, type Score } from "@/lib/matchup";
 import { flagColor, flagsFor, player, proj, type LeagueShape } from "@/lib/roster";
 import { useLogos } from "@/lib/use-logos";
 
-const BLANK =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-
 /** How often a page left open on a Sunday goes and asks for the numbers. */
 const POLL_MS = 60_000;
-
 
 interface Feed {
   week: number;
@@ -551,9 +548,8 @@ function PlayerRow({
 
       {name ? (
         <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={headshot(name) || BLANK}
+          <Headshot
+            name={name}
             alt=""
             width={starter ? 34 : 30}
             height={starter ? 34 : 30}
