@@ -51,9 +51,13 @@ interface Claim {
   claim_order: number;
   status: string;
   reason: string | null;
+  /** Breaks a tie in claim_order the same way the waiver run breaks it. */
+  created_at: string;
 }
 
 interface Feed {
+  /** The league's claim day: nothing is an instant add while it is on. */
+  claimDay?: boolean;
   me: { id: string; franchise: string; waiver_priority: number };
   mode: "waivers" | "open" | "all";
   waiverDays: number;
@@ -434,6 +438,34 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
     }
   }
 
+  /**
+   * Moves one claim up or down the manager's own order.
+   *
+   * The whole list is sent, not the one that moved: the ranks have to stay a
+   * permutation, and two claims at rank one is the tie-break deciding again —
+   * which is the thing an order is for.
+   */
+  async function reorder(id: string, by: -1 | 1) {
+    if (busy) return;
+    const ids = pending.map((c) => c.id);
+    const at = ids.indexOf(id);
+    const to = at + by;
+    if (at < 0 || to < 0 || to >= ids.length) return;
+    [ids[at], ids[to]] = [ids[to], ids[at]];
+
+    setBusy(true);
+    try {
+      await fetch("/api/waivers", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ order: ids }),
+      });
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function drop(name: string) {
     if (busy) return;
     setBusy(true);
@@ -466,7 +498,11 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
     return <Skeleton rows={6} />;
   }
 
-  const pending = feed.claims.filter((c) => c.status === "pending");
+  // In the order they will be tried, which is the order the buttons below
+  // move them in. created_at breaks a tie the same way the run does.
+  const pending = feed.claims
+    .filter((c) => c.status === "pending")
+    .sort((a, b) => a.claim_order - b.claim_order || a.created_at.localeCompare(b.created_at));
   const settled = feed.claims.filter((c) => c.status !== "pending").slice(0, 5);
 
   return (
@@ -495,11 +531,13 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
           once; the numbers are numbers. The star's own tooltip explains the
           star, so the line about it has gone. */}
       <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 12px", maxWidth: "72ch", lineHeight: 1.6 }}>
-        {feed.mode === "open"
-          ? "Adds land immediately — first come, first served, and a dropped player goes straight back into this list."
-          : feed.mode === "all"
-            ? "Every pickup here is a claim, settled on the next waiver run, best priority first."
-            : `Anybody on this list is yours on the spot; a player somebody dropped goes on waivers for ${feed.waiverDays === 1 ? "a day" : `${feed.waiverDays} days`} first and can only be claimed.`}
+        {feed.claimDay
+          ? "It is claim day. Nobody is added on the spot today — put your claims in, order them, and they all settle together tonight, lowest scorer from last week first."
+          : feed.mode === "open"
+            ? "Adds land immediately — first come, first served, and a dropped player goes straight back into this list."
+            : feed.mode === "all"
+              ? "Every pickup here is a claim, settled on the next waiver run, best priority first."
+              : `Anybody on this list is yours on the spot; a player somebody dropped goes on waivers for ${feed.waiverDays === 1 ? "a day" : `${feed.waiverDays} days`} first and can only be claimed.`}
       </p>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 18px" }}>
@@ -507,7 +545,7 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
           <Fact
             label="WAIVER PRIORITY"
             value={`#${feed.me.waiver_priority}`}
-            title="Claims settle best priority first. Winning one sends you to the back."
+            title="Last week's scores, lowest first. Claims settle in that order, and winning one sends you to the back for the rest of the run."
           />
         )}
         <Fact
@@ -639,7 +677,12 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
               {pending.length} QUEUED
             </span>
           </div>
-          {pending.map((c) => (
+          {pending.length > 1 ? (
+            <div style={{ padding: "0 16px 10px", fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.5 }}>
+              Tried in this order, top first, until your roster is full.
+            </div>
+          ) : null}
+          {pending.map((c, i) => (
             <div
               key={c.id}
               style={{
@@ -650,15 +693,54 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
                 borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
               }}
             >
+              {/* Where this one sits in your own queue. The run tries them in
+                  this order and stops when your roster is full, so which is
+                  first is the whole of the decision. */}
+              <span
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 12,
+                  width: 18,
+                  flex: "0 0 auto",
+                  color: "var(--accent-text)",
+                }}
+              >
+                {i + 1}
+              </span>
               <span style={{ fontFamily: "var(--font-heading)", fontSize: 14, flex: 1, minWidth: 0 }}>
                 {c.add_player}
                 {c.drop_player ? (
                   <span style={{ fontSize: 11, color: "var(--text-dim)" }}> — dropping {c.drop_player}</span>
                 ) : null}
               </span>
-              <button onClick={() => withdraw(c.id)} disabled={busy} style={button(!busy)}>
-                Withdraw
-              </button>
+              {/* Three controls and a name do not fit across a phone with
+                  words on all of them — "Withdraw" spelled out pushed every
+                  name onto two lines. All three are glyphs now, at the same
+                  thumb size, and each says what it is to a screen reader. */}
+              <span style={{ display: "flex", gap: 4, flex: "0 0 auto" }}>
+                {pending.length > 1 ? (
+                  <>
+                    <Mover
+                      label={`Move ${c.add_player} up the queue`}
+                      glyph="↑"
+                      disabled={busy || i === 0}
+                      onClick={() => reorder(c.id, -1)}
+                    />
+                    <Mover
+                      label={`Move ${c.add_player} down the queue`}
+                      glyph="↓"
+                      disabled={busy || i === pending.length - 1}
+                      onClick={() => reorder(c.id, 1)}
+                    />
+                  </>
+                ) : null}
+                <Mover
+                  label={`Withdraw the claim for ${c.add_player}`}
+                  glyph="✕"
+                  disabled={busy}
+                  onClick={() => withdraw(c.id)}
+                />
+              </span>
             </div>
           ))}
         </div>
@@ -1150,7 +1232,7 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
                   ? "Locked"
                   : claimed
                     ? "Claimed"
-                    : waived || feed.mode === "all"
+                    : waived || feed.mode === "all" || feed.claimDay
                       ? "Claim"
                       : "Add"}
               </button>
@@ -1295,5 +1377,53 @@ function Fact({
         {value}
       </span>
     </span>
+  );
+}
+
+/**
+ * One nudge up or down the queue.
+ *
+ * Square and small, beside a Withdraw that is neither: this moves a claim
+ * within a list somebody is already looking at, and a second full-sized button
+ * on every row would read as a second way to do something to the player rather
+ * than a way to sort them. The label is spelled out for a screen reader
+ * because an arrow on its own is not a sentence.
+ */
+function Mover({
+  label,
+  glyph,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  glyph: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        width: 32,
+        height: 32,
+        display: "grid",
+        placeItems: "center",
+        padding: 0,
+        fontSize: 13,
+        lineHeight: 1,
+        borderRadius: "var(--radius-sm)",
+        border: "1px solid rgb(var(--accent-rgb) / .28)",
+        background: "rgb(var(--sunken-rgb) / .7)",
+        color: disabled ? "var(--text-dim)" : "var(--text-2)",
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.45 : 1,
+      }}
+    >
+      {glyph}
+    </button>
   );
 }
