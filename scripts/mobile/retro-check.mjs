@@ -43,7 +43,12 @@ await ctx.addCookies([sessionCookie()]);
 // Set before any document runs, the same way the pre-paint script would find
 // it: if this theme only works after a click, it flashes the wrong one first.
 await ctx.addInitScript(() => {
-  try { localStorage.setItem("pylon:theme", "16bit"); } catch { /* storage off */ }
+  try {
+    localStorage.setItem("pylon:theme", "16bit");
+    // Past the title screen. It is checked on its own, in its own context; a
+    // sheet over every page would otherwise be measuring itself.
+    sessionStorage.setItem("pylon:started", "1");
+  } catch { /* storage off */ }
 });
 const page = await ctx.newPage();
 page.setDefaultNavigationTimeout(120_000);
@@ -243,6 +248,131 @@ console.log("\n===== and not in the other themes");
 // ------------------------------------------------------------- the music
 // A switch that exists is not a switch that works. A real click is a user
 // gesture, which is the thing the browser was holding out for.
+// ------------------------------------------------------- the title screen
+// The press the browser is holding out for, turned into the press a cartridge
+// asks for anyway. Four things have to hold, and all four have failed in some
+// version of this: it is there in the retro theme, it is NOT there in the flat
+// ones, a press makes the music play, and it does not come back on a reload
+// during the same session.
+console.log("\n===== the title screen");
+{
+  const openFresh = async (theme) => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await ctx.addCookies([sessionCookie()]);
+    await ctx.addInitScript((t) => {
+      try {
+        localStorage.setItem("pylon:theme", t);
+        localStorage.removeItem("gl.retro.music");
+      } catch { /* storage off */ }
+    }, theme);
+    const p = await ctx.newPage();
+    p.setDefaultNavigationTimeout(120_000);
+    await routes(p);
+    await p.goto(`${BASE}/`, { waitUntil: "networkidle" });
+    await p.waitForTimeout(700);
+    return { ctx, page: p };
+  };
+
+  const retro = await openFresh("16bit");
+  const seen = await retro.page.evaluate(() => {
+    const el = document.querySelector("#gl-start");
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return {
+      covers: Math.round(r.width) >= window.innerWidth && Math.round(r.height) >= window.innerHeight,
+      button: document.querySelector(".gl-start-btn")?.textContent?.trim() ?? "",
+      note: document.querySelector(".gl-start-note")?.textContent?.trim() ?? "",
+      bouncing: getComputedStyle(document.querySelector(".gl-start-pylon")).animationName,
+      loops: getComputedStyle(document.querySelector(".gl-start-pylon")).animationIterationCount,
+      // The launch sheet behind must not be timing itself out while this waits.
+      held: document.documentElement.dataset.pressStart === "1",
+      playing: !document.querySelector("audio[src*='16bit-theme']")?.paused,
+    };
+  });
+  ok("it is there on a cold open", Boolean(seen), JSON.stringify(seen));
+  ok("and it covers the screen", seen?.covers === true);
+  ok(`with a start button ("${seen?.button}")`, /start/i.test(seen?.button ?? ""));
+  ok(`and a bouncing pylon (${seen?.bouncing} x${seen?.loops})`,
+    seen?.bouncing === "gl-bounce" && seen?.loops === "infinite");
+  ok("the launch sheet behind it is held open", seen?.held === true);
+  ok("nothing is playing yet", seen?.playing === false, String(seen?.playing));
+  ok(`and it says what the press will do ("${seen?.note}")`, seen?.note === "Sound on");
+
+  // The press. A real one, on the button, which is the gesture the whole
+  // screen exists to collect.
+  await retro.page.locator(".gl-start-btn").click();
+  await retro.page.waitForTimeout(1200);
+
+  const after = await retro.page.evaluate(() => {
+    const a = document.querySelector("audio[src*='16bit-theme']");
+    return {
+      gone: !document.querySelector("#gl-start"),
+      held: document.documentElement.dataset.pressStart === "1",
+      playing: a ? !a.paused : null,
+      volume: a ? Math.round(a.volume * 100) / 100 : null,
+      stored: localStorage.getItem("gl.retro.music"),
+      session: sessionStorage.getItem("pylon:started"),
+    };
+  });
+  ok("pressing it takes the screen away", after.gone === true);
+  ok("and releases the launch sheet", after.held === false);
+  ok(`and starts the music (${JSON.stringify(after)})`, after.playing === true);
+  ok(`at a volume somebody can live with (${after.volume})`,
+    (after.volume ?? 0) > 0 && (after.volume ?? 1) <= 0.6);
+  ok("the choice is written down", after.stored === "on", String(after.stored));
+
+  // A reload inside the same session goes straight through. This is what keeps
+  // it a title screen rather than a toll booth.
+  await retro.page.reload({ waitUntil: "networkidle" });
+  await retro.page.waitForTimeout(800);
+  const again = await retro.page.evaluate(() => ({
+    gate: Boolean(document.querySelector("#gl-start")),
+    session: sessionStorage.getItem("pylon:started"),
+  }));
+  ok("a reload in the same session skips it", again.gate === false, JSON.stringify(again));
+  await retro.ctx.close();
+
+  // Somebody who has turned the music off still gets the title screen — it is
+  // the app opening, not an advert for the soundtrack — but it must not
+  // promise them a noise.
+  const muted = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await muted.addCookies([sessionCookie()]);
+  await muted.addInitScript(() => {
+    try {
+      localStorage.setItem("pylon:theme", "16bit");
+      localStorage.setItem("gl.retro.music", "off");
+    } catch { /* storage off */ }
+  });
+  const quiet = await muted.newPage();
+  quiet.setDefaultNavigationTimeout(120_000);
+  await routes(quiet);
+  await quiet.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await quiet.waitForTimeout(700);
+  const note = await quiet.evaluate(() =>
+    document.querySelector(".gl-start-note")?.textContent?.trim() ?? "");
+  ok(`it tells the truth to somebody who muted it ("${note}")`, note === "Sound off");
+  await quiet.locator(".gl-start-btn").click();
+  await quiet.waitForTimeout(900);
+  const stayedQuiet = await quiet.evaluate(() => {
+    const a = document.querySelector("audio[src*='16bit-theme']");
+    return { gone: !document.querySelector("#gl-start"), paused: a ? a.paused : null };
+  });
+  ok("and the press still opens the app", stayedQuiet.gone === true);
+  ok("without starting the music", stayedQuiet.paused === true, String(stayedQuiet.paused));
+  await muted.close();
+
+  // And it is a sixteen-bit thing only. On the dark theme there is no sound to
+  // unlock and this would be a splash screen on a website.
+  const plain = await openFresh("dark");
+  const onDark = await plain.page.evaluate(() => ({
+    gate: Boolean(document.querySelector("#gl-start")),
+    held: document.documentElement.dataset.pressStart === "1",
+  }));
+  ok("the dark theme never sees it", onDark.gate === false && onDark.held === false,
+    JSON.stringify(onDark));
+  await plain.ctx.close();
+}
+
 console.log("\n===== the music, and the switch that stops it");
 {
   // A manager who has never touched the switch. The theme is chosen, the
@@ -315,6 +445,7 @@ console.log("\n===== when the browser refuses to play");
     try {
       localStorage.setItem("pylon:theme", "16bit");
       localStorage.removeItem("gl.retro.music");
+      sessionStorage.setItem("pylon:started", "1");
     } catch { /* storage off */ }
     window.__tries = 0;
     const real = HTMLMediaElement.prototype.play;
@@ -376,7 +507,10 @@ console.log("\n===== the header on the smallest phone");
   const small = await browser.newContext({ viewport: { width: 320, height: 800 }, isMobile: true, hasTouch: true });
   await small.addCookies([sessionCookie()]);
   await small.addInitScript(() => {
-    try { localStorage.setItem("pylon:theme", "16bit"); } catch { /* storage off */ }
+    try {
+      localStorage.setItem("pylon:theme", "16bit");
+      sessionStorage.setItem("pylon:started", "1");
+    } catch { /* storage off */ }
   });
   const tiny = await small.newPage();
   tiny.setDefaultNavigationTimeout(120_000);
@@ -455,7 +589,11 @@ console.log("\n===== the tab sound");
   const retroCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await retroCtx.addCookies([sessionCookie()]);
   await retroCtx.addInitScript(() => {
-    try { localStorage.setItem("pylon:theme", "16bit"); localStorage.setItem("gl.retro.music", "off"); } catch { /* storage off */ }
+    try {
+      localStorage.setItem("pylon:theme", "16bit");
+      localStorage.setItem("gl.retro.music", "off");
+      sessionStorage.setItem("pylon:started", "1");
+    } catch { /* storage off */ }
   });
   await retroCtx.addInitScript(record);
   const retro = await retroCtx.newPage();

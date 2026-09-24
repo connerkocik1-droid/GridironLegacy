@@ -7,6 +7,12 @@ import { useResolvedTheme } from "@/lib/use-theme";
 /** How long to wait for the launch intro before giving up on it. */
 const INTRO_GRACE_MS = 12_000;
 
+/** Loud enough to be a title theme, quiet enough to live under a room. */
+const FULL_VOLUME = 0.6;
+
+/** The ramp when the intro hands over, so the theme arrives rather than bangs. */
+const FADE_MS = 500;
+
 /** The presses a browser will accept as "the page has been touched". */
 const GESTURES = ["pointerdown", "touchstart", "keydown", "click"] as const;
 
@@ -32,11 +38,13 @@ const GESTURES = ["pointerdown", "touchstart", "keydown", "click"] as const;
  * and the theme comes in then — on the first tap rather than the first
  * navigation, and without anybody having to find the switch.
  *
- * It waits for the launch intro. That intro fires a touchdown sound of its
- * own, and two tracks over one cold open is not a title screen, it is a mess.
- * The intro flags itself on the document, so the wait is only as long as an
- * intro that is actually running, with a grace period in case it never
- * finishes.
+ * It gets out of the launch intro's way, and the way it does that matters.
+ * The intro fires a touchdown sound of its own, and two tracks over one cold
+ * open is a mess — but simply delaying play() until the intro ends throws away
+ * the press that permitted it. iOS grants permission to the element, in the
+ * gesture, and ten seconds later there is no gesture left to spend. So the
+ * track starts immediately and silently, which is what takes the permission,
+ * and fades up when the intro is done.
  *
  * It stops when the theme does. Switching to Light with the music on leaves a
  * Genesis soundtrack playing under a white page, which is nobody's idea of
@@ -94,6 +102,22 @@ export default function ThemeMusic() {
     // switch stays on and this waits for the touch.
     const attempt = () => audio.play().then(() => true, () => false);
 
+    const fadeUp = () => {
+      const from = audio.volume;
+      if (from >= FULL_VOLUME) return;
+      const started = performance.now();
+      const step = () => {
+        if (dropped) return;
+        const through = Math.min(1, (performance.now() - started) / FADE_MS);
+        audio.volume = from + (FULL_VOLUME - from) * through;
+        if (through < 1) {
+          const frame = requestAnimationFrame(step);
+          undo.push(() => cancelAnimationFrame(frame));
+        }
+      };
+      step();
+    };
+
     const arm = () => {
       const onGesture = () => {
         void attempt().then((played) => {
@@ -106,10 +130,19 @@ export default function ThemeMusic() {
       }
     };
 
-    void introOver().then(async () => {
+    // Silent if an intro is running, so the two are never heard at once, and
+    // straight in at full otherwise.
+    const behindIntro = Boolean(document.documentElement.dataset.intro)
+      && !document.documentElement.dataset.launched;
+    audio.volume = behindIntro ? 0 : FULL_VOLUME;
+
+    void attempt().then((played) => {
       if (dropped) return;
-      if (await attempt()) return;
-      if (!dropped) arm();
+      if (!played) arm();
+    });
+
+    void introOver().then(() => {
+      if (!dropped) fadeUp();
     });
 
     return cleanup;

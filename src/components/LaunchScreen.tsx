@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import LaunchIntro from "./LaunchIntro";
+import PressStart from "./PressStart";
+import { setMusic } from "@/lib/use-theme-music";
 import type { Cut } from "@/lib/launch-intro/scene";
 
 /**
@@ -43,6 +45,33 @@ const MINIMUM_MS = 420;
 
 const INTRO_DAY_KEY = "pylon:intro-day";
 
+/** Set once the title screen has been pressed, for the life of this launch. */
+const STARTED_KEY = "pylon:started";
+
+/**
+ * Whether to open on the title screen.
+ *
+ * Only in the sixteen-bit theme, and only once per launch. The theme is read
+ * off the root element rather than out of storage because the inline script in
+ * layout.tsx has already resolved it there before the first paint — which is
+ * also what stops this flashing up for somebody on the dark theme.
+ *
+ * Unlike the launch screen below, this is not limited to standalone. A title
+ * screen is not a splash: it is the one press that lets the music play at all,
+ * and a manager in a browser tab who chose the cartridge theme wants the
+ * cartridge.
+ */
+function computeGate(): boolean {
+  if (document.documentElement.dataset.theme !== "16bit") return false;
+  try {
+    return window.sessionStorage.getItem(STARTED_KEY) !== "1";
+  } catch {
+    // No session to remember it in. Better the title screen every reload than
+    // a theme whose music never plays.
+    return true;
+  }
+}
+
 function pickCut(): Cut {
   const today = new Date().toLocaleDateString("en-CA");
   try {
@@ -56,6 +85,37 @@ function pickCut(): Cut {
 }
 
 type Mode = "static" | Cut;
+
+/** The music switch, as the title screen needs to describe it. */
+function computeSound(): boolean {
+  try {
+    return window.localStorage.getItem("gl.retro.music") !== "off";
+  } catch {
+    return true;
+  }
+}
+
+let gateCache: boolean | null = null;
+let soundCache: boolean | null = null;
+
+function getSound(): boolean {
+  if (soundCache === null) soundCache = computeSound();
+  return soundCache;
+}
+
+function getServerSound(): boolean {
+  return true;
+}
+
+function getGate(): boolean {
+  if (gateCache === null) gateCache = computeGate();
+  return gateCache;
+}
+
+/** No title screen in the server's HTML: it is a choice only the client knows. */
+function getServerGate(): boolean {
+  return false;
+}
 
 // Standalone-ness and reduced-motion don't change over the life of this
 // component, and the day-key read in pickCut() must happen at most once —
@@ -89,8 +149,41 @@ function getServerMode(): Mode {
 
 export default function LaunchScreen() {
   const mode = useSyncExternalStore(subscribeNever, getMode, getServerMode);
+  const gate = useSyncExternalStore(subscribeNever, getGate, getServerGate);
+  const sound = useSyncExternalStore(subscribeNever, getSound, getServerSound);
+  const [waiting, setWaiting] = useState(true);
+
+  // While the title screen is up, the launch screen behind it must not time
+  // itself out — its four-second failsafe would fire during a press that has
+  // not happened yet, and the intro would then mount into a sheet that had
+  // already faded. Removing the attribute restarts that animation from zero.
+  useEffect(() => {
+    if (!gate || !waiting) return;
+    document.documentElement.dataset.pressStart = "1";
+    return () => {
+      delete document.documentElement.dataset.pressStart;
+    };
+  }, [gate, waiting]);
+
+  const start = useCallback(() => {
+    setWaiting(false);
+    try {
+      window.sessionStorage.setItem(STARTED_KEY, "1");
+    } catch {
+      // Then the title screen comes back next reload, which is the safe way
+      // round: a press too many beats a theme that never makes a sound.
+    }
+    // Only ever turns it on for somebody who has not turned it off. The switch
+    // in the header is a decision, and a title screen does not overrule one.
+    try {
+      if (window.localStorage.getItem("gl.retro.music") !== "off") setMusic(true);
+    } catch {
+      setMusic(true);
+    }
+  }, []);
 
   useEffect(() => {
+    if (gate && waiting) return;
     if (mode !== "static") return;
 
     const done = () => {
@@ -108,7 +201,11 @@ export default function LaunchScreen() {
       cancelAnimationFrame(frame);
       if (timer) clearTimeout(timer);
     };
-  }, [mode]);
+  }, [mode, gate, waiting]);
+
+  if (gate && waiting) {
+    return <PressStart onStart={start} sound={sound} />;
+  }
 
   if (mode !== "static") {
     return <LaunchIntro cut={mode} />;
