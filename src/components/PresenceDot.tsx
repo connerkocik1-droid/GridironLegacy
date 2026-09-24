@@ -77,7 +77,10 @@ export function LastActive({
       // aria-hidden because the dot beside it already says this in a sentence,
       // and a screen reader should not read the same fact twice per row.
       aria-hidden
-      style={{ fontSize: 9.5, color: "var(--text-dim)", letterSpacing: ".02em" }}
+      // Ten, which is this app's floor for text somebody is meant to read —
+      // the layout audit refuses anything under it, and was right to: nine and
+      // a half is a size you notice rather than one you read.
+      style={{ fontSize: 10, color: "var(--text-dim)", letterSpacing: ".02em" }}
     >
       {" "}
       {last.short}
