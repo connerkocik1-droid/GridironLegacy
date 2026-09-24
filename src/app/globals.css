@@ -340,6 +340,18 @@ a:hover {
     align-items: center;
   }
 
+  /* The same problem for the one control in the header that is not round.
+     The mute switch is a square and cannot use .gl-round, but it stands
+     between two things that do — and the two rules above leave it thirty-four
+     by forty, a rectangle in a row of circles. Squared off at the same thumb
+     size, which is also six pixels the bar was spending on nothing. */
+  .gl-music {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+  }
+
   /* The header, given room. Two round controls and a wordmark on a 320px
      screen is most of the width; the tracking comes in a little and the two
      controls sit closer together, which is fifteen pixels back without
@@ -537,9 +549,23 @@ a:hover {
     gap: 4px !important;
     padding: 0 !important;
   }
-  .gl-mcell-face,
+  /* The club badge goes and the face stays.
+     
+     Both used to go. The reasoning was that a face you cannot recognise at
+     thirty-two pixels is not worth the forty it costs the name beside it, and
+     that was right about the size and wrong about the trade: at twenty pixels
+     it costs twenty-four, the name still fits, and a row of faces is how
+     anybody actually reads a lineup. The badge does go — it says the same
+     thing the stat line says, in a picture nobody was looking at.
+     
+     Not at 320px. There the name is already down to its last few characters
+     and there is nothing to give. */
   .gl-mcell-team {
     display: none !important;
+  }
+  .gl-mcell-face {
+    width: 20px !important;
+    height: 20px !important;
   }
   /* The score sizes itself rather than holding forty-six pixels open in a
      column that has about ninety. */
@@ -575,6 +601,15 @@ a:hover {
    name is left with twelve, which is not a name and not a tap target either.
    There the original wrapping stands and the page is a little taller, which
    on the smallest phone in the audit is the right way round. */
+/* The smallest phone keeps the old bargain: no face, all name. Below 361px
+   the name is already down to its last few characters and there is nothing
+   left to give. */
+@media (max-width: 360px) {
+  .gl-mcell-face {
+    display: none !important;
+  }
+}
+
 @media (min-width: 361px) and (max-width: 720px) {
   .gl-mcell-name > span > span {
     flex-wrap: nowrap !important;
@@ -1553,11 +1588,10 @@ button[disabled]:active {
 /* --------------------------------------------------------- the idle sprite ---
    Every headshot in the app breathes, very slightly.
 
-   Reached by the source rather than by a class: a headshot is drawn in ten
-   components, several of them server components, and giving each one a hook or
-   a wrapper would be ten chances to turn a page into an error for the sake of
-   two pixels of movement. Every one of those URLs has /headshots/ in it, so one
-   selector finds all of them and none of the components need to know.
+   Reached by a class, which is only possible because every face in the app now
+   comes through one component. It used to be reached by "/headshots/" being in
+   the src — which worked until the sprite filter replaced that src with a data
+   URL, and the faces converted and stopped breathing in the same change.
 
    Two pixels, four steps, two and a half seconds, and staggered so a row of
    eleven men is not a chorus line. steps() rather than a smooth ease: a sprite
@@ -1572,23 +1606,23 @@ button[disabled]:active {
   50%      { transform: translateY(-2px); }
 }
 
-:root[data-theme="16bit"] img[src*="/headshots/"] {
+:root[data-theme="16bit"] .gl-face {
   animation: gl-idle 2.4s steps(4, end) infinite;
 }
 
 /* A stagger, so eleven faces are not one face eleven times. Cheap and crude on
    purpose: five buckets by position in the row is enough to break the unison,
    and a per-player delay would want a component to compute it. */
-:root[data-theme="16bit"] img[src*="/headshots/"]:nth-of-type(5n + 1) { animation-delay: 0ms; }
-:root[data-theme="16bit"] img[src*="/headshots/"]:nth-of-type(5n + 2) { animation-delay: 320ms; }
-:root[data-theme="16bit"] img[src*="/headshots/"]:nth-of-type(5n + 3) { animation-delay: 640ms; }
-:root[data-theme="16bit"] img[src*="/headshots/"]:nth-of-type(5n + 4) { animation-delay: 960ms; }
-:root[data-theme="16bit"] img[src*="/headshots/"]:nth-of-type(5n + 5) { animation-delay: 1280ms; }
+:root[data-theme="16bit"] .gl-face:nth-of-type(5n + 1) { animation-delay: 0ms; }
+:root[data-theme="16bit"] .gl-face:nth-of-type(5n + 2) { animation-delay: 320ms; }
+:root[data-theme="16bit"] .gl-face:nth-of-type(5n + 3) { animation-delay: 640ms; }
+:root[data-theme="16bit"] .gl-face:nth-of-type(5n + 4) { animation-delay: 960ms; }
+:root[data-theme="16bit"] .gl-face:nth-of-type(5n + 5) { animation-delay: 1280ms; }
 
 /* An idle animation is the definition of decorative motion, so it is the
    first thing to go. */
 @media (prefers-reduced-motion: reduce) {
-  :root[data-theme="16bit"] img[src*="/headshots/"] {
+  :root[data-theme="16bit"] .gl-face {
     animation: none;
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
+import Headshot from "./Headshot";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { headshot } from "@/data/league-data";
 import TeamMark from "./TeamMark";
 import PlayerName from "./PlayerName";
 import DraftBoard from "./DraftBoard";
@@ -18,9 +18,6 @@ import { useLogos } from "@/lib/use-logos";
 import { setPickAnimations, usePickAnimations } from "@/lib/use-pick-animations";
 import { describeClock, pickSecondsFor, type ClockTier } from "@/lib/draft-clock";
 import { stillNeeded } from "@/lib/draft-needs";
-
-const BLANK =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 interface Pick {
   overall: number;
@@ -663,7 +660,6 @@ export default function DraftRoom() {
   if (!board) {
     return <div style={{ padding: "24px 26px", color: "var(--text-dim)" }}>Opening the draft room…</div>;
   }
-
 
   // The commissioner can take the pick in hand for whoever is on the clock.
   // One value rather than the condition written twice, so what the button
@@ -1384,9 +1380,8 @@ export default function DraftRoom() {
                   opacity: picking === p.name ? 0.5 : 1,
                 }}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={headshot(p.name) || BLANK}
+                <Headshot
+                  name={p.name}
                   alt=""
                   width={28}
                   height={28}

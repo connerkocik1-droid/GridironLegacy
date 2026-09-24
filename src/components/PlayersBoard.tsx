@@ -1,5 +1,6 @@
 "use client";
 
+import Headshot from "./Headshot";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fitChip,
@@ -9,14 +10,10 @@ import {
   type Held,
 } from "@/lib/moves-story";
 import Skeleton from "./Skeleton";
-import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import TeamMark from "./TeamMark";
 import { useRefreshable } from "@/lib/use-refresh";
 import { flagColor, flagsFor, player, proj } from "@/lib/roster";
-
-const BLANK =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"];
 
@@ -596,9 +593,8 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
                   borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
                 }}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={headshot(w.name) || BLANK}
+                <Headshot
+                  name={w.name}
                   alt=""
                   width={26}
                   height={26}
@@ -1020,9 +1016,8 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
                 rowGap: 8,
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={headshot(p.name) || BLANK}
+              <Headshot
+                name={p.name}
                 alt=""
                 width={28}
                 height={28}

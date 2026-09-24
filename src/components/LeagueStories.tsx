@@ -1,9 +1,9 @@
 "use client";
+import Headshot from "./Headshot";
 import { PlayerAge } from "./PlayerName";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { headshot } from "@/data/league-data";
 import {
   bestValue,
   hotStreaks,
@@ -39,9 +39,6 @@ const MEDALS = [
   { ink: "#c4cad6", edge: "rgba(196,202,214,.45)" },
   { ink: "#cd9060", edge: "rgba(205,144,96,.5)" },
 ];
-
-const BLANK =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 const card: React.CSSProperties = {
   border: "1px solid rgb(var(--accent-bright-rgb) / .3)",
@@ -180,9 +177,8 @@ export default function LeagueStories({
 
 function Face({ name, size = 54 }: { name: string; size?: number }) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={headshot(name) || BLANK}
+    <Headshot
+      name={name}
       alt=""
       width={size}
       height={size}
