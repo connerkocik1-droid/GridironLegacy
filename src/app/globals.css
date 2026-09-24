@@ -1443,3 +1443,141 @@ button[disabled]:active {
     );
   }
 }
+
+
+/* ------------------------------------------------- the title-screen bounce ---
+   The pylon and the wordmark, on arrival and on a tap.
+
+   Squash and stretch rather than a slide: it is the oldest trick in sprite
+   animation and it is what makes a thing read as drawn rather than as moved.
+   The transform-origin is the bottom, because a thing that squashes about its
+   centre is not landing, it is throbbing.
+
+   Two-thirds of a second and then it stops. It is a greeting, not a loop —
+   anything that keeps moving on the screen a manager opens twenty times a day
+   stops being charming by Wednesday and starts competing with the score.
+
+   Retro only. On the flat themes a bouncing wordmark reads as a rendering
+   fault; under scanlines it reads as a title screen. */
+
+@keyframes gl-bounce {
+  0%   { transform: scale(1, 1)       translateY(0); }
+  18%  { transform: scale(1.22, .78)  translateY(0); }
+  40%  { transform: scale(.90, 1.16)  translateY(-9px); }
+  58%  { transform: scale(1.08, .92)  translateY(0); }
+  76%  { transform: scale(.97, 1.03)  translateY(-3px); }
+  100% { transform: scale(1, 1)       translateY(0); }
+}
+
+:root[data-theme="16bit"] .gl-mark {
+  transform-origin: 50% 100%;
+  cursor: pointer;
+  /* The tap target is the pair, so the press does not have to find the 11px
+     pylon. Negative margin gives back exactly what the padding takes, so the
+     header does not grow to hold a thing that is only sometimes interactive. */
+  padding: 6px 8px;
+  margin: -6px -8px;
+}
+
+:root[data-theme="16bit"] .gl-mark,
+:root[data-theme="16bit"] .gl-mark.gl-bounce {
+  /* Three hops, not one.
+     
+     One was the right instinct and the wrong number: six hundred milliseconds
+     of it finishes while the rest of the page is still painting, so the thing
+     a manager was told to look for had already happened. Three lands at just
+     under two seconds — long enough to be seen arriving, short enough that it
+     is over before anybody wants it to be. Still not infinite. */
+  animation: gl-bounce 620ms steps(12, end) 3 both;
+}
+
+/* A replay is the class going off and back on, so the second run needs a name
+   the first one does not have — otherwise the browser sees the same animation
+   already finished and does nothing. */
+:root[data-theme="16bit"] .gl-mark.gl-bounce {
+  animation-name: gl-bounce;
+}
+
+/* The shadow a sprite casts: offset, hard-edged, and the same on both halves.
+
+   A blur is the one thing a console could not draw, so it is two pixels down
+   and two across with no softening at all.
+
+   Violet rather than black, which is the part that took looking at a
+   screenshot to get right. A near-black shadow is what a title screen of the
+   era used, and it worked because those screens had a light or a busy
+   background to lift the wordmark off. This theme's ground is #12102a — a
+   black shadow on it is a black shape on a black field, and the first attempt
+   was invisible at the size it is actually drawn. The deep accent violet is
+   dark enough to read as shadow rather than as a second copy of the word, and
+   far enough from the ground to be seen at all.
+
+   The pylon's own glow has to be overridden rather than joined. It is a nine
+   pixel soft orange drop-shadow written inline on the svg, which is right in
+   the other two themes and is exactly the thing this theme is not: !important
+   because an inline filter cannot be reached any other way.
+
+   The shadow travels with the bounce, because it is behind the mark rather
+   than under it — a shadow that stayed on the ground while the sprite hopped
+   would be a different and much fussier effect than the one asked for. */
+:root[data-theme="16bit"] .gl-mark svg {
+  filter: drop-shadow(2px 2px 0 var(--accent-deep)) !important;
+}
+
+:root[data-theme="16bit"] .gl-mark .gl-wordmark {
+  text-shadow: 2px 2px 0 var(--accent-deep);
+}
+
+/* Asked for less motion, and answered here rather than in the component. The
+   shadow stays: it is not motion, and a title without it is a title that
+   looks unfinished rather than calmer. */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="16bit"] .gl-mark,
+  :root[data-theme="16bit"] .gl-mark.gl-bounce {
+    animation: none;
+  }
+}
+
+
+/* --------------------------------------------------------- the idle sprite ---
+   Every headshot in the app breathes, very slightly.
+
+   Reached by the source rather than by a class: a headshot is drawn in ten
+   components, several of them server components, and giving each one a hook or
+   a wrapper would be ten chances to turn a page into an error for the sake of
+   two pixels of movement. Every one of those URLs has /headshots/ in it, so one
+   selector finds all of them and none of the components need to know.
+
+   Two pixels, four steps, two and a half seconds, and staggered so a row of
+   eleven men is not a chorus line. steps() rather than a smooth ease: a sprite
+   moves between frames, and easing it is the one thing that would make this
+   read as a web page pretending rather than a game.
+
+   The pixelation is already on — the theme renders every image
+   nearest-neighbour — so this is the motion and not the look. */
+
+@keyframes gl-idle {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+
+:root[data-theme="16bit"] img[src*="/headshots/"] {
+  animation: gl-idle 2.4s steps(4, end) infinite;
+}
+
+/* A stagger, so eleven faces are not one face eleven times. Cheap and crude on
+   purpose: five buckets by position in the row is enough to break the unison,
+   and a per-player delay would want a component to compute it. */
+:root[data-theme="16bit"] img[src*="/headshots/"]:nth-of-type(5n + 1) { animation-delay: 0ms; }
+:root[data-theme="16bit"] img[src*="/headshots/"]:nth-of-type(5n + 2) { animation-delay: 320ms; }
+:root[data-theme="16bit"] img[src*="/headshots/"]:nth-of-type(5n + 3) { animation-delay: 640ms; }
+:root[data-theme="16bit"] img[src*="/headshots/"]:nth-of-type(5n + 4) { animation-delay: 960ms; }
+:root[data-theme="16bit"] img[src*="/headshots/"]:nth-of-type(5n + 5) { animation-delay: 1280ms; }
+
+/* An idle animation is the definition of decorative motion, so it is the
+   first thing to go. */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="16bit"] img[src*="/headshots/"] {
+    animation: none;
+  }
+}

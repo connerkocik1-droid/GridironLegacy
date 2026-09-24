@@ -76,6 +76,9 @@ const side = (m, points, extra = {}) => ({
 /** A side in the week being played, which is the only week with an outlook. */
 const livingSide = (m, points, projected, yetToPlay, inPlay = 0) =>
   side(m, points, { projected, yetToPlay, inPlay });
+/** An 8x8 gradient, small enough to read in a diff and real enough to quantise. */
+const LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAlklEQVR4nBXKIRXDUAxA0YqokuGI2ImKoKHinAkoDJiAoaAJGAisgkiYjez9i++2yzU3+c5dPvOQ95zympRzLnnOT47ZdiUoQQlKUIISlKArGMEIRjCCEYxgBFvBCU5wghOc4AQn+ApBCEIQghCEIAQhVkhCEpKQhCQkIQm5QhGKUIQiFKEIRagVmtCEJjShCU1oQh/zB74WqMHlwy98AAAAAElFTkSuQmCC";
+
 const ago = (mins) => new Date(Date.now() - mins * 60_000).toISOString();
 
 // The recap's own table. Built rather than typed out: twelve franchises over
@@ -334,7 +337,11 @@ export function routes(page, over = {}) {
       emailNotices: managerWantsMail,
     } });
   });
-  page.route("**/api/logos", json({ logos: {} }));
+  // One franchise with a real picture, so the retro theme's sprite filter
+  // has something to convert. A data URI rather than a file: the canvas
+  // path has to be exercised somewhere the network is not, and a crest in
+  // this app is a data URI in the league's own database anyway.
+  page.route("**/api/logos", json({ logos: { STL: LOGO } }));
   // The injury report, with one of each state that draws a badge — so any
   // screen showing players shows every colour the badge can be.
   page.route("**/api/player-status", json({

@@ -7,6 +7,8 @@
  * tells you nothing, while two letters in the franchise's own colour is
  * legible at sixteen pixels and different for every team.
  */
+
+import { usePixelArt } from "@/lib/use-pixel-art";
 export default function TeamCrest({
   franchise,
   logo,
@@ -38,6 +40,17 @@ export default function TeamCrest({
   for (const ch of franchise) hash = (hash * 31 + ch.charCodeAt(0)) % 360;
 
   const lettered = fallback === "initials";
+
+  // The retro theme redraws it as a sprite; every other theme gets the logo
+  // back unchanged. Converted at render rather than at upload, so a crest a
+  // manager uploads tonight is a sprite tonight and is still a photograph the
+  // moment they switch back — and so this covers the marks the app does not
+  // own as well as the ones it does.
+  //
+  // The grid follows the size it is drawn at: the same badge is a 44px header
+  // crest and a 14px row mark, and one sprite for both would be mush at one
+  // end or wasted detail at the other.
+  const sprite = usePixelArt(logo, Math.max(12, Math.round(size * 0.55)));
 
   return (
     <span
@@ -73,7 +86,7 @@ export default function TeamCrest({
         // database, which next/image has nothing to optimise and no loader for.
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={logo}
+          src={sprite}
           alt=""
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />

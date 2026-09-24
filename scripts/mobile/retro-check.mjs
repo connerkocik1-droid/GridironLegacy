@@ -33,7 +33,12 @@ const browser = await chromium.launch(
   process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
 if (SHOTS) await mkdir(SHOTS, { recursive: true });
 
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+// Three times the pixels, so a two-pixel shadow is something a person can
+// actually judge in the screenshot. Device pixels do not change CSS layout,
+// so nothing measured here moves.
+const ctx = await browser.newContext({
+  viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3,
+});
 await ctx.addCookies([sessionCookie()]);
 // Set before any document runs, the same way the pre-paint script would find
 // it: if this theme only works after a click, it flashes the wrong one first.
@@ -79,6 +84,17 @@ for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/
       // is the request, not the rendering.
       heading: getComputedStyle(document.documentElement).getPropertyValue("--font-heading").trim(),
       fontLink: Boolean(document.getElementById("pylon-pixel-font")),
+      // Exactly one element animates, and it is the pylon and wordmark pair.
+      // A bounce that spread to anything else would be a selector too broad.
+      bounce: [...document.querySelectorAll("*")]
+        .filter((el) => getComputedStyle(el).animationName === "gl-bounce").length,
+      hops: getComputedStyle(document.querySelector(".gl-mark") ?? document.body).animationIterationCount,
+      pylonShadow: getComputedStyle(document.querySelector(".gl-mark svg") ?? document.body).filter,
+      wordShadow: getComputedStyle(
+        document.querySelector(".gl-mark .gl-wordmark") ?? document.body).textShadow,
+      faces: document.querySelectorAll('img[src*="/headshots/"]').length,
+      idle: [...document.querySelectorAll('img[src*="/headshots/"]')]
+        .filter((el) => getComputedStyle(el).animationName === "gl-idle").length,
     };
   });
 
@@ -93,8 +109,74 @@ for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/
   ok("a crest is square", m.crest === "0px" || m.crest === "none", m.crest);
   ok("headings ask for the pixel face first", m.heading.startsWith('"Pixelify Sans"'), m.heading);
   ok("and it is only fetched once the theme is on", m.fontLink);
+  ok("the header mark is the one thing that bounces", m.bounce === 1, String(m.bounce));
+  ok(`and it hops more than once (${m.hops})`, m.hops === "3", m.hops);
+  // The shadow is the part a still screenshot can actually show, and the part
+  // that has to beat an inline filter on the svg.
+  ok(`the pylon casts a hard shadow (${m.pylonShadow})`,
+    /drop-shadow\(.*2px 2px 0/.test(m.pylonShadow) && !/9px/.test(m.pylonShadow));
+  ok(`and so does the wordmark (${m.wordShadow})`, /2px 2px/.test(m.wordShadow));
+  ok(`every headshot idles (${m.idle})`, m.idle > 0 || m.faces === 0, `${m.idle} of ${m.faces}`);
 
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/16bit-${label}.png`, fullPage: true });
+  if (SHOTS) {
+    await page.screenshot({ path: `${SHOTS}/16bit-${label}.png`, fullPage: true });
+    // The header on its own and close up. The bounce has finished by the time
+    // any screenshot is taken, but the shadow has not, and two pixels of it in
+    // a 390px-wide full-page shot is not something a person can judge.
+    if (label === "home") {
+      const mark = page.locator(".gl-mark");
+      if (await mark.count()) {
+        await mark.screenshot({ path: `${SHOTS}/16bit-mark.png`, scale: "device" });
+      }
+    }
+  }
+}
+
+// ------------------------------------------------------- the sprite filter
+// The crests and club marks are redrawn through a canvas at render. Two ways
+// that can go wrong and neither is visible in a screenshot: the conversion
+// silently failing everywhere (a tainted canvas, a CDN that will not send
+// CORS) and leaving the original photograph, or the conversion running in a
+// theme that did not ask for it.
+console.log("\n===== the sprite filter");
+{
+  await page.goto(`${BASE}/lineup`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(1800);
+
+  const marks = await page.evaluate(() =>
+    [...document.querySelectorAll("img")]
+      .map((el) => el.getAttribute("src") ?? "")
+      .filter((src) => src && !src.startsWith("data:image/gif")));
+  console.log(`    (${marks.length} images: ${marks.map((m) => m.slice(0, 28)).join(" | ")})`);
+
+  const sprites = marks.filter((src) => src.startsWith("data:image/png"));
+  ok(`something was converted (${sprites.length} of ${marks.length} images)`, sprites.length > 0);
+
+  // A sprite is tiny by construction — a 24px-square PNG — and that is what
+  // keeps a page of them cheap. A conversion that quietly emitted the full
+  // image would still be a data URL and would still look right.
+  const biggest = Math.max(0, ...sprites.map((s) => s.length));
+  ok(`and the sprites are small (largest ${biggest} chars)`, biggest > 0 && biggest < 12_000);
+}
+
+console.log("\n===== and not in the other themes");
+{
+  const plain = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
+  await plain.addCookies([sessionCookie()]);
+  await plain.addInitScript(() => {
+    try { localStorage.setItem("pylon:theme", "dark"); } catch { /* storage off */ }
+  });
+  const dark = await plain.newPage();
+  dark.setDefaultNavigationTimeout(120_000);
+  await routes(dark);
+  await dark.goto(`${BASE}/the-league`, { waitUntil: "networkidle" });
+  await dark.waitForTimeout(1200);
+
+  const converted = await dark.evaluate(() =>
+    [...document.querySelectorAll("img")]
+      .filter((el) => (el.getAttribute("src") ?? "").startsWith("data:image/png")).length);
+  ok("the dark theme does no canvas work at all", converted === 0, String(converted));
+  await plain.close();
 }
 
 // And the switch itself: three themes have to be reachable, and picking one
