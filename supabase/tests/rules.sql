@@ -378,6 +378,252 @@ select expect('every move is logged',
   (select count(*)::int > 0 from transactions where league_id = :'W' and kind = 'waiver'), true);
 
 \echo ''
+\echo '--- the claim day, and the order it settles in ---'
+
+-- Tuesday in the league's own clock, the order taken from the week that just
+-- ended, and a claim that waits for the day to be over. All three are new and
+-- none of them can be tested against a real Tuesday, so the claim day is moved
+-- to whatever today is and then moved off it again.
+
+\o /dev/null
+\set D '99999999-0000-0000-0000-000000000031'
+\set D1 'dddd1000-0000-0000-0000-000000000001'
+\set D2 'dddd1000-0000-0000-0000-000000000002'
+\set D3 'dddd1000-0000-0000-0000-000000000003'
+
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'D', 'Claim Day', 2026, 'AAA',
+        '{"starters": {"QB": 1, "RB": 1}, "bench": 3, "rounds": 1}'::jsonb);
+
+insert into auth.users (id) values (:'D1'), (:'D2'), (:'D3');
+
+-- Seeded deliberately backwards: 1 is the best priority, and Alpha holds it
+-- while being the team that scored most. A correct reseed inverts this.
+insert into managers (league_id, slot, name, franchise, is_commissioner, auth_user_id, waiver_priority) values
+  (:'D', 'AAA', 'A', 'Alpha',   true,  :'D1', 1),
+  (:'D', 'BBB', 'B', 'Bravo',   false, :'D2', 2),
+  (:'D', 'CCC', 'C', 'Charlie', false, :'D3', 3);
+
+-- Week 1 is graded and week 2 is being played, so current_week is 2 and the
+-- week that just ended is 1. Charlie was worst, Alpha best.
+insert into matchups (league_id, week, home_manager, away_manager, home_points, away_points, final) values
+  (:'D', 1,
+   (select id from managers where league_id = :'D' and slot = 'AAA'),
+   (select id from managers where league_id = :'D' and slot = 'BBB'),
+   120.5, 95.25, true),
+  (:'D', 2,
+   (select id from managers where league_id = :'D' and slot = 'AAA'),
+   (select id from managers where league_id = :'D' and slot = 'CCC'),
+   0, 0, false);
+-- Charlie played nobody in week 1, so his week is a bye at 40.
+insert into matchups (league_id, week, home_manager, away_manager, home_points, away_points, final) values
+  (:'D', 1,
+   (select id from managers where league_id = :'D' and slot = 'CCC'),
+   null, 40.0, null, true);
+\o
+
+select expect('the week just ended is the one before the one being played',
+  current_week(:'D') - 1, 1);
+
+select expect('and the scores are read off it',
+  (select round(points, 1) from week_points(:'D', 1) wp
+    join managers m on m.id = wp.manager_id where m.slot = 'AAA'), 120.5);
+
+\o /dev/null
+select seed_waiver_priority(:'D', 1);
+\o
+
+select expect('the order is last week upside down',
+  (select string_agg(slot, ',' order by waiver_priority) from managers where league_id = :'D'),
+  'CCC,BBB,AAA');
+
+select expect('and the league remembers which week it came from',
+  (select waiver_priority_week from leagues where id = :'D'), 1);
+
+-- Week one of a season has nothing to order anybody by, and must not shuffle
+-- a league into an order that means nothing.
+\o /dev/null
+update managers set waiver_priority = case slot when 'AAA' then 1 when 'BBB' then 2 else 3 end
+ where league_id = :'D';
+\o
+select expect('a week nobody scored in does not reorder anything',
+  seed_waiver_priority(:'D', 99), 0);
+select expect('so the order it had is the order it keeps',
+  (select string_agg(slot, ',' order by waiver_priority) from managers where league_id = :'D'),
+  'AAA,BBB,CCC');
+
+-- ---- the claim day itself ----
+
+-- Today, whatever today is, on the league's clock.
+\o /dev/null
+update leagues
+   set settings = settings || jsonb_build_object(
+     'waiverDay', extract(dow from (now() at time zone 'America/New_York'))::int)
+ where id = :'D';
+select signin(:'D1');
+\o
+
+select expect('it is a claim day now', waiver_day(:'D'), true);
+
+select expect('so an add is refused',
+  refuses(format('select add_player(%L, %L)', :'D', 'Wire Target')) like '%claim%', true);
+
+select expect('and nobody landed on a roster',
+  (select count(*)::int from roster_slots where league_id = :'D' and player_name = 'Wire Target'), 0);
+
+select expect('the reserve is not a way round it',
+  refuses(format('select add_player_to_ir(%L, %L)', :'D', 'Wire Target')) is not null, true);
+
+-- A claim placed today is stamped with the end of today and must not settle
+-- before then, however often the run happens in the meantime.
+\o /dev/null
+insert into waiver_claims (league_id, manager_id, add_player) values
+  (:'D', (select id from managers where league_id = :'D' and slot = 'CCC'), 'Wire Target');
+\o
+
+select expect('a claim placed today settles at the end of today',
+  (select settles_at > now() and settles_at < now() + interval '1 day'
+     from waiver_claims where league_id = :'D' and add_player = 'Wire Target'), true);
+
+\o /dev/null
+select process_waivers(:'D');
+\o
+
+select expect('so a run during the day judges nothing',
+  (select status from waiver_claims where league_id = :'D' and add_player = 'Wire Target'),
+  'pending');
+
+-- The day ends. The run after it settles the claim.
+\o /dev/null
+update waiver_claims set settles_at = now() - interval '1 minute'
+ where league_id = :'D' and add_player = 'Wire Target';
+select process_waivers(:'D');
+\o
+
+select expect('and the run after it does',
+  (select status from waiver_claims where league_id = :'D' and add_player = 'Wire Target'),
+  'won');
+
+select expect('the player is on the claiming roster',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'D' and r.player_name = 'Wire Target'), 'CCC');
+
+-- Off the claim day, the league behaves exactly as it did before any of this.
+\o /dev/null
+update leagues
+   set settings = settings || jsonb_build_object(
+     'waiverDay', ((extract(dow from (now() at time zone 'America/New_York'))::int + 3) % 7))
+ where id = :'D';
+\o
+
+select expect('tomorrow is not a claim day', waiver_day(:'D'), false);
+
+select expect('so an add lands on the spot again',
+  (select (add_player(:'D', 'Ordinary Signing', null) ->> 'ok')::boolean), true);
+
+-- Placed now, off the claim day, so there is no window for it to wait for and
+-- it is judged the moment its player is free — which is what every claim did
+-- before this migration existed.
+\o /dev/null
+insert into waiver_claims (league_id, manager_id, add_player) values
+  (:'D', (select id from managers where league_id = :'D' and slot = 'BBB'), 'Later Target');
+\o
+
+select expect('a claim placed off the day has no window to wait for',
+  (select settles_at is null from waiver_claims
+    where league_id = :'D' and add_player = 'Later Target'), true);
+
+\o /dev/null
+select process_waivers(:'D');
+\o
+
+select expect('so the very next run judges it',
+  (select status from waiver_claims
+    where league_id = :'D' and add_player = 'Later Target'), 'won');
+
+-- A league can switch the claim day off entirely.
+\o /dev/null
+update leagues set settings = settings || '{"waiverDay": -1}'::jsonb where id = :'D';
+\o
+select expect('a league with no claim day never has one', waiver_day(:'D'), false);
+
+-- ---- the gap between the window closing and the run ----
+
+-- The claim day is not over when the clock says so: it is over when the run
+-- has settled what the day collected, and the run comes round on its own
+-- schedule. In between, waiver_day is already false — so without this the day
+-- leaks at the far end and the player half the league queued for goes to
+-- whoever is awake at one in the morning.
+\o /dev/null
+update leagues
+   set settings = settings || jsonb_build_object(
+     'waiverDay', extract(dow from (now() at time zone 'America/New_York'))::int)
+ where id = :'D';
+insert into waiver_claims (league_id, manager_id, add_player) values
+  (:'D', (select id from managers where league_id = :'D' and slot = 'BBB'), 'Spoken For');
+-- The day ends, but nothing has run yet.
+update leagues set settings = settings || '{"waiverDay": -1}'::jsonb where id = :'D';
+update waiver_claims set settles_at = now() - interval '1 minute'
+ where league_id = :'D' and add_player = 'Spoken For';
+select signin(:'D1');
+\o
+
+select expect('the day is over', waiver_day(:'D'), false);
+
+select expect('but a player with claims waiting cannot be added out from under them',
+  refuses(format('select add_player(%L, %L)', :'D', 'Spoken For')) like '%waiting to be settled%',
+  true);
+
+select expect('nor signed into the reserve',
+  refuses(format('select add_player_to_ir(%L, %L)', :'D', 'Spoken For')) is not null, true);
+
+\o /dev/null
+select process_waivers(:'D');
+\o
+
+select expect('the run gives him to the manager who claimed him',
+  (select m.slot from roster_slots r join managers m on m.id = r.manager_id
+    where r.league_id = :'D' and r.player_name = 'Spoken For'), 'BBB');
+
+-- ---- a manager's own order across their claims ----
+
+-- claim_order has been honoured by the run since the beginning and set by
+-- nothing, so every claim sat at 1 and the tie-break decided which of a
+-- manager's own claims was tried first.
+\o /dev/null
+update leagues set settings = settings || '{"waiverDay": -1}'::jsonb where id = :'D';
+insert into waiver_claims (league_id, manager_id, add_player) values
+  (:'D', (select id from managers where league_id = :'D' and slot = 'AAA'), 'First Choice'),
+  (:'D', (select id from managers where league_id = :'D' and slot = 'AAA'), 'Second Choice');
+select signin(:'D1');
+select reorder_claims(:'D', array[
+  (select id from waiver_claims where league_id = :'D' and add_player = 'Second Choice'),
+  (select id from waiver_claims where league_id = :'D' and add_player = 'First Choice')
+]);
+\o
+
+select expect('the claim a manager ranked first is tried first',
+  (select add_player from waiver_claims
+    where league_id = :'D' and status = 'pending'
+      and manager_id = (select id from managers where league_id = :'D' and slot = 'AAA')
+    order by claim_order limit 1), 'Second Choice');
+
+-- And it is theirs alone to set.
+\o /dev/null
+select signin(:'D2');
+\o
+select expect('a manager cannot reorder somebody else''s claims',
+  reorder_claims(:'D', array[
+    (select id from waiver_claims where league_id = :'D' and add_player = 'First Choice')
+  ]), 0);
+
+select expect('so the order the owner set still stands',
+  (select add_player from waiver_claims
+    where league_id = :'D' and status = 'pending'
+      and manager_id = (select id from managers where league_id = :'D' and slot = 'AAA')
+    order by claim_order limit 1), 'Second Choice');
+
+\echo ''
 \echo '--- the waiver wire ---'
 
 \o /dev/null

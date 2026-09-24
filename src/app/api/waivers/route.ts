@@ -55,6 +55,8 @@ export async function POST(req: Request) {
   // add: it spends a reserve slot rather than a roster spot, so it drops
   // nobody, and the database refuses it for anybody the injury report does not
   // put on IR or under suspension.
+  // Signing into the reserve is still a signing, so the claim day stops it as
+  // well — checked here so the message is ours rather than a raw SQL error.
   if (body.ir === true) {
     const { data, error } = await db.rpc("add_player_to_ir", {
       p_league_id: manager.league_id,
@@ -67,7 +69,7 @@ export async function POST(req: Request) {
     return Response.json({ ...data, mode: "now" });
   }
 
-  const [{ data: league }, { data: wired }] = await Promise.all([
+  const [{ data: league }, { data: wired }, { data: claimDay }] = await Promise.all([
     db.from("leagues").select("settings").eq("id", manager.league_id).single(),
     db
       .from("waiver_wire")
@@ -75,11 +77,15 @@ export async function POST(req: Request) {
       .eq("league_id", manager.league_id)
       .eq("player_name", add)
       .maybeSingle(),
+    // The league's own clock, and the thing that will refuse an add today.
+    db.rpc("waiver_day", { p_league_id: manager.league_id }),
   ]);
 
   const mode = league?.settings?.waiverMode;
-  // 'open' has no wire at all; 'all' sends every pickup through the run.
-  const instant = mode === "open" || (mode !== "all" && !wired);
+  // 'open' has no wire at all; 'all' sends every pickup through the run. And
+  // on the claim day nothing is instant, whichever mode the league is in —
+  // otherwise this would call add_player and hand back the refusal it earns.
+  const instant = !claimDay && (mode === "open" || (mode !== "all" && !wired));
 
   if (instant) {
     const { data, error } = await db.rpc("add_player", {
@@ -167,4 +173,41 @@ export async function PATCH(req: Request) {
 
   if (error) return Response.json({ error: error.message }, { status: 400 });
   return Response.json(data);
+}
+
+/**
+ * Reorders a manager's own claims: first in the list is tried first.
+ *
+ * The whole list every time rather than a move-one-up call, because the ranks
+ * have to stay a permutation — two claims at rank 1 is the tie-break deciding
+ * again, which is the thing this exists to stop.
+ *
+ * PUT rather than PATCH only because PATCH is already the drop.
+ */
+export async function PUT(req: Request) {
+  if (!isConfigured()) return NOT_CONFIGURED;
+
+  const db = await serverClient();
+  const manager = await me(db);
+  if (!manager) return Response.json({ error: "Not signed in" }, { status: 401 });
+
+  let body: { order?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "Body must be JSON" }, { status: 400 });
+  }
+
+  const order = Array.isArray(body.order) ? body.order.filter((id) => typeof id === "string") : [];
+  if (!order.length) return Response.json({ error: "Send the claims in order" }, { status: 400 });
+
+  // Whose they are is checked in the database, so a borrowed id matches
+  // nothing rather than being refused with a message that confirms it exists.
+  const { data, error } = await db.rpc("reorder_claims", {
+    p_league_id: manager.league_id,
+    p_ids: order,
+  });
+
+  if (error) return Response.json({ error: "Could not reorder those claims" }, { status: 400 });
+  return Response.json({ ok: true, reordered: data });
 }

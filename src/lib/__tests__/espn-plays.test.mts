@@ -89,7 +89,7 @@ const server: Server = await new Promise((resolve) => {
 const addr = server.address();
 process.env.ESPN_CORE_API_BASE = `http://127.0.0.1:${typeof addr === "object" && addr ? addr.port : 0}`;
 
-const { fetchPlayByPlay, teamIdFromRef } = await import("../espn.ts");
+const { fetchPlayByPlay, teamIdFromRef, bySequence } = await import("../espn.ts");
 
 console.log("--- a whole game, in order ---");
 
@@ -153,6 +153,39 @@ ok("a competition id of its own is honoured", await (async () => {
   await fetchPlayByPlay("401671800", "999");
   return asked.every((u) => u.includes("/competitions/999/"));
 })());
+
+console.log("\n--- the order of the plays ---");
+
+// The bug this exists for. Every fixture above is padded to six digits, which
+// is what the feed was believed to be — and a plain string compare is right
+// exactly while that holds. Unpadded it is wrong at the end, which is the end
+// anybody looks at: the gamecast's LAST PLAY card reads the newest play off
+// the back of this list, and with "9" sorting above "160" it reads play nine
+// for the rest of the afternoon.
+{
+  const seq = (n: string) => ({ sequence: n });
+  const sorted = (order: string[]) => order.map(seq).sort(bySequence).map((p) => p.sequence);
+
+  eq("unpadded sequences sort as numbers, not as words",
+     sorted(["9", "160", "10", "1", "99", "2"]), ["1", "2", "9", "10", "99", "160"]);
+
+  eq("and the newest is the last of them",
+     sorted(["1", "9", "160", "10"]).at(-1), "160");
+
+  // The case the old comparison was written for has to keep working.
+  eq("padded sequences are unchanged",
+     sorted(["000410", "000101", "000205"]), ["000101", "000205", "000410"]);
+
+  // A feed that switches width partway through — the shape that would defeat
+  // either comparison on its own.
+  eq("a feed that starts padding halfway is still in order",
+     sorted(["0010", "9", "160"]), ["9", "0010", "160"]);
+
+  // Longer than Number.MAX_SAFE_INTEGER, which is why none of this parses.
+  eq("and sequences past a safe integer still order",
+     sorted(["9007199254740993", "9007199254740992"]),
+     ["9007199254740992", "9007199254740993"]);
+}
 
 server.close();
 console.log(failed ? `\n${failed} failed` : "\nall passed");
