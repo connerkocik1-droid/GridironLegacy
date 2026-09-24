@@ -124,6 +124,7 @@ for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/
         return a ? !a.paused : null;
       })(),
       musicPreload: document.querySelector("audio[src*='16bit-theme']")?.getAttribute("preload") ?? "",
+      musicArmed: document.querySelector(".gl-music")?.getAttribute("aria-pressed") ?? "",
       faces: document.querySelectorAll(".gl-face").length,
       // Counted off the alt-less faces in player rows: once converted the src
       // is a data URL, so the /headshots/ selector no longer finds them.
@@ -160,14 +161,16 @@ for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/
   ok(`and every face is a sprite (${m.spriteFaces} of ${m.allFaces})`,
     m.spriteFaces === m.allFaces);
 
-  // The music. Silent by default is the whole contract: a page that makes a
-  // noise on arrival is the thing everybody hates, and no browser would allow
-  // it before an interaction anyway.
+  // The music. On by default now: choosing this theme is choosing a
+  // cartridge, and a cartridge has a title theme. What a page can promise is
+  // that the switch is armed and the track is ready — whether a browser lets
+  // it sound before the first tap is the browser's call, and is checked on its
+  // own below.
   ok("there is a mute switch", m.musicButton);
+  ok("and it is on without anybody asking", m.musicArmed === "true", m.musicArmed);
   ok("and it covers nothing", m.musicFixed === false, `position ${m.musicFixed}`);
   ok("because it lives in the header", m.musicInNav === true, String(m.musicInNav));
-  ok("and it starts silent", m.musicPlaying === false, String(m.musicPlaying));
-  ok("the track is not fetched until it is wanted", m.musicPreload === "none", m.musicPreload);
+  ok("and the track is fetched ready to play", m.musicPreload === "auto", m.musicPreload);
 
   if (SHOTS) {
     await page.screenshot({ path: `${SHOTS}/16bit-${label}.png`, fullPage: true });
@@ -240,35 +243,120 @@ console.log("\n===== and not in the other themes");
 // ------------------------------------------------------------- the music
 // A switch that exists is not a switch that works. A real click is a user
 // gesture, which is the thing the browser was holding out for.
-console.log("\n===== the mute switch");
+console.log("\n===== the music, and the switch that stops it");
 {
+  // A manager who has never touched the switch. The theme is chosen, the
+  // storage key is unset, and nothing has been pressed.
+  await page.evaluate(() => localStorage.removeItem("gl.retro.music"));
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(800);
 
-  await page.locator(".gl-music").click();
+  const armed = await page.evaluate(() =>
+    document.querySelector(".gl-music")?.getAttribute("aria-pressed"));
+  ok("the switch is on before anybody touches it", armed === "true", String(armed));
+
+  // A gesture that is not the switch, which is the whole point: the music has
+  // to arrive without anybody going looking for the button. A key press counts
+  // as a user gesture and cannot navigate anywhere by accident.
+  await page.keyboard.press("Shift");
   await page.waitForTimeout(900);
 
   const playing = await page.evaluate(() => {
     const a = document.querySelector("audio[src*='16bit-theme']");
     return a ? { paused: a.paused, loop: a.loop, t: a.currentTime } : null;
   });
-  ok(`pressing it starts the track (${JSON.stringify(playing)})`, playing?.paused === false);
+  ok(`it plays without the switch being pressed (${JSON.stringify(playing)})`,
+    playing?.paused === false);
   ok("and it loops", playing?.loop === true);
 
+  // The switch still stops it, and stopping it is what gets remembered — a
+  // default of on is worthless if it overrides somebody who wants quiet.
   await page.locator(".gl-music").click();
   await page.waitForTimeout(400);
-  const after = await page.evaluate(() =>
-    document.querySelector("audio[src*='16bit-theme']")?.paused);
-  ok("pressing it again stops it", after === true);
+  ok("pressing the switch stops it", await page.evaluate(() =>
+    document.querySelector("audio[src*='16bit-theme']")?.paused) === true);
 
-  // And the choice outlives the page, like every other preference here.
-  await page.locator(".gl-music").click();
-  await page.waitForTimeout(300);
+  const stored = await page.evaluate(() => localStorage.getItem("gl.retro.music"));
+  ok("and off is what gets written down", stored === "off", String(stored));
+
   await page.reload({ waitUntil: "networkidle" });
-  await page.waitForTimeout(800);
-  const remembered = await page.evaluate(() => localStorage.getItem("gl.retro.music"));
-  ok("and is remembered", remembered === "on", String(remembered));
+  await page.waitForTimeout(600);
+  await page.keyboard.press("Shift");
+  await page.waitForTimeout(700);
+  const stillQuiet = await page.evaluate(() => {
+    const a = document.querySelector("audio[src*='16bit-theme']");
+    return a ? a.paused : null;
+  });
+  ok("and it stays off through a reload and a press", stillQuiet === true, String(stillQuiet));
+
+  // And back on again, so the switch is a switch and not a one-way door.
+  await page.locator(".gl-music").click();
+  await page.waitForTimeout(700);
+  ok("pressing it again brings it back", await page.evaluate(() =>
+    document.querySelector("audio[src*='16bit-theme']")?.paused) === false);
   await page.evaluate(() => localStorage.setItem("gl.retro.music", "off"));
+}
+
+// ------------------------------------------- when the browser says no
+// The case that matters on a phone and cannot happen in this browser: a cold
+// launch refuses play() outright, because the page has not been touched. A
+// rejected promise is all the app gets — no event, no second chance — so
+// treating it as "the music is off" is how a default of on works on a desktop
+// and never once in somebody's hand.
+//
+// Chromium here is started with autoplay allowed, so the refusal has to be
+// staged: the first play() is made to reject, and what is asserted is that a
+// press afterwards tries again.
+console.log("\n===== when the browser refuses to play");
+{
+  const blocked = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await blocked.addCookies([sessionCookie()]);
+  await blocked.addInitScript(() => {
+    try {
+      localStorage.setItem("pylon:theme", "16bit");
+      localStorage.removeItem("gl.retro.music");
+    } catch { /* storage off */ }
+    window.__tries = 0;
+    const real = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function play(...args) {
+      if (!(this.getAttribute("src") ?? "").includes("16bit-theme")) {
+        return real.apply(this, args);
+      }
+      window.__tries += 1;
+      // The first one is refused exactly the way a phone refuses it.
+      if (window.__tries === 1) return Promise.reject(new DOMException("blocked", "NotAllowedError"));
+      return real.apply(this, args);
+    };
+  });
+  const cold = await blocked.newPage();
+  cold.setDefaultNavigationTimeout(120_000);
+  await routes(cold);
+  await cold.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await cold.waitForTimeout(900);
+
+  const first = await cold.evaluate(() => ({
+    tries: window.__tries,
+    paused: document.querySelector("audio[src*='16bit-theme']")?.paused,
+  }));
+  ok(`it tries once on arrival (${first.tries})`, first.tries === 1);
+  ok("and is refused", first.paused === true, String(first.paused));
+
+  await cold.keyboard.press("Shift");
+  await cold.waitForTimeout(900);
+  const after = await cold.evaluate(() => ({
+    tries: window.__tries,
+    paused: document.querySelector("audio[src*='16bit-theme']")?.paused,
+  }));
+  ok(`the first press tries again (${after.tries})`, after.tries > first.tries);
+  ok("and this time it plays", after.paused === false, String(after.paused));
+
+  // One press is all it should take. A listener left armed would fire on every
+  // tap in the app for the rest of the session.
+  await cold.keyboard.press("Shift");
+  await cold.waitForTimeout(400);
+  const settled = await cold.evaluate(() => window.__tries);
+  ok(`and then stops asking (${settled})`, settled === after.tries);
+  await blocked.close();
 }
 
 // -------------------------------------------------- the header at 320px
