@@ -9,23 +9,36 @@
  * The animation lives in globals.css because it has to be switchable by
  * prefers-reduced-motion, and an inline style would outrank the media query.
  */
+import { lastActive } from "@/lib/presence";
+
 export default function PresenceDot({
   online,
   who,
+  lastSeenAt,
   size = 7,
 }: {
   online: boolean;
   /** Whose presence, for a screen reader. Omitted where the row says it. */
   who?: string;
+  /** When they were last in the app, which makes "not here" mean something. */
+  lastSeenAt?: string | null;
   size?: number;
 }) {
+  // "Alpha is not here" is true of a manager who left five minutes ago and of
+  // one who has not opened the app since August, and those are not the same
+  // fact. When there is a stamp, the label says which.
+  const last = online ? null : lastActive(lastSeenAt);
   const label = online
     ? who
       ? `${who} is here now`
       : "Here now"
-    : who
-      ? `${who} is not here`
-      : "Not here";
+    : last
+      ? who
+        ? `${who} was last here ${last.long.replace("Last active ", "")}`
+        : last.long
+      : who
+        ? `${who} is not here`
+        : "Not here";
 
   return (
     <span
@@ -35,5 +48,39 @@ export default function PresenceDot({
       title={label}
       style={size === 7 ? undefined : { width: size, height: size }}
     />
+  );
+}
+
+/**
+ * The two or three characters beside the dot: 3h, 2d, Sep 4.
+ *
+ * Short because both places it goes are dense tables where the franchise name
+ * is already fighting for the line. The dot's own tooltip carries the sentence
+ * for anybody who wants it, so this can afford to be terse.
+ *
+ * Nothing at all for somebody who is here — the dot is lit, which is the whole
+ * answer — and nothing for a manager with no stamp, because a duration we do
+ * not have is not one to invent.
+ */
+export function LastActive({
+  online,
+  lastSeenAt,
+}: {
+  online: boolean;
+  lastSeenAt?: string | null;
+}) {
+  const last = online ? null : lastActive(lastSeenAt);
+  if (!last) return null;
+
+  return (
+    <span
+      // aria-hidden because the dot beside it already says this in a sentence,
+      // and a screen reader should not read the same fact twice per row.
+      aria-hidden
+      style={{ fontSize: 9.5, color: "var(--text-dim)", letterSpacing: ".02em" }}
+    >
+      {" "}
+      {last.short}
+    </span>
   );
 }

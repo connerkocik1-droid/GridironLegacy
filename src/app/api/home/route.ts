@@ -415,6 +415,10 @@ export async function GET() {
       // Five minutes, the same window the League tab uses. One definition of
       // "here" across the app, or the two pages disagree about who is about.
       online: isPresent(m?.last_seen_at),
+      // The stamp rather than a formatted string: the page is cached for a
+      // few seconds and a phrase would go stale inside that window, while a
+      // timestamp is read against the reader's own clock every render.
+      lastSeenAt: m?.last_seen_at ?? null,
       mine: t.id === me.id,
     };
   });
