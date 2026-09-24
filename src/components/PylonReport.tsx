@@ -1,5 +1,6 @@
 "use client";
 
+import BoardMark from "./BoardMark";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   keyOf,
@@ -284,7 +285,10 @@ export default function PylonReport() {
                       border: "1.5px solid rgb(var(--accent-bright-rgb) / .7)",
                     }}
                   >
-                    {monogram(top.team)}
+                    {/* The real club mark where there is one, and the letters
+                        where there is not — which is every college team, and
+                        is why this tile was letters in the first place. */}
+                    <BoardMark team={top.team} size={34} />
                   </span>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--accent-link)" }}>
@@ -468,6 +472,8 @@ function Row({
 
         <Chip move={move} wide />
 
+        <BoardMark team={entry.team} size={20} />
+
         <div style={{ minWidth: 0, flex: 1 }}>
           <div
             style={{
@@ -561,15 +567,19 @@ function Mover({
       </div>
       <div
         style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
           fontSize: 11,
           lineHeight: 1.2,
           marginTop: 6,
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
+          minWidth: 0,
         }}
       >
-        {entry.team}
+        <BoardMark team={entry.team} size={16} />
+        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {entry.team}
+        </span>
       </div>
       <div style={{ fontSize: 10, letterSpacing: ".1em", color: "var(--text-dim)", marginTop: 3 }}>
         {`NO. ${up ? entry.rank + places : entry.rank - places} → NO. ${entry.rank}`}
@@ -637,17 +647,3 @@ function Chip({ move, wide = false }: { move: Move | undefined; wide?: boolean }
   );
 }
 
-/**
- * A crest for a team the app knows nothing about but its name.
- *
- * The prototype carries an abbreviation per team because its team list is
- * written into the file. This one's teams arrive in a paste, so the mark is
- * derived: the initials of the words that are words, or the first three
- * letters of a name that is one word. "San Francisco 49ers" is SF, "Georgia"
- * is GEO. Never wrong, because it never claims to be the official one.
- */
-function monogram(team: string): string {
-  const words = team.trim().split(/\s+/).filter((w) => /^[A-Za-z]/.test(w));
-  if (words.length >= 2) return words.slice(0, 3).map((w) => w[0].toUpperCase()).join("");
-  return (words[0] ?? team).slice(0, 3).toUpperCase();
-}
