@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import PresenceDot from "./PresenceDot";
+import PresenceDot, { LastActive } from "./PresenceDot";
 import { useState } from "react";
 import type { PowerRow } from "@/lib/home-types";
 import { recordText } from "@/lib/record";
@@ -77,7 +77,13 @@ export default function PowerRank({ power }: { power: PowerRow[] }) {
               }}
             >
               {t.franchise}{" "}
-              <PresenceDot online={Boolean(t.online)} who={t.franchise} size={6} />
+              <PresenceDot
+                online={Boolean(t.online)}
+                who={t.franchise}
+                lastSeenAt={t.lastSeenAt}
+                size={6}
+              />
+              <LastActive online={Boolean(t.online)} lastSeenAt={t.lastSeenAt} />
               {t.mine ? <span style={{ color: "var(--accent-link)", fontSize: 10 }}> · YOU</span> : null}
             </div>
             <div style={{ fontSize: 10.5, color: "var(--text-dim)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

@@ -647,6 +647,16 @@ export function routes(page, over = {}) {
       // an unclaimed franchise has nobody to be here, and the home strip
       // would otherwise print a manager called "Open".
       online: i < 5 && m.name !== "Open",
+      // Spread across every branch the formatter has: minutes, hours, days
+      // and the date it falls back to past a week — plus one manager with no
+      // stamp at all, who must draw nothing rather than invent a duration.
+      lastSeenAt: m.name === "Open" ? null
+        : i < 5 ? new Date().toISOString()
+        : i === 5 ? ago(14)
+        : i === 6 ? ago(60 * 5)
+        : i === 7 ? ago(60 * 24 * 3)
+        : i === 8 ? null
+        : ago(60 * 24 * 30),
       // Up, down, and unmoved: all three chips have to be measured.
       movement: i === 0 ? 2 : i === 1 ? -3 : i === 2 ? null : (i % 3) - 1,
       avgAge: 24.6 + (i % 5) * 0.9,
@@ -731,6 +741,17 @@ export function routes(page, over = {}) {
       // dots beside the franchise names have to line up with.
       online: i < 5 && m.name !== "Open",
       lastSeen: i < 4 ? new Date().toISOString() : null,
+      // Spread across every branch the formatter has: minutes, hours, days
+      // and the date it falls back to past a week — plus one manager with no
+      // stamp at all, who must draw nothing rather than invent a duration.
+      lastSeenAt: m.name === "Open" ? null
+        : i < 5 ? new Date().toISOString()
+        : i === 5 ? ago(14)
+        : i === 6 ? ago(60 * 5)
+        : i === 7 ? ago(60 * 24 * 3)
+        : i === 8 ? null
+        : ago(60 * 24 * 30),
+
       pointsFor: 340 - i * 12,
       record: { wins: 12 - i, losses: i, ties: 0, divWins: 4, divLosses: 1,
         pointsFor: 340 - i * 12, pointsAgainst: 250 + i * 8 },

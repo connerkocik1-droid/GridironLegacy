@@ -144,6 +144,7 @@ export async function GET() {
       // it is a lie. The app touches this on every page load and every return
       // to the tab, so a manager reading a long page is still present.
       online: isPresent(m.last_seen_at),
+      lastSeenAt: m.last_seen_at ?? null,
       lastSeen: (m.last_seen_at as string | null) ?? null,
       // The standings row beside it as the floor. A franchise missing from
       // the lineup answer — the function not deployed yet, a read that failed

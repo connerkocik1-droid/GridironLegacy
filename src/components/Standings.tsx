@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import PresenceDot from "./PresenceDot";
+import PresenceDot, { LastActive } from "./PresenceDot";
 import Skeleton from "./Skeleton";
 import Bracket from "./Bracket";
 import LeagueRecords from "./LeagueRecords";
@@ -37,6 +37,8 @@ interface Franchise {
   claimed: boolean;
   /** Seen in the app within the last five minutes. */
   online?: boolean;
+  /** And when they were last seen, for the rows where that is false. */
+  lastSeenAt?: string | null;
   pointsFor: number;
   record: Record_ | null;
   /** The last few settled weeks, oldest first. Absent before any are played. */
@@ -310,7 +312,13 @@ export default function Standings({ embedded = false }: { embedded?: boolean } =
                             >
                               {f.franchise}
               {" "}
-                              <PresenceDot online={Boolean(f.online)} who={f.franchise} size={6} />
+                              <PresenceDot
+                                online={Boolean(f.online)}
+                                who={f.franchise}
+                                lastSeenAt={f.lastSeenAt}
+                                size={6}
+                              />
+                              <LastActive online={Boolean(f.online)} lastSeenAt={f.lastSeenAt} />
                               {mine ? (
                                 <span style={{ color: "var(--accent-link)", fontSize: 10 }}> · YOU</span>
                               ) : null}

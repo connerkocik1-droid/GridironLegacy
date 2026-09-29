@@ -33,6 +33,33 @@ exception when others then
 end;
 $$;
 
+/**
+ * No claim day, unless a test asks for one.
+ *
+ * Forty-two leagues in this file were written before waivers had a claim day
+ * and most of them add a player at some point. The product default is Tuesday,
+ * so without this the suite passes six days a week and fails on the seventh —
+ * which it duly did, with thirty-seven refusals that were the feature working
+ * exactly as designed.
+ *
+ * A trigger rather than forty-two edits, and rather than pinning the clock:
+ * the leagues are created all through the file, and a test that wants a claim
+ * day sets its own waiverDay and is left alone.
+ */
+create or replace function test_no_claim_day() returns trigger language plpgsql as $$
+begin
+  if new.settings is null or not (new.settings ? 'waiverDay') then
+    new.settings := coalesce(new.settings, '{}'::jsonb) || '{"waiverDay": -1}'::jsonb;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists test_no_claim_day on leagues;
+create trigger test_no_claim_day
+  before insert on leagues
+  for each row execute function test_no_claim_day();
+
 create or replace function signin(p_uid uuid) returns void language sql as $$
   select set_config('test.uid', p_uid::text, false);
   select null::void;

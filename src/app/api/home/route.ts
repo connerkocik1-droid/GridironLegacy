@@ -2,6 +2,7 @@ import { seasonPointsFor } from "@/lib/points-for";
 import { isPresent, readManagers } from "@/lib/presence";
 import { ageOf } from "@/data/league-data";
 import { freshenWeek } from "@/lib/live-refresh";
+import { readScores } from "@/lib/scores";
 import { player, proj } from "@/lib/roster";
 import { bestLineup, type Score } from "@/lib/matchup";
 import { rank, type Team } from "@/lib/power";
@@ -116,14 +117,13 @@ export async function GET() {
   const week = unfinished?.week ?? schedule.at(-1)?.week ?? null;
 
   // Scores twice: this week's for the fixtures, and the season's for the
-  // leaders. One read, split two ways.
-  const { data: scoreRows } = await db
-    .from("player_scores")
-    .select("player_name, points, stat_line, week")
-    .eq("league_id", me.league_id);
+  // leaders. One read, split two ways — and paged, because a league's worth of
+  // these is several thousand rows and the unpaged read was quietly returning
+  // the first thousand of them. See src/lib/scores.ts.
+  const scoreRows = await readScores(db, me.league_id, "player_name, points, stat_line, week");
 
   const thisWeek = new Map<string, Score>(
-    (scoreRows ?? [])
+    scoreRows
       .filter((r) => r.week === week)
       .map((r) => [r.player_name, { points: Number(r.points), statLine: r.stat_line ?? "" }]),
   );
@@ -186,7 +186,7 @@ export async function GET() {
   // only number that exists, and the page labels it as such rather than
   // showing an empty panel for the whole of the offseason.
   const season = new Map<string, number>();
-  for (const row of scoreRows ?? []) {
+  for (const row of scoreRows) {
     season.set(row.player_name, (season.get(row.player_name) ?? 0) + Number(row.points));
   }
 
@@ -415,6 +415,10 @@ export async function GET() {
       // Five minutes, the same window the League tab uses. One definition of
       // "here" across the app, or the two pages disagree about who is about.
       online: isPresent(m?.last_seen_at),
+      // The stamp rather than a formatted string: the page is cached for a
+      // few seconds and a phrase would go stale inside that window, while a
+      // timestamp is read against the reader's own clock every render.
+      lastSeenAt: m?.last_seen_at ?? null,
       mine: t.id === me.id,
     };
   });

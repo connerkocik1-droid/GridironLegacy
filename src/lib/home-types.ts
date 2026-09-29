@@ -47,6 +47,12 @@ export interface PowerRow {
   mine: boolean;
   /** In the app right now. Drawn either way, so silence is an answer. */
   online?: boolean;
+  /**
+   * When they last opened it, for the eleven rows where "online" is false.
+   * Null for a manager who has never opened it at all, which is not the same
+   * as one who has been away a fortnight.
+   */
+  lastSeenAt?: string | null;
 }
 
 /** One of the next five weeks, from this manager's side. */

@@ -1,3 +1,4 @@
+import { readScores } from "@/lib/scores";
 import { POOL } from "@/data/league-data";
 import { teamGames } from "@/lib/nfl-week";
 import { COLUMNS, rank, sortRows, type Group, type Row } from "@/lib/rankings";
@@ -88,17 +89,17 @@ export async function GET(req: Request) {
   // What everybody has actually done this season, worked out by the same code
   // the rankings board uses — so a free agent's numbers here and his numbers
   // on the League tab are the same numbers rather than two attempts at them.
-  const { data: scoreRows } = await db
-    .from("player_scores")
-    .select("player_name, points, week, stats")
-    .eq("league_id", me.league_id);
+  // Paged, for the reason the rankings board is: unpaged this comes back
+  // capped at a thousand rows, and a free agent whose scores fell past the cap
+  // reads as a man who has not played. See src/lib/scores.ts.
+  const scoreRows = await readScores(db, me.league_id, "player_name, points, week, stats");
 
   const weeksOf = new Map<string, Set<number>>();
   const totalOf = new Map<string, number>();
   const lineOf = new Map<string, Record<string, number>>();
   const seenIn = new Map<string, Record<string, number>>();
 
-  for (const row of scoreRows ?? []) {
+  for (const row of scoreRows) {
     const name = row.player_name as string;
     totalOf.set(name, (totalOf.get(name) ?? 0) + Number(row.points));
     const weeks = weeksOf.get(name) ?? new Set<number>();
