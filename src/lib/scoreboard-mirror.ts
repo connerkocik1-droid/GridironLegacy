@@ -102,7 +102,8 @@ export async function mirroredSlate(
   let week = want.week ?? null;
   let seasonType: number = want.seasonType ?? 2;
 
-  if (season == null || week == null) {
+  if (week == null) {
+    // Nothing named: the most recent week that has started.
     const { data: latest } = await db
       .from("nfl_games")
       .select("season, week, season_type")
@@ -114,6 +115,20 @@ export async function mirroredSlate(
     season = Number(latest.season);
     week = Number(latest.week);
     seasonType = Number(latest.season_type) || 2;
+  } else if (season == null) {
+    // A week named without a season, as the pick-'em asks: that week of the
+    // latest season that has one. Never some other week — asking for a week
+    // and being given another is a lie whoever tells it.
+    const { data: latest } = await db
+      .from("nfl_games")
+      .select("season")
+      .eq("week", week)
+      .eq("season_type", seasonType)
+      .order("season", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!latest) return null;
+    season = Number(latest.season);
   }
 
   const { data, error } = await db

@@ -122,6 +122,49 @@ console.log("\n--- the league's own copy of the week ---");
   eq("a state nobody recognises is a game to come", gameFromMirror({ ...row, state: "weird" }).state, "pre");
 }
 
+console.log("\n--- which week the copy is read from ---");
+{
+  // A stand-in for the query builder: records the filters of every query and
+  // answers from a table of rows, which is all mirroredSlate needs of it.
+  type Row = Record<string, unknown>;
+  const TABLE: Row[] = [
+    { id: "a", season: 2025, week: 4, season_type: 2, starts_at: "2025-10-05T17:00:00Z", home_team: "NE", away_team: "BUF", home_score: 10, away_score: 20, state: "post", winner: "BUF", completed: true, updated_at: "2025-10-06T08:00:00Z" },
+    { id: "b", season: 2026, week: 3, season_type: 2, starts_at: "2026-09-27T17:00:00Z", home_team: "NE", away_team: "SEA", home_score: 17, away_score: 21, state: "post", winner: "SEA", completed: true, updated_at: "2026-09-28T08:00:00Z" },
+    { id: "c", season: 2026, week: 4, season_type: 2, starts_at: "2026-10-04T17:00:00Z", home_team: "KC", away_team: "LV", home_score: 0, away_score: 0, state: "pre", winner: null, completed: false, updated_at: "2026-09-29T08:00:00Z" },
+  ];
+  const fakeDb = () => ({
+    from: () => {
+      let rows = [...TABLE];
+      const q = {
+        select: () => q,
+        eq: (col: string, v: unknown) => ((rows = rows.filter((r) => r[col] === v)), q),
+        lte: (col: string, v: string) => ((rows = rows.filter((r) => String(r[col]) <= v)), q),
+        order: (col: string, o: { ascending: boolean }) => (
+          (rows = rows.sort((x, y) => (String(x[col]) < String(y[col]) ? -1 : 1) * (o.ascending ? 1 : -1))), q
+        ),
+        limit: (n: number) => ((rows = rows.slice(0, n)), q),
+        maybeSingle: async () => ({ data: rows[0] ?? null, error: null }),
+        then: (resolve: (v: unknown) => void) => resolve({ data: rows, error: null }),
+      };
+      return q;
+    },
+  });
+  const { mirroredSlate } = await import("../scoreboard-mirror.ts");
+  const db = fakeDb() as unknown as Parameters<typeof mirroredSlate>[0];
+
+  const named = await mirroredSlate(db, { season: 2025, week: 4, seasonType: 2 });
+  eq("a week and a season named is that week of that season", named?.games.map((g) => g.id), ["a"]);
+
+  const weekOnly = await mirroredSlate(db, { week: 4, seasonType: 2 });
+  eq("a week named without a season is that week of the latest season", weekOnly?.games.map((g) => g.id), ["c"]);
+
+  const nothing = await mirroredSlate(db, {});
+  eq("nothing named is the latest week that has started", nothing?.games.map((g) => g.id), ["b"]);
+  eq("and says when the league last heard", nothing?.asOf, "2026-09-28T08:00:00Z");
+
+  eq("a week the mirror has never seen is nothing to stand in with", await mirroredSlate(db, { week: 17, seasonType: 2 }), null);
+}
+
 server.close();
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 if (failed) process.exitCode = 1;
