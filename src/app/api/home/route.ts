@@ -3,6 +3,7 @@ import { isPresent, readManagers } from "@/lib/presence";
 import { ageOf } from "@/data/league-data";
 import { freshenWeek } from "@/lib/live-refresh";
 import { player, proj } from "@/lib/roster";
+import { scoringOf } from "@/lib/scoring-format";
 import { bestLineup, type Score } from "@/lib/matchup";
 import { rank, type Team } from "@/lib/power";
 import { outlookOf, winProbability } from "@/lib/win-probability";
@@ -202,7 +203,7 @@ export async function GET() {
     for (const name of owner.keys()) {
       const p = player(name);
       if (!p || p.p !== position) continue;
-      const points = basis === "scored" ? (season.get(name) ?? 0) : proj(name);
+      const points = basis === "scored" ? (season.get(name) ?? 0) : proj(name, scoringOf(settings));
       if (!best || points > best.points) best = { name, points };
     }
 

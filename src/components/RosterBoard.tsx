@@ -12,6 +12,7 @@ import TeamMark from "./TeamMark";
 import { useRefreshable } from "@/lib/use-refresh";
 import { bestLineup, bubbleGaps, type Score } from "@/lib/matchup";
 import { flagColor, flagsFor, player, proj, type LeagueShape } from "@/lib/roster";
+import { scoringOf, type ScoringFormat } from "@/lib/scoring-format";
 import { useLogos } from "@/lib/use-logos";
 
 /** How often a page left open on a Sunday goes and asks for the numbers. */
@@ -144,6 +145,9 @@ export default function RosterBoard({ manager }: { manager?: string } = {}) {
   // The arrangement as it stands this second. Real points once the slate has
   // started — the same rule the matchup page shows and the database grades —
   // and the projected order before that, because there is nothing else.
+  // The league's reception rule, which every projection on this page is in.
+  const format = scoringOf(feed?.settings);
+
   const rows = useMemo(() => {
     if (!feed) return [];
     return bestLineup(
@@ -163,8 +167,8 @@ export default function RosterBoard({ manager }: { manager?: string } = {}) {
     if (!feed) return [];
     return feed.roster
       .filter((name) => !starting.has(name))
-      .sort((a, b) => value(b, scores, feed.started) - value(a, scores, feed.started));
-  }, [feed, scores, starting]);
+      .sort((a, b) => value(b, scores, feed.started, format) - value(a, scores, feed.started, format));
+  }, [feed, scores, starting, format]);
 
   const total = rows.reduce((sum, r) => sum + (r.entry?.points ?? 0), 0);
 
@@ -173,8 +177,9 @@ export default function RosterBoard({ manager }: { manager?: string } = {}) {
   // all — this is what puts it back: on a Sunday afternoon these numbers fall
   // as the games run, and the smallest of them is the one to watch.
   const gaps = useMemo(
-    () => (feed ? bubbleGaps(rows, rest, scores, feed.started ? "points" : "projection") : new Map()),
-    [feed, rows, rest, scores],
+    () =>
+      feed ? bubbleGaps(rows, rest, scores, feed.started ? "points" : "projection", format) : new Map(),
+    [feed, rows, rest, scores, format],
   );
   const closest = useMemo(() => {
     let best: string | null = null;
@@ -357,6 +362,7 @@ export default function RosterBoard({ manager }: { manager?: string } = {}) {
               slot={row.slot}
               name={row.entry?.name ?? null}
               score={row.entry?.name ? scores.get(row.entry.name) : undefined}
+              format={format}
               starter
             />
           ))}
@@ -380,6 +386,7 @@ export default function RosterBoard({ manager }: { manager?: string } = {}) {
                   slot={p?.p === "D/ST" ? "DST" : (p?.p ?? "—")}
                   name={name}
                   score={scores.get(name)}
+                  format={format}
                   gap={gaps.get(name)}
                   nextIn={name === closest}
                   action={
@@ -468,9 +475,9 @@ export default function RosterBoard({ manager }: { manager?: string } = {}) {
 }
 
 /** What a player is worth right now, by the same rule the slots are filled on. */
-function value(name: string, scores: Map<string, Score>, started: boolean): number {
+function value(name: string, scores: Map<string, Score>, started: boolean, format: ScoringFormat): number {
   if (started) return scores.get(name)?.points ?? 0;
-  return scores.get(name)?.points ?? proj(name);
+  return scores.get(name)?.points ?? proj(name, format);
 }
 
 function SectionHeader({ title, note, muted }: { title: string; note: string; muted?: boolean }) {
@@ -507,10 +514,13 @@ function PlayerRow({
   showValue = true,
   gap,
   nextIn,
+  format,
 }: {
   slot: string;
   name: string | null;
   score?: { points: number; statLine: string };
+  /** The league's reception rule, for the projection shown before kickoff. */
+  format?: ScoringFormat;
   starter?: boolean;
   action?: RowAction;
   showValue?: boolean;
@@ -652,7 +662,7 @@ function PlayerRow({
                   color: live ? "var(--accent-text)" : "var(--text-3)",
                 }}
               >
-                <LiveNumber key={name} value={live ? score.points : proj(name)} />
+                <LiveNumber key={name} value={live ? score.points : proj(name, format)} />
               </div>
               <div style={{ fontSize: 10, letterSpacing: ".16em", color: "var(--text-dim)" }}>
                 {live ? "LIVE" : "PROJ"}
