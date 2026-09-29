@@ -1,3 +1,4 @@
+import { readScores } from "@/lib/scores";
 import { isConfigured, serverClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -27,11 +28,12 @@ export async function GET() {
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
 
-  const [{ data: scores }, { data: slots }, { data: managers }] = await Promise.all([
-    db
-      .from("player_scores")
-      .select("player_name, points, week, stats")
-      .eq("league_id", me.league_id),
+  // Paged. This is the widest read in the app — every player the mirror
+  // scores, every week — and unpaged it came back capped at a thousand rows,
+  // which is how a board of season totals started losing players' points
+  // partway through a season. See src/lib/scores.ts.
+  const [scores, { data: slots }, { data: managers }] = await Promise.all([
+    readScores(db, me.league_id, "player_name, points, week, stats"),
     db.from("roster_slots").select("player_name, manager_id").eq("league_id", me.league_id),
     db.from("managers").select("id, franchise").eq("league_id", me.league_id),
   ]);
@@ -52,7 +54,7 @@ export async function GET() {
   // ran the ball would say he is a receiver who catches nothing.
   const appearances = new Map<string, Record<string, number>>();
 
-  for (const row of scores ?? []) {
+  for (const row of scores) {
     totals.set(row.player_name, (totals.get(row.player_name) ?? 0) + Number(row.points));
     const seen = weeks.get(row.player_name) ?? new Set<number>();
     seen.add(row.week);
