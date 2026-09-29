@@ -1,5 +1,6 @@
 import { isMailConfigured, sendNoticeMail, type NoticeMail } from "@/lib/mail";
 import { serviceClient } from "@/lib/supabase";
+import { frequentJobsOff } from "@/lib/frequent-jobs";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,11 @@ export async function GET(req: Request) {
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return new Response("Unauthorized", { status: 401 });
   }
+
+  // The every-few-minutes schedule does nothing until the league turns it on;
+  // the daily run and a run by hand always go ahead. See lib/frequent-jobs.ts.
+  const off = frequentJobsOff(req);
+  if (off) return off;
 
   // Nothing is claimed when mail is off. Claiming first would mark notices
   // delivered that nobody could deliver, and they would never be sent again.
