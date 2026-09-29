@@ -1307,7 +1307,8 @@ html[data-press-start] #gl-launch {
   --rc-text: #e9e9ed;
   --rc-mute: #a8adc0;
   --rc-dim: #8f94a8;
-  --rc-faint: #75798c;
+  /* The dark theme's --text-dim, lifted with it to clear 4.5:1. */
+  --rc-faint: #8d90a0;
   --rc-ghost: #595d6c;
   --rc-line: rgba(145, 132, 217, 0.2);
   --rc-panel: rgba(22, 24, 38, 0.7);
