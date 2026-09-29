@@ -429,12 +429,34 @@ export async function mirrorSchedule(db: Db, games: Game[], season: number) {
         state: g.state,
         winner,
         completed: g.completed,
+        // Where a game in progress has got to, for the win probability. Null
+        // for every game that is not being played, so a finished one does not
+        // keep the clock it ended on.
+        period: g.state === "in" ? (g.period ?? null) : null,
+        clock: g.state === "in" ? (g.clock ?? null) : null,
         updated_at: now,
       },
     ];
   });
 
   if (!rows.length) return;
-  const { error } = await db.from("nfl_games").upsert(rows);
+  let { error } = await db.from("nfl_games").upsert(rows);
+
+  // The quarter and the clock are columns migration 0062 adds, and a deploy
+  // can reach production before its SQL does. Until then the whole row would
+  // be refused for two fields nothing depends on — and a mirror that stops
+  // updating strands every game's state, which is far worse than a win
+  // probability that falls back to the time since kickoff. So the row goes in
+  // without them.
+  if (error && /\b(period|clock)\b/.test(`${error.message} ${error.details ?? ""}`)) {
+    const withoutClock = rows.map((row) => {
+      const copy: Record<string, unknown> = { ...row };
+      delete copy.period;
+      delete copy.clock;
+      return copy;
+    });
+    ({ error } = await db.from("nfl_games").upsert(withoutClock));
+  }
+
   if (error) console.error("[live] schedule upsert failed", error);
 }

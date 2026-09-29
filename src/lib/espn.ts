@@ -44,6 +44,14 @@ export interface Game {
    * when there is enough here to draw an honest one.
    */
   situation: Situation | null;
+  /**
+   * The quarter being played, 5 and up for overtime. Only while the game is
+   * in progress; null before kickoff, after the whistle, and whenever ESPN
+   * does not say.
+   */
+  period?: number | null;
+  /** Seconds left in that quarter, on the same terms. */
+  clock?: number | null;
 }
 
 /** The state of the current drive, as ESPN reports it. */
@@ -239,6 +247,14 @@ export async function fetchScoreboard(
 
     const state = type.state === "in" || type.state === "post" ? type.state : "pre";
 
+    // The quarter and what is left of it, which the scoreboard has always sent
+    // and this used to drop. The win probability needs them: without the clock
+    // a man on nought with two minutes left looked exactly like a man on nought
+    // at kickoff. Kept only for a game being played, and only when numeric.
+    const live = state === "in";
+    const period = Number(status.period);
+    const clock = Number(status.clock);
+
     // The event says which part of the season it belongs to. Trusting that
     // rather than the request matters when nothing was requested: asking ESPN
     // for "now" has to come back saying what "now" turned out to be.
@@ -262,6 +278,8 @@ export async function fetchScoreboard(
         // Only while it is being played. A situation left on a finished game
         // would draw a pitch with the ball frozen wherever the last snap died.
         situation: state === "in" ? situationOf(comp.situation) : null,
+        period: live && Number.isFinite(period) && period >= 1 ? period : null,
+        clock: live && status.clock != null && Number.isFinite(clock) && clock >= 0 ? clock : null,
       },
     ];
   });

@@ -140,9 +140,14 @@ export async function GET(req: Request) {
   // pick-'em. It is what turns a column of noughts into something readable:
   // a nought beside a man who has finished is a disaster, and the identical
   // nought beside a man kicking off at four is nothing at all.
+  //
+  // Every column rather than a list, so the quarter and the clock come along
+  // once migration 0062 has added them — and nothing fails on a database that
+  // has not run it yet, where they are simply absent and the time since kickoff
+  // stands in for them.
   const { data: games } = await db
     .from("nfl_games")
-    .select("home_team, away_team, starts_at, state")
+    .select("*")
     .eq("season", league?.season ?? 0)
     .eq("week", week);
   const byTeam = teamGames(games ?? []);
@@ -240,6 +245,7 @@ export async function GET(req: Request) {
       points: scores.get(e.name)?.points ?? 0,
       projected: e.projected,
       state: knowTheWeek ? (e.game?.state ?? "post") : ("pre" as const),
+      left: e.game?.left ?? null,
     };
 
   const homeOutlook = outlookOf(rows.map((r) => playable(r.home)));

@@ -1,4 +1,13 @@
-import { gameLabel, kickoffLabel, onBye, opponentLabel, teamGames } from "../nfl-week";
+import {
+  GAME_MINUTES,
+  IN_PLAY_FLOOR,
+  gameLabel,
+  gameLeft,
+  kickoffLabel,
+  onBye,
+  opponentLabel,
+  teamGames,
+} from "../nfl-week";
 
 let failed = 0;
 const eq = (label: string, got: unknown, want: unknown) => {
@@ -54,6 +63,46 @@ console.log("\n--- byes ---");
   ok("a team with one is not", !onBye(week, "LV"));
   // A free agent has no team, which is not a bye — it is nobody.
   ok("an empty team is not on a bye", !onBye(week, ""));
+}
+
+console.log("\n--- how much of a game is left ---");
+{
+  const KICKOFF = "2026-09-13T17:00:00Z";
+  const at = (minutes: number) => Date.parse(KICKOFF) + minutes * 60_000;
+  const game = (extra: Record<string, unknown>) =>
+    ({ home_team: "NO", away_team: "DET", starts_at: KICKOFF, state: "in", ...extra });
+  const close = (label: string, got: number, want: number) =>
+    ok(`${label}${Math.abs(got - want) <= 0.001 ? "" : ` — got ${got}, want ${want}`}`, Math.abs(got - want) <= 0.001);
+
+  eq("before kickoff, all of it", gameLeft(game({ state: "pre" })), 1);
+  eq("after the whistle, none of it", gameLeft(game({ state: "post", period: 4, clock: 0 })), 0);
+
+  // The clock, where the mirror has it.
+  close("8:45 into the second quarter is two quarters and 8:45 to go",
+    gameLeft(game({ period: 2, clock: 525 })), (2 * 900 + 525) / 3600);
+  close("halftime is half", gameLeft(game({ period: 2, clock: 0 })), 0.5);
+  close("two minutes left in the fourth is a thirtieth of a game",
+    gameLeft(game({ period: 4, clock: 120 })), 120 / 3600);
+  eq("a fourth quarter run down is not over until the whistle", gameLeft(game({ period: 4, clock: 0 })), IN_PLAY_FLOOR);
+  close("overtime counts only what is left of the extra period",
+    gameLeft(game({ period: 5, clock: 600 })), 600 / 3600);
+  close("a clock past a quarter's length is read as a full quarter",
+    gameLeft(game({ period: 1, clock: 5000 })), 1);
+
+  // Without it, the time since kickoff.
+  close("no clock, halfway through a game's usual length is half",
+    gameLeft(game({}), at(GAME_MINUTES / 2)), 0.5);
+  eq("no clock, long past the usual length is the floor, not over",
+    gameLeft(game({}), at(GAME_MINUTES + 40)), IN_PLAY_FLOOR);
+  eq("a clock that is half there is no clock",
+    gameLeft(game({ period: 3, clock: null }), at(GAME_MINUTES / 2)), 0.5);
+  eq("no clock and no kickoff either is the middle", gameLeft(game({ starts_at: "not a date" })), 0.5);
+
+  const week = teamGames([game({ period: 3, clock: 450 })], at(100));
+  close("both sides of a game carry what is left of it", week.NO.left, (900 + 450) / 3600);
+  eq("the same share for each", week.NO.left, week.DET.left);
+  eq("a game to come has all of it", teamGames(ROWS).LV.left, 1);
+  eq("and a finished one none", teamGames(ROWS).DAL.left, 0);
 }
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");
