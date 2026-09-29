@@ -1,10 +1,14 @@
 import type { GameDetail, PlayerStat, ScoringPlay } from "./espn";
 import { NameIndex, normalizeName } from "./player-names";
+import { RECEPTION_POINTS, type ScoringFormat } from "./scoring-format";
 
-export type ScoringFormat = "standard" | "half" | "ppr";
+export type { ScoringFormat } from "./scoring-format";
 
-/** Points per reception, from the league's own `scoring` setting. */
-const PPR: Record<ScoringFormat, number> = { standard: 0, half: 0.5, ppr: 1 };
+/**
+ * Points per reception, from the league's own `scoring` setting. The table
+ * lives in scoring-format.ts so the projections read the same one.
+ */
+const PPR = RECEPTION_POINTS;
 
 /**
  * The league's scoring rules, in one place.

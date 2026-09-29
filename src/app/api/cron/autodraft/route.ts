@@ -1,6 +1,7 @@
 import { find } from "@/data/league-data";
 import { autodraftPick } from "@/lib/autodraft";
 import { serviceClient } from "@/lib/supabase";
+import { frequentJobsOff } from "@/lib/frequent-jobs";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,11 @@ export async function GET(req: Request) {
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return new Response("Unauthorized", { status: 401 });
   }
+
+  // The every-few-minutes schedule does nothing until the league turns it on;
+  // the daily run and a run by hand always go ahead. See lib/frequent-jobs.ts.
+  const off = frequentJobsOff(req);
+  if (off) return off;
 
   const leagueId = process.env.LEAGUE_ID;
   if (!leagueId) return Response.json({ error: "LEAGUE_ID is not set" }, { status: 500 });

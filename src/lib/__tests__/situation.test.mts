@@ -92,6 +92,35 @@ console.log("\n--- and a feed that does not say ---");
     (await fetchScoreboard(2, 2))[0].home?.linescores, [7]);
 }
 
+console.log("\n--- the quarter and the clock ---");
+{
+  // ESPN's status carries the period and the seconds left in it beside the
+  // state; the recorded fixture predates this read, so it is set here in
+  // ESPN's shape: "3rd Quarter · 7:56" is period 3 with 476 seconds left.
+  const clocked = JSON.parse(JSON.stringify(LIVE_SCOREBOARD));
+  Object.assign(clocked.events[0].competitions[0].status, { period: 3, clock: 476, displayClock: "7:56" });
+  body = clocked;
+  const [game] = await fetchScoreboard(2, 2);
+  eq("a game being played says which quarter", game.period, 3);
+  eq("and how long is left in it, in seconds", game.clock, 476);
+
+  body = LIVE_SCOREBOARD;
+  const [bare] = await fetchScoreboard(2, 2);
+  eq("a feed that does not say is null, not zero", [bare.period, bare.clock], [null, null]);
+
+  const junk = JSON.parse(JSON.stringify(LIVE_SCOREBOARD));
+  Object.assign(junk.events[0].competitions[0].status, { period: "third", clock: "soon" });
+  body = junk;
+  const [garbled] = await fetchScoreboard(2, 2);
+  eq("and one that says something unreadable is null too", [garbled.period, garbled.clock], [null, null]);
+
+  const over = JSON.parse(JSON.stringify(FINISHED_SCOREBOARD));
+  Object.assign(over.events[0].competitions[0].status, { period: 4, clock: 0 });
+  body = over;
+  const [finished] = await fetchScoreboard(2, 2);
+  eq("a finished game keeps no clock, whatever the feed still holds", [finished.period, finished.clock], [null, null]);
+}
+
 server.close();
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 if (failed) process.exitCode = 1;

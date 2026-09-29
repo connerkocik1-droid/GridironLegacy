@@ -6,6 +6,7 @@ import Headshot from "./Headshot";
 import PlayerName from "./PlayerName";
 import { useRefreshable } from "@/lib/use-refresh";
 import { flagColor, flagsFor, player, proj, type LeagueShape } from "@/lib/roster";
+import { scoringOf } from "@/lib/scoring-format";
 import { optimalLineup } from "@/lib/start-rate";
 import { fieldedAt, positionForm, tierOf, type Scored } from "@/lib/position-form";
 import { ROLES } from "@/data/league-data";
@@ -158,7 +159,7 @@ export default function MyTeamRoster() {
   const values = useMemo(() => {
     const out = new Map<string, number>();
     for (const name of feed?.roster ?? []) {
-      out.set(name, live ? (feed?.scores?.[name]?.points ?? 0) : proj(name));
+      out.set(name, live ? (feed?.scores?.[name]?.points ?? 0) : proj(name, scoringOf(feed?.settings)));
     }
     return out;
   }, [feed, live]);

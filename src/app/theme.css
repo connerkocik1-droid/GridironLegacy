@@ -42,11 +42,18 @@
   --text-3: #b2b6ca;
   --text-muted: #9397ab;
   --text-quiet: #8f94a8;
-  --text-dim: #75798c;
-  /* Lifted from the old #5a5d6e, which measured 2.64:1 on a card — under even
+  /* Lifted from #75798c, which measured 4.08:1 on the page — under the 4.5:1
+     that text at the sizes this app uses needs, and this is the most-used
+     quiet tone in it, three hundred and fifty times over. Now 4.8:1 on the
+     lightest ground it sits on, a raised fill, and 5.6:1 on the page. */
+  --text-dim: #8d90a0;
+  /* Lifted twice. From #5a5d6e, which measured 2.64:1 on a card — under even
      the large-text floor, and this is the tone a rank number and an empty
-     roster slot are drawn in. Still the quietest thing in the palette. */
-  --text-faint: #6a6e82;
+     roster slot are drawn in — and then from #6a6e82, still only 3.49:1 on
+     the page. Now 4.55:1 on a raised fill and 5.3:1 on the page. Still the
+     quietest thing in the palette that carries words: the scale from muted
+     down is closer together than it was, because the floor under it is. */
+  --text-faint: #898c9c;
 
   /* Gradient stops on the two bars that draw a share of something. */
   --accent-deep: #5d5294;
@@ -179,7 +186,10 @@
   --text-muted: #5a5e75;
   --text-quiet: #666a80;
   --text-dim: #61657b;
-  --text-faint: #8a8fa3;
+  /* Darkened from #8a8fa3, which measured 2.84:1 on the page. Now 4.55:1 on
+     the page, the darkest ground it is drawn on, and still the lightest tone
+     that carries words. */
+  --text-faint: #696d7c;
   --text-off: #a2a6b8;
 
   --good: #1f8a5c;
@@ -318,8 +328,8 @@
   --text-3: #b2b6ca;
   --text-muted: #9397ab;
   --text-quiet: #8f94a8;
-  --text-dim: #75798c;
-  --text-faint: #6a6e82;
+  --text-dim: #8d90a0;
+  --text-faint: #898c9c;
   --text-off: #4d5062;
   --accent-text: #d2cefd;
   --accent-link: #b5abfc;

@@ -118,6 +118,46 @@ console.log("\n--- the chance of winning ---");
   ok("but never written off before kickoff", behind > 0.05);
 }
 
+console.log("\n--- the clock ---");
+{
+  // With a clock, a man on the field is owed his projection's share of the
+  // minutes left — not whatever of it he has not scored yet.
+  const at = (points: number, projected: number, left: number): Playable =>
+    ({ points, projected, state: "in", left });
+
+  const kickoff = outlookOf([at(0, 12, 1)]);
+  const yetToPlay = outlookOf([p(0, 12, "pre")]);
+  eq("at kickoff he is owed all of it, like a man yet to play", kickoff.remaining, yetToPlay.remaining);
+  near("with the same spread", kickoff.sd, yetToPlay.sd, 1e-9);
+
+  const half = outlookOf([at(4, 12, 0.5)]);
+  eq("at halftime, half of his projection is still to come", half.remaining, 6);
+  eq("on top of the four he has banked", half.scored, 4);
+
+  const hot = outlookOf([at(18, 12, 0.5)]);
+  eq("past his projection at halftime, the second half still counts", hot.remaining, 6);
+
+  const late = outlookOf([at(0, 12, 120 / 3600)]);
+  near("two minutes left, he is owed a sliver", late.remaining, 0.4, 1e-9);
+  ok(`and the spread has nearly drained (${late.sd.toFixed(2)})`, late.sd < kickoff.sd / 4);
+
+  eq("an empty share is nothing left", outlookOf([at(3, 12, 0)]).remaining, 0);
+  eq("a share past one is read as one", outlookOf([at(0, 12, 7)]).remaining, 12);
+  eq("no clock falls back to what he has not scored", outlookOf([{ points: 4, projected: 14, state: "in", left: null }]).remaining, 10);
+
+  // The case the older estimate got wrong. Home has banked 100 and has one
+  // receiver left, on nought, with two minutes to play; away finished on 104.
+  const away = outlookOf([p(104, 100, "post")]);
+  const blind = winProbability(outlookOf([p(100, 90, "post"), p(0, 12, "in")]), away);
+  const clocked = winProbability(outlookOf([p(100, 90, "post"), at(0, 12, 120 / 3600)]), away);
+  ok(`without the clock that side read as the favourite (${(blind * 100).toFixed(0)}%)`, blind > 0.5);
+  ok(`with it, it is all but beaten (${(clocked * 100).toFixed(1)}%)`, clocked < 0.05);
+
+  // And the same four-point gap with a whole half to play is a real game.
+  const halfway = winProbability(outlookOf([p(100, 90, "post"), at(0, 12, 0.5)]), away);
+  ok(`with a half to play it is still a game (${(halfway * 100).toFixed(0)}%)`, halfway > 0.25 && halfway < 0.75);
+}
+
 console.log("\n--- and what the card shows ---");
 {
   eq("the two percentages add to a hundred", asPercents(0.5), { home: 50, away: 50 });

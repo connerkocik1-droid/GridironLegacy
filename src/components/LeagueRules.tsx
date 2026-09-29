@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { DEFENSE_RULES, POINTS_ALLOWED, SCORING_RULES } from "@/lib/scoring";
+import { RECEPTION_POINTS, scoringOf } from "@/lib/scoring-format";
 import { describeClock, readPickClock } from "@/lib/draft-clock";
 import { useNavHeight } from "@/lib/use-nav-height";
 
@@ -150,8 +151,9 @@ export default function LeagueRules({ embedded = false }: { embedded?: boolean }
   const lineup = ORDER.filter((slot) => (starters[slot] ?? 0) > 0);
   const startersTotal = lineup.reduce((n, slot) => n + (starters[slot] ?? 0), 0);
 
-  const ppr =
-    settings.scoring === "ppr" ? 1 : settings.scoring === "standard" ? 0 : 0.5;
+  // Read the way the scorer reads it, so a league that has never set the
+  // format is told the rule it is actually scored on.
+  const ppr = RECEPTION_POINTS[scoringOf(settings)];
 
   const clock = readPickClock(settings);
   const deadline = Number(settings.tradeDeadlineWeek ?? 0);

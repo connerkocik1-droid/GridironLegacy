@@ -14,6 +14,7 @@ import PlayerName from "./PlayerName";
 import TeamMark from "./TeamMark";
 import { useRefreshable } from "@/lib/use-refresh";
 import { flagColor, flagsFor, player, proj } from "@/lib/roster";
+import { useScoring } from "@/lib/use-me";
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"];
 
@@ -200,6 +201,8 @@ function runsOf(items: number): number {
 }
 
 export default function PlayersBoard({ embedded = false }: { embedded?: boolean } = {}) {
+  // The league's reception rule, for the projection in each row.
+  const scoring = useScoring();
   const [feed, setFeed] = useState<Feed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -1166,7 +1169,7 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
                 <StatLine player={p} columns={feed.columns ?? []} />
 
                 <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
-                  {p.posRank} · ADP {p.adp} · bye {p.bye} · proj {proj(p.name).toFixed(1)}
+                  {p.posRank} · ADP {p.adp} · bye {p.bye} · proj {proj(p.name, scoring).toFixed(1)}
                   {p.clearsAt ? (
                     <span style={{ color: "var(--warn)" }}> · on waivers, {clears(p.clearsAt)}</span>
                   ) : null}

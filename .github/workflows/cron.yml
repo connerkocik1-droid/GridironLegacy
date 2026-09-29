@@ -1,27 +1,30 @@
-# The frequent jobs.
+# Run one of the scheduled jobs by hand.
 #
-# Vercel's Hobby plan allows two cron jobs, each at most once a day, so
-# vercel.json carries only the daily catch-up run and the weekly waiver run.
-# Live scoring needs to run every couple of minutes on game days, and the draft
-# clock needs checking every minute while a draft is on — neither fits there,
-# so they run from here instead. GitHub Actions is free for this.
+# The jobs themselves are scheduled in vercel.json: the daily and weekly ones
+# always, and the every-few-minutes ones — live scores, mail and the draft
+# clock — once the league sets FREQUENT_JOBS=on in the Vercel environment (see
+# src/lib/frequent-jobs.ts for what turning them on changes).
 #
-# Set these repository secrets (Settings -> Secrets and variables -> Actions):
-#   SITE_URL     https://your-app.vercel.app
-#   CRON_SECRET  the same value as the Vercel environment variable
+# They used to be scheduled here, and never ran. Every one of the 292
+# scheduled runs between August 30 and September 29 stopped at its first line
+# for want of a SITE_URL secret, and GitHub only ran the "every five minutes"
+# schedule about ten times a day besides. Vercel's scheduler already runs this
+# project's push job every ten minutes to the minute, so that is where they
+# went.
 #
-# Note that GitHub's scheduler is best-effort and can run several minutes late
-# under load. If the draft clock matters to you, upgrade to Vercel Pro and move
-# these back into vercel.json.
+# What is left is a button, for testing and for pushing a job through by hand:
+#
+#   Actions -> Run a job -> Run workflow
+#
+# It needs one repository secret (Settings -> Secrets and variables ->
+# Actions): CRON_SECRET, the same value as the Vercel environment variable.
+# SITE_URL is optional and defaults to the production domain. If it is set it
+# must be the custom domain: the *.vercel.app addresses sit behind Vercel's
+# login and answer 401.
 
-name: Scheduled jobs
+name: Run a job
 
 on:
-  schedule:
-    # Live scoring, every five minutes on game days (Sun, Mon, Thu), UTC.
-    - cron: "*/5 * * * 0,1,4"
-    # The draft clock, every five minutes. A no-op unless a draft is running.
-    - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -29,7 +32,7 @@ on:
         required: true
         default: scores
         type: choice
-        options: [scores, autodraft, waivers, mail]
+        options: [scores, autodraft, waivers, mail, push, health, draft-picks, projections]
 
 jobs:
   run:
@@ -37,37 +40,31 @@ jobs:
     steps:
       - name: Call the endpoint
         env:
-          SITE_URL: ${{ secrets.SITE_URL }}
+          SITE_URL: ${{ secrets.SITE_URL || 'https://pylonn.app' }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          MANUAL: ${{ github.event.inputs.job }}
+          JOB: ${{ github.event.inputs.job }}
         run: |
-          if [ -z "$SITE_URL" ] || [ -z "$CRON_SECRET" ]; then
-            echo "SITE_URL and CRON_SECRET must be set as repository secrets." >&2
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::Set the CRON_SECRET repository secret to the value in the Vercel environment."
             exit 1
           fi
 
-          # A manual run does exactly what was asked for; a scheduled run does
-          # both, and each endpoint is a no-op when there is nothing to do.
-          if [ -n "$MANUAL" ]; then
-            JOBS="$MANUAL"
-          else
-            # Mail rides along with the five-minute run rather than getting a
-            # schedule of its own: a notice worth emailing is worth emailing
-            # within five minutes, and the endpoint is a no-op with an empty
-            # queue or no mail provider configured.
-            JOBS="scores autodraft mail"
-          fi
+          echo "--- $JOB at $SITE_URL"
+          CODE=$(curl -sS -o /tmp/out.json -w '%{http_code}' --max-time 70 \
+            -H "authorization: Bearer $CRON_SECRET" \
+            "$SITE_URL/api/cron/$JOB") || CODE=000
+          echo "HTTP $CODE"
+          cat /tmp/out.json 2>/dev/null || true
+          echo
 
-          FAILED=0
-          for job in $JOBS; do
-            echo "--- $job"
-            CODE=$(curl -sS -o /tmp/out.json -w '%{http_code}' \
-              -H "authorization: Bearer $CRON_SECRET" \
-              "$SITE_URL/api/cron/$job") || CODE=000
-            echo "HTTP $CODE"
-            cat /tmp/out.json 2>/dev/null || true
-            echo
-            # A 5xx is a real failure; anything else is the job reporting back.
-            case "$CODE" in 5*|000) FAILED=1 ;; esac
-          done
-          exit $FAILED
+          # Anything but a 2xx is a failure. This used to fail only on a 5xx,
+          # so a 401 from a wrong secret or a 404 from a wrong address would
+          # have been reported as the job running.
+          case "$CODE" in
+            2*) exit 0 ;;
+            401) echo "::error::The site refused the secret. CRON_SECRET here must match the Vercel environment." ;;
+            404) echo "::error::There is no such job at $SITE_URL. Check SITE_URL." ;;
+            000) echo "::error::Could not reach $SITE_URL." ;;
+            *) echo "::error::The job answered HTTP $CODE." ;;
+          esac
+          exit 1

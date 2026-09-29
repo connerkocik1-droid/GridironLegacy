@@ -1,4 +1,4 @@
-import { currentManager, duesNote, movesTabOpen } from "@/lib/session";
+import { currentManager, leagueFacts } from "@/lib/session";
 import { isConfigured, serverClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -42,18 +42,24 @@ export async function GET() {
     .eq("manager_id", manager.id)
     .maybeSingle();
 
-  // Whether the league has handed the fourth tab over to the transactions.
-  // The layout already answers this from the server so the first frame is
-  // right; this is what makes the tab change over for eleven managers who are
-  // sitting in the app when the commissioner gives the command, rather than at
-  // each of their next reloads.
+  // One read of the league's settings for all three answers below.
+  const { movesTab, duesNote, scoring } = await leagueFacts(manager.league_id);
+
   return Response.json({
     manager: { ...manager, logo: logo?.image ?? null },
     configured: true,
-    movesTab: await movesTabOpen(manager.league_id),
+    // Whether the league has handed the fourth tab over to the transactions.
+    // The layout already answers this from the server so the first frame is
+    // right; this is what makes the tab change over for eleven managers who are
+    // sitting in the app when the commissioner gives the command, rather than at
+    // each of their next reloads.
+    movesTab,
     // What the league says about dues, if it says anything. The manager's own
     // dues_paid rides along on the manager itself, so the band on the home
     // page needs nothing else to decide whether it is for this person.
-    duesNote: await duesNote(manager.league_id),
+    duesNote,
+    // The reception rule, so the screens that project in the browser project
+    // in the league's own format.
+    scoring,
   });
 }

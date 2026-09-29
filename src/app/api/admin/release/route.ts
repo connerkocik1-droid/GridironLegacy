@@ -1,4 +1,5 @@
 import { isConfigured, serverClient, serviceClient } from "@/lib/supabase";
+import { issueClaimCode } from "@/lib/claim-codes";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
 
   const { data: me } = await db
     .from("managers")
-    .select("is_commissioner")
+    .select("id, league_id, is_commissioner")
     .eq("auth_user_id", user.id)
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
@@ -66,5 +67,18 @@ export async function POST(req: Request) {
     }
   }
 
-  return Response.json(data);
+  // The franchise is open again, so it gets a one-time code for whoever the
+  // commissioner hands it to — rather than going to whoever finds the sign-in
+  // page first. Null on a database without migration 0064.
+  const issued = await issueClaimCode(serviceClient(), {
+    leagueId: me.league_id,
+    managerId,
+    issuedBy: me.id,
+  });
+
+  return Response.json({
+    ...(data as object),
+    claimCode: issued?.code ?? null,
+    claimCodeExpiresAt: issued?.expiresAt ?? null,
+  });
 }

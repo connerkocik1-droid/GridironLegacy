@@ -1182,6 +1182,14 @@ select signin(:'Y1');
 select expect('and it cannot go backwards',
   refuses(format('select roll_season(%L, 2025)', :'Y')) like '%must come after 2026%', true);
 
+-- The season's scores, and how much of it there is to keep.
+\o /dev/null
+insert into player_scores (league_id, week, player_name, points, stat_line) values
+  (:'Y', 1, 'Kept AAA', 21.4, '6 rec · 98 yds · 1 TD'),
+  (:'Y', 2, 'Kept AAA', 9.0, '4 rec · 50 yds');
+select count(*)::int as y_matchups from matchups where league_id = :'Y' \gset
+\o
+
 -- Now do it.
 select expect('the rollover names the champion it is closing the book on',
   (select roll_season(:'Y') ->> 'champion'), 'Echo');
@@ -1202,6 +1210,51 @@ select expect('and last year''s draft position is not carried into this one',
 
 select expect('the schedule is gone',
   (select count(*)::int from matchups where league_id = :'Y'), 0);
+
+-- ...from the live tables. It is filed against the season it belongs to, so
+-- the record book and the head-to-head history outlive the rollover.
+select expect('but every fixture of it is kept, filed against its season',
+  (select count(*)::int from matchup_history where league_id = :'Y' and season = 2026),
+  :y_matchups);
+
+select expect('with the franchise names as they were',
+  (select count(*)::int from matchup_history
+    where league_id = :'Y' and season = 2026 and home_franchise is null), 0);
+
+select expect('the title game is among them, won by the champion',
+  (select count(*)::int > 0
+     from matchup_history h
+     join league_champions c on c.league_id = h.league_id and c.season = h.season
+    where h.league_id = :'Y' and h.season = 2026 and h.playoff and h.winner = c.manager_id), true);
+
+select expect('the scores are gone from the live table',
+  (select count(*)::int from player_scores where league_id = :'Y'), 0);
+
+select expect('and kept in the history, week by week',
+  (select string_agg(week || ':' || points, ',' order by week) from player_score_history
+    where league_id = :'Y' and season = 2026 and player_name = 'Kept AAA'), '1:21.4,2:9.0');
+
+select expect('the admin log says how much was kept',
+  (select (detail -> 'archived' ->> 'matchups')::int from admin_log
+    where league_id = :'Y' and action = 'season_rolled'
+    order by created_at desc limit 1), :y_matchups);
+
+-- A season is kept once. A second copy must neither duplicate it nor
+-- overwrite what was kept with whatever the live tables hold now.
+\o /dev/null
+insert into player_scores (league_id, week, player_name, points) values (:'Y', 1, 'Kept AAA', 99);
+\o
+
+select expect('archiving a season again keeps nothing twice',
+  (select (archive_season(:'Y', 2026) ->> 'scores')::int), 0);
+
+select expect('and does not rewrite what it already kept',
+  (select points from player_score_history
+    where league_id = :'Y' and season = 2026 and week = 1 and player_name = 'Kept AAA'), 21.4);
+
+\o /dev/null
+delete from player_scores where league_id = :'Y';
+\o
 
 select expect('so is the bracket that decided it',
   (select count(*)::int from playoff_seeds where league_id = :'Y' and season = 2026), 0);
@@ -1245,6 +1298,40 @@ select expect('the new season''s picks are tradeable, the inaugural ones never w
 
 select expect('a season with no champion yet cannot be rolled',
   refuses(format('select roll_season(%L)', :'Y')) like '%no champion yet%', true);
+
+\echo ''
+\echo '--- where a sign-in attempt came from ---'
+
+-- One source spending five tries on every franchise in turn is refused by the
+-- per-address count, whichever franchise it names.
+\o /dev/null
+\set IPL '99999999-0000-0000-0000-000000000064'
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'IPL', 'Addresses', 2026, 'AAA', '{}'::jsonb);
+insert into pin_attempts (league_id, slot, succeeded, ip, attempted_at) values
+  (:'IPL', 'AAA', false, '203.0.113.7',  now()),
+  (:'IPL', 'BBB', false, '203.0.113.7',  now()),
+  (:'IPL', 'CCC', false, '203.0.113.7',  now() - interval '1 hour'),
+  (:'IPL', 'AAA', true,  '203.0.113.7',  now()),
+  (:'IPL', 'AAA', false, '198.51.100.1', now()),
+  (:'IPL', 'AAA', false, null,           now());
+\o
+
+select expect('failures from one address are counted across franchises',
+  recent_ip_failures('203.0.113.7'), 2);
+
+select expect('another address keeps its own count',
+  recent_ip_failures('198.51.100.1'), 1);
+
+select expect('a longer window reaches further back',
+  recent_ip_failures('203.0.113.7', interval '2 hours'), 3);
+
+select expect('an address nobody has seen has failed nothing',
+  recent_ip_failures('192.0.2.200'), 0);
+
+select expect('the claim codes are kept where row-level security admits nobody',
+  (select relrowsecurity from pg_class where relname = 'franchise_claims')
+  and not exists (select 1 from pg_policies where tablename = 'franchise_claims'), true);
 
 \echo ''
 \echo '--- the commissioner fixing a roster ---'
