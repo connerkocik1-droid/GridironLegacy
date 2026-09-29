@@ -9,6 +9,7 @@ import { NameIndex, defenseTeamName, isDefense } from "./player-names";
 import { POOL } from "@/data/league-data";
 import { positionsFor, syncNflPlayers, syncRosterPositions } from "./roster-positions";
 import { scoreGameDetail, type ScoringFormat, type StatLine } from "./scoring";
+import { notMigratedYet } from "./db-errors";
 import type { serviceClient } from "./supabase";
 
 type Db = ReturnType<typeof serviceClient>;
@@ -448,7 +449,7 @@ export async function mirrorSchedule(db: Db, games: Game[], season: number) {
   // updating strands every game's state, which is far worse than a win
   // probability that falls back to the time since kickoff. So the row goes in
   // without them.
-  if (error && /\b(period|clock)\b/.test(`${error.message} ${error.details ?? ""}`)) {
+  if (error && notMigratedYet(error)) {
     const withoutClock = rows.map((row) => {
       const copy: Record<string, unknown> = { ...row };
       delete copy.period;

@@ -20,6 +20,11 @@ interface Slot {
   franchise: string;
   claimed: boolean;
   isCommissioner: boolean;
+  /**
+   * Whether claiming it needs the one-time code the commissioner was given
+   * when they cleared its PIN or let its manager go.
+   */
+  needsCode?: boolean;
 }
 
 type Mode = "landing" | "signin" | "pick" | "confirm" | "activate";
@@ -111,6 +116,10 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [firstName, setFirstName] = useState("");
+  const [claimCode, setClaimCode] = useState("");
+  // Set when the server asks for a code the list did not say was needed — a
+  // code issued while this page was open.
+  const [codeAsked, setCodeAsked] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Pressing a card should put the caret in the PIN box it just opened, so
@@ -144,6 +153,11 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
     setMode(next);
     setError(null);
     setNotice(null);
+    // A code belongs to one franchise; choosing again starts without it.
+    if (next === "pick" || next === "landing") {
+      setClaimCode("");
+      setCodeAsked(false);
+    }
   }
 
   async function signIn(seat: Slot) {
@@ -200,10 +214,13 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ slot: chosen.slot, pin, name: firstName.trim() }),
+        body: JSON.stringify({ slot: chosen.slot, pin, name: firstName.trim(), code: claimCode }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) return setError(body.error ?? "That franchise could not be claimed.");
+      if (!res.ok) {
+        if (body.needsCode) setCodeAsked(true);
+        return setError(body.error ?? "That franchise could not be claimed.");
+      }
 
       router.push("/");
       router.refresh();
@@ -601,16 +618,42 @@ export default function SignIn({ leagueName }: { leagueName?: string | null } = 
 
   // ---------------------------------------------------------- activate ---
   if (mode === "activate" && chosen) {
-    const ready = Boolean(firstName.trim()) && pin.length === 4 && confirmPin.length === 4;
+    const askCode = Boolean(chosen.needsCode) || codeAsked;
+    const codeReady = !askCode || claimCode.replace(/[^a-z0-9]/gi, "").length >= 8;
+    const ready = Boolean(firstName.trim()) && pin.length === 4 && confirmPin.length === 4 && codeReady;
     return (
       <div>
         {heading}
         <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 2px" }}>
-          Claiming <strong style={{ color: "var(--accent-text)", fontWeight: 500 }}>{chosen.slot}</strong>. Your
-          first name and a four-digit PIN are all it takes.
+          Claiming <strong style={{ color: "var(--accent-text)", fontWeight: 500 }}>{chosen.slot}</strong>.{" "}
+          {askCode
+            ? "The claim code from the commissioner, your first name and a four-digit PIN."
+            : "Your first name and a four-digit PIN are all it takes."}
         </p>
 
         <form onSubmit={activate}>
+          {askCode ? (
+            <>
+              <label htmlFor="claimCode" style={label}>
+                CLAIM CODE
+              </label>
+              <input
+                id="claimCode"
+                value={claimCode}
+                onChange={(e) => setClaimCode(e.target.value.toUpperCase().slice(0, 12))}
+                autoComplete="one-time-code"
+                autoCapitalize="characters"
+                spellCheck={false}
+                placeholder="XXXX-XXXX"
+                style={{ ...field, letterSpacing: ".18em", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}
+              />
+              <p style={{ fontSize: 11.5, color: "var(--text-dim)", lineHeight: 1.6, margin: "7px 0 0" }}>
+                This franchise was opened up by the commissioner, who has its code. It works once, for this
+                franchise only.
+              </p>
+            </>
+          ) : null}
+
           <label htmlFor="firstName" style={label}>
             FIRST NAME
           </label>

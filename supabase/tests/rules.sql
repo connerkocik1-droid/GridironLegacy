@@ -1300,6 +1300,40 @@ select expect('a season with no champion yet cannot be rolled',
   refuses(format('select roll_season(%L)', :'Y')) like '%no champion yet%', true);
 
 \echo ''
+\echo '--- where a sign-in attempt came from ---'
+
+-- One source spending five tries on every franchise in turn is refused by the
+-- per-address count, whichever franchise it names.
+\o /dev/null
+\set IPL '99999999-0000-0000-0000-000000000064'
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'IPL', 'Addresses', 2026, 'AAA', '{}'::jsonb);
+insert into pin_attempts (league_id, slot, succeeded, ip, attempted_at) values
+  (:'IPL', 'AAA', false, '203.0.113.7',  now()),
+  (:'IPL', 'BBB', false, '203.0.113.7',  now()),
+  (:'IPL', 'CCC', false, '203.0.113.7',  now() - interval '1 hour'),
+  (:'IPL', 'AAA', true,  '203.0.113.7',  now()),
+  (:'IPL', 'AAA', false, '198.51.100.1', now()),
+  (:'IPL', 'AAA', false, null,           now());
+\o
+
+select expect('failures from one address are counted across franchises',
+  recent_ip_failures('203.0.113.7'), 2);
+
+select expect('another address keeps its own count',
+  recent_ip_failures('198.51.100.1'), 1);
+
+select expect('a longer window reaches further back',
+  recent_ip_failures('203.0.113.7', interval '2 hours'), 3);
+
+select expect('an address nobody has seen has failed nothing',
+  recent_ip_failures('192.0.2.200'), 0);
+
+select expect('the claim codes are kept where row-level security admits nobody',
+  (select relrowsecurity from pg_class where relname = 'franchise_claims')
+  and not exists (select 1 from pg_policies where tablename = 'franchise_claims'), true);
+
+\echo ''
 \echo '--- the commissioner fixing a roster ---'
 
 \o /dev/null

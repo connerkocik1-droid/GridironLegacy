@@ -39,7 +39,7 @@ const LIVE: Game = {
 const DONE: Game = { ...LIVE, id: "402", state: "post", completed: true, period: null, clock: null };
 
 /** A database stand-in that records every upsert and answers from a script. */
-function fakeDb(answers: ({ message: string; details?: string } | null)[]) {
+function fakeDb(answers: ({ code: string; message: string } | null)[]) {
   const calls: Record<string, unknown>[][] = [];
   const db = {
     from: () => ({
@@ -64,7 +64,7 @@ console.log("--- a database that has run 0062 ---");
 console.log("\n--- one that has not ---");
 {
   const { db, calls } = fakeDb([
-    { message: "Could not find the 'clock' column of 'nfl_games' in the schema cache" },
+    { code: "PGRST204", message: "Could not find the 'clock' column of 'nfl_games' in the schema cache" },
     null,
   ]);
   await mirrorSchedule(db, [LIVE, DONE], 2026);
@@ -76,7 +76,7 @@ console.log("\n--- one that has not ---");
 
 console.log("\n--- and a failure that has nothing to do with it ---");
 {
-  const { db, calls } = fakeDb([{ message: "permission denied for table nfl_games" }]);
+  const { db, calls } = fakeDb([{ code: "42501", message: "permission denied for table nfl_games" }]);
   const quiet = console.error;
   console.error = () => {};
   await mirrorSchedule(db, [LIVE], 2026);

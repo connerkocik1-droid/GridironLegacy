@@ -867,3 +867,36 @@ select expect('nor copies a season on its own schedule',
 \o /dev/null
 reset role;
 \o
+
+-- ---------------------------------------------------------- claim codes ---
+-- A browser can neither read a claim code, plant one, nor ask how often an
+-- address has failed. Only the service key reaches any of it.
+
+\o /dev/null
+reset role;
+insert into franchise_claims (manager_id, league_id, code_hash, expires_at)
+select id, :'L', 'not-a-real-hash', now() + interval '7 days'
+  from managers where league_id = :'L' and slot = 'BBB';
+
+select set_config('test.uid', :'U2', false);
+set role authenticated;
+\o
+
+\echo ''
+\echo '--- claim codes ---'
+
+select expect('a browser cannot read a claim code, not even for its own franchise',
+  (select count(*)::int from franchise_claims), 0);
+
+select expect('nor plant one of its own',
+  refuses(format(
+    'insert into franchise_claims (manager_id, league_id, code_hash, expires_at) '
+    'values ((select id from managers where league_id = %L and slot = %L), %L, %L, now() + interval ''1 day'')',
+    :'L', 'AAA', :'L', 'chosen')) is not null, true);
+
+select expect('nor ask how often an address has failed',
+  refuses('select recent_ip_failures(''203.0.113.7'')') is not null, true);
+
+\o /dev/null
+reset role;
+\o

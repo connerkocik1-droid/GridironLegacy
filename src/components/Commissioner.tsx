@@ -102,6 +102,11 @@ export default function Commissioner() {
   const [admin, setAdmin] = useState<Admin | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // The claim code just issued, shown until it is dismissed. The only time it
+  // exists in the clear: the database keeps a keyed hash of it and nothing else.
+  const [issued, setIssued] = useState<{ franchise: string; code: string; expiresAt: string | null } | null>(
+    null,
+  );
   const [teams, setTeams] = useState("");
   const [rounds, setRounds] = useState("");
   const [draftAt, setDraftAt] = useState("");
@@ -491,6 +496,7 @@ export default function Commissioner() {
     setBusy(true);
     setError(null);
     setNotice(null);
+    setIssued(null);
 
     try {
       const res = await fetch("/api/admin/release", {
@@ -501,6 +507,12 @@ export default function Commissioner() {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(body.error ?? "Could not release that franchise.");
+      } else if (body.claimCode) {
+        setIssued({ franchise: manager.franchise, code: body.claimCode, expiresAt: body.claimCodeExpiresAt ?? null });
+        setNotice(
+          `${body.was ?? "That manager"} has been let go. ${manager.franchise} keeps its name, ` +
+            `its roster and its fixtures. Whoever takes it over claims it at sign-in with the code below.`,
+        );
       } else {
         setNotice(
           `${body.was ?? "That manager"} has been let go. ${manager.franchise} keeps its name, ` +
@@ -518,6 +530,7 @@ export default function Commissioner() {
     setBusy(true);
     setError(null);
     setNotice(null);
+    setIssued(null);
 
     try {
       const res = await fetch("/api/admin/reset-pin", {
@@ -527,8 +540,36 @@ export default function Commissioner() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) setError(body.error ?? "Could not clear that PIN.");
-      else setNotice(`${manager.franchise} can claim a new PIN at sign-in.`);
+      else if (body.claimCode) {
+        setIssued({ franchise: manager.franchise, code: body.claimCode, expiresAt: body.claimCodeExpiresAt ?? null });
+        setNotice(`${manager.franchise} can claim a new PIN at sign-in with the code below.`);
+      } else setNotice(`${manager.franchise} can claim a new PIN at sign-in.`);
       await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** A fresh code for an open franchise: lost, run out, or never issued. */
+  async function issueCode(manager: Manager) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    setIssued(null);
+
+    try {
+      const res = await fetch("/api/admin/claim-code", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ managerId: manager.id }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) setError(body.error ?? "Could not issue a claim code.");
+      else {
+        setIssued({ franchise: manager.franchise, code: body.claimCode, expiresAt: body.claimCodeExpiresAt ?? null });
+        setNotice(`${manager.franchise} can now only be claimed with the code below.`);
+      }
     } finally {
       setBusy(false);
     }
@@ -605,6 +646,7 @@ export default function Commissioner() {
       {notice ? (
         <div style={{ fontSize: 12, color: "var(--good)", marginBottom: 14 }}>{notice}</div>
       ) : null}
+      {issued ? <IssuedCode issued={issued} onDone={() => setIssued(null)} /> : null}
       {error ? (
         <div style={{ fontSize: 12, color: "var(--warn)", marginBottom: 14 }}>{error}</div>
       ) : null}
@@ -1061,7 +1103,11 @@ export default function Commissioner() {
               <button onClick={() => clearPin(m)} disabled={busy} style={{ ...action(!busy), padding: "5px 10px", fontSize: 10 }}>
                 Clear PIN
               </button>
-            ) : null}
+            ) : (
+              <button onClick={() => issueCode(m)} disabled={busy} style={{ ...action(!busy), padding: "5px 10px", fontSize: 10 }}>
+                Claim code
+              </button>
+            )}
             {m.claimed && !m.isCommissioner ? (
               <button
                 onClick={() => setReleasing(m)}
@@ -1283,6 +1329,78 @@ function OfficeMenu() {
           {label}
         </a>
       ))}
+    </div>
+  );
+}
+
+/**
+ * The claim code just issued, for the commissioner to pass on.
+ *
+ * Shown once: the database keeps only a keyed hash, so there is no reading it
+ * back later — a lost code is replaced with a new one from the franchise row.
+ */
+function IssuedCode({
+  issued,
+  onDone,
+}: {
+  issued: { franchise: string; code: string; expiresAt: string | null };
+  onDone: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const until = issued.expiresAt
+    ? new Date(issued.expiresAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
+    : null;
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(issued.code);
+      setCopied(true);
+    } catch {
+      // Some browsers refuse the clipboard; the code is selectable on screen.
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div
+      role="status"
+      style={{
+        ...card,
+        borderColor: "rgb(var(--good-rgb) / .45)",
+        display: "flex",
+        gap: 14,
+        alignItems: "center",
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+        <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)", marginBottom: 4 }}>
+          CLAIM CODE · {issued.franchise.toUpperCase()}
+        </div>
+        <div
+          style={{
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+            fontSize: 22,
+            letterSpacing: ".12em",
+            color: "var(--text)",
+            userSelect: "all",
+          }}
+        >
+          {issued.code}
+        </div>
+        <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 4, lineHeight: 1.5 }}>
+          Send it to the manager privately. It works once{until ? `, until ${until}` : ""}, and only for{" "}
+          {issued.franchise}. It will not be shown again.
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={copy} style={{ ...action(true), padding: "6px 12px", fontSize: 11 }}>
+          {copied ? "Copied" : "Copy"}
+        </button>
+        <button onClick={onDone} style={{ ...action(true), padding: "6px 12px", fontSize: 11 }}>
+          Done
+        </button>
+      </div>
     </div>
   );
 }
