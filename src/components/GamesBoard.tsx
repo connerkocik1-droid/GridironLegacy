@@ -38,6 +38,10 @@ interface Board {
   seasonType: number | null;
   played: boolean;
   error?: string;
+  /** ISO time of the answer; for a stale board, when the league last heard. */
+  fetchedAt?: string | null;
+  /** The live feed did not answer, and these are the league's own last copy. */
+  stale?: boolean;
 }
 
 /** The day a game falls on, in the reader's own timezone. */
@@ -142,6 +146,16 @@ export default function GamesBoard() {
         Every game this week. Press one for the gamecast — the drive, the box score, and who in
         this league owns a piece of it.
       </p>
+
+      {board.stale ? (
+        <div style={{ fontSize: 12, color: "var(--warn)", lineHeight: 1.6, margin: "-8px 0 16px" }}>
+          The live feed is not answering, so these are the last scores the league heard
+          {board.fetchedAt
+            ? `, at ${new Date(board.fetchedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`
+            : ""}
+          . They catch up on their own when it comes back.
+        </div>
+      ) : null}
 
       {!board.games.length ? (
         <div style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.6 }}>
