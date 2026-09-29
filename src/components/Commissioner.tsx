@@ -225,7 +225,12 @@ export default function Commissioner() {
       else
         setNotice(
           `The ${body.season} season is open. ${body.playersKept} players kept, ` +
-            `${body.weeksRemoved} weeks cleared, ${body.rosterRowsSaved} roster rows photographed first.`,
+            `${body.weeksRemoved} weeks cleared, ${body.rosterRowsSaved} roster rows photographed first.` +
+            // Said only when the database says it happened: a rollover run
+            // before migration 0063 clears the season without keeping it.
+            (body.archived
+              ? ` ${body.from}'s ${body.archived.matchups} results and ${body.archived.scores} player scores are kept in the league history.`
+              : ""),
         );
       await load();
       await loadSeason();
