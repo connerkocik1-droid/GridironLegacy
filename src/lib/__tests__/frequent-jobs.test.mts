@@ -58,7 +58,7 @@ delete process.env.FREQUENT_JOBS;
 
 console.log("\n--- merged and not turned on, the three routes do nothing ---");
 for (const [name, route] of [["scores", scores], ["mail", mail], ["autodraft", autodraft]] as const) {
-  const res = await route.GET(run(name === "autodraft" ? "* * * * *" : "*/5 * * * *"));
+  const res = await route.GET(run("*/5 * * * *"));
   const body = await res.json();
   eq(`${name}: a frequent run is skipped, before any database is asked`, [res.status, typeof body.skipped], [200, "string"]);
 

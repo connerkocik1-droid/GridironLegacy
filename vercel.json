@@ -34,7 +34,7 @@
     },
     {
       "path": "/api/cron/autodraft",
-      "schedule": "* * * * *"
+      "schedule": "*/5 * * * *"
     }
   ]
 }
