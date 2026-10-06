@@ -1,3 +1,4 @@
+import { everyRow } from "@/lib/every-row";
 import { POOL } from "@/data/league-data";
 import { teamGames } from "@/lib/nfl-week";
 import { COLUMNS, rank, sortRows, type Group, type Row } from "@/lib/rankings";
@@ -88,10 +89,15 @@ export async function GET(req: Request) {
   // What everybody has actually done this season, worked out by the same code
   // the rankings board uses — so a free agent's numbers here and his numbers
   // on the League tab are the same numbers rather than two attempts at them.
-  const { data: scoreRows } = await db
-    .from("player_scores")
-    .select("player_name, points, week, stats")
-    .eq("league_id", me.league_id);
+  const scoreRows = await everyRow((from, to) =>
+    db
+      .from("player_scores")
+      .select("player_name, points, week, stats")
+      .eq("league_id", me.league_id)
+      .order("week")
+      .order("player_name")
+      .range(from, to),
+  );
 
   const weeksOf = new Map<string, Set<number>>();
   const totalOf = new Map<string, number>();

@@ -1,3 +1,4 @@
+import { everyRow } from "@/lib/every-row";
 import { seasonPointsFor } from "@/lib/points-for";
 import { isPresent, readManagers } from "@/lib/presence";
 import { ageOf } from "@/data/league-data";
@@ -118,10 +119,15 @@ export async function GET() {
 
   // Scores twice: this week's for the fixtures, and the season's for the
   // leaders. One read, split two ways.
-  const { data: scoreRows } = await db
-    .from("player_scores")
-    .select("player_name, points, stat_line, week")
-    .eq("league_id", me.league_id);
+  const scoreRows = await everyRow((from, to) =>
+    db
+      .from("player_scores")
+      .select("player_name, points, stat_line, week")
+      .eq("league_id", me.league_id)
+      .order("week")
+      .order("player_name")
+      .range(from, to),
+  );
 
   const thisWeek = new Map<string, Score>(
     (scoreRows ?? [])
