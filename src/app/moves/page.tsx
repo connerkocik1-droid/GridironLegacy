@@ -1,26 +1,26 @@
-import MovesTabs from "@/components/MovesTabs";
-import Nav from "@/components/Nav";
-
-export const metadata = { title: "Moves · Pylon Fantasy" };
+import { redirect } from "next/navigation";
 
 /**
- * The three screens where a roster changes, behind one tab.
- *
- * Reachable whether or not the draft is done: the tab that leads here only
- * appears afterwards, but draft-pick trades happen before a draft and the
- * League hub points at this page throughout.
+ * The old Moves hub, folded into the General Manager tab: Free Agents is Free
+ * Agency, Trade Builder is Trades and The Record is Transactions. Kept as a
+ * redirect so a saved link or an old notice still lands somewhere — with any
+ * trade it was carrying (?with=, ?want=, ?give=) carried across.
  */
-export default function MovesPage() {
-  return (
-    <div
-      style={{
-        minHeight: "var(--screen)",
-        background:
-          "radial-gradient(120% 80% at 50% -10%,rgb(var(--glow-rgb) / .4),transparent 60%),var(--bg)",
-      }}
-    >
-      <Nav current="/moves" />
-      <MovesTabs />
-    </div>
-  );
+export default async function MovesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const tab = typeof params.tab === "string" ? params.tab : "";
+  if (tab === "trade-builder") {
+    const keep = new URLSearchParams();
+    for (const key of ["with", "want", "give"]) {
+      const v = params[key];
+      if (typeof v === "string") keep.set(key, v);
+    }
+    redirect(`/trade-builder${keep.size ? `?${keep}` : ""}`);
+  }
+  if (tab === "the-record") redirect("/activity");
+  redirect("/free-agents");
 }

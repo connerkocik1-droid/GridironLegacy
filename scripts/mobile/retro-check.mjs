@@ -90,7 +90,8 @@ const { ctx, page } = await open();
   const menu = await page.evaluate(() => {
     const dialog = document.querySelector("[role='dialog']");
     const first = dialog?.querySelector("[role='switch']");
-    const rows = [...(dialog?.querySelectorAll("a, button") ?? [])];
+    // Every row control, less the panel's own close button.
+    const rows = [...(dialog?.querySelectorAll("a, button") ?? [])].filter((b) => b.getAttribute("aria-label") !== "Close");
     return {
       label: first?.textContent ?? "",
       checked: first?.getAttribute("aria-checked"),
@@ -103,6 +104,10 @@ const { ctx, page } = await open();
   ok("the avatar menu's first row is the switch",
     menu.firstRow && /16-bit mode/.test(menu.label), JSON.stringify(menu));
   ok("and it is off", menu.checked === "false");
+  // Appearance opens in place, like every row in the menu.
+  await page.locator("[role='dialog'] button", { hasText: "Appearance" }).click();
+  menu.appearance = await page.evaluate(() =>
+    [...document.querySelectorAll("[role='dialog'] [aria-label='Appearance'] button")].map((b) => b.textContent?.trim()));
   ok(`Appearance is a brightness again (${menu.appearance.join(", ")})`,
     JSON.stringify(menu.appearance) === JSON.stringify(["System", "Light", "Dark"]));
   await page.keyboard.press("Escape");

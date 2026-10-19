@@ -1,6 +1,7 @@
 "use client";
 
 import { useMe } from "@/lib/use-me";
+import { Note } from "./RowList";
 
 /**
  * A line at the top of the home page, for the people who have not paid.
@@ -39,39 +40,10 @@ export default function DuesNotice() {
   if (me.manager?.dues_paid !== false) return null;
 
   return (
-    <div
-      role="status"
-      style={{
-        display: "flex",
-        alignItems: "baseline",
-        gap: 10,
-        padding: "10px 26px 11px",
-        borderBottom: "1px solid rgb(var(--warn-rgb) / .3)",
-        background: "rgb(var(--warn-rgb) / .1)",
-      }}
-    >
-      <span
-        style={{
-          fontSize: 10,
-          letterSpacing: ".2em",
-          color: "var(--warn)",
-          flex: "0 0 auto",
-          whiteSpace: "nowrap",
-        }}
-      >
-        DUES
-      </span>
-      <span
-        style={{
-          fontSize: 12.5,
-          color: "var(--text-2)",
-          lineHeight: 1.5,
-          minWidth: 0,
-          overflowWrap: "anywhere",
-        }}
-      >
+    <div role="status">
+      <Note tag="DUES" tone="warn">
         {me.duesNote}
-      </span>
+      </Note>
     </div>
   );
 }

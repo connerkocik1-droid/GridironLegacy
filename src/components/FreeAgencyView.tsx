@@ -59,7 +59,7 @@ function hoursLeft(iso: string) {
 /**
  * General Manager → Free Agency: the wire, filtered by position and sorted by
  * what each man has scored. Above it, what the wire could do for this roster
- * (an upgrade on a starter, an upgrade on the bench, or nothing); then anyone
+ * (an upgrade on a starter, an upgrade on a reserve, or nothing); then anyone
  * recently dropped and still on waivers, and this manager's queued claims in
  * the order they will be tried. Each row carries a star for the Watchlist and
  * Add — or Claim, while he is on waivers. A full roster asks who leaves first.

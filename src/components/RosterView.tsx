@@ -176,7 +176,7 @@ export default function RosterView() {
         label="BENCH"
         note={`${bench.length} player${bench.length === 1 ? "" : "s"}`}
         rows={bench.map((n) => card(n, null))}
-        empty={{ title: "Nobody on the bench", sub: "Every man you hold is counting." }}
+        empty={{ title: "Nobody waiting", sub: "Every man you hold is counting." }}
       />
       {feed.injuredReserve.length ? (
         <RowGroup
