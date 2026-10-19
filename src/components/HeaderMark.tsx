@@ -33,33 +33,39 @@ export default function HeaderMark() {
       void el.offsetWidth;
       el.classList.add("gl-bounce");
     }}
-    style={{ display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" }}
+    style={{ display: "flex", alignItems: "center", gap: 8, flex: "1 1 auto", minWidth: 0, overflow: "hidden" }}
   >
-    {/* The mark, and the same one as the home-screen icon: a pylon, in the
-        pylon's own colour. It was an abstract purple slab, which was fine
-        when the app was called something else and is a missed opportunity
-        now that it is named after this object. */}
+    {/* The 1b Hologram pylon from prototype/Pylon Logo.dc.html, at the small
+        size the redesign's header draws it: a pylon in the pylon's own orange,
+        the one deliberate exception to the indigo palette. */}
     <svg
-      width="11"
-      height="18"
-      viewBox="0 0 11 18"
+      width="12"
+      height="24"
+      viewBox="28 6 44 108"
       aria-hidden
-      style={{ flex: "0 0 auto", filter: "drop-shadow(0 0 9px rgba(226,102,42,.55))" }}
+      style={{ flex: "0 0 auto", overflow: "visible", filter: "drop-shadow(0 0 3px rgba(245,138,68,.7))" }}
     >
-      <path d="M2.6 0 h4.2 l2.6 18 h-9.4 z" fill="#f0913f" />
-      <path d="M6.8 0 h1.6 l2.2 18 h-1.6 z" fill="#b8511f" />
+      <polygon points="32,20 50,30 50,110 32,100" fill="rgba(255,180,106,.42)" />
+      <polygon points="50,30 68,20 68,100 50,110" fill="rgba(245,138,68,.72)" />
+      <polygon points="50,8 70,19 50,30 30,19" fill="#ffe2c4" />
+      <polygon points="32,62 50,72 68,62 68,72 50,82 32,72" fill="#161826" opacity={0.75} />
+      <line x1="50" y1="30" x2="50" y2="110" stroke="#ffe2c4" strokeWidth={4} />
     </svg>
     <span
       className="gl-wordmark"
       style={{
-        fontFamily: "var(--font-heading)",
-        letterSpacing: ".2em",
-        textTransform: "uppercase",
-        fontSize: 12,
+        display: "flex",
+        alignItems: "baseline",
+        gap: 5,
         whiteSpace: "nowrap",
+        fontSize: 11,
+        letterSpacing: ".16em",
+        textTransform: "uppercase",
+        fontStyle: "italic",
       }}
     >
-      Pylon<span style={{ color: "var(--accent-link)" }}> Fantasy</span>
+      <span style={{ fontWeight: 600 }}>Pylon</span>
+      <span style={{ fontWeight: 400, color: "var(--ap-a300)" }}>Fantasy</span>
     </span>
     {/* Sixteen-bit mode's badge, inline beside the wordmark so it can never
         land on anything else in the header. */}

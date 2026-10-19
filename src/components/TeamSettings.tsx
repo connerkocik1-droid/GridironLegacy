@@ -1,5 +1,7 @@
 "use client";
 
+import { MenuLabel, fieldLabel, fieldStyle, menuBody, menuButton, menuRowStyle } from "./menu-style";
+
 import { useRef, useState } from "react";
 import PushSettings from "./PushSettings";
 import { patchMe } from "@/lib/use-me";
@@ -31,53 +33,19 @@ export interface EditableManager {
 
 type Section = "name" | "photo" | "email" | "push" | "pin" | null;
 
-const label: React.CSSProperties = {
-  display: "block",
-  fontSize: 10,
-  letterSpacing: ".2em",
-  color: "var(--text-dim)",
-  marginBottom: 6,
-};
-
-const field: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  background: "rgb(var(--sunken-rgb) / .8)",
-  border: "1px solid rgb(var(--accent-rgb) / .3)",
-  borderRadius: "var(--radius-sm)",
-  color: "var(--text)",
-  font: "inherit",
-  fontSize: 13,
-};
-
-const rowButton = (open: boolean): React.CSSProperties => ({
-  display: "flex",
-  width: "100%",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 10,
-  padding: "12px 14px",
-  minHeight: 34,
-  border: "none",
-  borderTop: "1px solid rgb(var(--accent-rgb) / .14)",
-  background: open ? "rgb(var(--accent-rgb) / .12)" : "transparent",
-  color: open ? "var(--accent-text)" : "var(--text-2)",
-  font: "inherit",
-  fontSize: 12.5,
-  textAlign: "left",
-  cursor: "pointer",
-});
+const label = fieldLabel;
+const field = fieldStyle;
 
 const action = (enabled: boolean): React.CSSProperties => ({
-  padding: "8px 13px",
+  padding: "8px 14px",
   minHeight: 34,
-  border: "1px solid rgb(var(--accent-bright-rgb) / .6)",
-  background: "transparent",
-  color: "var(--accent-text)",
-  borderRadius: "var(--radius-sm)",
+  border: "1px solid var(--ap-a500)",
+  background: enabled ? "color-mix(in oklch, var(--ap-accent) 16%, transparent)" : "transparent",
+  color: "var(--ap-a100)",
+  borderRadius: 3,
   font: "inherit",
-  fontSize: 11,
-  letterSpacing: ".1em",
+  fontSize: 10,
+  letterSpacing: ".14em",
   textTransform: "uppercase",
   cursor: enabled ? "pointer" : "default",
   opacity: enabled ? 1 : 0.45,
@@ -242,20 +210,23 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
   return (
     <>
       {error ? (
-        <div style={{ padding: "0 14px 10px", fontSize: 11.5, color: "var(--warn)" }}>{error}</div>
+        <div style={{ padding: "4px 16px 10px", fontSize: 11.5, color: "var(--warn)" }}>{error}</div>
       ) : null}
       {done ? (
-        <div style={{ padding: "0 14px 10px", fontSize: 11.5, color: "var(--good)" }}>{done}</div>
+        <div style={{ padding: "4px 16px 10px", fontSize: 11.5, color: "var(--good)" }}>{done}</div>
       ) : null}
 
       {/* ------------------------------------------------ team name --- */}
-      <button onClick={() => show("name")} style={rowButton(section === "name")}>
-        Change team name
-        <span aria-hidden style={{ color: "var(--text-dim)" }}>{section === "name" ? "−" : "+"}</span>
+      <button
+        onClick={() => show("name")}
+        aria-expanded={section === "name"}
+        style={{ ...menuButton, ...menuRowStyle(section === "name") }}
+      >
+        <MenuLabel open={section === "name"}>Change team name</MenuLabel>
       </button>
 
       {section === "name" ? (
-        <div style={{ padding: "12px 14px 14px" }}>
+        <div style={menuBody}>
           <label htmlFor="ts-franchise" style={label}>
             TEAM NAME
           </label>
@@ -283,16 +254,19 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
       {/* ---------------------------------------------------- email --- */}
       {/* Between the name and the photo, because it is the other thing that
           is about the manager rather than about the team. */}
-      <button onClick={() => show("email")} style={rowButton(section === "email")}>
-        Email me when something happens
-        <span aria-hidden style={{ color: "var(--text-dim)" }}>{section === "email" ? "\u2212" : "+"}</span>
+      <button
+        onClick={() => show("email")}
+        aria-expanded={section === "email"}
+        style={{ ...menuButton, ...menuRowStyle(section === "email") }}
+      >
+        <MenuLabel open={section === "email"}>Email me when something happens</MenuLabel>
       </button>
 
       {section === "email" ? (
-        <div style={{ padding: "12px 14px 14px" }}>
+        <div style={menuBody}>
           <p style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
-            The league already tells you things in the bell at the top of the
-            page. Give an address and it will tell you by email as well &mdash;
+            The league already tells you things under Notices in this
+            menu. Give an address and it will tell you by email as well &mdash;
             when you are on the clock, when somebody offers you a trade, when a
             claim goes through, when a week is settled. Leave it blank and
             nothing is sent.
@@ -350,25 +324,31 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
       {/* -------------------------------------------- notifications --- */}
       {/* Under email, because it is the same question asked of a different
           device: what should reach you when the app is shut. */}
-      <button onClick={() => show("push")} style={rowButton(section === "push")}>
-        Notify me on this device
-        <span aria-hidden style={{ color: "var(--text-dim)" }}>{section === "push" ? "\u2212" : "+"}</span>
+      <button
+        onClick={() => show("push")}
+        aria-expanded={section === "push"}
+        style={{ ...menuButton, ...menuRowStyle(section === "push") }}
+      >
+        <MenuLabel open={section === "push"}>Notify me on this device</MenuLabel>
       </button>
 
       {section === "push" ? (
-        <div style={{ padding: "12px 14px 14px" }}>
+        <div style={menuBody}>
           <PushSettings />
         </div>
       ) : null}
 
       {/* ----------------------------------------------- team photo --- */}
-      <button onClick={() => show("photo")} style={rowButton(section === "photo")}>
-        Change team photo
-        <span aria-hidden style={{ color: "var(--text-dim)" }}>{section === "photo" ? "−" : "+"}</span>
+      <button
+        onClick={() => show("photo")}
+        aria-expanded={section === "photo"}
+        style={{ ...menuButton, ...menuRowStyle(section === "photo") }}
+      >
+        <MenuLabel open={section === "photo"}>Change team photo</MenuLabel>
       </button>
 
       {section === "photo" ? (
-        <div style={{ padding: "12px 14px 14px" }}>
+        <div style={menuBody}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <TeamCrest franchise={manager.franchise} logo={preview ?? manager.logo} size={54} />
             <div style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.55, flex: 1, minWidth: 0 }}>
@@ -417,13 +397,16 @@ export default function TeamSettings({ manager }: { manager: EditableManager }) 
       ) : null}
 
       {/* ------------------------------------------------------ PIN --- */}
-      <button onClick={() => show("pin")} style={rowButton(section === "pin")}>
-        Change PIN
-        <span aria-hidden style={{ color: "var(--text-dim)" }}>{section === "pin" ? "−" : "+"}</span>
+      <button
+        onClick={() => show("pin")}
+        aria-expanded={section === "pin"}
+        style={{ ...menuButton, ...menuRowStyle(section === "pin") }}
+      >
+        <MenuLabel open={section === "pin"}>Change PIN</MenuLabel>
       </button>
 
       {section === "pin" ? (
-        <div style={{ padding: "12px 14px 14px" }}>
+        <div style={menuBody}>
           <label htmlFor="ts-current" style={label}>
             CURRENT PIN
           </label>

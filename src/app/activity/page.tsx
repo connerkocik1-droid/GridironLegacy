@@ -1,7 +1,5 @@
 import ActivityFeed from "@/components/ActivityFeed";
 import Nav from "@/components/Nav";
-import SubTabBar from "@/components/SubTabBar";
-import { APP_TABS } from "@/lib/app-tabs";
 
 export const metadata = { title: "Moves · Pylon Fantasy" };
 
@@ -11,7 +9,6 @@ export default function ActivityPage() {
       style={{ minHeight: "var(--screen)" }}
     >
       <Nav current="/activity" />
-      <SubTabBar tab={APP_TABS[1]} />
       <div style={{ padding: "24px 26px 40px" }}>
         <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>THE RECORD</div>
         <h1

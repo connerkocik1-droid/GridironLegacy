@@ -22,12 +22,12 @@ export default function SubTabBar({ tab }: { tab: AppTab }) {
       aria-label={tab.label}
       style={{
         display: "flex",
-        gap: 18,
+        gap: 13,
         overflowX: "auto",
         scrollbarWidth: "none",
-        padding: "10px 26px 0",
+        padding: "9px 4px 0",
         backgroundImage:
-          "linear-gradient(90deg,transparent,rgb(var(--accent-rgb) / .22) 40px,rgb(var(--accent-rgb) / .22) calc(100% - 40px),transparent)",
+          "linear-gradient(90deg,transparent,color-mix(in oklch, var(--text) 9%, transparent) 40px,color-mix(in oklch, var(--text) 9%, transparent) calc(100% - 40px),transparent)",
         backgroundSize: "100% 1px",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "bottom",
@@ -48,8 +48,9 @@ export default function SubTabBar({ tab }: { tab: AppTab }) {
               padding: "0 0 10px",
               whiteSpace: "nowrap",
               textDecoration: "none",
-              color: on ? "var(--text)" : "var(--text-quiet)",
-              boxShadow: on ? "inset 0 -2px 0 var(--accent-link)" : "none",
+              transition: "color .15s ease",
+              color: on ? "var(--text)" : "var(--ap-n500)",
+              boxShadow: on ? "inset 0 -2px 0 var(--ap-accent)" : "none",
             }}
           >
             {sub.label}

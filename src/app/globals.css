@@ -216,24 +216,6 @@ a:hover {
     padding-bottom: 0;
   }
 
-  /* Nine destinations with thumb-sized targets wrap to four rows, which is
-     half a phone screen of nav before any football. One row that scrolls
-     instead — and unlike the overflow this replaces, the fade on the right
-     edge says there is more. */
-  .gl-nav {
-    flex-wrap: nowrap !important;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent);
-    mask-image: linear-gradient(90deg, #000 88%, transparent);
-  }
-  .gl-nav::-webkit-scrollbar {
-    display: none;
-  }
-  .gl-nav > div {
-    flex-wrap: nowrap !important;
-    flex: 0 0 auto !important;
-  }
 
   /* A matchup is two teams facing each other, and it stays that way on a
      phone. This used to stack the two sides into a list, which reads as two
@@ -340,20 +322,21 @@ a:hover {
     align-items: center;
   }
 
-  /* The header, given room. Two round controls and a wordmark on a 320px
-     screen is most of the width; the tracking comes in a little and the two
-     controls sit closer together, which is fifteen pixels back without
-     anything getting smaller. */
-  .gl-nav {
-    gap: 10px !important;
-  }
-  /* !important because the wordmark is styled inline, like everything else in
-     this app — a stylesheet does not beat a style attribute. */
+  /* The header card on the smallest phones: the wordmark gives up its
+     tracking before anything else gets smaller, and at 360 and under the
+     score chip's crests go, so mark, score, bell and crest still fit one row.
+     !important because the wordmark and chip are styled inline. */
   .gl-nav .gl-wordmark {
-    letter-spacing: 0.13em !important;
+    letter-spacing: 0.1em !important;
   }
-  .gl-nav .gl-navend {
-    gap: 10px !important;
+}
+
+@media (max-width: 360px) {
+  .gl-score .gl-crest {
+    display: none !important;
+  }
+  .gl-nav .gl-wordmark > span + span {
+    display: none !important;
   }
 
   /* A browser's own checkbox is thirteen pixels square, which on a phone is
@@ -637,9 +620,9 @@ a:hover {
 
 /* The nav is sticky at the top, so without this it sits under the clock. */
 .gl-nav {
-  padding-top: calc(10px + env(safe-area-inset-top)) !important;
-  padding-left: calc(26px + env(safe-area-inset-left)) !important;
-  padding-right: calc(26px + env(safe-area-inset-right)) !important;
+  padding-top: calc(8px + env(safe-area-inset-top)) !important;
+  padding-left: calc(10px + env(safe-area-inset-left)) !important;
+  padding-right: calc(10px + env(safe-area-inset-right)) !important;
 }
 
 /* And the last row of any page clears the home indicator rather than sitting
@@ -1397,6 +1380,69 @@ button[disabled]:active {
     animation: none;
     opacity: 1;
     transform: none;
+  }
+}
+
+
+/* --------------------------------------------------- the three-tab app ---
+   The motion and press states of the redesign (prototype/Pylon App.dc.html).
+   Keyframes live here, never in a style computed per render: re-applying a
+   style attribute restarts its animation, which the week recap learned the
+   hard way. */
+
+@keyframes ap-sheet { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes ap-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ap-flash {
+  0% { opacity: 0; transform: translateY(4px) scale(.8); }
+  14% { opacity: 1; transform: scale(1.12); }
+  70% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes ap-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes ap-pulse { 0%, 100% { opacity: .3; transform: scale(1); } 50% { opacity: 1; transform: scale(1.35); } }
+@keyframes ap-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes ap-drop { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* Rows lift on hover and press in, chips and buttons shrink a touch. */
+.gl-row {
+  transition: background-color .15s ease, transform .12s ease;
+}
+@media (hover: hover) {
+  .gl-row[role="button"]:hover {
+    background-color: color-mix(in oklch, var(--text) 4%, transparent);
+  }
+}
+.gl-row[role="button"]:active {
+  transform: scale(.985);
+  background-color: color-mix(in oklch, var(--ap-accent) 12%, transparent);
+}
+.gl-press {
+  transition: transform .12s ease;
+}
+.gl-press:active {
+  transform: scale(.94);
+}
+
+/* The ticker scrolls, and pauses for a finger or a pointer. */
+.gl-ticker-track {
+  animation: ap-marquee 46s linear infinite;
+}
+.gl-ticker:hover .gl-ticker-track,
+.gl-ticker:active .gl-ticker-track {
+  animation-play-state: paused;
+}
+.gl-pulse {
+  animation: ap-pulse 1.6s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-ticker-track,
+  .gl-pulse {
+    animation: none;
+  }
+  .gl-row,
+  .gl-press {
+    transition: none;
   }
 }
 

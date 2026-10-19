@@ -136,6 +136,38 @@
      twenty-eight files, and so a page that genuinely wants the raw viewport
      can still say so. */
   --screen: 100vh;
+
+  /* ------------------------------------------------------- the design ramp ---
+     The Nocturne ramp the three-tab redesign (prototype/Pylon App.dc.html) is
+     drawn in, one name per step, so the new screens can be ported value for
+     value. Theme-aware, unlike nocturne.css's own --color-* copies, which only
+     ever had dark values: light and sixteen-bit restate these below. */
+  --ap-accent: #9184d9;
+  --ap-a100: #f5f4ff;
+  --ap-a200: #e7e5fe;
+  --ap-a300: #d2cefd;
+  --ap-a400: #b5abfc;
+  --ap-a500: #968ae0;
+  --ap-a600: #796cbf;
+  --ap-a700: #5d5294;
+  --ap-a800: #423a6a;
+  --ap-n200: #e4e7f5;
+  --ap-n300: #cfd3e5;
+  --ap-n400: #b2b6ca;
+  --ap-n500: #9397ab;
+  --ap-n600: #75798c;
+  --ap-n700: #595d6c;
+  --ap-n800: #3f424d;
+  --ap-surface: #232532;
+  --ap-section: #262a60;
+  --ap-section-glow: #353b80;
+  /* The two semantic tones the design writes as literals. */
+  --ap-warn-text: #ffcf9e;
+  --ap-warn-rgb: 245 138 68;
+  --ap-bad-text: #e07a7a;
+  --ap-bad-rgb: 224 122 122;
+  --ap-good-text: #7fd8a8;
+  --ap-claim-text: #e0b573;
 }
 
 @supports (height: 100dvh) {
@@ -217,6 +249,32 @@
 
   /* Pale, because it sits on white. */
   --danger-ground-rgb: 226 176 176;
+
+
+  /* The design ramp, turned over for a pale ground: 100 is the darkest ink. */
+  --ap-accent: #6f61c9;
+  --ap-a100: #2a2266;
+  --ap-a200: #3a3088;
+  --ap-a300: #4d40a8;
+  --ap-a400: #6355c2;
+  --ap-a500: #7c6fd2;
+  --ap-a600: #9a8fe0;
+  --ap-a700: #b9b0ea;
+  --ap-a800: #d8d2f5;
+  --ap-n200: #23252f;
+  --ap-n300: #343747;
+  --ap-n400: #4b4f63;
+  --ap-n500: #5f6378;
+  --ap-n600: #7f8396;
+  --ap-n700: #a9adbd;
+  --ap-n800: #d2d4de;
+  --ap-surface: #ffffff;
+  --ap-section: #e2ddf7;
+  --ap-section-glow: #d3cbf3;
+  --ap-warn-text: #9a4d12;
+  --ap-bad-text: #a33b3b;
+  --ap-good-text: #1f7a55;
+  --ap-claim-text: #8a6314;
 
   /* Deliberately unchanged. A scrim darkens whatever is behind it in any
      theme, and the pick reveal is a cinema: it is lit the same way at noon as
@@ -300,6 +358,26 @@
      globals.css, so the browser fetches them only once this is on. Inter
      stays as the fallback, so a font that fails to load costs the letterforms
      and nothing else. */
+  --ap-accent: #f2c14e;
+  --ap-a100: #fff4cc;
+  --ap-a200: #ffe08a;
+  --ap-a300: #f7cf62;
+  --ap-a400: #f2c14e;
+  --ap-a500: #e0aa2a;
+  --ap-a600: #b8861a;
+  --ap-a700: #7a5a12;
+  --ap-a800: #4a3a12;
+  --ap-n200: #c9d3f5;
+  --ap-n300: #a9b6e6;
+  --ap-n400: #8f9dd2;
+  --ap-n500: #8f9dd2;
+  --ap-n600: #7080b8;
+  --ap-n700: #4f5d92;
+  --ap-n800: #34406e;
+  --ap-surface: #13205c;
+  --ap-section: #0d1a52;
+  --ap-section-glow: #13205c;
+
   --font-heading: "Silkscreen", var(--font-inter), "Inter", ui-monospace, monospace;
   --font-heading-weight: 400;
   --font-body: "Pixelify Sans", var(--font-inter), "Inter", ui-monospace, monospace;

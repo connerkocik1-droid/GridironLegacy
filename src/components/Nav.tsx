@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import CommissionerOnly from "./CommissionerOnly";
-import Notices from "./Notices";
 import ProfileMenu from "./ProfileMenu";
 import HeaderMark from "./HeaderMark";
 import { APP_TABS, appTabFor } from "@/lib/app-tabs";
 import { blip } from "@/lib/retro";
+import { panelMark } from "@/lib/liquid-glass";
+import ScoreChip from "./ScoreChip";
+import SubTabBar from "./SubTabBar";
+import Ticker from "./Ticker";
+import { ink } from "./RowList";
 
 // Three doors, on a desktop too.
 //
@@ -35,39 +39,41 @@ const officeIcon = (
   </svg>
 );
 
-// The liquid-glass treatment from the redesign handoff: a two-stop gradient
-// over a heavy blur, a hairline border, and an inset top highlight — rather
-// than the flat translucent fill this bar used before.
-const bar: React.CSSProperties = {
+// The redesign's header: a sticky strip over the page holding one liquid-glass
+// card — the pylon and wordmark, your live score, the bell and your crest.
+// From prototype/Pylon App.dc.html. The strip is tinted and blurred so rows
+// scrolling under it read as under it rather than through it.
+const strip: React.CSSProperties = {
   position: "sticky",
   top: 0,
   zIndex: 20,
+  padding: "8px 10px 0",
+  background: "linear-gradient(180deg,rgb(var(--bg-rgb) / .92),rgb(var(--bg-rgb) / .78))",
+  backdropFilter: "blur(14px)",
+  WebkitBackdropFilter: "blur(14px)",
+};
+
+const card: React.CSSProperties = {
+  maxWidth: 1100,
+  margin: "0 auto",
   display: "flex",
   alignItems: "center",
-  gap: 14,
-  padding: "10px 26px",
-  border: "1px solid rgb(var(--accent-rgb) / .1)",
-  borderTop: "none",
-  borderLeft: "none",
-  borderRight: "none",
-  background:
-    "linear-gradient(180deg,rgb(var(--accent-rgb) / .09),rgb(var(--bg-rgb) / .86))",
-  backdropFilter: "blur(22px) saturate(160%)",
-  WebkitBackdropFilter: "blur(22px) saturate(160%)",
-  boxShadow: "inset 0 1px 0 rgb(var(--accent-rgb) / .14)",
-  flexWrap: "wrap",
-  rowGap: 6,
+  gap: 8,
+  padding: "6px 8px",
+  borderRadius: 6,
+  background: `linear-gradient(180deg,${ink(7)},${ink(2)})`,
+  backdropFilter: "blur(24px) saturate(170%)",
+  WebkitBackdropFilter: "blur(24px) saturate(170%)",
+  border: `1px solid ${ink(9)}`,
+  boxShadow: `inset 0 1px 0 ${ink(12)}, 0 6px 18px rgb(var(--shadow-rgb) / .35)`,
+  ...panelMark,
 };
 
 const primaryLink = (active: boolean): React.CSSProperties => ({
-  background: active ? "rgb(var(--accent-rgb) / .28)" : undefined,
-  border: active ? "1px solid rgb(var(--accent-bright-rgb) / .6)" : undefined,
-  borderRadius: active ? "var(--radius-sm)" : undefined,
-  color: active ? "var(--text)" : "var(--text-quiet)",
-  fontSize: 11,
-  letterSpacing: ".14em",
-  textTransform: "uppercase",
-  padding: "8px 12px",
+  color: active ? "var(--text)" : "var(--ap-n500)",
+  boxShadow: active ? "inset 0 -2px 0 var(--ap-accent)" : undefined,
+  fontSize: 12,
+  padding: "8px 8px",
   whiteSpace: "nowrap",
   flex: "0 0 auto",
   textDecoration: "none",
@@ -95,16 +101,15 @@ export default function Nav({ current }: { current?: string }) {
   const active = appTabFor(pathname);
 
   return (
-    // data-panel="bar": in sixteen-bit mode the header is a full-width bar
-    // with a gold bottom edge, the tab bar's mirror image.
-    <div className="gl-nav" data-panel="bar" style={bar}>
+    <div className="gl-nav" style={strip}>
+     <div className="gl-navcard" style={card}>
       <HeaderMark />
 
       {/* Hidden on a phone, where the same three sit in a bar at the bottom
           within a thumb's reach. */}
       <div
         className="gl-navlinks"
-        style={{ display: "flex", gap: 2, marginLeft: 6, flexWrap: "wrap", rowGap: 4 }}
+        style={{ display: "flex", gap: 2, marginLeft: 10, flexWrap: "wrap", rowGap: 4 }}
       >
         {APP_TABS.map((tab) => (
           <Link
@@ -131,13 +136,14 @@ export default function Nav({ current }: { current?: string }) {
         </CommissionerOnly>
       </div>
 
+      <ScoreChip />
+
       <div
         className="gl-navend"
         style={{
-          marginLeft: "auto",
           display: "flex",
           alignItems: "center",
-          gap: 14,
+          gap: 4,
           fontSize: 10,
           letterSpacing: ".16em",
           textTransform: "uppercase",
@@ -146,9 +152,21 @@ export default function Nav({ current }: { current?: string }) {
           flex: "0 0 auto",
         }}
       >
-        <Notices />
         <ProfileMenu />
       </div>
+     </div>
+
+      {/* The tab's ticker and its sub-tabs, under the card and sticking with
+          it, so every screen in a tab carries the same strip without each page
+          having to remember to draw it. */}
+      {active ? (
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          {active.id === "league" || active.id === "gm" ? <Ticker kind={active.id} /> : null}
+          <SubTabBar tab={active} />
+        </div>
+      ) : (
+        <div style={{ height: 8 }} />
+      )}
     </div>
   );
 }

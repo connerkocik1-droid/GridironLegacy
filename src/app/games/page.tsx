@@ -1,7 +1,5 @@
 import GamesBoard from "@/components/GamesBoard";
 import Nav from "@/components/Nav";
-import SubTabBar from "@/components/SubTabBar";
-import { APP_TABS } from "@/lib/app-tabs";
 
 export const metadata = { title: "NFL Gamecast · Pylon Fantasy" };
 
@@ -21,7 +19,6 @@ export default function GamesPage() {
       }}
     >
       <Nav current="/games" />
-      <SubTabBar tab={APP_TABS[0]} />
       <GamesBoard />
     </div>
   );
