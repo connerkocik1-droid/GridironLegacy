@@ -5,6 +5,7 @@ import TeamCrest from "./TeamCrest";
 import LiveNumber from "./LiveNumber";
 import WinProbability from "./WinProbability";
 import { recordText } from "@/lib/record";
+import { glassPanel, glassPanelAccent } from "@/lib/liquid-glass";
 
 /**
  * One fixture, as a card you press.
@@ -192,10 +193,9 @@ export default function MatchupCard({
         display: "block",
         textDecoration: "none",
         color: "inherit",
-        border: `1px solid ${highlight ? "rgb(var(--accent-bright-rgb) / .5)" : "rgb(var(--accent-rgb) / .2)"}`,
         borderRadius: "var(--radius-md)",
-        background: highlight ? "rgb(var(--accent-rgb) / .1)" : "rgb(var(--surface-rgb) / .55)",
         padding: "11px 14px 14px",
+        ...(highlight ? glassPanelAccent : glassPanel),
         // A card is a thumb target, not a paragraph with a link in it.
         WebkitTapHighlightColor: "transparent",
       }}

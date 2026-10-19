@@ -6,6 +6,7 @@ import NewsWire from "./NewsWire";
 import { player as pooled } from "@/lib/roster";
 import PlayerName from "./PlayerName";
 import type { Story } from "@/lib/news";
+import { glassPanel } from "@/lib/liquid-glass";
 
 /**
  * The players you are keeping an eye on.
@@ -28,10 +29,9 @@ interface Watched {
 }
 
 const card: React.CSSProperties = {
-  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgb(var(--surface-rgb) / .55)",
   overflow: "hidden",
+  ...glassPanel,
 };
 
 const label: React.CSSProperties = {

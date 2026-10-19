@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Inter } from "next/font/google";
 import { currentManager } from "@/lib/session";
 import AddToHomeScreen from "@/components/AddToHomeScreen";
+import AmbientGlow from "@/components/AmbientGlow";
 import LaunchScreen from "@/components/LaunchScreen";
 import OfflineBar from "@/components/OfflineBar";
 import PullToRefresh from "@/components/PullToRefresh";
@@ -185,7 +186,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         ))}
       </head>
       <body>
-        {/* First in the body, so it is the first thing painted and there is no
+        {/* The three blurred glows every liquid-glass panel sits over.
+            First in the body (so later siblings paint over it in normal
+            flow) and fixed, so it never scrolls or re-mounts with the
+            route. Pages that have adopted the glass look drop their own
+            single-glow background and let this show through; pages that
+            have not keep their own opaque background on top of it,
+            unchanged. */}
+        <AmbientGlow />
+        {/* Next, so it is still painted before anything else and there is no
             frame of empty page between the OS splash and this. */}
         <LaunchScreen />
         {/* Above the page rather than inside it, because the gesture belongs

@@ -5,6 +5,7 @@ import PresenceDot from "./PresenceDot";
 import { useState } from "react";
 import type { PowerRow } from "@/lib/home-types";
 import { recordText } from "@/lib/record";
+import { glassPanel, rankNumeral } from "@/lib/liquid-glass";
 
 /**
  * Who is actually good, and who is moving.
@@ -30,10 +31,9 @@ export default function PowerRank({ power }: { power: PowerRow[] }) {
   return (
     <div
       style={{
-        border: "1px solid rgb(var(--accent-rgb) / .22)",
         borderRadius: "var(--radius-lg)",
-        background: "rgb(var(--surface-rgb) / .55)",
         overflow: "hidden",
+        ...glassPanel,
       }}
     >
       {shown.map((t, i) => (
@@ -54,12 +54,10 @@ export default function PowerRank({ power }: { power: PowerRow[] }) {
         >
           <span
             style={{
-              width: 16,
+              width: 18,
               flex: "0 0 auto",
-              fontFamily: "var(--font-heading)",
-              fontSize: 12,
-              color: "var(--text-dim)",
-              fontVariantNumeric: "tabular-nums",
+              fontSize: 15,
+              ...rankNumeral(i < 3),
             }}
           >
             {t.rank}
