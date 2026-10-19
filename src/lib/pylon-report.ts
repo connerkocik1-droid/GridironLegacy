@@ -1,283 +1,92 @@
 /**
- * The Pylon Report: a week's college and NFL rankings, pasted in whole.
+ * The Pylon Report: the commissioner's own college and NFL rankings.
  *
- * Built around what the commissioner actually has in front of him rather than
- * a format invented here. That turns out to be two documents:
- *
- * A spreadsheet, two boards side by side — a rank, a team and a record per
- * column pair. College runs to twenty-five and the NFL to thirty-two, which is
- * every club in the league; anything pasted past those is taken as an
- * honourable mention, the way the first version of this board worked when it
- * ran fifteen deep with five behind it. Nothing is labelled as such in the
- * sheet: a mention is simply a row past the end of the ranking.
- *
- * And a write-up, one paragraph per team: "Baltimore Ravens - Lamar Jackson
- * looked great…", in ranking order.
- *
- * So the two are pasted separately and joined here on the team's name. The
- * joining is the part that needs care: the sheet says "Cincinatti Bengals" and
- * the write-up says "Cincinnati Bengals", and a join that silently drops the
- * difference loses a breakdown without saying so. Names are matched on a
- * forgiving key, and whatever is left over is handed back so the office can
- * show it rather than swallow it.
+ * Not computed from anything — this league's report is his opinion, written
+ * down. The commissioner maintains each board directly (reorder, edit a
+ * record, add or drop a team) in the office, and what is on screen when he
+ * publishes is what goes out. There is no paste-and-parse step any more: the
+ * board he's editing already is the board, so publishing is just saving its
+ * current order.
  */
 
 export type Board = "college" | "nfl";
 
 /**
- * How deep each board's ranking runs, past which a row is an honourable
- * mention.
- *
- * Per board rather than one number for both, because the two are not the same
- * size and never were the same thing: thirty-two is every club in the NFL, so
- * that board cannot have a mention at all, while a college top twenty-five is
- * a choice out of a hundred and thirty and may well have some behind it.
+ * How deep each board runs. Per board rather than one number for both,
+ * because the two are not the same size and never were the same thing:
+ * thirty-two is every club in the NFL, and a college top twenty-five is a
+ * choice out of a hundred and thirty.
  */
 export const RANKED: Record<Board, number> = { college: 25, nfl: 32 };
 
-/** Past this a row is not a rank, it is a stray number in the paste. */
-const MAX_RANK = 60;
+/**
+ * All thirty-two, for seeding the NFL board the first time it's edited.
+ * Unlike the college board — a choice out of a hundred and thirty, built one
+ * add at a time — there is no "add a team" for the NFL: every club is
+ * already a club, so the list starts with all of them rather than empty.
+ */
+export const NFL_TEAMS: readonly string[] = [
+  "Arizona Cardinals",
+  "Atlanta Falcons",
+  "Baltimore Ravens",
+  "Buffalo Bills",
+  "Carolina Panthers",
+  "Chicago Bears",
+  "Cincinnati Bengals",
+  "Cleveland Browns",
+  "Dallas Cowboys",
+  "Denver Broncos",
+  "Detroit Lions",
+  "Green Bay Packers",
+  "Houston Texans",
+  "Indianapolis Colts",
+  "Jacksonville Jaguars",
+  "Kansas City Chiefs",
+  "Las Vegas Raiders",
+  "Los Angeles Chargers",
+  "Los Angeles Rams",
+  "Miami Dolphins",
+  "Minnesota Vikings",
+  "New England Patriots",
+  "New Orleans Saints",
+  "New York Giants",
+  "New York Jets",
+  "Philadelphia Eagles",
+  "Pittsburgh Steelers",
+  "San Francisco 49ers",
+  "Seattle Seahawks",
+  "Tampa Bay Buccaneers",
+  "Tennessee Titans",
+  "Washington Commanders",
+];
 
 export interface Entry {
   rank: number;
   team: string;
-  /** "2-0". Empty when the sheet did not have one, or mangled it. */
+  /** "2-0". Empty when there isn't one yet. */
   record: string;
-  /** The write-up. Empty until the breakdowns are pasted in. */
-  note: string;
 }
 
 export interface BoardReport {
-  /** The ranking proper — 1 to 25 for college, 1 to 32 for the NFL. */
+  /** The ranking, in order. Rank is implied by position, not stored twice. */
   ranked: Entry[];
-  /** Anything pasted past the end of the ranking, in order. */
+  /**
+   * Kept for reports published before the board became a maintained list
+   * rather than a weekly paste — a season's worth of history still has rows
+   * here. Nothing publishes into it any more.
+   */
   honorable: Entry[];
 }
-
-export interface ParsedReport {
-  college: BoardReport;
-  nfl: BoardReport;
-  /** Grid lines that carried no readable rank. */
-  ignored: string[];
-}
-
-const EMPTY = (): BoardReport => ({ ranked: [], honorable: [] });
-
-/**
- * A record, or nothing.
- *
- * Excel reads "2-0" as the second of October and hands back a date serial, so
- * a column of records arrives as "2-0", "1-0" and "46023" in the same paste.
- * A number that large is not a record and printing it would be worse than
- * printing nothing, so anything that is not two or three numbers joined by
- * dashes is dropped.
- */
-export function readRecord(cell: string): string {
-  const t = (cell ?? "").trim();
-  return /^\d{1,2}-\d{1,2}(-\d{1,2})?$/.test(t) ? t : "";
-}
-
-/** Split a pasted row into cells: tabs first, then runs of spaces. */
-function cellsOf(line: string): string[] {
-  const parts = line.includes("\t") ? line.split("\t") : line.split(/\s{2,}|\s*\|\s*/);
-  return parts.map((c) => c.trim());
-}
-
-/** Which board a header cell names, or null. */
-function boardOf(cell: string): Board | null {
-  const t = cell.toLowerCase();
-  if (t.includes("college") || /\bcfb\b/.test(t) || /\bncaa\b/.test(t)) return "college";
-  if (/\bnfl\b/.test(t) || t.includes("pro football")) return "nfl";
-  return null;
-}
-
-/**
- * Read the rankings grid.
- *
- * A row is a rank followed by pairs of team and record. Two pairs is the sheet
- * as it is kept — college then NFL — and one pair is a single board, which is
- * what a paste of half the sheet looks like. A header row naming the boards is
- * read when it is there rather than assumed, because the order is the
- * commissioner's to change.
- */
-export function parseRankings(text: string): ParsedReport {
-  const college = EMPTY();
-  const nfl = EMPTY();
-  const ignored: string[] = [];
-
-  // Which board each column pair belongs to. The sheet's own order unless a
-  // header says otherwise.
-  let order: Board[] = ["college", "nfl"];
-
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line) continue;
-
-    const cells = cellsOf(line);
-    const named = cells.map(boardOf).filter((b): b is Board => b != null);
-
-    // A header row: no rank on it, and it names at least one board.
-    if (named.length && !/^\d/.test(cells[0] ?? "")) {
-      order = named.length === 1 ? [named[0]] : named;
-      continue;
-    }
-
-    // Excel writes a whole-number cell as "1.0". The rank is the integer.
-    const rank = Number((cells[0] ?? "").replace(/\.0+$/, ""));
-    if (!Number.isInteger(rank) || rank < 1 || rank > MAX_RANK) {
-      ignored.push(line);
-      continue;
-    }
-
-    // Everything after the rank, in pairs. A trailing team with no record is
-    // still a team: the last column is often left empty.
-    const rest = cells.slice(1);
-    for (let pair = 0; pair * 2 < rest.length; pair++) {
-      const team = (rest[pair * 2] ?? "").trim();
-      if (!team) continue;
-
-      const board = order[pair] ?? (pair === 0 ? "college" : "nfl");
-      const into = board === "college" ? college : nfl;
-      const entry: Entry = {
-        rank,
-        team,
-        record: readRecord(rest[pair * 2 + 1] ?? ""),
-        note: "",
-      };
-      (rank <= RANKED[board] ? into.ranked : into.honorable).push(entry);
-    }
-  }
-
-  for (const b of [college, nfl]) {
-    b.ranked.sort((a, z) => a.rank - z.rank);
-    b.honorable.sort((a, z) => a.rank - z.rank);
-  }
-
-  return { college, nfl, ignored };
-}
-
-// ------------------------------------------------------------ the write-up ---
-
-export interface Breakdown {
-  team: string;
-  note: string;
-}
-
-/**
- * Read the write-up: one paragraph per team, "Team - what happened".
- *
- * A heading — a short line with no separator in it — switches board when it
- * names one, and is otherwise skipped. A paragraph that wraps belongs to the
- * team above it.
- */
-export function parseBreakdowns(text: string): { college: Breakdown[]; nfl: Breakdown[] } {
-  const out = { college: [] as Breakdown[], nfl: [] as Breakdown[] };
-  let board: Board = "nfl";
-  let named = false;
-  let last: Breakdown | null = null;
-
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line) {
-      last = null;
-      continue;
-    }
-
-    const split = splitNamed(line);
-
-    if (!split) {
-      const heading = boardOf(line);
-      if (heading) {
-        board = heading;
-        named = true;
-        last = null;
-        continue;
-      }
-      // Not a heading and not a new team: the rest of the last paragraph.
-      if (last) last.note = `${last.note} ${line}`.trim();
-      continue;
-    }
-
-    // A line that names a board and a team both — "NFL Post Week 1 Report" has
-    // no separator so it never gets here, but "NFL - week one" would.
-    const heading = boardOf(split.team);
-    if (heading && !split.note.includes(" ")) {
-      board = heading;
-      named = true;
-      last = null;
-      continue;
-    }
-
-    last = { team: split.team, note: split.note };
-    out[board].push(last);
-  }
-
-  // A write-up with no heading at all is one board's. Which one is the
-  // caller's to say — it knows which box was pasted into.
-  if (!named && out.nfl.length && !out.college.length) return out;
-  return out;
-}
-
-/**
- * Split "Baltimore Ravens - Lamar Jackson looked great" into the two.
- *
- * The separator is an em or en dash, or a hyphen, with spaces around it. A
- * hyphen without spaces stays in the name: Ole Miss is not "Ole", and neither
- * is a record of 2-0 a breakdown.
- */
-function splitNamed(line: string): { team: string; note: string } | null {
-  const at = line.search(/\s+[—–-]\s+|:\s+/);
-  if (at < 0) return null;
-
-  const sep = line.slice(at).match(/^(\s+[—–-]\s+|:\s+)/);
-  const team = line.slice(0, at).trim();
-  const note = line.slice(at + (sep?.[0].length ?? 0)).trim();
-
-  // A team's name is a few words. A whole sentence before the dash is prose
-  // that happens to contain one.
-  if (!team || !note || team.split(/\s+/).length > 6) return null;
-  return { team, note };
-}
-
-// --------------------------------------------------------------- the join ---
 
 /**
  * A team name as it survives being retyped.
  *
- * Case, spacing and punctuation go. What is left is enough to join a sheet to
- * a write-up typed on a different day, and not enough to join two teams that
- * are actually different — "Cincinatti" and "Cincinnati" stay apart, and the
- * office says so rather than this pretending to know what was meant.
+ * Case, spacing and punctuation go. What is left is enough to recognise the
+ * same team across two different weeks' spelling of it, and not enough to
+ * pretend two actually-different teams are the same one.
  */
 export const keyOf = (team: string) =>
   team.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-
-/**
- * Put the write-ups onto the ranking, and say which ones found nobody.
- *
- * Unmatched names are the whole reason this returns anything but a report: a
- * breakdown that quietly fails to land is a paragraph the commissioner wrote
- * and nobody reads.
- */
-export function joinBreakdowns(
-  board: BoardReport,
-  breakdowns: Breakdown[],
-): { board: BoardReport; unmatched: string[] } {
-  const byKey = new Map(breakdowns.map((b) => [keyOf(b.team), b]));
-  const used = new Set<string>();
-
-  const place = (e: Entry): Entry => {
-    const found = byKey.get(keyOf(e.team));
-    if (!found) return e;
-    used.add(keyOf(e.team));
-    return { ...e, note: found.note };
-  };
-
-  return {
-    board: { ranked: board.ranked.map(place), honorable: board.honorable.map(place) },
-    unmatched: breakdowns.filter((b) => !used.has(keyOf(b.team))).map((b) => b.team),
-  };
-}
 
 // ------------------------------------------------------------- the arrows ---
 
@@ -323,12 +132,79 @@ export function moveLabel(move: Move | undefined): string {
   return `${move.kind === "up" ? "Up" : "Down"} ${move.places} ${move.places === 1 ? "place" : "places"}`;
 }
 
-/** What a paste amounts to, for the preview before it is published. */
-export function summarise(report: ParsedReport, unmatched: string[] = []): string {
-  const part = (label: string, b: BoardReport) =>
-    `${label} ${b.ranked.length}+${b.honorable.length}`;
-  const bits = [part("College", report.college), part("NFL", report.nfl)];
-  if (report.ignored.length) bits.push(`${report.ignored.length} unread`);
-  if (unmatched.length) bits.push(`${unmatched.length} write-ups unmatched`);
-  return bits.join(" · ");
+// -------------------------------------------------------- the national polls ---
+
+/**
+ * College only: the three polls everybody else goes by, alongside the
+ * commissioner's own ranking rather than in place of it. These still arrive
+ * as a paste — they're somebody else's publication, not a list he's
+ * maintaining — a rank shared down the row, a team per poll.
+ */
+export type PollKey = "ap" | "coaches" | "cfp";
+export interface PollEntry {
+  rank: number;
+  team: string;
+}
+export type Polls = Record<PollKey, PollEntry[]>;
+
+const EMPTY_POLLS = (): Polls => ({ ap: [], coaches: [], cfp: [] });
+
+/** Past this a row is not a rank. The polls never run deeper than 25. */
+const MAX_POLL_RANK = 25;
+
+/** Split a pasted row into cells: tabs first, then runs of spaces. */
+export function cellsOf(line: string): string[] {
+  const parts = line.includes("\t") ? line.split("\t") : line.split(/\s{2,}|\s*\|\s*/);
+  return parts.map((c) => c.trim());
+}
+
+/** Which poll a header cell names, or null. */
+function pollOf(cell: string): PollKey | null {
+  const t = cell.toLowerCase();
+  if (/\bap\b/.test(t)) return "ap";
+  if (/coach/.test(t)) return "coaches";
+  if (/\bcfp\b/.test(t) || /playoff/.test(t)) return "cfp";
+  return null;
+}
+
+/**
+ * Read the polls grid: a rank, then one team per poll. The sheet's own column
+ * order unless a header names it — the order is the commissioner's to
+ * change, not this file's to assume.
+ */
+export function parsePolls(text: string): { polls: Polls; ignored: string[] } {
+  const polls = EMPTY_POLLS();
+  const ignored: string[] = [];
+  let order: PollKey[] = ["ap", "coaches", "cfp"];
+
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    const cells = cellsOf(line);
+    const named = cells.map(pollOf).filter((p): p is PollKey => p != null);
+
+    if (named.length && !/^\d/.test(cells[0] ?? "")) {
+      order = named;
+      continue;
+    }
+
+    const rank = Number((cells[0] ?? "").replace(/\.0+$/, ""));
+    if (!Number.isInteger(rank) || rank < 1 || rank > MAX_POLL_RANK) {
+      ignored.push(line);
+      continue;
+    }
+
+    cells.slice(1).forEach((cell, i) => {
+      const team = cell.trim();
+      const key = order[i];
+      if (team && key) polls[key].push({ rank, team });
+    });
+  }
+
+  for (const key of Object.keys(polls) as PollKey[]) {
+    polls[key].sort((a, z) => a.rank - z.rank);
+  }
+
+  return { polls, ignored };
 }

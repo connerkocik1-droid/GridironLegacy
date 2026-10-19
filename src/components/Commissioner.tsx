@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
 import ReportDesk from "./ReportDesk";
+import DraftBoardDesk from "./DraftBoardDesk";
 import DraftSettings from "./DraftSettings";
 import { readPickClock, type ClockTier } from "@/lib/draft-clock";
 import { useNavHeight } from "@/lib/use-nav-height";
@@ -966,6 +967,7 @@ export default function Commissioner() {
       </div>
 
       <ReportDesk week={admin.season?.week ?? null} onPublished={() => void load()} />
+      <DraftBoardDesk week={admin.season?.week ?? null} onPublished={() => void load()} />
 
       <div id="office-franchises" style={card}>
         <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>Franchises and divisions</h6>

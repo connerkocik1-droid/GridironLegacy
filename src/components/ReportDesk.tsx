@@ -1,26 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  joinBreakdowns,
-  parseBreakdowns,
-  parseRankings,
-  summarise,
-  type BoardReport,
-} from "@/lib/pylon-report";
+import { useEffect, useMemo, useState } from "react";
+import { parsePolls, NFL_TEAMS, RANKED, type BoardReport, type Entry } from "@/lib/pylon-report";
+import { DragHandleProps, GripHandle, SortableList } from "./SortableList";
 
 /**
- * Where the week's Pylon Report is pasted in.
+ * Where the week's Pylon Report is maintained.
  *
- * Two boxes because the commissioner has two documents: a spreadsheet of ranks
- * and a write-up of paragraphs. Asking for them to be merged by hand first
- * would be asking somebody to do a join a computer is better at.
+ * Not a paste any more. Each board is a list the commissioner reorders by
+ * dragging, edits a record on, and adds a team to or drops one from — the
+ * list he's editing already is the board, so there is nothing to parse and
+ * nothing to preview before publishing. Publishing is just saving the order
+ * on screen.
  *
- * Everything is parsed here, in front of him, before anything is published.
- * That is the whole design: a paste either shows fifteen teams with their
- * write-ups attached, or it says which line it could not read and which
- * paragraph found nobody — and the second of those is the one that matters,
- * because a breakdown that silently fails to land is writing nobody reads.
+ * The NFL starts with all thirty-two clubs the first time this loads, since
+ * there is no "add a team" for a league that already has every one of them.
+ * College starts from whatever was last published, or empty the very first
+ * time — built up one add at a time.
  */
 export default function ReportDesk({
   week,
@@ -31,28 +27,56 @@ export default function ReportDesk({
   onPublished?: () => void;
 }) {
   const [forWeek, setForWeek] = useState<string>(week == null ? "1" : String(week));
-  const [grid, setGrid] = useState("");
-  const [writeUp, setWriteUp] = useState("");
+  const [college, setCollege] = useState<Entry[]>([]);
+  const [nfl, setNfl] = useState<Entry[]>([]);
+  const [pollsGrid, setPollsGrid] = useState("");
+  const [newTeam, setNewTeam] = useState("");
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const parsed = useMemo(() => {
-    const rankings = parseRankings(grid);
-    const notes = parseBreakdowns(writeUp);
-
-    const college = joinBreakdowns(rankings.college, notes.college);
-    const nfl = joinBreakdowns(rankings.nfl, notes.nfl);
-
-    return {
-      rankings,
-      college: college.board,
-      nfl: nfl.board,
-      unmatched: [...college.unmatched, ...nfl.unmatched],
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/report", { cache: "no-store" });
+        const body = res.ok ? await res.json().catch(() => ({})) : {};
+        if (!live) return;
+        const report = body.report as { college?: BoardReport; nfl?: BoardReport } | null;
+        setCollege(report?.college?.ranked ?? []);
+        setNfl(report?.nfl?.ranked?.length ? report.nfl.ranked : seedNfl());
+      } catch {
+        if (live) setNfl(seedNfl());
+      } finally {
+        if (live) setLoading(false);
+      }
+    })();
+    return () => {
+      live = false;
     };
-  }, [grid, writeUp]);
+  }, []);
 
-  const anything = parsed.college.ranked.length > 0 || parsed.nfl.ranked.length > 0;
+  const polls = useMemo(() => parsePolls(pollsGrid), [pollsGrid]);
+
+  const anything = college.length > 0 || nfl.length > 0;
+
+  function setRecord(board: "college" | "nfl", key: string, record: string) {
+    const setter = board === "college" ? setCollege : setNfl;
+    setter((list) => list.map((e) => (keyFor(e) === key ? { ...e, record } : e)));
+  }
+
+  function removeRow(board: "college" | "nfl", key: string) {
+    const setter = board === "college" ? setCollege : setNfl;
+    setter((list) => reranked(list.filter((e) => keyFor(e) !== key)));
+  }
+
+  function addTeam() {
+    const team = newTeam.trim();
+    if (!team || college.length >= RANKED.college) return;
+    setCollege((list) => [...list, { rank: list.length + 1, team, record: "" }]);
+    setNewTeam("");
+  }
 
   async function publish(remove = false) {
     if (busy) return;
@@ -67,7 +91,11 @@ export default function ReportDesk({
         body: JSON.stringify(
           remove
             ? { week: Number(forWeek), remove: true }
-            : { week: Number(forWeek), college: parsed.college, nfl: parsed.nfl },
+            : {
+                week: Number(forWeek),
+                college: { ranked: reranked(college), honorable: [], polls: polls.polls },
+                nfl: { ranked: reranked(nfl), honorable: [] },
+              },
         ),
       });
       const body = await res.json().catch(() => ({}));
@@ -76,12 +104,8 @@ export default function ReportDesk({
         setNotice(
           remove
             ? `Week ${forWeek} is down.`
-            : `Week ${forWeek} is up. Everybody sees it on the home page.`,
+            : `Week ${forWeek} is up. Everybody sees it on the home page and the Pylon Report page.`,
         );
-        if (!remove) {
-          setGrid("");
-          setWriteUp("");
-        }
         onPublished?.();
       }
     } finally {
@@ -89,16 +113,22 @@ export default function ReportDesk({
     }
   }
 
+  if (loading) {
+    return (
+      <div id="office-report" style={card}>
+        <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>The Pylon Report</h6>
+        <div style={{ fontSize: 12, color: "var(--text-dim)" }}>Loading last week&apos;s boards…</div>
+      </div>
+    );
+  }
+
   return (
     <div id="office-report" style={card}>
       <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>The Pylon Report</h6>
       <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
-        Paste the rankings sheet into the first box and the write-up into the
-        second. The sheet can be both boards side by side, the way it is kept —
-        a rank, a team and a record per column pair. College runs to
-        twenty-five and the NFL to thirty-two; anything past that is taken as
-        an honourable mention. Nothing is published until you press the button,
-        and what it would publish is shown underneath.
+        Drag a row to reorder it, type into a record to update it. College
+        can have a team added or dropped; the NFL already has all thirty-two.
+        Nothing changes for anybody else until you publish.
       </p>
 
       <label style={label}>
@@ -112,66 +142,62 @@ export default function ReportDesk({
         />
       </label>
 
-      <label style={{ ...label, display: "block", marginTop: 12 }}>
-        Rankings
-        <textarea
-          value={grid}
-          onChange={(e) => setGrid(e.target.value)}
-          rows={6}
-          spellCheck={false}
-          placeholder={"College Football\t\t\tNFL\n1\tGeorgia\t2-0\tSan Francisco 49ers\t1-0"}
-          style={area}
-        />
-      </label>
+      <BoardEditor
+        title={`College (${college.length})`}
+        list={college}
+        onReorder={setCollege}
+        onRecordChange={(key, record) => setRecord("college", key, record)}
+        onRemove={(key) => removeRow("college", key)}
+      />
 
-      <label style={{ ...label, display: "block", marginTop: 10 }}>
-        Write-up
-        <textarea
-          value={writeUp}
-          onChange={(e) => setWriteUp(e.target.value)}
-          rows={6}
-          spellCheck={false}
-          placeholder={"NFL\nSan Francisco 49ers - Kyle Shanahan is still Kyle Shanahan…"}
-          style={area}
-        />
-      </label>
-
-      {grid || writeUp ? (
-        <div
-          data-preview="report"
-          style={{
-            marginTop: 12,
-            padding: "10px 12px",
-            borderRadius: "var(--radius-sm)",
-            border: "1px solid rgb(var(--accent-rgb) / .2)",
-            background: "rgb(var(--sunken-rgb) / .5)",
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <input
+          value={newTeam}
+          onChange={(e) => setNewTeam(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addTeam();
+            }
           }}
+          disabled={college.length >= RANKED.college}
+          placeholder={college.length >= RANKED.college ? "Top 25 is full — drop one first" : "Add a team…"}
+          style={{ ...numberField, width: "auto", flex: 1 }}
+        />
+        <button
+          onClick={addTeam}
+          disabled={!newTeam.trim() || college.length >= RANKED.college}
+          style={action(!!newTeam.trim() && college.length < RANKED.college)}
         >
-          <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
-            {summarise(parsed.rankings, parsed.unmatched)}
-          </div>
+          Add
+        </button>
+      </div>
 
-          {/* The two ways a paste goes wrong, both said out loud. A line
-              nobody could read is a team missing from the board; a write-up
-              that matched nobody is a paragraph nobody will see. */}
-          {parsed.unmatched.length ? (
-            <div style={{ ...trouble, marginTop: 8 }}>
-              {`No team on the board is called: ${parsed.unmatched.join(", ")}. ` +
-                "Check the spelling against the sheet."}
-            </div>
-          ) : null}
+      <div style={{ marginTop: 18 }}>
+        <BoardEditor
+          title={`NFL (${nfl.length})`}
+          list={nfl}
+          onReorder={setNfl}
+          onRecordChange={(key, record) => setRecord("nfl", key, record)}
+          onRemove={(key) => removeRow("nfl", key)}
+        />
+      </div>
 
-          {parsed.rankings.ignored.length ? (
-            <div style={{ ...trouble, marginTop: 8 }}>
-              {`Could not read: ${parsed.rankings.ignored.slice(0, 3).join(" · ")}` +
-                (parsed.rankings.ignored.length > 3
-                  ? ` and ${parsed.rankings.ignored.length - 3} more`
-                  : "")}
-            </div>
-          ) : null}
-
-          <Preview label="College" board={parsed.college} />
-          <Preview label="NFL" board={parsed.nfl} />
+      <label style={{ ...label, display: "block", marginTop: 16 }}>
+        National polls (AP / Coaches / CFP, college only)
+        <textarea
+          value={pollsGrid}
+          onChange={(e) => setPollsGrid(e.target.value)}
+          rows={4}
+          spellCheck={false}
+          placeholder={"AP\tCoaches\tCFP\n1\tOhio State\tOhio State\tGeorgia"}
+          style={area}
+        />
+      </label>
+      {polls.ignored.length ? (
+        <div style={{ ...trouble, marginTop: 6 }}>
+          {`Could not read: ${polls.ignored.slice(0, 3).join(" · ")}` +
+            (polls.ignored.length > 3 ? ` and ${polls.ignored.length - 3} more` : "")}
         </div>
       ) : null}
 
@@ -192,25 +218,136 @@ export default function ReportDesk({
   );
 }
 
-/** What one board would look like: the ranks, and how many carry a write-up. */
-function Preview({ label, board }: { label: string; board: BoardReport }) {
-  if (!board.ranked.length && !board.honorable.length) return null;
+const keyFor = (e: Entry) => `${e.team}-${e.rank}`;
 
-  const withNotes = board.ranked.filter((e) => e.note).length;
+/** Renumber a list 1..n after a reorder, an add, or a remove. */
+function reranked(list: Entry[]): Entry[] {
+  return list.map((e, i) => ({ ...e, rank: i + 1 }));
+}
 
+function seedNfl(): Entry[] {
+  return NFL_TEAMS.map((team, i) => ({ rank: i + 1, team, record: "" }));
+}
+
+function BoardEditor({
+  title,
+  list,
+  onReorder,
+  onRecordChange,
+  onRemove,
+}: {
+  title: string;
+  list: Entry[];
+  onReorder: (next: Entry[]) => void;
+  onRecordChange: (key: string, record: string) => void;
+  onRemove: (key: string) => void;
+}) {
   return (
-    <div style={{ marginTop: 10 }}>
-      <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)" }}>
-        {`${label.toUpperCase()} · ${withNotes} of ${board.ranked.length} WITH A WRITE-UP`}
+    <div>
+      <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)", margin: "12px 0 6px" }}>
+        {title.toUpperCase()}
       </div>
-      <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 5, lineHeight: 1.6 }}>
-        {board.ranked.map((e) => `${e.rank}. ${e.team}`).join("  ")}
-      </div>
-      {board.honorable.length ? (
-        <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 4 }}>
-          {`HM: ${board.honorable.map((e) => e.team).join(", ")}`}
+      {list.length === 0 ? (
+        <div style={{ fontSize: 12, color: "var(--text-faint)" }}>Nothing yet.</div>
+      ) : (
+        <div
+          style={{
+            border: "1px solid rgb(var(--accent-rgb) / .2)",
+            borderRadius: "var(--radius-sm)",
+            overflow: "hidden",
+          }}
+        >
+          <SortableList
+            items={list}
+            getId={keyFor}
+            onReorder={(next) => onReorder(reranked(next))}
+            renderRow={(entry, i, handle) => (
+              <Row
+                entry={entry}
+                index={i}
+                handle={handle}
+                onRecordChange={(record) => onRecordChange(keyFor(entry), record)}
+                onRemove={() => onRemove(keyFor(entry))}
+              />
+            )}
+          />
         </div>
-      ) : null}
+      )}
+    </div>
+  );
+}
+
+function Row({
+  entry,
+  index,
+  handle,
+  onRecordChange,
+  onRemove,
+}: {
+  entry: Entry;
+  index: number;
+  handle: DragHandleProps;
+  onRecordChange: (record: string) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 9,
+        padding: "8px 10px",
+        borderTop: index === 0 ? undefined : "1px solid rgb(var(--accent-rgb) / .12)",
+        background: "rgb(var(--sunken-rgb) / .5)",
+      }}
+    >
+      <GripHandle {...handle} />
+      <span
+        style={{
+          width: 22,
+          flex: "0 0 auto",
+          fontFamily: "var(--font-heading)",
+          fontSize: 12,
+          color: "var(--text-dim)",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {entry.rank}
+      </span>
+      <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis" }}>
+        {entry.team}
+      </span>
+      <input
+        value={entry.record}
+        onChange={(e) => onRecordChange(e.target.value)}
+        placeholder="0-0"
+        style={{
+          width: 48,
+          flex: "0 0 auto",
+          padding: "5px 6px",
+          background: "rgb(var(--raised-rgb) / .7)",
+          border: "1px solid rgb(var(--accent-rgb) / .25)",
+          borderRadius: 6,
+          color: "var(--text)",
+          fontSize: 11.5,
+          textAlign: "center",
+        }}
+      />
+      <button
+        onClick={onRemove}
+        aria-label={`Remove ${entry.team}`}
+        style={{
+          flex: "0 0 auto",
+          cursor: "pointer",
+          border: 0,
+          background: "transparent",
+          color: "var(--bad-text)",
+          fontSize: 15,
+          padding: "2px 4px",
+        }}
+      >
+        ×
+      </button>
     </div>
   );
 }
