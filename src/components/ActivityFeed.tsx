@@ -6,6 +6,7 @@ import Link from "next/link";
 import TeamCrest from "@/components/TeamCrest";
 import { useRefreshable } from "@/lib/use-refresh";
 import { useLogos } from "@/lib/use-logos";
+import { glassPanel } from "@/lib/liquid-glass";
 
 interface Entry {
   id: string;
@@ -75,10 +76,9 @@ function sentence(e: Entry) {
 }
 
 const card: React.CSSProperties = {
-  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgb(var(--surface-rgb) / .55)",
   overflow: "hidden",
+  ...glassPanel,
 };
 
 function Row({ entry, logo }: { entry: Entry; logo: string | null }) {

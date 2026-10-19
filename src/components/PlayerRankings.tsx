@@ -13,6 +13,7 @@ import {
   type PlayedSeason,
   type Row,
 } from "@/lib/rankings";
+import { glassPanel, rankNumeral } from "@/lib/liquid-glass";
 
 /**
  * Every player in the pool, ranked, with the statistics that mean something
@@ -220,12 +221,11 @@ export default function PlayerRankings() {
 
       <div
         style={{
-          border: "1px solid rgb(var(--accent-rgb) / .22)",
           borderRadius: "var(--radius-lg)",
-          background: "rgb(var(--surface-rgb) / .55)",
           // A quarterback's five extra columns do not fit a phone; the table
           // scrolls inside its own box rather than the whole page going wide.
           overflowX: "auto",
+          ...glassPanel,
         }}
       >
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 620 }}>
@@ -374,12 +374,10 @@ function PlayerRow({
           <span
             style={{
               flex: "0 0 auto",
-              width: 22,
-              fontFamily: "var(--font-heading)",
-              fontSize: 11,
-              color: "var(--text-faint)",
+              width: 24,
+              fontSize: 13,
               textAlign: "right",
-              fontVariantNumeric: "tabular-nums",
+              ...rankNumeral(rank <= 3),
             }}
           >
             {rank}

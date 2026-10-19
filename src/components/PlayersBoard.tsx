@@ -15,6 +15,7 @@ import TeamMark from "./TeamMark";
 import { useRefreshable } from "@/lib/use-refresh";
 import { flagColor, flagsFor, player, proj } from "@/lib/roster";
 import { useScoring } from "@/lib/use-me";
+import { glassPanel } from "@/lib/liquid-glass";
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"];
 
@@ -102,10 +103,9 @@ function clears(iso: string) {
 }
 
 const card: React.CSSProperties = {
-  border: "1px solid rgb(var(--accent-rgb) / .22)",
   borderRadius: "var(--radius-lg)",
-  background: "rgb(var(--surface-rgb) / .55)",
   overflow: "hidden",
+  ...glassPanel,
 };
 
 const button = (enabled: boolean): React.CSSProperties => ({
@@ -766,11 +766,10 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
             display: "flex",
             alignItems: "stretch",
             marginBottom: 12,
-            border: "1px solid rgb(var(--accent-rgb) / .18)",
             borderRadius: "var(--radius-md)",
-            background: "rgb(var(--surface-rgb) / .5)",
             fontSize: 11,
             overflow: "hidden",
+            ...glassPanel,
           }}
         >
           <span
@@ -880,6 +879,8 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
                   : "rgb(var(--accent-rgb) / .22)"
             }`,
             background: "rgb(var(--surface-rgb) / .5)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
           }}
         >
           <span

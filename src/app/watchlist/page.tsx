@@ -8,11 +8,7 @@ export const metadata = { title: "Watchlist · Pylon Fantasy" };
 export default function WatchlistPage() {
   return (
     <div
-      style={{
-        minHeight: "var(--screen)",
-        background:
-          "radial-gradient(120% 80% at 50% -10%,rgb(var(--glow-rgb) / .4),transparent 60%),var(--bg)",
-      }}
+      style={{ minHeight: "var(--screen)" }}
     >
       <Nav current="/watchlist" />
       <SubTabBar tab={APP_TABS[1]} />

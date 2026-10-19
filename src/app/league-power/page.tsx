@@ -8,11 +8,7 @@ export const metadata = { title: "League Power · Pylon Fantasy" };
 export default function LeaguePowerPage() {
   return (
     <div
-      style={{
-        minHeight: "var(--screen)",
-        background:
-          "radial-gradient(120% 80% at 50% -10%,rgb(var(--glow-rgb) / .4),transparent 60%),var(--bg)",
-      }}
+      style={{ minHeight: "var(--screen)" }}
     >
       <Nav current="/league-power" />
       <SubTabBar tab={APP_TABS[2]} />

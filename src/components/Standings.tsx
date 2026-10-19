@@ -9,6 +9,7 @@ import LeagueRecords from "./LeagueRecords";
 import TeamCrest from "./TeamCrest";
 import { useRefreshable } from "@/lib/use-refresh";
 import { useLogos } from "@/lib/use-logos";
+import { glassPanel, rankNumeral } from "@/lib/liquid-glass";
 
 /**
  * The table, by division.
@@ -217,10 +218,9 @@ export default function Standings({ embedded = false }: { embedded?: boolean } =
           <div
             key={name}
             style={{
-              border: "1px solid rgb(var(--accent-rgb) / .22)",
               borderRadius: "var(--radius-lg)",
-              background: "rgb(var(--surface-rgb) / .55)",
               overflowX: "auto",
+              ...glassPanel,
             }}
           >
             <div
@@ -282,11 +282,9 @@ export default function Standings({ embedded = false }: { embedded?: boolean } =
                           <span
                             style={{
                               flex: "0 0 auto",
-                              width: 14,
-                              fontFamily: "var(--font-heading)",
-                              fontSize: 11,
-                              color: "var(--text-faint)",
-                              fontVariantNumeric: "tabular-nums",
+                              width: 16,
+                              fontSize: 15,
+                              ...rankNumeral(i === 0),
                             }}
                           >
                             {i + 1}

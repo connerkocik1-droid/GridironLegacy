@@ -8,11 +8,7 @@ export const metadata = { title: "Free agents · Pylon Fantasy" };
 export default function FreeAgentsPage() {
   return (
     <div
-      style={{
-        minHeight: "var(--screen)",
-        background:
-          "radial-gradient(120% 80% at 50% -10%,rgb(var(--glow-rgb) / .4),transparent 60%),var(--bg)",
-      }}
+      style={{ minHeight: "var(--screen)" }}
     >
       <Nav current="/free-agents" />
       <SubTabBar tab={APP_TABS[1]} />
