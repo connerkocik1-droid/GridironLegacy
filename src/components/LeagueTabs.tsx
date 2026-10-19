@@ -4,7 +4,6 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Skeleton from "./Skeleton";
 import Standings from "./Standings";
-import LeagueChat from "./LeagueChat";
 import LeagueRules from "./LeagueRules";
 import PlayerRankings from "./PlayerRankings";
 import ActivityFeed from "./ActivityFeed";
@@ -26,7 +25,10 @@ import { seasonPlayers, standings, type Fixture, type Franchise } from "@/lib/le
  * has happened" rather than "show me the list I asked for".
  */
 
-const TABS = ["Overview", "Standings", "Chat", "Moves", "News", "Ranks", "Rules"] as const;
+// "Chat" removed per the three-tab redesign — the League tab no longer
+// carries one. The route (/chat) and LeagueChat itself are untouched; this
+// strip simply stops pointing at it.
+const TABS = ["Overview", "Standings", "Moves", "News", "Ranks", "Rules"] as const;
 type Tab = (typeof TABS)[number];
 
 const slugOf = (t: Tab) => t.toLowerCase();
@@ -285,7 +287,6 @@ function Board() {
         ) : null}
 
         {tab === "Standings" ? <Standings embedded /> : null}
-        {tab === "Chat" ? <LeagueChat /> : null}
 
         {tab === "Moves" ? (
           <div style={{ padding: "0 18px" }}>

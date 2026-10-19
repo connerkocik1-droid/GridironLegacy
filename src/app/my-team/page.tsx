@@ -1,5 +1,7 @@
 import Nav from "@/components/Nav";
+import SubTabBar from "@/components/SubTabBar";
 import MyTeamBoard from "@/components/MyTeamBoard";
+import { APP_TABS } from "@/lib/app-tabs";
 
 export const metadata = { title: "My Team · Pylon Fantasy" };
 
@@ -13,6 +15,7 @@ export default function MyTeamPage() {
       }}
     >
       <Nav current="/my-team" />
+      <SubTabBar tab={APP_TABS[0]} />
       <MyTeamBoard />
     </div>
   );

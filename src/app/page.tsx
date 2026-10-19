@@ -1,6 +1,4 @@
-import DuesNotice from "@/components/DuesNotice";
-import HomeBoard from "@/components/HomeBoard";
-import Nav from "@/components/Nav";
+import { redirect } from "next/navigation";
 import SignIn from "@/components/SignIn";
 import { currentManager } from "@/lib/session";
 import { isConfigured, serviceClient } from "@/lib/supabase";
@@ -54,10 +52,11 @@ async function loadFranchises(): Promise<{ league: string | null; franchises: Fr
 }
 
 export default async function HomePage() {
-  // Signed in, this is the league itself: the games, the lineup, the week's
-  // fixtures and where everyone stands, all on one page. Signed out it is the
-  // way in. Same address, because the front door of a league site should be
-  // the league.
+  // Signed in, there is no Home any more — the three-tab redesign opens
+  // straight to The League's own Matchup sub-tab, which is where the thing
+  // a manager wants most on a Sunday already lives. Signed out, this is
+  // still the way in: same address, because the front door of a league site
+  // should be the league.
   //
   // "Signed in" means holding a franchise in this league, not merely having a
   // Supabase session — see currentManager. A session whose franchise has been
@@ -65,23 +64,7 @@ export default async function HomePage() {
   // to be shown the league anyway: a home page full of somebody else's team,
   // with no way back to the sign-in page, because this is the sign-in page.
   if (await currentManager()) {
-    return (
-      <div
-        style={{
-          minHeight: "var(--screen)",
-          background:
-            "radial-gradient(120% 80% at 50% -10%,rgb(var(--glow-rgb) / .4),transparent 60%),var(--bg)",
-        }}
-      >
-        <Nav current="/" />
-        {/* Directly under the header and above everything else, because a
-            reminder about money placed below the scores is a reminder nobody
-            reads. Says nothing at all unless the league has set a note and
-            this particular franchise has not been marked paid. */}
-        <DuesNotice />
-        <HomeBoard />
-      </div>
-    );
+    redirect("/matchups");
   }
 
   const { league, franchises } = await loadFranchises();

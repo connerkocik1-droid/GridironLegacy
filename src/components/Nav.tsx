@@ -1,37 +1,39 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import CommissionerOnly from "./CommissionerOnly";
 import Notices from "./Notices";
 import ProfileMenu from "./ProfileMenu";
 import HeaderMark from "./HeaderMark";
 import MusicToggle from "./MusicToggle";
+import { APP_TABS, appTabFor } from "@/lib/app-tabs";
 
-// Three doors and the draft room, and that is the whole bar.
+// Three doors, on a desktop too.
 //
-// My Team is the roster, the matchups and the watchlist. The League is the
-// standings, the overview, the rankings and the news. Moves is the three
-// screens where a roster changes — free agents, the trade desk, the record —
-// which used to be split across the first two for no reason anybody could
-// defend. Mini-games are on the home page, in their own band.
+// The League, General Manager and Rankings — the same three the phone's
+// bottom bar shows — replace the old five-wide bar (Home, My Team, The
+// League, Moves, Draft) plus its separate office links. The draft room and
+// the commissioner's own pages are a few days a year and one manager's,
+// so they moved to the account corner instead of holding a permanent slot
+// here.
 //
-// Draft and Moves are both here, unlike the phone's bar below, where they
-// share the fourth slot because four is all it has room for. A desktop has
-// room for five, and a link that is simply always there beats one that
-// appears when a state changes.
-const PRIMARY = [
-  { href: "/", label: "Home" },
-  { href: "/my-team", label: "My Team" },
-  { href: "/the-league", label: "The League" },
-  { href: "/moves", label: "Moves" },
-  { href: "/draft", label: "Draft" },
-];
+// Active state now comes from the URL itself via `appTabFor`, the same
+// "longest claim wins" rule the mobile bar and the sub-tab strip use — so
+// this no longer needs every page to tell it which tab it's on.
 
-// The commissioner's own two: the office, and the room for walking through
-// draft night before anybody is watching. Appended after the rest, and only
-// for the manager who holds the office.
-const OFFICE = [
-  { href: "/draft/rehearsal", label: "Rehearsal" },
-  { href: "/commissioner", label: "Commissioner" },
-];
+const draftIcon = (
+  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <rect x="4" y="4" width="16" height="16" rx="2" />
+    <path d="M4 9.5h16M9.5 9.5V20" />
+  </svg>
+);
+const officeIcon = (
+  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4" />
+  </svg>
+);
 
 const bar: React.CSSProperties = {
   position: "sticky",
@@ -40,18 +42,10 @@ const bar: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 14,
-  // Twenty-six, the same as every page's own padding, so the wordmark starts
-  // on the line every heading under it starts on. It was twenty-two, which is
-  // four pixels of disagreement down the whole left edge of the app.
   padding: "10px 26px",
-  // The status bar is already handled: globals.css puts the safe-area insets
-  // back on this element, with !important, because it is styled inline.
   borderBottom: "1px solid rgb(var(--accent-rgb) / .22)",
   background: "rgb(var(--bg-rgb) / .9)",
   backdropFilter: "blur(10px)",
-  // Wraps rather than scrolls. A sideways scrollbar in a nav bar hides tabs
-  // from anyone who does not think to drag it, and there are enough tabs now
-  // that something was always being hidden on a laptop.
   flexWrap: "wrap",
   rowGap: 6,
 };
@@ -70,40 +64,58 @@ const primaryLink = (active: boolean): React.CSSProperties => ({
   textDecoration: "none",
 });
 
-export default function Nav({ current, note }: { current: string; note?: string }) {
+const quietLink: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 5,
+  color: "var(--text-dim)",
+  fontSize: 10,
+  letterSpacing: ".1em",
+  textTransform: "uppercase",
+  textDecoration: "none",
+  whiteSpace: "nowrap",
+  flex: "0 0 auto",
+};
+
+/** @deprecated Active state is read from the URL now (see `appTabFor`);
+ * kept so none of this app's ~25 page-level `<Nav current="..." />` calls
+ * need to change. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export default function Nav({ current }: { current?: string }) {
+  const pathname = usePathname() ?? "/";
+  const active = appTabFor(pathname);
+
   return (
     <div className="gl-nav" style={bar}>
       <HeaderMark />
 
-      {/* Hidden on a phone, where the same four sit in a bar at the bottom
-          within a thumb's reach. Rendered either way rather than swapped, so
-          there is one list of destinations in this app and not two. */}
+      {/* Hidden on a phone, where the same three sit in a bar at the bottom
+          within a thumb's reach. */}
       <div
         className="gl-navlinks"
         style={{ display: "flex", gap: 2, marginLeft: 6, flexWrap: "wrap", rowGap: 4 }}
       >
-        {PRIMARY.map((item) => (
+        {APP_TABS.map((tab) => (
           <Link
-            key={item.href}
-            href={item.href}
+            key={tab.id}
+            href={tab.href}
             className="gl-navlink"
-            style={primaryLink(item.href === current)}
+            aria-current={active?.id === tab.id ? "page" : undefined}
+            style={primaryLink(active?.id === tab.id)}
           >
-            {item.label}
+            {tab.label}
           </Link>
         ))}
+        {/* The draft room and the commissioner's own pages, reachable but
+            holding no slot of their own — a few days a year and one
+            manager's, not a permanent destination. */}
+        <Link href="/draft" className="gl-navlink" style={quietLink}>
+          {draftIcon} Draft
+        </Link>
         <CommissionerOnly>
-          {OFFICE.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="gl-navlink"
-              style={primaryLink(item.href === current)}
-              aria-current={item.href === current ? "page" : undefined}
-            >
-              {item.label}
-            </Link>
-          ))}
+          <Link href="/commissioner" className="gl-navlink" style={quietLink}>
+            {officeIcon} Commissioner
+          </Link>
         </CommissionerOnly>
       </div>
 
@@ -122,11 +134,7 @@ export default function Nav({ current, note }: { current: string; note?: string 
           flex: "0 0 auto",
         }}
       >
-        {note ? <span>{note}</span> : null}
-        {/* Beside the profile rather than in the tab list: it is not a place
-            you go, it is the league getting your attention. */}
         <Notices />
-        {/* Nothing at all off the sixteen-bit theme. */}
         <MusicToggle />
         <ProfileMenu />
       </div>

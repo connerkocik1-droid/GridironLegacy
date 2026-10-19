@@ -506,8 +506,6 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
   const pending = feed.claims
     .filter((c) => c.status === "pending")
     .sort((a, b) => a.claim_order - b.claim_order || a.created_at.localeCompare(b.created_at));
-  const settled = feed.claims.filter((c) => c.status !== "pending").slice(0, 5);
-
   return (
     <div style={{ padding: embedded ? "0 18px 24px" : "24px 26px 40px" }}>
       <div hidden={embedded}>
@@ -749,41 +747,7 @@ export default function PlayersBoard({ embedded = false }: { embedded?: boolean 
         </div>
       ) : null}
 
-      {settled.length ? (
-        <div style={{ ...card, marginBottom: 14 }}>
-          <div style={{ padding: "12px 16px" }}>
-            <h6 style={{ margin: 0, color: "var(--text-muted)" }}>Recently settled</h6>
-          </div>
-          {settled.map((c) => (
-            <div
-              key={c.id}
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                gap: 9,
-                padding: "8px 16px",
-                borderTop: "1px solid rgb(var(--accent-rgb) / .12)",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 10,
-                  letterSpacing: ".14em",
-                  width: 60,
-                  flex: "0 0 auto",
-                  color: c.status === "won" ? "var(--good)" : "var(--text-dim)",
-                }}
-              >
-                {c.status.toUpperCase()}
-              </span>
-              <span style={{ fontSize: 13, minWidth: 0, flex: 1 }}>{c.add_player}</span>
-              {c.reason ? (
-                <span style={{ fontSize: 10.5, color: "var(--text-dim)" }}>{c.reason}</span>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ) : null}
+      {/* "Recently settled" removed per the three-tab redesign. */}
 
       {/* What the league has been moving. Counted from the record rather than
           ranked by points: this is about attention, and a player three
