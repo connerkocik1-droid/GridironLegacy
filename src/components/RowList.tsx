@@ -368,7 +368,9 @@ export function Row({ row, first }: { row: RowSpec; first?: boolean }) {
           <span style={tileStyle(row.tileTone === "me")}>{row.tile}</span>
         ) : null}
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+          {/* Tags wrap under the name rather than squeezing it: the name keeps
+              at least seven characters' room before a tag gives way. */}
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, rowGap: 3, minWidth: 0 }}>
             <span
               style={{
                 fontSize: 12.5,
@@ -376,7 +378,8 @@ export function Row({ row, first }: { row: RowSpec; first?: boolean }) {
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
-                minWidth: 0,
+                minWidth: "min(100%, 7em)",
+                flex: "0 1 auto",
                 color: row.titleColor,
               }}
             >

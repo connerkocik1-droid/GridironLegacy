@@ -5,6 +5,7 @@ import MiniGamesStrip from "./MiniGamesStrip";
 import MockDraft from "./MockDraft";
 import PickemBoard from "./PickemBoard";
 import TwentyZero from "./TwentyZero";
+import { AppView, Chips } from "./RowList";
 
 /**
  * The three games.
@@ -24,20 +25,6 @@ const GAMES = [
 
 type GameId = (typeof GAMES)[number]["id"];
 
-const tab = (active: boolean): React.CSSProperties => ({
-  flex: "0 0 auto",
-  whiteSpace: "nowrap",
-  border: `1px solid ${active ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
-  background: active ? "rgb(var(--accent-rgb) / .22)" : "transparent",
-  color: active ? "var(--text)" : "var(--text-quiet)",
-  borderRadius: "var(--radius-sm)",
-  font: "inherit",
-  fontSize: 11,
-  letterSpacing: ".14em",
-  textTransform: "uppercase",
-  padding: "9px 16px",
-  cursor: "pointer",
-});
 
 export default function MiniGames() {
   const router = useRouter();
@@ -47,45 +34,19 @@ export default function MiniGames() {
 
   return (
     <div>
-      <div style={{ padding: "24px 26px 0" }}>
-        <div style={{ fontSize: 10, letterSpacing: ".32em", color: "var(--text-dim)" }}>ON THE SIDE</div>
-        <h1
-          style={{
-            fontFamily: "var(--font-heading)",
-            fontSize: 40,
-            letterSpacing: "-.035em",
-            margin: "8px 0 16px",
-            fontWeight: 500,
-          }}
-        >
-          Mini-games
-        </h1>
-
-        {/* The tabs are for moving between games once you are in one. On the
-            way in there is nothing to move between yet, and three cards say
-            more about each game than three words do. */}
+      <AppView>
+        {/* Tiles on the way in; once in a game, chips to move between them. */}
         {game ? (
-          <div
-            className="gl-scroll-x"
-            style={{ display: "flex", gap: 8, flexWrap: "nowrap", paddingBottom: 2 }}
-          >
-            {GAMES.map((g) => (
-              <button
-                key={g.id}
-                onClick={() => router.replace(`/minigames?game=${g.id}`, { scroll: false })}
-                aria-current={g.id === game ? "page" : undefined}
-                style={tab(g.id === game)}
-              >
-                {g.label}
-              </button>
-            ))}
-          </div>
+          <Chips
+            label="Mini-game"
+            value={game}
+            onChange={(id) => router.replace(`/minigames?game=${id}`, { scroll: false })}
+            options={GAMES.map((g) => ({ value: g.id, label: g.label }))}
+          />
         ) : (
-          <div style={{ paddingBottom: 26 }}>
-            <MiniGamesStrip />
-          </div>
+          <MiniGamesStrip />
         )}
-      </div>
+      </AppView>
 
       {/* One game mounted at a time. 20-0 and the mock draft both hold a lot of
           state, and keeping the loser of the tab switch alive would leave two

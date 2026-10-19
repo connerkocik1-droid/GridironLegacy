@@ -1,19 +1,13 @@
 import Nav from "@/components/Nav";
-import TradeDesk from "@/components/TradeDesk";
+import TradesView from "@/components/TradesView";
 
-export const metadata = { title: "Trade builder · Pylon Fantasy" };
+export const metadata = { title: "Trades · Pylon Fantasy" };
 
 export default function TradeBuilderPage() {
   return (
-    <div
-      style={{
-        minHeight: "var(--screen)",
-        background:
-          "radial-gradient(120% 80% at 50% -10%,rgb(var(--glow-rgb) / .4),transparent 60%),var(--bg)",
-      }}
-    >
+    <div style={{ minHeight: "var(--screen)" }}>
       <Nav current="/trade-builder" />
-      <TradeDesk />
+      <TradesView />
     </div>
   );
 }
