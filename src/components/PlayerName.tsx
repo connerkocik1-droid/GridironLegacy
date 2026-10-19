@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { openPlayer } from "@/lib/player-sheet";
 import { ageOf } from "@/data/league-data";
 import { HEALTH_COLOUR, HEALTH_LABEL, HEALTH_SHORT, type Health } from "@/lib/health";
 import { healthOf, useHealthReport } from "@/lib/use-player-health";
@@ -133,6 +134,13 @@ export default function PlayerName({
       ) : (
         <Link
           href={playerHref(name)}
+          // A plain tap opens the player sheet over the page; a modified
+          // click (new tab, new window) still goes to the full profile.
+          onClick={(e) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+            e.preventDefault();
+            openPlayer(name);
+          }}
           style={{
             color: "inherit",
             textDecoration: "none",

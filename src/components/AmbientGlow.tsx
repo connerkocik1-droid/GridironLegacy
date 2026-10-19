@@ -16,40 +16,45 @@ export default function AmbientGlow() {
         pointerEvents: "none",
       }}
     >
+      {/* The redesign's three glows: section-glow top left, the deep accent
+          on the right, section bottom left. */}
       <div
         style={{
           position: "absolute",
-          top: "-12%",
-          left: "-10%",
-          width: "55%",
-          height: "42%",
+          top: -160,
+          left: -140,
+          width: 460,
+          height: 420,
           borderRadius: "50%",
-          background: "radial-gradient(circle,rgb(var(--glow-rgb) / .5),transparent 66%)",
+          background: "radial-gradient(circle,var(--ap-section-glow),transparent 66%)",
+          filter: "blur(30px)",
+          opacity: 0.8,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: 300,
+          right: -200,
+          width: 420,
+          height: 420,
+          borderRadius: "50%",
+          background: "radial-gradient(circle,var(--ap-a800),transparent 64%)",
           filter: "blur(40px)",
+          opacity: 0.75,
         }}
       />
       <div
         style={{
           position: "absolute",
-          top: "28%",
-          right: "-16%",
-          width: "50%",
-          height: "42%",
+          bottom: -120,
+          left: -60,
+          width: 460,
+          height: 360,
           borderRadius: "50%",
-          background: "radial-gradient(circle,rgb(var(--accent-rgb) / .3),transparent 64%)",
-          filter: "blur(46px)",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          bottom: "-14%",
-          left: "-6%",
-          width: "55%",
-          height: "36%",
-          borderRadius: "50%",
-          background: "radial-gradient(circle,rgb(var(--glow-rgb) / .55),transparent 66%)",
-          filter: "blur(46px)",
+          background: "radial-gradient(circle,var(--ap-section),transparent 66%)",
+          filter: "blur(40px)",
+          opacity: 0.85,
         }}
       />
     </div>

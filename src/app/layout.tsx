@@ -9,6 +9,7 @@ import OfflineBar from "@/components/OfflineBar";
 import PullToRefresh from "@/components/PullToRefresh";
 import ServiceWorker from "@/components/ServiceWorker";
 import RetroLayer from "@/components/RetroLayer";
+import PlayerSheet from "@/components/PlayerSheet";
 import TabBar from "@/components/TabBar";
 import "./nocturne.css";
 // The palette, before anything that names it.
@@ -211,6 +212,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             rather than inside a page, so the scanlines and the cues belong to
             the screen and do not remount with every tab. */}
         <RetroLayer />
+        {/* The player card a name opens on any screen. One for the app, above
+            the router, so it slides over whatever page is there. */}
+        <PlayerSheet />
         {/* Installs the offline worker, in production builds only. */}
         <ServiceWorker />
       </body>

@@ -1,19 +1,13 @@
 import Nav from "@/components/Nav";
-import LeagueTabs from "@/components/LeagueTabs";
+import AroundLeagueView from "@/components/AroundLeagueView";
 
-export const metadata = { title: "The League · Pylon Fantasy" };
+export const metadata = { title: "Around League · Pylon Fantasy" };
 
-export default function TheLeaguePage() {
+export default function AroundLeaguePage() {
   return (
-    <div
-      style={{
-        minHeight: "var(--screen)",
-        background:
-          "radial-gradient(120% 80% at 50% -10%,rgb(var(--glow-rgb) / .4),transparent 60%),var(--bg)",
-      }}
-    >
+    <div style={{ minHeight: "var(--screen)" }}>
       <Nav current="/the-league" />
-      <LeagueTabs />
+      <AroundLeagueView />
     </div>
   );
 }

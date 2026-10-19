@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Game } from "@/lib/espn";
 import { seasonPlayers, topScorers, valueBoard } from "@/lib/league-story";
 import { useRefreshable } from "@/lib/use-refresh";
+import { gameLabel, useNflGames } from "@/lib/use-nfl-games";
 import { ink, tint } from "./RowList";
 
 interface Item {
@@ -27,28 +27,7 @@ export default function Ticker({ kind }: { kind: "league" | "gm" }) {
 }
 
 function ScoresTicker() {
-  const [games, setGames] = useState<Game[] | null>(null);
-  const [week, setWeek] = useState<number | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/scoreboard", { cache: "no-store" });
-      if (!res.ok) return;
-      const body = await res.json();
-      setGames(body.games ?? []);
-      setWeek(body.week ?? null);
-    } catch {
-      // Keeps whatever it last had; the strip is not worth an error.
-    }
-  }, []);
-
-  useRefreshable(load);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-    const t = setInterval(() => void load(), 30_000);
-    return () => clearInterval(t);
-  }, [load]);
+  const { games, week } = useNflGames();
 
   const items = useMemo<Item[]>(
     () =>
@@ -60,7 +39,7 @@ function ScoresTicker() {
           const a = started
             ? `${g.away!.abbrev} ${g.away!.score}  ${g.home!.abbrev} ${g.home!.score}`
             : `${g.away!.abbrev} at ${g.home!.abbrev}`;
-          const b = g.state === "post" ? "FINAL" : live ? g.statusDetail || "LIVE" : kickoff(g.date);
+          const b = gameLabel(g);
           return { a, b, live };
         }),
     [games],
@@ -175,12 +154,4 @@ function Strip({ label, items }: { label: string; items: Item[] }) {
       </div>
     </div>
   );
-}
-
-function kickoff(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d
-    .toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" })
-    .toUpperCase();
 }

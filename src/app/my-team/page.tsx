@@ -1,19 +1,13 @@
 import Nav from "@/components/Nav";
-import MyTeamBoard from "@/components/MyTeamBoard";
+import RosterView from "@/components/RosterView";
 
-export const metadata = { title: "My Team · Pylon Fantasy" };
+export const metadata = { title: "Roster · Pylon Fantasy" };
 
 export default function MyTeamPage() {
   return (
-    <div
-      style={{
-        minHeight: "var(--screen)",
-        background:
-          "radial-gradient(120% 80% at 50% -10%,rgb(var(--glow-rgb) / .4),transparent 60%),var(--bg)",
-      }}
-    >
+    <div style={{ minHeight: "var(--screen)" }}>
       <Nav current="/my-team" />
-      <MyTeamBoard />
+      <RosterView />
     </div>
   );
 }
