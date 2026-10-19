@@ -3,219 +3,40 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import CommissionerOnly from "./CommissionerOnly";
+import { APP_TABS, appTabFor, type AppTab } from "@/lib/app-tabs";
 import { useMe } from "@/lib/use-me";
-import { useChatUnread } from "@/lib/use-chat-unread";
 import { useResolvedTheme } from "@/lib/use-theme";
 import { playTabSound, primeTabSound } from "@/lib/retro-sfx";
 
 /**
- * The four places, where a thumb can reach them.
+ * The three doors, where a thumb can reach them.
  *
- * The bar has always been at the top of the screen, which on a phone is the
- * one part of it a thumb cannot get to. This app is used one-handed, standing
- * up, during a game — and every navigation meant either a stretch or a second
- * hand. Launched from a home screen it is worse: there is no browser chrome at
- * the bottom any more, so the whole of the easiest third of the screen was
- * doing nothing.
+ * Three rather than the old four-plus-office: the draft room and the
+ * commissioner's own pages no longer hold a permanent slot down here — the
+ * draft is a handful of days a year and the office is one manager's — so
+ * this bar now only ever shows The League, General Manager and Rankings,
+ * per the three-tab redesign. Reachable but unclaimed by any slot, `/draft`
+ * and `/commissioner` simply light nothing when visited directly.
  *
- * It is the same four destinations, not a new menu. The top bar keeps the
- * wordmark, the bell and the avatar and gives up its links on a phone, because
- * two navigations are worse than one wherever they are.
- *
- * A tab is active for everywhere it owns rather than only for its own page:
- * the lineup, the matchups and the watchlist are all My Team, and a manager
- * three pages deep should still be able to see where they are.
+ * A tab is active for everywhere its sub-tabs own, via `appTabFor` — the
+ * same "longest claim wins" rule the four-tab bar used, now shared with
+ * `Nav` and `SubTabBar` through `src/lib/app-tabs.ts` so the three never
+ * disagree about where something lives.
  */
-
-interface Tab {
-  href: string;
-  label: string;
-  /** Everywhere this tab is the answer to "where am I". */
-  owns: string[];
-  icon: React.ReactNode;
-}
-
-/** One stroke weight, one size, no fills: they are read at eleven pixels. */
-const glyph = (d: React.ReactNode) => (
-  <svg
-    viewBox="0 0 24 24"
-    width="21"
-    height="21"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.7"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    {d}
-  </svg>
-);
-
-const TABS: Tab[] = [
-  {
-    href: "/",
-    label: "Home",
-    // The mini-games live in a band on the home page, so they answer to it.
-    owns: ["/", "/minigames", "/pickem", "/20-0"],
-    icon: glyph(
-      <>
-        <path d="M4 10.5 12 4l8 6.5" />
-        <path d="M6 9.6V20h12V9.6" />
-      </>,
-    ),
-  },
-  {
-    href: "/my-team",
-    label: "My Team",
-    owns: ["/my-team", "/lineup", "/matchups", "/watchlist", "/player"],
-    icon: glyph(
-      <>
-        <path d="M9 4 5 6v5h3v9h8v-9h3V6l-4-2" />
-        <path d="M9 4a3 3 0 0 0 6 0" />
-      </>,
-    ),
-  },
-  {
-    href: "/the-league",
-    label: "League",
-    owns: [
-      "/the-league", "/standings", "/league", "/news", "/player-news",
-      "/rankings", "/rules", "/chat",
-    ],
-    icon: glyph(
-      <>
-        <path d="M4 6h16" />
-        <path d="M4 12h16" />
-        <path d="M4 18h10" />
-      </>,
-    ),
-  },
-];
-
-/**
- * The fourth slot, which is two tabs taking turns.
- *
- * The draft room is the whole app in August and an empty board from September;
- * the transactions are nothing during a draft and the thing you open most for
- * the five months after it. They are never both what somebody needs, so they
- * share a slot rather than each taking one — which keeps the bar at four, the
- * width it was drawn for. Five tabs at 320px is 64px each, and "My Team" does
- * not fit in 64px.
- *
- * The changeover is a command in the league office, not the draft reaching a
- * state: a draft reads "complete" after a rehearsal and after a reset, and a
- * resize flips it back, none of which is a league saying the offseason is
- * over. The commissioner says when, and it can be said back.
- */
-const DRAFT: Tab = {
-  href: "/draft",
-  label: "Draft",
-  owns: ["/draft"],
-  icon: glyph(
-    <>
-      <rect x="4" y="4" width="16" height="16" rx="2" />
-      <path d="M4 9.5h16M9.5 9.5V20" />
-    </>,
-  ),
-};
-
-const MOVES: Tab = {
-  href: "/moves",
-  label: "Moves",
-  // Everywhere a player changes hands, wherever it used to be filed.
-  owns: ["/moves", "/free-agents", "/players", "/trade-builder", "/trades", "/activity"],
-  icon: glyph(
-    <>
-      <path d="M4 8h13l-3-3" />
-      <path d="M20 16H7l3 3" />
-    </>,
-  ),
-};
-
-const OFFICE: Tab = {
-  href: "/commissioner",
-  label: "Office",
-  owns: ["/commissioner", "/draft/rehearsal"],
-  icon: glyph(
-    <>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4" />
-    </>,
-  ),
-};
-
-/** Which tab owns a path. The longest claim wins, so /draft/rehearsal is the office. */
-function activeTab(pathname: string, tabs: Tab[]): string | null {
-  let best: { href: string; length: number } | null = null;
-
-  for (const tab of tabs) {
-    for (const owned of tab.owns) {
-      const hit = owned === "/" ? pathname === "/" : pathname === owned || pathname.startsWith(`${owned}/`);
-      if (hit && (!best || owned.length > best.length)) {
-        best = { href: tab.href, length: owned.length };
-      }
-    }
-  }
-
-  return best?.href ?? null;
-}
-
-export default function TabBar({
-  signedIn,
-  movesTab,
-}: {
-  signedIn: boolean;
-  /**
-   * Whether the league has handed the fourth slot to the transactions,
-   * answered by the server in the layout. Same reason `signedIn` is: a tab
-   * decided only in the browser is a tab that is missing on a cold
-   * home-screen launch.
-   */
-  movesTab: boolean;
-}) {
+export default function TabBar({ signedIn }: { signedIn: boolean }) {
   const me = useMe();
   const pathname = usePathname() ?? "/";
 
-  // A dot on League when somebody has said something. Not a number: at this
-  // size a count is unreadable, and "there is something" is the whole of what
-  // a tab bar has room to say. The count itself is on the chat card, one press
-  // in, where there is room for it.
-  const unread = useChatUnread(me.status === "signed-in");
-
-  // The blip a tab makes in the sixteen-bit theme, and nowhere else. Fetched
-  // as soon as the theme is on rather than on the first press, because a
-  // twenty-five kilobyte file that starts downloading when you tap plays after
-  // you have arrived, which is a sound with no press attached to it.
+  // The blip a tab makes in the sixteen-bit theme, and nowhere else.
   const retro = useResolvedTheme() === "16bit";
   useEffect(() => {
     if (retro) primeTabSound();
   }, [retro]);
 
-  // Nothing for a signed-out visitor. The home page turns into the sign-in
-  // screen and deliberately shows no navigation, because every destination
-  // behind it would only ask them to sign in — a bar of four such links across
-  // the bottom of that screen would be four ways of being told no. A league
-  // that has no database yet is the same case.
-  //
-  // But "signed in" is answered by the server, in the layout, from the cookie
-  // it already read — and only refined by the browser afterwards. It used to
-  // be the browser's answer alone, and useMe made one request with no retry:
-  // when that request was dropped the state stayed "checking" for the life of
-  // the page and this bar rendered nothing, for ever, while every board around
-  // it loaded fine because each fetches its own data.
-  //
-  // A tab is a rare thing to lose a first request in. A home-screen app is
-  // launched cold and resumed from the background, so it is the common case
-  // there — which is why the tabs were missing in the PWA and only in the PWA.
-  // The server knew the whole time.
+  // Nothing for a signed-out visitor, or a league with no database yet —
+  // every destination behind the bar would only ask them to sign in.
   const showing = me.status === "checking" ? signedIn : me.status === "signed-in";
 
-  // The room the bar takes up is reserved in CSS, which cannot know whether
-  // anybody is signed in — so the bar says so here. Without it the sign-in
-  // screen, the first thing anybody ever sees, ends with fifty-eight pixels of
-  // nothing held open for a bar that is not there.
   useEffect(() => {
     if (!showing) return;
     document.documentElement.dataset.tabbar = "1";
@@ -226,13 +47,7 @@ export default function TabBar({
 
   if (!showing) return null;
 
-  // The server's answer holds until the browser has one of its own, so the
-  // first frame is right and the bar still changes over for eleven managers
-  // sitting in the app when the command is given — not at their next reload.
-  const fourth = (me.movesTab ?? movesTab) ? MOVES : DRAFT;
-
-  const all = [...TABS, fourth, OFFICE];
-  const active = activeTab(pathname, all);
+  const active = appTabFor(pathname);
 
   return (
     <nav
@@ -244,58 +59,46 @@ export default function TabBar({
         right: 0,
         bottom: 0,
         zIndex: 40,
-        // `display` is deliberately absent here and set in globals.css, which
-        // is the only place that knows how wide the screen is. Setting it
-        // inline would beat the stylesheet at every width, and the first
-        // version of this did exactly that — a desktop got the bottom bar and
-        // the top links at once, which is the one thing it must not do.
-        // Above the home indicator, not under the bar somebody swipes to leave.
+        // `display` is set in globals.css, which knows the breakpoint.
         paddingBottom: "env(safe-area-inset-bottom)",
         borderTop: "1px solid rgb(var(--accent-rgb) / .22)",
         background: "rgb(var(--sunken-rgb) / .94)",
         backdropFilter: "blur(14px)",
       }}
     >
-      {[...TABS, fourth].map((tab) => (
-        <TabLink
-          key={tab.href}
-          tab={tab}
-          active={active === tab.href}
-          sound={retro}
-          dot={tab.href === "/the-league" && unread > 0 && !pathname.startsWith("/chat")}
-        />
+      {APP_TABS.map((tab) => (
+        <TabLink key={tab.id} tab={tab} active={active?.id === tab.id} sound={retro} />
       ))}
-      <CommissionerOnly>
-        <TabLink tab={OFFICE} active={active === OFFICE.href} sound={retro} />
-      </CommissionerOnly>
     </nav>
   );
 }
 
-function TabLink({
-  tab,
-  active,
-  dot,
-  sound,
-}: {
-  tab: Tab;
-  active: boolean;
-  dot?: boolean;
-  /** Whether a press makes a noise, which is only true in the retro theme. */
-  sound?: boolean;
-}) {
+const ICON: Record<AppTab["id"], React.ReactNode> = {
+  league: (
+    <>
+      <path d="M4 10.5 12 4l8 6.5" />
+      <path d="M6 9.6V20h12V9.6" />
+    </>
+  ),
+  gm: (
+    <>
+      <rect x="4" y="6" width="16" height="13" rx="2" />
+      <path d="M9 6V5a3 3 0 0 1 6 0v1" />
+    </>
+  ),
+  rankings: (
+    <>
+      <path d="M4 20V11M10 20V4M16 20v8M20 20H4" />
+    </>
+  ),
+};
+
+function TabLink({ tab, active, sound }: { tab: AppTab; active: boolean; sound?: boolean }) {
   return (
     <Link
       href={tab.href}
-      // On the link rather than on the router, so it fires on the press
-      // itself: a sound that waits for the next page to render arrives a
-      // couple of hundred milliseconds late and stops reading as a button.
-      // It plays for the tab you are already on as well — the press happened.
       onClick={sound ? () => playTabSound() : undefined}
       aria-current={active ? "page" : undefined}
-      // The dot is decoration and carries no text, so the link says what it
-      // means instead. Without this a screen reader gets "League" either way.
-      aria-label={dot ? `${tab.label} — new messages` : undefined}
       style={{
         flex: 1,
         minWidth: 0,
@@ -304,23 +107,16 @@ function TabLink({
         alignItems: "center",
         justifyContent: "center",
         gap: 3,
-        // Comfortably past the thumb-target floor, because this is the control
-        // pressed more than any other in the app.
         minHeight: 52,
         padding: "7px 2px 8px",
         textDecoration: "none",
         position: "relative",
         color: active ? "var(--accent-text)" : "var(--text-quiet)",
-        // The lit tab is also a lit panel. Colour alone was carrying "you are
-        // here" on a bar that is read at a glance and often in sunlight.
         background: active
           ? "linear-gradient(180deg,rgb(var(--accent-rgb) / .16),transparent 72%)"
           : "transparent",
       }}
     >
-      {/* The filament. It draws itself out from the middle when the tab
-          becomes the current one, which is the app's only acknowledgement
-          that the press landed — the page underneath is still arriving. */}
       {active ? (
         <span
           aria-hidden
@@ -338,27 +134,9 @@ function TabLink({
           }}
         />
       ) : null}
-
-      <span style={{ position: "relative", display: "inline-flex", flex: "0 0 auto" }}>
-        {tab.icon}
-        {dot ? (
-          <span
-            aria-hidden
-            style={{
-              position: "absolute",
-              top: -1,
-              right: -2,
-              width: 7,
-              height: 7,
-              borderRadius: "50%",
-              background: "var(--accent-link)",
-              // Against the bar rather than against the icon, so it reads as a
-              // mark on the tab and not as part of the glyph.
-              boxShadow: "0 0 0 2px rgb(var(--sunken-rgb) / .94)",
-            }}
-          />
-        ) : null}
-      </span>
+      <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        {ICON[tab.id]}
+      </svg>
       <span
         style={{
           fontSize: 10,
