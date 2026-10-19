@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
+<script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
+<script src="./image-slot.js"></script>
+<style>
+  body { margin:0; background:var(--color-bg); color:var(--color-text); font-family:var(--font-body); }
+  a { color:var(--color-accent-300); text-decoration:none; }
+  a:hover { color:var(--color-accent-200); }
+  @keyframes rp-rise { from { opacity:0; transform:translateY(8px);} to { opacity:1; transform:none;} }
+  @keyframes rp-grow { from { width:0;} }
+  image-slot[id^="logo-"]::part(empty), image-slot[id^="logo-"]::part(ring) { opacity:0; }
+</style>
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#161826"/><g transform="translate(36 22) scale(.5)"><polygon points="4,14 22,24 22,104 4,94" fill="rgba(255,180,106,.5)"/><polygon points="22,24 40,14 40,94 22,104" fill="rgba(245,138,68,.85)"/><polygon points="22,2 42,13 22,24 2,13" fill="#ffe2c4"/><polygon points="4,56 22,66 40,56 40,66 22,76 4,66" fill="#161826" opacity=".75"/><line x1="22" y1="24" x2="22" y2="104" stroke="#ffe2c4" stroke-width="3"/></g></svg></template>
+</helmet>
+
+<div style="min-height:100vh;position:relative;overflow:hidden;background:var(--color-bg);font-variant-numeric:tabular-nums">
+
+  <div style="position:absolute;inset:0;pointer-events:none;overflow:hidden">
+    <div style="position:absolute;top:-220px;left:-160px;width:720px;height:620px;border-radius:50%;background:radial-gradient(circle, var(--color-section-glow), transparent 66%);filter:blur(40px);opacity:.75"></div>
+    <div style="position:absolute;top:160px;right:-220px;width:640px;height:560px;border-radius:50%;background:radial-gradient(circle, var(--color-accent-800), transparent 64%);filter:blur(50px);opacity:.7"></div>
+    <div style="position:absolute;top:880px;left:28%;width:760px;height:520px;border-radius:50%;background:radial-gradient(circle, var(--color-section), transparent 66%);filter:blur(60px);opacity:.8"></div>
+  </div>
+
+  <div style="position:sticky;top:0;z-index:20;padding:14px 28px 0">
+    <div style="max-width:1120px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:10px 16px;border-radius:6px;background:linear-gradient(180deg,color-mix(in oklch, var(--color-text) 7%, transparent),color-mix(in oklch, var(--color-text) 2%, transparent));backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);border:1px solid color-mix(in oklch, var(--color-text) 9%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 12%, transparent), var(--shadow-md)">
+      <svg width="12" height="23" viewBox="28 6 44 108" style="flex:0 0 auto;overflow:visible;filter:drop-shadow(0 0 3px rgba(245,138,68,.7))"><polygon points="32,20 50,30 50,110 32,100" style="fill:rgba(255,180,106,.42)"></polygon><polygon points="50,30 68,20 68,100 50,110" style="fill:rgba(245,138,68,.72)"></polygon><polygon points="50,8 70,19 50,30 30,19" style="fill:#ffe2c4"></polygon><polygon points="32,62 50,72 68,62 68,72 50,82 32,72" style="fill:#161826;opacity:.75"></polygon><line x1="50" y1="30" x2="50" y2="110" style="stroke:#ffe2c4;stroke-width:4"></line></svg>
+      <span style="display:flex;align-items:baseline;gap:7px;flex:0 0 auto;white-space:nowrap;font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-style:italic"><span style="font-weight:600">Pylon</span><span style="font-weight:400;color:var(--color-accent-300)">Fantasy</span></span>
+      <div style="margin-left:auto;display:flex;gap:24px;font-size:13px">
+        <a href="#" style="color:var(--color-neutral-400)" style-hover="color:var(--color-text)">League</a>
+        <a href="#" style="color:var(--color-text)">The Pylon Report</a>
+        <a href="#" style="color:var(--color-neutral-400)" style-hover="color:var(--color-text)">Draft</a>
+      </div>
+    </div>
+  </div>
+
+  <div style="position:relative;max-width:1120px;margin:0 auto;padding:64px 28px 96px">
+
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:28px;align-items:end">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="width:22px;height:1px;background:var(--color-accent)"></span>
+          <span style="font-size:11px;letter-spacing:.3em;color:var(--color-accent-300)">THE PYLON REPORT</span>
+        </div>
+        <h1 style="font-family:var(--font-heading);font-weight:500;font-size:clamp(34px,5.4vw,60px);line-height:1;letter-spacing:-.04em;margin:18px 0 0;max-width:760px;text-wrap:balance;font-style:italic">{{ heroTitle }}</h1>
+        <div style="font-size:14px;line-height:1.55;color:var(--color-neutral-400);margin-top:16px;max-width:560px;text-wrap:pretty">{{ heroSub }}</div>
+      </div>
+    </div>
+
+    <div style="margin-top:44px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-radius:6px;overflow:hidden;background:linear-gradient(180deg,color-mix(in oklch, var(--color-text) 6%, transparent),color-mix(in oklch, var(--color-text) 1.5%, transparent));backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);border:1px solid color-mix(in oklch, var(--color-text) 9%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 11%, transparent), var(--shadow-lg)">
+      <sc-for list="{{ boards }}" as="b" hint-placeholder-count="3">
+        <button onClick="{{ b.onClick }}" style="{{ b.style }}" style-hover="background-color:color-mix(in oklch, var(--color-text) 4%, transparent)">
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <span style="{{ b.titleStyle }}">{{ b.title }}</span>
+            <span style="margin-left:auto;font-size:22px;font-weight:500;letter-spacing:-.03em;color:var(--color-neutral-600)">{{ b.count }}</span>
+          </div>
+          <div style="font-size:12px;color:var(--color-neutral-400);margin-top:4px">{{ b.sub }}</div>
+          <span style="{{ b.markStyle }}"></span>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:36px">
+      <sc-for list="{{ insights }}" as="s" hint-placeholder-count="3">
+        <div style="padding:2px 24px 2px 0;margin-right:24px;border-right:1px solid color-mix(in oklch, var(--color-text) 8%, transparent);animation:rp-rise .35s ease both">
+          <div style="font-size:10px;letter-spacing:.2em;color:var(--color-neutral-500)">{{ s.label }}</div>
+          <div style="display:flex;align-items:baseline;gap:10px;margin-top:10px">
+            <span style="font-size:20px;font-weight:500;font-style:italic;letter-spacing:-.025em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.value }}</span>
+            <span style="margin-left:auto;font-size:12px;color:var(--color-accent-300);flex:0 0 auto">{{ s.aside }}</span>
+          </div>
+          <div style="font-size:12px;line-height:1.5;color:var(--color-neutral-400);margin-top:6px;text-wrap:pretty">{{ s.note }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap;margin-top:52px;padding-bottom:2px;background-image:linear-gradient(90deg,transparent,color-mix(in oklch, var(--color-text) 10%, transparent) 48px,color-mix(in oklch, var(--color-text) 10%, transparent) calc(100% - 48px),transparent);background-size:100% 1px;background-repeat:no-repeat;background-position:bottom">
+      <sc-for list="{{ filters }}" as="f" hint-placeholder-count="6">
+        <button onClick="{{ f.onClick }}" style="{{ f.style }}" style-hover="color:var(--color-text)">{{ f.label }}</button>
+      </sc-for>
+      <span style="margin-left:auto;font-size:12px;color:var(--color-neutral-500);padding-bottom:10px">{{ showing }}</span>
+    </div>
+
+    <div style="margin-top:18px;border-radius:6px;overflow-x:auto;background:linear-gradient(180deg,color-mix(in oklch, var(--color-text) 5%, transparent),color-mix(in oklch, var(--color-text) 1%, transparent));backdrop-filter:blur(26px) saturate(150%);-webkit-backdrop-filter:blur(26px) saturate(150%);border:1px solid color-mix(in oklch, var(--color-text) 8%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 10%, transparent), var(--shadow-lg)">
+      <div style="min-width:800px">
+
+        <sc-if value="{{ isCfb }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid;grid-template-columns:64px 46px 32px minmax(0,1fr) 50px 84px minmax(170px,230px);gap:14px;align-items:center;padding:12px 18px;font-size:10px;letter-spacing:.18em;color:var(--color-neutral-500);background-image:linear-gradient(90deg,transparent,color-mix(in oklch, var(--color-text) 9%, transparent) 48px,color-mix(in oklch, var(--color-text) 9%, transparent) calc(100% - 48px),transparent);background-size:100% 1px;background-repeat:no-repeat;background-position:bottom">
+            <span style="color:var(--color-accent-300)">PYLON</span><span>CHG</span><span></span><span>TEAM</span><span style="text-align:right">REC</span><span>4-WK</span>
+            <span style="display:flex;align-items:center;gap:10px;letter-spacing:.12em">
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--color-accent);box-shadow:0 0 8px var(--color-accent)"></span>PYLON</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:50%;border:1.5px solid var(--color-neutral-200)"></span>AP</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;transform:rotate(45deg);background:var(--color-neutral-400)"></span>COACHES</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:7px;height:2px;background:var(--color-accent-200)"></span>CFP</span>
+            </span>
+          </div>
+          <sc-for list="{{ cfbRows }}" as="r" hint-placeholder-count="25">
+            <div style="{{ r.rowStyle }}" style-hover="background-color:color-mix(in oklch, var(--color-text) 4%, transparent)">
+              <span style="{{ r.rankStyle }}">{{ r.rank }}</span>
+              <span style="{{ r.chgStyle }}">{{ r.chg }}</span>
+              <div style="position:relative;width:32px;height:32px"><div style="position:absolute;inset:0;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;letter-spacing:.04em;color:var(--color-accent-200);background:color-mix(in oklch, var(--color-accent) 14%, transparent);border:1px solid color-mix(in oklch, var(--color-accent) 22%, transparent)">{{ r.abbr }}</div><image-slot id="{{ r.logoId }}" style="position:absolute;inset:0;width:32px;height:32px" shape="rounded" radius="3" placeholder="{{ r.abbr }}"></image-slot></div>
+              <div style="min-width:0">
+                <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.team }}</div>
+                <div style="font-size:11px;color:var(--color-neutral-500);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.meta }}</div>
+              </div>
+              <span style="font-size:14px;text-align:right">{{ r.record }}</span>
+              <svg width="76" height="24" viewBox="0 0 76 24" style="overflow:visible;display:block"><polyline points="{{ r.spark }}" fill="none" style="{{ r.sparkStyle }}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"></polyline><circle cx="{{ r.endX }}" cy="{{ r.endY }}" r="2.6" style="{{ r.dotStyle }}"></circle></svg>
+              <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                <div style="position:relative;height:22px;flex:1;min-width:0">
+                  <div style="position:absolute;left:0;right:0;top:10px;height:2px;border-radius:1px;background:linear-gradient(90deg,color-mix(in oklch, var(--color-text) 16%, transparent),color-mix(in oklch, var(--color-text) 4%, transparent))"></div>
+                  <div style="{{ r.spanStyle }}"></div>
+                  <sc-for list="{{ r.dots }}" as="d" hint-placeholder-count="3">
+                    <span title="{{ d.title }}" style="{{ d.style }}"></span>
+                  </sc-for>
+                </div>
+                <span style="{{ r.spreadStyle }}">{{ r.spread }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </sc-if>
+
+        <sc-if value="{{ isNfl }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:64px 46px 32px minmax(0,1fr) minmax(0,120px) 50px 84px;gap:14px;align-items:center;padding:12px 18px;font-size:10px;letter-spacing:.18em;color:var(--color-neutral-500);background-image:linear-gradient(90deg,transparent,color-mix(in oklch, var(--color-text) 9%, transparent) 48px,color-mix(in oklch, var(--color-text) 9%, transparent) calc(100% - 48px),transparent);background-size:100% 1px;background-repeat:no-repeat;background-position:bottom">
+            <span style="color:var(--color-accent-300)">RK</span><span>CHG</span><span></span><span>TEAM</span><span>DIVISION</span><span style="text-align:right">REC</span><span>4-WK</span>
+          </div>
+          <sc-for list="{{ nflRows }}" as="r" hint-placeholder-count="32">
+            <div style="{{ r.rowStyle }}" style-hover="background-color:color-mix(in oklch, var(--color-text) 4%, transparent)">
+              <span style="{{ r.rankStyle }}">{{ r.rank }}</span>
+              <span style="{{ r.chgStyle }}">{{ r.chg }}</span>
+              <div style="position:relative;width:32px;height:32px"><div style="position:absolute;inset:0;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;letter-spacing:.04em;color:var(--color-accent-200);background:color-mix(in oklch, var(--color-accent) 14%, transparent);border:1px solid color-mix(in oklch, var(--color-accent) 22%, transparent)">{{ r.abbr }}</div><image-slot id="{{ r.logoId }}" style="position:absolute;inset:0;width:32px;height:32px" shape="rounded" radius="3" placeholder="{{ r.abbr }}"></image-slot></div>
+              <div style="min-width:0">
+                <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.team }}</div>
+                <div style="font-size:11px;color:var(--color-neutral-500);margin-top:3px">{{ r.meta }}</div>
+              </div>
+              <span style="font-size:12px;color:var(--color-neutral-400);white-space:nowrap">{{ r.div }}</span>
+              <span style="font-size:14px;text-align:right">{{ r.record }}</span>
+              <svg width="76" height="24" viewBox="0 0 76 24" style="overflow:visible;display:block"><polyline points="{{ r.spark }}" fill="none" style="{{ r.sparkStyle }}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"></polyline><circle cx="{{ r.endX }}" cy="{{ r.endY }}" r="2.6" style="{{ r.dotStyle }}"></circle></svg>
+            </div>
+          </sc-for>
+        </sc-if>
+
+        <sc-if value="{{ isP50 }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:64px 32px minmax(0,1fr) 56px 86px 84px minmax(0,130px);gap:14px;align-items:center;padding:12px 18px;font-size:10px;letter-spacing:.18em;color:var(--color-neutral-500);background-image:linear-gradient(90deg,transparent,color-mix(in oklch, var(--color-text) 9%, transparent) 48px,color-mix(in oklch, var(--color-text) 9%, transparent) calc(100% - 48px),transparent);background-size:100% 1px;background-repeat:no-repeat;background-position:bottom">
+            <span style="color:var(--color-accent-300)">RK</span><span></span><span>PLAYER</span><span>POS</span><span>HT / WT</span><span>TREND</span><span style="text-align:right">PYLON RATING</span>
+          </div>
+          <sc-for list="{{ p50Rows }}" as="r" hint-placeholder-count="20">
+            <div>
+              <sc-for list="{{ r.tier }}" as="t" hint-placeholder-count="0">
+                <div style="display:flex;align-items:center;gap:12px;padding:26px 18px 10px">
+                  <span style="font-size:12px;font-style:italic;font-weight:500;letter-spacing:.16em;color:var(--color-accent-200);flex:0 0 auto">{{ t.name }}</span>
+                  <span style="flex:1;height:1px;background:linear-gradient(90deg,var(--color-accent-700),transparent)"></span>
+                  <span style="font-size:11px;color:var(--color-neutral-500);flex:0 0 auto">{{ t.range }}</span>
+                </div>
+              </sc-for>
+              <div style="{{ r.rowStyle }}" style-hover="background-color:color-mix(in oklch, var(--color-text) 4%, transparent)">
+                <span style="{{ r.rankStyle }}">{{ r.rank }}</span>
+                <div style="position:relative;width:32px;height:32px"><div style="position:absolute;inset:0;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;letter-spacing:.04em;color:var(--color-accent-200);background:color-mix(in oklch, var(--color-accent) 14%, transparent);border:1px solid color-mix(in oklch, var(--color-accent) 22%, transparent)">{{ r.abbr }}</div><image-slot id="{{ r.logoId }}" style="position:absolute;inset:0;width:32px;height:32px" shape="rounded" radius="3" placeholder="{{ r.abbr }}"></image-slot></div>
+                <div style="min-width:0">
+                  <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</div>
+                  <div style="font-size:11px;color:var(--color-neutral-500);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.meta }}</div>
+                </div>
+                <span style="justify-self:start;font-size:11px;letter-spacing:.08em;padding:2px 6px;border-radius:2px;color:var(--color-accent-200);background:color-mix(in oklch, var(--color-accent) 14%, transparent)">{{ r.pos }}</span>
+                <span style="font-size:12px;color:var(--color-neutral-400);white-space:nowrap">{{ r.size }}</span>
+                <svg width="76" height="24" viewBox="0 0 76 24" style="overflow:visible;display:block"><polyline points="{{ r.spark }}" fill="none" style="{{ r.sparkStyle }}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"></polyline><circle cx="{{ r.endX }}" cy="{{ r.endY }}" r="2.6" style="{{ r.dotStyle }}"></circle></svg>
+                <div style="display:flex;align-items:center;gap:10px;justify-content:flex-end">
+                  <sc-if value="{{ showBars }}" hint-placeholder-val="{{ true }}">
+                    <div style="flex:1;max-width:70px;height:3px;border-radius:1px;background:color-mix(in oklch, var(--color-text) 8%, transparent);overflow:hidden">
+                      <div style="{{ r.barStyle }}"></div>
+                    </div>
+                  </sc-if>
+                  <span style="font-size:20px;font-weight:300;font-style:italic;letter-spacing:-.03em;color:var(--color-accent-200);width:52px;text-align:right">{{ r.rating }}</span>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+        </sc-if>
+
+        <sc-if value="{{ emptyRows }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:34px 18px;font-size:13px;color:var(--color-neutral-400)">Nothing matches that filter.</div>
+        </sc-if>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">
+      <sc-for list="{{ footnotes }}" as="n" hint-placeholder-count="0">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:baseline;font-size:12px;color:var(--color-neutral-400)">
+          <span style="font-size:10px;letter-spacing:.18em;color:var(--color-neutral-500)">{{ n.label }}</span>
+          <span style="text-wrap:pretty">{{ n.text }}</span>
+        </div>
+      </sc-for>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;startBoard&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;cfb&quot;,&quot;nfl&quot;,&quot;p50&quot;],&quot;default&quot;:&quot;cfb&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Report&quot;},&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;comfortable&quot;,&quot;compact&quot;],&quot;default&quot;:&quot;comfortable&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Report&quot;},&quot;showBars&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Pylon 50&quot;}}">
+// Rankings are inputs: the Pylon order plus each team's prior Pylon rank and
+// its AP / Coaches / CFP positions. Movement, NEW entries, drop-outs, poll
+// splits, filter counts, tiers and every insight card are derived from them.
+
+// [abbr, school, conference, record, prevPylon, AP, Coaches, CFP, last result]
+// null = unranked in that poll. CFP is null for every team until the
+// committee's first release.
+const CFB = [
+  ["OSU", "Ohio State", "Big Ten", "7-0", 1, 1, 1, null, "W 38-14 vs Wisconsin"],
+  ["TEX", "Texas", "SEC", "7-0", 3, 2, 2, null, "W 31-24 at Arkansas"],
+  ["UGA", "Georgia", "SEC", "6-1", 2, 5, 4, null, "L 20-23 at Ole Miss"],
+  ["ORE", "Oregon", "Big Ten", "7-0", 4, 3, 3, null, "W 42-17 vs Rutgers"],
+  ["PSU", "Penn State", "Big Ten", "6-0", 6, 4, 5, null, "W 27-10 at Purdue"],
+  ["ND", "Notre Dame", "Independent", "6-1", 7, 8, 8, null, "W 34-21 vs Stanford"],
+  ["MIA", "Miami", "ACC", "6-0", 9, 6, 6, null, "W 45-28 vs Syracuse"],
+  ["ALA", "Alabama", "SEC", "5-1", 5, 7, 7, null, "Idle"],
+  ["LSU", "LSU", "SEC", "6-1", 10, 10, 9, null, "W 28-17 vs Kentucky"],
+  ["MISS", "Ole Miss", "SEC", "6-1", 12, 9, 10, null, "W 23-20 vs Georgia"],
+  ["IND", "Indiana", "Big Ten", "6-1", 8, 13, 12, null, "L 24-27 at Michigan"],
+  ["TENN", "Tennessee", "SEC", "5-1", 11, 11, 11, null, "Idle"],
+  ["TTU", "Texas Tech", "Big 12", "6-1", 15, 18, 17, null, "W 37-30 vs Baylor"],
+  ["OU", "Oklahoma", "SEC", "5-2", 13, 17, 18, null, "L 17-24 vs Texas A&M"],
+  ["MICH", "Michigan", "Big Ten", "5-2", 17, 15, 16, null, "W 27-24 vs Indiana"],
+  ["CLEM", "Clemson", "ACC", "5-1", 18, 12, 13, null, "W 31-13 at NC State"],
+  ["BYU", "BYU", "Big 12", "6-0", 20, 14, 14, null, "W 28-21 at TCU"],
+  ["MIZZ", "Missouri", "SEC", "5-1", 14, 16, 15, null, "Idle"],
+  ["USC", "USC", "Big Ten", "5-2", 22, 21, 22, null, "W 35-20 vs UCLA"],
+  ["UTAH", "Utah", "Big 12", "5-1", 21, 19, 19, null, "W 24-14 at Colorado"],
+  ["TAMU", "Texas A&M", "SEC", "5-2", 16, 20, 20, null, "W 24-17 at Oklahoma"],
+  ["LOU", "Louisville", "ACC", "5-1", null, 23, 24, null, "W 30-27 vs Virginia Tech"],
+  ["ISU", "Iowa State", "Big 12", "6-1", 19, 22, 21, null, "L 21-28 vs Kansas State"],
+  ["ASU", "Arizona State", "Big 12", "5-2", null, null, 25, null, "W 33-16 vs Arizona"],
+  ["VAN", "Vanderbilt", "SEC", "5-2", 24, 25, null, null, "W 20-17 vs South Carolina"]
+];
+// Ranked by Pylon last week, absent this week.
+const CFB_DROPPED = [["Kansas State", 23], ["Boise State", 25]];
+const CFP_FIRST_RELEASE = "Tue, Nov 3";
+
+// [abbr, team, division, record, prevRank, last result]
+const NFL = [
+  ["KC", "Kansas City Chiefs", "AFC West", "6-0", 1, "W 27-20 vs LV"],
+  ["DET", "Detroit Lions", "NFC North", "5-1", 3, "W 34-24 at MIN"],
+  ["PHI", "Philadelphia Eagles", "NFC East", "5-1", 2, "L 21-24 vs WAS"],
+  ["BAL", "Baltimore Ravens", "AFC North", "5-1", 4, "W 30-17 vs CIN"],
+  ["BUF", "Buffalo Bills", "AFC East", "4-1", 6, "Bye"],
+  ["SF", "San Francisco 49ers", "NFC West", "4-2", 9, "W 28-13 vs SEA"],
+  ["GB", "Green Bay Packers", "NFC North", "4-1", 5, "Bye"],
+  ["HOU", "Houston Texans", "AFC South", "4-2", 7, "L 17-23 at JAX"],
+  ["WAS", "Washington Commanders", "NFC East", "4-2", 12, "W 24-21 at PHI"],
+  ["MIN", "Minnesota Vikings", "NFC North", "4-2", 8, "L 24-34 vs DET"],
+  ["LAR", "Los Angeles Rams", "NFC West", "4-2", 13, "W 31-20 vs ARI"],
+  ["DEN", "Denver Broncos", "AFC West", "4-2", 10, "L 16-19 at LAC"],
+  ["TB", "Tampa Bay Buccaneers", "NFC South", "4-2", 15, "W 27-14 vs NO"],
+  ["CIN", "Cincinnati Bengals", "AFC North", "3-3", 11, "L 17-30 at BAL"],
+  ["LAC", "Los Angeles Chargers", "AFC West", "3-2", 16, "W 19-16 vs DEN"],
+  ["PIT", "Pittsburgh Steelers", "AFC North", "3-3", 14, "L 13-20 vs CLE"],
+  ["SEA", "Seattle Seahawks", "NFC West", "3-3", 19, "L 13-28 at SF"],
+  ["ATL", "Atlanta Falcons", "NFC South", "3-3", 17, "L 20-23 vs CAR"],
+  ["ARI", "Arizona Cardinals", "NFC West", "3-2", 22, "L 20-31 at LAR"],
+  ["CHI", "Chicago Bears", "NFC North", "3-3", 18, "L 14-17 at NYG"],
+  ["JAX", "Jacksonville Jaguars", "AFC South", "3-3", 20, "W 23-17 vs HOU"],
+  ["IND", "Indianapolis Colts", "AFC South", "3-3", 23, "W 26-20 at TEN"],
+  ["MIA", "Miami Dolphins", "AFC East", "2-3", 21, "Bye"],
+  ["DAL", "Dallas Cowboys", "NFC East", "2-4", 24, "L 17-27 vs NYJ"],
+  ["NO", "New Orleans Saints", "NFC South", "2-4", 27, "L 14-27 at TB"],
+  ["NYJ", "New York Jets", "AFC East", "2-4", 25, "W 27-17 at DAL"],
+  ["LV", "Las Vegas Raiders", "AFC West", "2-4", 26, "L 20-27 at KC"],
+  ["NE", "New England Patriots", "AFC East", "2-3", 30, "Bye"],
+  ["CAR", "Carolina Panthers", "NFC South", "1-5", 28, "W 23-20 at ATL"],
+  ["NYG", "New York Giants", "NFC East", "1-5", 29, "W 17-14 vs CHI"],
+  ["CLE", "Cleveland Browns", "AFC North", "1-5", 31, "W 20-13 at PIT"],
+  ["TEN", "Tennessee Titans", "AFC South", "0-6", 32, "L 20-26 vs IND"]
+];
+
+// Pylon 50 — 2027 draft class. [name, pos, schoolAbbr, class, ht, wt, rating]
+// Prospect names are prototype placeholders; schools are real so logo slots
+// are shared with the CFB board (drop a logo once, it shows in both).
+const P50 = [
+  ["Malik Thornton", "QB", "OSU", "Jr", "6-4", 222, 98.4],
+  ["Jaylen Okafor", "EDGE", "UGA", "Jr", "6-5", 258, 97.9],
+  ["Devin Castellanos", "OT", "TEX", "RS Jr", "6-6", 318, 97.1],
+  ["Isaiah Whitfield", "WR", "LSU", "Jr", "6-2", 201, 96.6],
+  ["Trey Abernathy", "CB", "ALA", "Jr", "6-1", 190, 96.2],
+  ["Marcus Delacroix", "RB", "ORE", "Jr", "5-11", 214, 95.7],
+  ["Elijah Ransome", "DT", "MIA", "Sr", "6-3", 305, 95.3],
+  ["Cameron Vaughn", "S", "PSU", "Jr", "6-1", 205, 94.8],
+  ["Andre Lockhart", "LB", "ND", "Jr", "6-2", 236, 94.4],
+  ["Jordan Pettiford", "WR", "OSU", "Jr", "6-0", 188, 94.0],
+  ["Kendrick Sallee", "EDGE", "TENN", "Sr", "6-4", 252, 93.6],
+  ["Tyler Brannigan", "QB", "MIA", "RS Jr", "6-3", 216, 93.1],
+  ["Damon Ruiz-Hale", "OT", "MICH", "Jr", "6-7", 322, 92.8],
+  ["Xavier Mbeki", "CB", "UGA", "Jr", "6-0", 186, 92.4],
+  ["Nolan Featherstone", "TE", "IND", "Sr", "6-5", 248, 92.0],
+  ["Quinton Ashby", "WR", "TEX", "Jr", "6-3", 207, 91.7],
+  ["Reggie Holloway", "DT", "ALA", "Jr", "6-4", 311, 91.3],
+  ["Brandon Kesler", "IOL", "OSU", "RS Jr", "6-4", 314, 91.0],
+  ["Darius Nwosu", "EDGE", "CLEM", "Jr", "6-3", 249, 90.6],
+  ["Caleb Underhill", "S", "UGA", "Sr", "6-0", 201, 90.2],
+  ["Jalen Prescott-Moore", "RB", "PSU", "Jr", "5-10", 208, 89.9],
+  ["Owen Hartsfield", "QB", "OU", "Sr", "6-2", 214, 89.5],
+  ["Terrance Bello", "CB", "ORE", "Jr", "5-11", 184, 89.2],
+  ["Miles Kincaid", "LB", "TEX", "Jr", "6-1", 232, 88.8],
+  ["Antoine Fairley", "WR", "MISS", "Sr", "6-1", 196, 88.5],
+  ["Grant Ellison", "OT", "ND", "Sr", "6-6", 312, 88.1],
+  ["Victor Adebayo", "DT", "LSU", "Jr", "6-3", 298, 87.8],
+  ["Shane McAllister", "TE", "ALA", "Jr", "6-4", 244, 87.5],
+  ["Rashad Coleman", "EDGE", "TTU", "Sr", "6-4", 255, 87.1],
+  ["Peyton Draper", "IOL", "TENN", "Sr", "6-3", 309, 86.8],
+  ["Darnell Fisk", "CB", "MIA", "Jr", "6-0", 188, 86.5],
+  ["Hunter Boykin", "WR", "BYU", "Sr", "6-2", 199, 86.2],
+  ["Corey Asante", "S", "OU", "Jr", "6-1", 203, 85.9],
+  ["Luis Echevarria", "RB", "TAMU", "Jr", "5-11", 212, 85.6],
+  ["Dominic Strand", "LB", "OSU", "Sr", "6-2", 238, 85.3],
+  ["Marquise Tolbert", "WR", "USC", "Jr", "5-11", 183, 85.0],
+  ["Sebastian Oyelaran", "OT", "LOU", "RS Sr", "6-5", 315, 84.7],
+  ["Keon Whitaker", "DT", "ORE", "Jr", "6-2", 302, 84.4],
+  ["Bryce Lattimore", "QB", "TTU", "Sr", "6-3", 219, 84.1],
+  ["Andre Pugh", "CB", "PSU", "Sr", "5-11", 187, 83.8],
+  ["Tavion Greer", "EDGE", "UTAH", "Jr", "6-3", 247, 83.5],
+  ["Wesley Carrow", "IOL", "MICH", "Sr", "6-4", 311, 83.2],
+  ["Jamarcus Bell", "S", "ALA", "Jr", "6-0", 199, 82.9],
+  ["Ty Rourke", "TE", "UGA", "Sr", "6-5", 251, 82.6],
+  ["Emmanuel Okoro", "LB", "MIZZ", "Jr", "6-1", 229, 82.3],
+  ["Zion Barksdale", "WR", "ISU", "Sr", "6-2", 194, 82.0],
+  ["Cade Henley", "OT", "VAN", "RS Sr", "6-6", 309, 81.7],
+  ["Darian Moss", "RB", "LSU", "Jr", "5-9", 201, 81.4],
+  ["Javon Ricketts", "CB", "ASU", "Jr", "6-0", 185, 81.1],
+  ["Lucas Ferrante", "DT", "CLEM", "Sr", "6-3", 300, 80.8]
+];
+
+const TIERS = [
+  { name: "TIER 1 · BLUE CHIP", min: 95, range: "95.0 and up" },
+  { name: "TIER 2 · FIRST ROUND", min: 90, range: "90.0 – 94.9" },
+  { name: "TIER 3 · DAY ONE / TWO", min: 85, range: "85.0 – 89.9" },
+  { name: "TIER 4 · DAY TWO", min: -1, range: "Below 85.0" }
+];
+
+const META = {
+  cfb: { title: "CFB Top 25", sub: "Week 8 · Pylon, AP, Coaches, CFP", hero: "College football Top 25, week 8", heroSub: "The Pylon order, set against the AP, Coaches and CFP rankings. Updated Sunday, Oct 19, 2026." },
+  nfl: { title: "NFL Power 32", sub: "Week 7 · all 32 teams", hero: "NFL power rankings, week 7", heroSub: "All 32 teams, one through thirty-two. Updated Sunday, Oct 19, 2026." },
+  p50: { title: "Pylon 50", sub: "2027 draft class big board", hero: "The Pylon 50: the 2027 draft big board", heroSub: "The fifty best prospects in the 2027 class, ordered by Pylon Rating." }
+};
+
+const schoolName = abbr => { const t = CFB.filter(x => x[0] === abbr)[0]; return t ? t[1] : abbr; };
+
+// ── trails ────────────────────────────────────────────────────
+// Four-week history is prototype data, generated deterministically from each
+// key so it is stable between renders. Replace with stored weekly ranks.
+function rng(key) {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619) >>> 0;
+  return () => { h = (Math.imul(h, 1103515245) + 12345) >>> 0; return h / 4294967296; };
+}
+function rankTrail(key, prev, now, max) {
+  const r = rng(key), p = prev == null ? max + 1 : prev;
+  const clamp = v => Math.max(1, Math.min(max + 1, Math.round(v)));
+  const a = clamp(p + (r() - 0.5) * 7), b = clamp((a + p) / 2 + (r() - 0.5) * 4);
+  return [a, b, p, now];
+}
+function ratingTrail(key, now) {
+  const r = rng(key);
+  const c = now - (r() - 0.35) * 1.2, b = c - (r() - 0.35) * 1.4, a = b - (r() - 0.35) * 1.6;
+  return [a, b, c, now].map(v => Math.round(v * 10) / 10);
+}
+// Points for a 76×24 sparkline. Ranks invert so No. 1 sits at the top.
+function spark(vals, lo, hi, invertY) {
+  const W = 76, H = 24, pad = 3;
+  const pts = vals.map((v, i) => {
+    const t = (v - lo) / ((hi - lo) || 1);
+    const y = pad + (invertY ? t : 1 - t) * (H - pad * 2);
+    return [Math.round(i * W / (vals.length - 1) * 10) / 10, Math.round(y * 10) / 10];
+  });
+  return { points: pts.map(p => p.join(",")).join(" "), end: pts[pts.length - 1] };
+}
+function sparkFields(vals, lo, hi, invertY, better) {
+  const sp = spark(vals, lo, hi, invertY);
+  const c = better > 0 ? "var(--color-accent-300)" : better < 0 ? "var(--color-neutral-500)" : "var(--color-neutral-600)";
+  return {
+    spark: sp.points, endX: sp.end[0], endY: sp.end[1],
+    sparkStyle: "stroke:" + c + (better > 0 ? ";filter:drop-shadow(0 0 4px color-mix(in oklch, var(--color-accent) 60%, transparent))" : ""),
+    dotStyle: "fill:" + c
+  };
+}
+// Big italic numerals, lit in the accent at the top of each board.
+function rankStyle(rank, max) {
+  const base = "font-size:32px;font-weight:300;font-style:italic;letter-spacing:-.06em;line-height:1;padding-right:4px;";
+  if (rank <= 5) return base + "background:linear-gradient(170deg,var(--color-accent-100),var(--color-accent) 70%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 12px color-mix(in oklch, var(--color-accent) 55%, transparent))";
+  return base + "color:var(--color-accent-300);opacity:" + (0.9 - (rank / max) * 0.5).toFixed(2);
+}
+
+class Component extends DCLogic {
+  state = { board: null, filter: "All" };
+
+  board() { return this.state.board || this.props.startBoard || "cfb"; }
+
+  renderVals() {
+    const self = this, board = this.board(), F = this.state.filter;
+    const pad = (this.props.density || "comfortable") === "compact" ? "7px 18px" : "11px 18px";
+    const showBars = this.props.showBars ?? true;
+
+    const chg = (rank, prev) => {
+      if (prev == null) return { label: "NEW", tone: "new", d: null };
+      const d = prev - rank;
+      return { label: d === 0 ? "—" : (d > 0 ? "▲ " : "▼ ") + Math.abs(d), tone: d > 0 ? "up" : d < 0 ? "down" : "flat", d };
+    };
+    const chgStyle = tone => tone === "new"
+      ? "justify-self:start;font-size:10px;letter-spacing:.14em;padding:2px 6px;border-radius:2px;background:color-mix(in oklch, var(--color-accent) 22%, transparent);color:var(--color-accent-100)"
+      : "font-size:12px;font-weight:500;color:" + (tone === "up" ? "var(--color-accent-300)" : tone === "down" ? "var(--color-neutral-400)" : "var(--color-neutral-600)");
+    const row = (cols, i) => "display:grid;grid-template-columns:" + cols + ";gap:14px;align-items:center;padding:" + pad +
+      ";transition:background-color .15s ease;" + (i ? "background-image:linear-gradient(90deg,transparent,color-mix(in oklch, var(--color-text) 6%, transparent) 48px,color-mix(in oklch, var(--color-text) 6%, transparent) calc(100% - 48px),transparent);background-size:100% 1px;background-repeat:no-repeat;background-position:top;" : "");
+
+    const chip = (label, count) => ({
+      label: label + (count == null ? "" : " · " + count),
+      onClick: () => self.setState({ filter: label }),
+      style: "cursor:pointer;font-family:var(--font-body);font-size:13px;padding:0 0 10px;border:0;background:transparent;transition:color .15s ease;color:" +
+        (F === label ? "var(--color-text);box-shadow:inset 0 -2px 0 var(--color-accent)" : "var(--color-neutral-500)")
+    });
+
+    let cfbRows = [], nflRows = [], p50Rows = [], filters = [], insights = [], footnotes = [], total = 0, shown = 0;
+
+    if (board === "cfb") {
+      const all = CFB.map((t, i) => ({ t, rank: i + 1, c: chg(i + 1, t[4]) }));
+      total = all.length;
+      const confs = [...new Set(CFB.map(t => t[2]))];
+      filters = [chip("All", total)].concat(confs.map(c => chip(c, all.filter(x => x.t[2] === c).length)));
+      const vis = all.filter(x => F === "All" || x.t[2] === F);
+      shown = vis.length;
+
+      // A poll cell reads relative to the Pylon rank, so splits are visible
+      // down the column without a separate legend.
+      const poll = (v, rank) => ({
+        text: v == null ? "NR" : String(v),
+        style: "text-align:center;font-size:13px;color:" +
+          (v == null ? "var(--color-neutral-600)" : Math.abs(v - rank) >= 4 ? "var(--color-accent-200)" : "var(--color-neutral-400)")
+      });
+
+      cfbRows = vis.map((x, i) => {
+        const NR = 26, at = v => ((Math.min(v == null ? NR : v, NR) - 1) / (NR - 1) * 100).toFixed(2) + "%";
+        const polls = [x.rank, x.t[5], x.t[6]].concat(x.t[7] != null ? [x.t[7]] : []).map(v => v == null ? NR : v);
+        const lo = Math.min.apply(null, polls), hi = Math.max.apply(null, polls), gap = hi - lo;
+        const dots = [
+          { title: "AP " + (x.t[5] == null ? "NR" : x.t[5]), at: at(x.t[5]),
+            css: "width:9px;height:9px;border-radius:50%;border:1.5px solid var(--color-neutral-200);background:var(--color-bg)" + (x.t[5] == null ? ";opacity:.35" : "") },
+          { title: "Coaches " + (x.t[6] == null ? "NR" : x.t[6]), at: at(x.t[6]),
+            css: "width:7px;height:7px;transform:translate(-50%,-50%) rotate(45deg);background:var(--color-neutral-400)" + (x.t[6] == null ? ";opacity:.35" : "") },
+          { title: "Pylon " + x.rank, at: at(x.rank),
+            css: "width:11px;height:11px;border-radius:50%;background:var(--color-accent);box-shadow:0 0 0 3px color-mix(in oklch, var(--color-accent) 22%, transparent),0 0 12px var(--color-accent)" }
+        ].concat(x.t[7] != null ? [{ title: "CFP " + x.t[7], at: at(x.t[7]), css: "width:9px;height:3px;background:var(--color-accent-200)" }] : []);
+        const tr = rankTrail("cfb" + x.t[0], x.t[4], x.rank, 25);
+        return Object.assign({
+          rank: x.rank, rankStyle: rankStyle(x.rank, 25), chg: x.c.label, chgStyle: chgStyle(x.c.tone),
+          logoId: "logo-cfb-" + x.t[0], abbr: x.t[0], team: x.t[1],
+          meta: x.t[2] + " · " + x.t[8], record: x.t[3],
+          dots: dots.map(d => ({ title: d.title,
+            style: "position:absolute;top:11px;left:" + d.at + ";" + (d.css.indexOf("transform") > -1 ? "" : "transform:translate(-50%,-50%);") + d.css })),
+          spanStyle: "position:absolute;top:9px;height:4px;border-radius:2px;background:color-mix(in oklch, var(--color-accent) " + (gap >= 4 ? "38%" : "18%") + ", transparent);left:" +
+            at(lo) + ";width:calc(" + at(hi) + " - " + at(lo) + ")",
+          spread: gap === 0 ? "AGREE" : "±" + gap,
+          spreadStyle: "flex:0 0 auto;width:42px;text-align:right;font-size:11px;letter-spacing:.06em;color:" + (gap >= 4 ? "var(--color-accent-200)" : "var(--color-neutral-500)"),
+          rowStyle: row("64px 46px 32px minmax(0,1fr) 50px 84px minmax(170px,230px)", i)
+        }, sparkFields(tr, 1, 26, true, tr[0] - tr[3]));
+      });
+
+      const moved = all.filter(x => x.c.d != null);
+      const riser = moved.slice().sort((a, b) => b.c.d - a.c.d)[0];
+      const fresh = all.filter(x => x.c.tone === "new");
+      const split = all.filter(x => x.t[5] != null)
+        .map(x => ({ x, gap: x.t[5] - x.rank }))
+        .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))[0];
+      insights = [
+        { label: "BIGGEST RISER", value: riser.t[1], aside: "▲ " + riser.c.d, note: "No. " + riser.t[4] + " → No. " + riser.rank + " · " + riser.t[8] },
+        { label: "BIGGEST SPLIT WITH AP", value: split.x.t[1], aside: (split.gap > 0 ? "we're higher" : "we're lower"),
+          note: "Pylon No. " + split.x.rank + ", AP No. " + split.x.t[5] + " — " + Math.abs(split.gap) + " spots apart" },
+        { label: "NEW THIS WEEK", value: fresh.map(x => x.t[1]).join(", ") || "None", aside: fresh.length ? fresh.length + " IN" : "",
+          note: CFB_DROPPED.length ? CFB_DROPPED.length + " out: " + CFB_DROPPED.map(d => d[0]).join(", ") : "Nobody dropped out" }
+      ];
+      footnotes = [
+        { label: "DROPPED OUT", text: CFB_DROPPED.map(d => d[0] + " (" + d[1] + ")").join(", ") },
+        { label: "CFP", text: all.every(x => x.t[7] == null)
+            ? "The committee's first ranking releases " + CFP_FIRST_RELEASE + "; the column fills in from there."
+            : "Committee rankings as of the latest release." },
+        { label: "CONSENSUS", text: "Each strip runs No. 1 to unranked. The shaded span is the spread between polls; ±4 or more lights up. Unranked marks sit faded at the right edge." },
+        { label: "TREND", text: "Four-week rank trails use prototype history." }
+      ];
+    }
+
+    if (board === "nfl") {
+      const all = NFL.map((t, i) => ({ t, rank: i + 1, c: chg(i + 1, t[4]) }));
+      total = all.length;
+      filters = ["All", "AFC", "NFC"].map(c => chip(c, c === "All" ? total : all.filter(x => x.t[2].indexOf(c) === 0).length));
+      const vis = all.filter(x => F === "All" || x.t[2].indexOf(F) === 0);
+      shown = vis.length;
+      nflRows = vis.map((x, i) => {
+        const tr = rankTrail("nfl" + x.t[0], x.t[4], x.rank, 32);
+        return Object.assign({
+          rank: x.rank, rankStyle: rankStyle(x.rank, 32), chg: x.c.label, chgStyle: chgStyle(x.c.tone),
+          logoId: "logo-nfl-" + x.t[0], abbr: x.t[0], team: x.t[1], div: x.t[2], record: x.t[3], meta: x.t[5],
+          rowStyle: row("64px 46px 32px minmax(0,1fr) minmax(0,120px) 50px 84px", i)
+        }, sparkFields(tr, 1, 32, true, tr[0] - tr[3]));
+      });
+      const riser = all.slice().sort((a, b) => b.c.d - a.c.d)[0];
+      const faller = all.slice().sort((a, b) => a.c.d - b.c.d)[0];
+      const losses = r => parseInt(r.split("-")[1], 10);
+      const unbeaten = all.filter(x => losses(x.t[3]) === 0);
+      insights = [
+        { label: "BIGGEST RISER", value: riser.t[1], aside: "▲ " + riser.c.d, note: "No. " + riser.t[4] + " → No. " + riser.rank + " · " + riser.t[5] },
+        { label: "BIGGEST FALLER", value: faller.t[1], aside: "▼ " + Math.abs(faller.c.d), note: "No. " + faller.t[4] + " → No. " + faller.rank + " · " + faller.t[5] },
+        { label: unbeaten.length ? "UNBEATEN" : "TOP RECORD", value: (unbeaten.length ? unbeaten : all.slice(0, 1)).map(x => x.t[1]).join(", "),
+          aside: (unbeaten[0] || all[0]).t[3], note: unbeaten.length === 1 ? "The last unbeaten team in the league" : unbeaten.length + " teams without a loss" }
+      ];
+      footnotes = [{ label: "TREND", text: "Four-week rank trails use prototype history." }];
+    }
+
+    if (board === "p50") {
+      const all = P50.map((p, i) => ({ p, rank: i + 1 }));
+      total = all.length;
+      const order = ["QB", "RB", "WR", "TE", "OT", "IOL", "EDGE", "DT", "LB", "CB", "S"];
+      filters = [chip("All", total)].concat(order.filter(o => all.some(x => x.p[1] === o)).map(o => chip(o, all.filter(x => x.p[1] === o).length)));
+      const vis = all.filter(x => F === "All" || x.p[1] === F);
+      shown = vis.length;
+      const tierOf = r => TIERS.filter(t => r >= t.min)[0];
+      const posRank = {};
+      p50Rows = vis.map((x, i) => {
+        const t = tierOf(x.p[6]), prevT = i ? tierOf(vis[i - 1].p[6]) : null;
+        const pr = all.filter(y => y.p[1] === x.p[1]).indexOf(x) + 1;
+        const tr = ratingTrail("p50" + x.p[0], x.p[6]);
+        return Object.assign({
+          tier: t !== prevT ? [t] : [],
+          rank: x.rank, rankStyle: rankStyle(x.rank, 50), name: x.p[0], pos: x.p[1],
+          logoId: "logo-cfb-" + x.p[2], abbr: x.p[2],
+          meta: schoolName(x.p[2]) + " · " + x.p[3] + " · " + x.p[1] + pr + " in class",
+          size: x.p[4] + " / " + x.p[5],
+          rating: x.p[6].toFixed(1),
+          barStyle: "height:100%;background:var(--color-accent);box-shadow:0 0 8px var(--color-accent);animation:rp-grow .7s ease;width:" +
+            Math.max(4, (x.p[6] - 75) / 25 * 100).toFixed(0) + "%",
+          rowStyle: row("64px 32px minmax(0,1fr) 56px 86px 84px minmax(0,130px)", t !== prevT ? 0 : i)
+        }, sparkFields(tr, Math.min.apply(null, tr) - 0.4, Math.max.apply(null, tr) + 0.4, false, tr[3] - tr[0]));
+      });
+      const counts = {};
+      P50.forEach(p => { counts[p[1]] = (counts[p[1]] || 0) + 1; });
+      const deepest = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+      const bySchool = {};
+      P50.forEach(p => { bySchool[p[2]] = (bySchool[p[2]] || 0) + 1; });
+      const topSchool = Object.keys(bySchool).sort((a, b) => bySchool[b] - bySchool[a])[0];
+      const t1 = P50.filter(p => p[6] >= 95).length;
+      insights = [
+        { label: "NO. 1 OVERALL", value: P50[0][0], aside: P50[0][6].toFixed(1), note: P50[0][1] + " · " + schoolName(P50[0][2]) + " · " + P50[0][3] },
+        { label: "DEEPEST POSITION", value: deepest, aside: counts[deepest] + " of 50", note: t1 + " blue-chip prospects across the class" },
+        { label: "MOST PROSPECTS", value: schoolName(topSchool), aside: bySchool[topSchool] + " players", note: P50.filter(p => p[2] === topSchool).map(p => p[1]).join(", ") }
+      ];
+      footnotes = [{ label: "NOTE", text: "Prospect names are placeholders for this prototype. Pylon Rating runs 0–100; trend lines show the last four monthly updates (prototype history)." }];
+    }
+
+    const M = META[board];
+
+    return {
+      heroTitle: M.hero, heroSub: M.heroSub,
+      isCfb: board === "cfb", isNfl: board === "nfl", isP50: board === "p50",
+      cfbRows, nflRows, p50Rows, insights, footnotes, filters, showBars,
+      emptyRows: shown === 0,
+      showing: shown === total ? total + " shown" : shown + " of " + total + " shown",
+
+      boards: ["cfb", "nfl", "p50"].map(k => ({
+        title: META[k].title, sub: META[k].sub,
+        count: k === "cfb" ? "25" : k === "nfl" ? "32" : "50",
+        onClick: () => self.setState({ board: k, filter: "All" }),
+        style: "position:relative;cursor:pointer;text-align:left;font-family:var(--font-body);padding:18px 20px;border:0;transition:background-color .2s ease;" +
+          (k !== "cfb" ? "border-left:1px solid color-mix(in oklch, var(--color-text) 8%, transparent);" : "") +
+          "background-color:" + (board === k ? "color-mix(in oklch, var(--color-accent) 12%, transparent)" : "transparent"),
+        titleStyle: "font-size:16px;font-weight:500;font-style:italic;letter-spacing:-.01em;color:" + (board === k ? "var(--color-text)" : "var(--color-neutral-300)"),
+        markStyle: "position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,transparent,var(--color-accent),transparent);box-shadow:0 0 14px var(--color-accent);transition:opacity .25s ease;opacity:" +
+          (board === k ? "1" : "0")
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

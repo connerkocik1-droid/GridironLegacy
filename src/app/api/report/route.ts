@@ -2,6 +2,8 @@ import {
   movement,
   type BoardReport,
   type Move,
+  type PollKey,
+  type Polls,
 } from "@/lib/pylon-report";
 import { isConfigured, serverClient } from "@/lib/supabase";
 
@@ -116,7 +118,7 @@ export async function POST(req: Request) {
     return Response.json({ ok: true, week });
   }
 
-  const college = boardFrom(body?.college);
+  const college = { ...boardFrom(body?.college), polls: pollsFrom((body?.college as { polls?: unknown })?.polls) };
   const nfl = boardFrom(body?.nfl);
   if (!college.ranked.length && !nfl.ranked.length) {
     return Response.json({ error: "That report has nothing ranked in it" }, { status: 400 });
@@ -153,14 +155,21 @@ function boardFrom(raw: unknown): BoardReport {
   const from = (list: unknown): BoardReport["ranked"] =>
     (Array.isArray(list) ? list : [])
       .map((e) => {
-        const row = e as { rank?: unknown; team?: unknown; record?: unknown; note?: unknown };
+        const row = e as {
+          rank?: unknown;
+          team?: unknown;
+          record?: unknown;
+          abbr?: unknown;
+          conference?: unknown;
+          lastResult?: unknown;
+        };
         return {
           rank: Number(row?.rank) || 0,
           team: String(row?.team ?? "").trim().slice(0, 80),
           record: String(row?.record ?? "").trim().slice(0, 12),
-          // Long enough for a paragraph on a team, short enough that the
-          // response stays a response.
-          note: String(row?.note ?? "").trim().slice(0, 4000),
+          abbr: String(row?.abbr ?? "").trim().toUpperCase().slice(0, 4),
+          conference: String(row?.conference ?? "").trim().slice(0, 30),
+          lastResult: String(row?.lastResult ?? "").trim().slice(0, 60),
         };
       })
       .filter((e) => e.team && e.rank > 0)
@@ -168,4 +177,23 @@ function boardFrom(raw: unknown): BoardReport {
 
   const board = raw as { ranked?: unknown; honorable?: unknown } | null;
   return { ranked: from(board?.ranked), honorable: from(board?.honorable) };
+}
+
+const POLL_KEYS: PollKey[] = ["ap", "coaches", "cfp"];
+
+/** College's three national polls, taken off the request the same way. */
+function pollsFrom(raw: unknown): Polls {
+  const obj = raw as Partial<Record<PollKey, unknown>> | null;
+  const out = {} as Polls;
+  for (const key of POLL_KEYS) {
+    const list = obj?.[key];
+    out[key] = (Array.isArray(list) ? list : [])
+      .map((e) => {
+        const row = e as { rank?: unknown; team?: unknown };
+        return { rank: Number(row?.rank) || 0, team: String(row?.team ?? "").trim().slice(0, 80) };
+      })
+      .filter((e) => e.team && e.rank > 0)
+      .slice(0, 25);
+  }
+  return out;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import BoardMark from "./BoardMark";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -35,10 +36,10 @@ import {
  * screenful of invented authority.
  *
  * What survives is everything the design is actually for — the spotlight on
- * No. 1, the riser and faller, the rest of the board as tap-to-expand rows
- * with the movement chip against the rank — and one thing the prototype has no
- * equivalent for, because this report can have it: the honourable mentions,
- * which are whatever the sheet carried past the end of the ranking.
+ * No. 1, the riser and faller, the rest of the board as rows with the
+ * movement chip against the rank — and a link to the full Pylon Report page,
+ * which also carries the national polls and the 2027 big board this card
+ * has no room for.
  *
  * The movement is still real and still not stored: it is last week's published
  * board against this week's, which is the same relationship the prototype has
@@ -78,7 +79,6 @@ type BoardKey = (typeof BOARDS)[number]["key"];
 export default function PylonReport() {
   const [report, setReport] = useState<Report | null>(null);
   const [board, setBoard] = useState<BoardKey>("nfl");
-  const [open, setOpen] = useState<string | null>(null);
   const [asked, setAsked] = useState(false);
 
   const load = useCallback(async () => {
@@ -213,10 +213,7 @@ export default function PylonReport() {
                   role="tab"
                   aria-selected={on}
                   disabled={!has}
-                  onClick={() => {
-                    setBoard(b.key);
-                    setOpen(null);
-                  }}
+                  onClick={() => setBoard(b.key)}
                   style={{
                     cursor: has ? "pointer" : "default",
                     flex: 1,
@@ -321,18 +318,6 @@ export default function PylonReport() {
                     </div>
                   </div>
                 </div>
-                {top.note ? (
-                  <div
-                    style={{
-                      fontSize: 11,
-                      lineHeight: 1.5,
-                      color: "var(--text-muted)",
-                      marginTop: 11,
-                    }}
-                  >
-                    {top.note}
-                  </div>
-                ) : null}
               </div>
             </div>
           ) : null}
@@ -376,8 +361,6 @@ export default function PylonReport() {
                 entry={entry}
                 move={moves?.[keyOf(entry.team)]}
                 first={n === 0}
-                open={open === keyOf(entry.team)}
-                onToggle={() => setOpen(open === keyOf(entry.team) ? null : keyOf(entry.team))}
               />
             ))}
           </div>
@@ -409,122 +392,81 @@ export default function PylonReport() {
               </div>
             </>
           ) : null}
+
+          <Link
+            href="/pylon-report"
+            style={{
+              display: "block",
+              marginTop: 16,
+              fontSize: 11,
+              letterSpacing: ".14em",
+              textAlign: "center",
+              color: "var(--accent-link)",
+            }}
+          >
+            FULL REPORT →
+          </Link>
         </div>
       </div>
     </div>
   );
 }
 
-/** One of ranks two to fifteen, with its write-up behind it. */
+/** One of ranks two to fifteen. */
 function Row({
   entry,
   move,
   first,
-  open,
-  onToggle,
 }: {
   entry: Entry;
   move: Move | undefined;
   first: boolean;
-  open: boolean;
-  onToggle: () => void;
 }) {
-  const has = entry.note.length > 0;
-
   return (
     <div
       style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 11,
+        padding: "11px 13px",
+        minHeight: 44,
         borderTop: first ? undefined : "1px solid rgb(var(--accent-rgb) / .13)",
-        background: open ? "rgb(var(--accent-rgb) / .07)" : undefined,
-        boxShadow: open ? "inset 2px 0 0 var(--accent-link)" : undefined,
       }}
     >
-      <button
-        onClick={has ? onToggle : undefined}
-        aria-expanded={has ? open : undefined}
-        {...(has ? {} : { tabIndex: -1, "aria-disabled": true })}
+      <span
         style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          gap: 11,
-          padding: "11px 13px",
-          minHeight: 44,
-          background: "none",
-          border: 0,
-          textAlign: "left",
-          color: "inherit",
-          cursor: has ? "pointer" : "default",
+          fontFamily: "var(--font-heading)",
+          fontSize: 14,
+          color: "var(--text-dim)",
+          width: 20,
+          flex: "0 0 auto",
+          fontVariantNumeric: "tabular-nums",
         }}
       >
-        <span
+        {entry.rank}
+      </span>
+
+      <Chip move={move} wide />
+
+      <BoardMark team={entry.team} size={20} />
+
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div
           style={{
-            fontFamily: "var(--font-heading)",
-            fontSize: 14,
-            color: "var(--text-dim)",
-            width: 20,
-            flex: "0 0 auto",
-            fontVariantNumeric: "tabular-nums",
+            fontSize: 13,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
           }}
         >
-          {entry.rank}
-        </span>
-
-        <Chip move={move} wide />
-
-        <BoardMark team={entry.team} size={20} />
-
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div
-            style={{
-              fontSize: 13,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {entry.team}
-          </div>
-          {entry.record ? (
-            <div style={{ fontSize: 10, letterSpacing: ".1em", color: "var(--text-dim)", marginTop: 3 }}>
-              {entry.record}
-            </div>
-          ) : null}
+          {entry.team}
         </div>
-
-        {has ? (
-          <span
-            aria-hidden
-            style={{
-              fontSize: 15,
-              flex: "0 0 auto",
-              color: "var(--text-faint)",
-              transition: "transform .2s ease",
-              transform: open ? "rotate(90deg)" : "none",
-            }}
-          >
-            ›
-          </span>
+        {entry.record ? (
+          <div style={{ fontSize: 10, letterSpacing: ".1em", color: "var(--text-dim)", marginTop: 3 }}>
+            {entry.record}
+          </div>
         ) : null}
-      </button>
-
-      {open && has ? (
-        <div className="pr-rise-quick" style={{ padding: "0 13px 14px" }}>
-          <div
-            style={{
-              padding: "10px 12px",
-              borderRadius: 10,
-              background: "rgb(var(--accent-rgb) / .1)",
-              border: "1px solid rgb(var(--accent-rgb) / .2)",
-              fontSize: 11,
-              lineHeight: 1.55,
-              color: "var(--accent-text)",
-            }}
-          >
-            {entry.note}
-          </div>
-        </div>
-      ) : null}
+      </div>
     </div>
   );
 }
