@@ -758,7 +758,7 @@ export default function Commissioner() {
       <div id="office-dues" style={card}>
         <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>Dues</h6>
         <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 14px" }}>
-          A line at the top of the home page, seen only by the people who have
+          A line at the top of the Matchup screen, seen only by the people who have
           not paid. Say the amount and where to send it, in your words.{" "}
           <strong style={{ color: "var(--text-2)" }}>
             An empty box turns it off for everybody.
@@ -992,7 +992,7 @@ export default function Commissioner() {
                 : ", and nothing settled behind it yet."}{" "}
               Advancing locks it: every fixture takes the score its best-ball
               lineup has right now, the results stand, and the whole app moves
-              to the next week — the home page, the ticker and the gamecast all
+              to the next week — the matchup, the ticker and the gamecast all
               read the week off the fixtures rather than being told.
             </p>
             <p style={{ fontSize: 11.5, color: "var(--text-dim)", lineHeight: 1.6, margin: "0 0 14px" }}>

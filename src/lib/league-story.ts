@@ -254,6 +254,26 @@ export function bestValue(players: PlayerSeason[], weeks: number): Value | null 
 }
 
 /**
+ * The league's biggest climbers against their draft slot, most first — the
+ * General Manager ticker's BEST VALUE strip. Same rules as bestValue (owned,
+ * ranked, scoring), as a list rather than a winner.
+ */
+export function valueBoard(
+  players: PlayerSeason[],
+  count = 10,
+): { player: PlayerSeason; now: number; gain: number }[] {
+  return players
+    .filter((p) => p.preRank != null && p.pos && p.franchise != null && p.points > 0)
+    .map((player) => {
+      const now = currentRank(players, player.name);
+      return { player, now, gain: (player.preRank as number) - now };
+    })
+    .filter((v) => v.now > 0)
+    .sort((a, b) => b.gain - a.gain || b.player.points - a.player.points)
+    .slice(0, count);
+}
+
+/**
  * The highest scorers in the league, most first.
  *
  * Owned players only, for the same reason Best Value is. This card meant "the

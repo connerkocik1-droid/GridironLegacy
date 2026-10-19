@@ -6,10 +6,9 @@
 #   ./scripts/audit-mobile.sh --shots  # and keep a screenshot of every page
 #   ./scripts/audit-mobile.sh --matchups  # does pressing a fixture open it?
 #   ./scripts/audit-mobile.sh --locks     # does a played player lock the buttons?
-#   ./scripts/audit-mobile.sh --home      # does the home page page across the season?
-#   ./scripts/audit-mobile.sh --myteam    # do all six My Team sections render?
-#   ./scripts/audit-mobile.sh --league    # do all seven League sections render?
-#   ./scripts/audit-mobile.sh --moves     # do the three Moves sections work?
+#   ./scripts/audit-mobile.sh --myteam    # does the Roster count the right lineup?
+#   ./scripts/audit-mobile.sh --league    # does Around League show the week, and the stories add up?
+#   ./scripts/audit-mobile.sh --moves     # does the General Manager tab advise and counter?
 #   ./scripts/audit-mobile.sh --recap     # does the week recap play, once?
 #   ./scripts/audit-mobile.sh --week      # does the commissioner end the week?
 #   ./scripts/audit-mobile.sh --report    # does the Pylon Report read and publish?
@@ -43,7 +42,6 @@ CONSOLE=""
 PULL=""
 MATCHUPS=""
 LOCKS=""
-HOME_CHECK=""
 MYTEAM=""
 LEAGUE=""
 MOVES=""
@@ -69,7 +67,6 @@ while [ $# -gt 0 ]; do
     --shots) SHOTS="$ROOT/.mobile-audit"; shift ;;
     --matchups) MATCHUPS="1"; shift ;;
     --locks) LOCKS="1"; shift ;;
-    --home) HOME_CHECK="1"; shift ;;
     --myteam) MYTEAM="1"; shift ;;
     --league) LEAGUE="1"; shift ;;
     --moves) MOVES="1"; shift ;;
@@ -160,10 +157,7 @@ if ! curl -fsS -o /dev/null "http://localhost:$PORT/" 2>/dev/null; then
   exit 1
 fi
 
-if [ -n "$HOME_CHECK" ]; then
-  AUDIT_BASE="http://localhost:$PORT" \
-    node "$ROOT/scripts/mobile/home-check.mjs"
-elif [ -n "$MYTEAM" ]; then
+if [ -n "$MYTEAM" ]; then
   AUDIT_BASE="http://localhost:$PORT" AUDIT_SHOTS="$SHOTS" \
     node "$ROOT/scripts/mobile/myteam-check.mjs"
 elif [ -n "$LEAGUE" ]; then
@@ -178,7 +172,7 @@ elif [ -n "$PROFILE" ]; then
   AUDIT_BASE="http://localhost:$PORT" AUDIT_SHOTS="$SHOTS" \
     node "$ROOT/scripts/mobile/profile-check.mjs"
 elif [ -n "$REPORT" ]; then
-  AUDIT_BASE="http://localhost:$PORT" AUDIT_SHOTS="$SHOTS" \
+  AUDIT_BASE="http://localhost:$PORT" AUDIT_STUB="http://127.0.0.1:$STUB_PORT" AUDIT_SHOTS="$SHOTS" \
     node "$ROOT/scripts/mobile/report-check.mjs"
 elif [ -n "$WEEK" ]; then
   AUDIT_BASE="http://localhost:$PORT" AUDIT_SHOTS="$SHOTS" \
@@ -188,7 +182,7 @@ elif [ -n "$RECAP" ]; then
     node "$ROOT/scripts/mobile/recap-check.mjs"
 elif [ -n "$MOVES" ]; then
   AUDIT_BASE="http://localhost:$PORT" AUDIT_SHOTS="$SHOTS" \
-    node "$ROOT/scripts/mobile/moves-check.mjs"
+    node "$ROOT/scripts/mobile/gm-check.mjs"
 elif [ -n "$LOCKS" ]; then
   AUDIT_BASE="http://localhost:$PORT" \
     node "$ROOT/scripts/mobile/lock-check.mjs"

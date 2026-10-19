@@ -148,5 +148,28 @@ createServer((req, res) => {
     }]));
   }
 
+  if (url.pathname === "/rest/v1/pylon_reports") {
+    // Two published weeks, so the in-app report has movement to draw: a team
+    // that held, one up, one down and a newcomer on each board. The report
+    // check turns them off through /__state to see the empty board.
+    if (state.noReport) return res.end("[]");
+    const board = (teams, before) => ({
+      ranked: teams.map((team, i) => ({
+        rank: i + 1, team, abbr: team.slice(0, 3).toUpperCase(),
+        record: before ? "1-0" : i % 2 ? "1-1" : "2-0", note: "", lastResult: "",
+      })),
+      honorable: [],
+    });
+    return res.end(JSON.stringify([
+      { week: 2, published_at: new Date().toISOString(),
+        college: board(["Georgia", "Miami", "Texas", "Ohio State", "Notre Dame"]),
+        nfl: board(["San Francisco 49ers", "Chicago Bears", "Kansas City Chiefs",
+          "Jacksonville Jaguars", "Seattle Seahawks"]) },
+      { week: 1, published_at: new Date(Date.now() - 7 * 86_400_000).toISOString(),
+        college: board(["Georgia", "Texas", "Notre Dame", "Miami"], true),
+        nfl: board(["San Francisco 49ers", "Kansas City Chiefs", "Seattle Seahawks", "Chicago Bears"], true) },
+    ]));
+  }
+
   res.end("[]");
 }).listen(PORT, "127.0.0.1", () => console.log(`supabase stub on ${PORT}`));

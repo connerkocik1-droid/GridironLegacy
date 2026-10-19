@@ -103,7 +103,7 @@ console.log("\n--- somebody else's ---");
   // The button is worth having only if it lands somewhere useful.
   const href = buttons[0].href ?? "";
   ok(`and it opens the desk against them (${href})`,
-    href.includes("tab=trade-builder") && href.includes("with=m3") &&
+    href.startsWith("/trade-builder") && href.includes("with=m3") &&
       href.includes("want=Held+Elsewhere"));
 }
 

@@ -115,7 +115,7 @@ export default function ReportDesk({
         setNotice(
           remove
             ? `Week ${forWeek} is down.`
-            : `Week ${forWeek} is up. Everybody sees it on the home page and the Pylon Report page.`,
+            : `Week ${forWeek} is up. Everybody sees it under Rankings → Pylon Report.`,
         );
         onPublished?.();
       }

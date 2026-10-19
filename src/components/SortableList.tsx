@@ -91,8 +91,10 @@ export function GripHandle(props: DragHandleProps) {
         cursor: "grab",
         touchAction: "none",
         flex: "0 0 auto",
-        width: 20,
-        height: 20,
+        // A thumb-sized grip; the glyph stays the size it was.
+        width: 32,
+        height: 32,
+        margin: -6,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

@@ -723,13 +723,13 @@ function Actions({
 
 /** A way into the trade desk, already pointed at the right franchise. */
 function TradeButton({ with: partner, want }: { with?: string | null; want?: string } = {}) {
-  const query = new URLSearchParams({ tab: "trade-builder" });
+  const query = new URLSearchParams();
   if (partner) query.set("with", partner);
   if (want) query.set("want", want);
 
   return (
     <Link
-      href={`/moves?${query.toString()}`}
+      href={`/trade-builder?${query.toString()}`}
       style={{
         ...buttonBase,
         border: "1px solid rgb(var(--accent-rgb) / .4)",

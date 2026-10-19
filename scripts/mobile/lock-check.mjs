@@ -35,14 +35,41 @@ ok("his row says he is locked", /playing now, locked until next week/i.test(body
 ok("while a free agent still to play can be added",
   await page.locator('button:has-text("Add"), button:has-text("Claim")').first().isEnabled());
 
-console.log("\n--- and one of your own who is playing ---");
-ok("his row says he is locked", /playing, locked/i.test(body));
+// Your own players' moves live in the player sheet now (the three-tab
+// redesign), so this is asked of the sheet a roster row opens.
+console.log("\n--- and one of your own, from his player sheet ---");
+const openSheet = async (name) => {
+  await page.locator(".gl-row", { hasText: name }).first().click();
+  await page.locator('[role="dialog"][aria-modal="true"]').waitFor({ timeout: 15000 });
+  await page.waitForTimeout(600);
+  return page.locator('[role="dialog"][aria-modal="true"]');
+};
+const closeSheet = async () => {
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
+};
+
+await page.goto(`${BASE}/my-team`, { waitUntil: "networkidle" });
+await page.waitForTimeout(700);
 {
-  const rows = await page.locator('text=/Jahmyr Gibbs/').count();
-  ok(`he is on the roster list (${rows})`, rows >= 1);
+  const sheet = await openSheet("Jahmyr Gibbs");
+  ok("a player still to play can be dropped",
+    (await sheet.locator('button:has-text("DROP")').count()) === 1);
+  await closeSheet();
 }
-ok("a player still to play can still be dropped",
-  await page.locator('button:has-text("Drop")').first().isEnabled());
+
+// The same man once his club has kicked off.
+const served = await page.evaluate(() => fetch("/api/player/Jahmyr%20Gibbs").then((r) => r.json()));
+served.actions = { ...(served.actions ?? {}), where: "mine", locked: true };
+await page.route("**/api/player/**", (route) => route.fulfill({ json: served }));
+{
+  const sheet = await openSheet("Jahmyr Gibbs");
+  const text = await sheet.innerText();
+  ok("once his game starts there is no Drop", (await sheet.locator('button:has-text("DROP")').count()) === 0);
+  ok("and the sheet says why", /Drop locks once his game kicks off/i.test(text));
+  ok("while Trade is still on offer", /TRADE/.test(text));
+  await closeSheet();
+}
 
 await browser.close();
 console.log(failed ? `\n${failed} failed` : "\nall passed");

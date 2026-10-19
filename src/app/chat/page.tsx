@@ -12,7 +12,7 @@ export default function ChatPage() {
           "radial-gradient(120% 80% at 50% -10%,rgb(var(--glow-rgb) / .4),transparent 60%),var(--bg)",
       }}
     >
-      <Nav current="/the-league" />
+      <Nav current="/chat" />
       <LeagueChat />
     </div>
   );

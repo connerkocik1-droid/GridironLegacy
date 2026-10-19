@@ -64,7 +64,7 @@ export default async function HomePage() {
   // to be shown the league anyway: a home page full of somebody else's team,
   // with no way back to the sign-in page, because this is the sign-in page.
   if (await currentManager()) {
-    redirect("/matchups");
+    redirect("/lineup");
   }
 
   const { league, franchises } = await loadFranchises();

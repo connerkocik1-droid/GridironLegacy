@@ -55,14 +55,13 @@ export default function TabBar({ signedIn }: { signedIn: boolean }) {
         zIndex: 40,
         // `display` is set in globals.css, which knows the breakpoint.
         paddingBottom: "env(safe-area-inset-bottom)",
-        borderTop: "1px solid rgb(var(--accent-rgb) / .14)",
-        // Liquid glass, same treatment as the desktop Nav: a gradient over a
-        // heavy blur rather than one flat translucent fill.
+        borderTop: "1px solid color-mix(in oklch, var(--text) 10%, transparent)",
+        // Liquid glass, as the redesign draws it.
         background:
-          "linear-gradient(180deg,rgb(var(--accent-rgb) / .1),rgb(var(--sunken-rgb) / .92))",
-        backdropFilter: "blur(22px) saturate(160%)",
-        WebkitBackdropFilter: "blur(22px) saturate(160%)",
-        boxShadow: "inset 0 1px 0 rgb(var(--accent-rgb) / .12)",
+          "linear-gradient(180deg,color-mix(in oklch, var(--text) 6%, transparent),rgb(var(--bg-rgb) / .82))",
+        backdropFilter: "blur(26px) saturate(170%)",
+        WebkitBackdropFilter: "blur(26px) saturate(170%)",
+        boxShadow: "inset 0 1px 0 color-mix(in oklch, var(--text) 10%, transparent)",
       }}
     >
       {APP_TABS.map((tab) => (
@@ -72,24 +71,14 @@ export default function TabBar({ signedIn }: { signedIn: boolean }) {
   );
 }
 
-const ICON: Record<AppTab["id"], React.ReactNode> = {
-  league: (
-    <>
-      <path d="M4 10.5 12 4l8 6.5" />
-      <path d="M6 9.6V20h12V9.6" />
-    </>
-  ),
-  gm: (
-    <>
-      <rect x="4" y="6" width="16" height="13" rx="2" />
-      <path d="M9 6V5a3 3 0 0 1 6 0v1" />
-    </>
-  ),
-  rankings: (
-    <>
-      <path d="M4 20V11M10 20V4M16 20v8M20 20H4" />
-    </>
-  ),
+// The redesign's three marks (Phosphor, filled): a trophy, a briefcase, a
+// rising chart.
+const ICON: Record<AppTab["id"], string> = {
+  league:
+    "M232 64h-24V48a8 8 0 0 0-8-8H56a8 8 0 0 0-8 8v16H24A16 16 0 0 0 8 80v16a40 40 0 0 0 40 40h3.65A80.13 80.13 0 0 0 120 191.61V216H96a8 8 0 0 0 0 16h64a8 8 0 0 0 0-16h-24v-24.42c31.94-3.23 58.44-25.64 68.08-55.58H208a40 40 0 0 0 40-40V80a16 16 0 0 0-16-16ZM48 120a24 24 0 0 1-24-24V80h24v32q0 4 .39 8Zm184-24a24 24 0 0 1-24 24h-.5a81.81 81.81 0 0 0 .5-8.9V80h24Z",
+  gm: "M216 56h-40v-8a24 24 0 0 0-24-24h-48a24 24 0 0 0-24 24v8H40a16 16 0 0 0-16 16v128a16 16 0 0 0 16 16h176a16 16 0 0 0 16-16V72a16 16 0 0 0-16-16ZM96 48a8 8 0 0 1 8-8h48a8 8 0 0 1 8 8v8H96Zm120 24v41.61A184 184 0 0 1 128 136a184.07 184.07 0 0 1-88-22.38V72Zm0 128H40v-68.36A200.19 200.19 0 0 0 128 152a200.25 200.25 0 0 0 88-20.37V200ZM104 112a8 8 0 0 1 8-8h32a8 8 0 0 1 0 16h-32a8 8 0 0 1-8-8Z",
+  rankings:
+    "M232 208a8 8 0 0 1-8 8H32a8 8 0 0 1-8-8V48a8 8 0 0 1 16 0v108.69l50.34-50.35a8 8 0 0 1 11.32 0L128 132.69 180.69 80H160a8 8 0 0 1 0-16h40a8 8 0 0 1 8 8v40a8 8 0 0 1-16 0V91.31l-58.34 58.35a8 8 0 0 1-11.32 0L96 123.31l-56 56V200h184a8 8 0 0 1 8 8Z",
 };
 
 function TabLink({ tab, active }: { tab: AppTab; active: boolean }) {
@@ -99,6 +88,7 @@ function TabLink({ tab, active }: { tab: AppTab; active: boolean }) {
       // "♪ BLIP" in sixteen-bit mode; a no-op otherwise. Visual only.
       onClick={active ? undefined : blip}
       aria-current={active ? "page" : undefined}
+      className="gl-press"
       style={{
         flex: 1,
         minWidth: 0,
@@ -108,44 +98,50 @@ function TabLink({ tab, active }: { tab: AppTab; active: boolean }) {
         justifyContent: "center",
         gap: 3,
         minHeight: 52,
-        padding: "7px 2px 8px",
+        padding: "7px 2px 4px",
         textDecoration: "none",
         position: "relative",
-        color: active ? "var(--accent-text)" : "var(--text-quiet)",
-        background: active
-          ? "linear-gradient(180deg,rgb(var(--accent-rgb) / .16),transparent 72%)"
-          : "transparent",
       }}
     >
-      {active ? (
-        <span
-          aria-hidden
-          className="gl-tab-lit"
-          style={{
-            position: "absolute",
-            top: 0,
-            left: "50%",
-            width: 26,
-            marginLeft: -13,
-            height: 2,
-            borderRadius: "0 0 2px 2px",
-            background: "var(--accent-link)",
-            boxShadow: "0 0 8px rgb(var(--accent-bright-rgb) / .55)",
-          }}
-        />
-      ) : null}
-      <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        {ICON[tab.id]}
+      <span
+        aria-hidden
+        className="gl-tab-lit"
+        style={{
+          position: "absolute",
+          top: -1,
+          // Centred by its own margins rather than a transform, so a tab
+          // narrower than the mark clips it instead of pushing it off screen.
+          left: active ? "max(0px, calc(50% - 28px))" : "50%",
+          right: active ? "max(0px, calc(50% - 28px))" : "50%",
+          height: 2,
+          transition: "left .25s ease, right .25s ease",
+          background: "linear-gradient(90deg,transparent,var(--ap-accent),transparent)",
+          boxShadow: "0 0 10px var(--ap-accent)",
+        }}
+      />
+      <svg
+        viewBox="0 0 256 256"
+        width="20"
+        height="20"
+        aria-hidden
+        style={{
+          fill: active ? "var(--ap-a200)" : "var(--ap-n500)",
+          filter: active ? "drop-shadow(0 0 6px var(--ap-accent))" : undefined,
+        }}
+      >
+        <path d={ICON[tab.id]} />
       </svg>
       <span
         style={{
           fontSize: 10,
-          letterSpacing: ".04em",
           lineHeight: 1,
           whiteSpace: "nowrap",
           overflow: "hidden",
           textOverflow: "ellipsis",
           maxWidth: "100%",
+          ...(active
+            ? { color: "var(--text)", fontStyle: "italic", fontWeight: 500 }
+            : { color: "var(--ap-n500)" }),
         }}
       >
         {tab.label}

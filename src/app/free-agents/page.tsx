@@ -1,18 +1,13 @@
 import Nav from "@/components/Nav";
-import SubTabBar from "@/components/SubTabBar";
-import PlayersBoard from "@/components/PlayersBoard";
-import { APP_TABS } from "@/lib/app-tabs";
+import FreeAgencyView from "@/components/FreeAgencyView";
 
-export const metadata = { title: "Free agents · Pylon Fantasy" };
+export const metadata = { title: "Free Agency · Pylon Fantasy" };
 
 export default function FreeAgentsPage() {
   return (
-    <div
-      style={{ minHeight: "var(--screen)" }}
-    >
+    <div style={{ minHeight: "var(--screen)" }}>
       <Nav current="/free-agents" />
-      <SubTabBar tab={APP_TABS[1]} />
-      <PlayersBoard />
+      <FreeAgencyView />
     </div>
   );
 }

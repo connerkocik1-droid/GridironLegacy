@@ -1,18 +1,13 @@
 import Nav from "@/components/Nav";
-import SubTabBar from "@/components/SubTabBar";
-import PlayerRankings from "@/components/PlayerRankings";
-import { APP_TABS } from "@/lib/app-tabs";
+import PlayersView from "@/components/PlayersView";
 
-export const metadata = { title: "Player rankings · Pylon Fantasy" };
+export const metadata = { title: "Players · Pylon Fantasy" };
 
 export default function RankingsPage() {
   return (
-    <div
-      style={{ minHeight: "var(--screen)" }}
-    >
+    <div style={{ minHeight: "var(--screen)" }}>
       <Nav current="/rankings" />
-      <SubTabBar tab={APP_TABS[2]} />
-      <PlayerRankings />
+      <PlayersView />
     </div>
   );
 }

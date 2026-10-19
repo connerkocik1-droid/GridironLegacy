@@ -1,4 +1,6 @@
 import PylonReportPage from "@/components/PylonReportPage";
+import PylonReportApp from "@/components/PylonReportApp";
+import Nav from "@/components/Nav";
 import { keyOf, type BoardReport, type Polls } from "@/lib/pylon-report";
 import { weeklyValues } from "@/lib/pylon-report-view";
 import type { ProspectBoard, ProspectEntry } from "@/lib/pylon-draft-board";
@@ -116,23 +118,35 @@ async function load() {
 
 export default async function PylonReportRoute() {
   const data = await load();
+  const props = {
+    week: data?.week ?? null,
+    college: data?.college ?? EMPTY_BOARD,
+    collegeBefore: data?.collegeBefore ?? null,
+    collegeHistory: data?.collegeHistory ?? {},
+    polls: data?.polls ?? EMPTY_POLLS,
+    nfl: data?.nfl ?? EMPTY_BOARD,
+    nflBefore: data?.nflBefore ?? null,
+    nflHistory: data?.nflHistory ?? {},
+    bigBoard: data?.bigBoard ?? EMPTY_PROSPECTS,
+    bigBoardBefore: data?.bigBoardBefore ?? null,
+    bigBoardWeek: data?.bigBoardWeek ?? null,
+    bigBoardHistory: data?.bigBoardHistory ?? {},
+    cfbLogos: data?.cfbLogos ?? EMPTY_LOGOS,
+    nflLogos: data?.nflLogos ?? EMPTY_LOGOS,
+  };
 
+  // Two editions of the same boards: inside the app on a phone (Rankings →
+  // Pylon Report), and the full web edition everywhere wider. The stylesheet
+  // shows one; see gl-only-phone.
   return (
-    <PylonReportPage
-      week={data?.week ?? null}
-      college={data?.college ?? EMPTY_BOARD}
-      collegeBefore={data?.collegeBefore ?? null}
-      collegeHistory={data?.collegeHistory ?? {}}
-      polls={data?.polls ?? EMPTY_POLLS}
-      nfl={data?.nfl ?? EMPTY_BOARD}
-      nflBefore={data?.nflBefore ?? null}
-      nflHistory={data?.nflHistory ?? {}}
-      bigBoard={data?.bigBoard ?? EMPTY_PROSPECTS}
-      bigBoardBefore={data?.bigBoardBefore ?? null}
-      bigBoardWeek={data?.bigBoardWeek ?? null}
-      bigBoardHistory={data?.bigBoardHistory ?? {}}
-      cfbLogos={data?.cfbLogos ?? EMPTY_LOGOS}
-      nflLogos={data?.nflLogos ?? EMPTY_LOGOS}
-    />
+    <>
+      <div className="gl-only-phone" style={{ minHeight: "var(--screen)" }}>
+        <Nav current="/pylon-report" />
+        <PylonReportApp {...props} />
+      </div>
+      <div className="gl-only-wide">
+        <PylonReportPage {...props} />
+      </div>
+    </>
   );
 }
