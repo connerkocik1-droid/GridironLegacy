@@ -1,17 +1,18 @@
 /**
- * Does the sixteen-bit theme actually apply, and does it break anything?
+ * Does sixteen-bit mode actually apply, and does it break anything?
  *
- * A theme is the one kind of change that touches every screen and is checked
- * by nothing: the layout audit loads the default theme, the unit tests never
- * see CSS, and a palette that reads well in a stylesheet can still put white
- * text on white. So this loads the real pages with data-theme="16bit" set the
- * way the app sets it, and asks the three questions that can actually fail.
+ * A skin is the one kind of change that touches every screen and is checked by
+ * nothing: the layout audit loads the modern look, the unit tests never see
+ * CSS, and a palette that reads well in a stylesheet can still put white text
+ * on white. So this drives the real pages through the real switch in the
+ * avatar menu and asks the questions that can actually fail:
  *
- *   Did it take? A misspelled selector fails silently and leaves the dark
- *   theme on screen, which looks like nothing happened.
- *   Is it still square? The radius tokens are the whole geometry of it.
- *   Does anything overflow? Nothing here changes layout on purpose, so a
- *   wider page means something did by accident.
+ *   Does every launch start modern, and does a reload keep it on?
+ *   Did the palette, the type and the geometry take?
+ *   Are the images still there — pixelated, not hidden or swapped?
+ *   Do the cues fire: BLIP on a tab, TOUCHDOWN on a scoring jump?
+ *   Is it silent? There is no audio anywhere in the skin.
+ *   Does anything overflow, at 390 and at 320?
  *
  * Screenshots go to .mobile-audit when --shots is on, because the rest of this
  * is arithmetic and somebody still has to look at it.
@@ -33,616 +34,273 @@ const browser = await chromium.launch(
   process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
 if (SHOTS) await mkdir(SHOTS, { recursive: true });
 
-// Three times the pixels, so a two-pixel shadow is something a person can
-// actually judge in the screenshot. Device pixels do not change CSS layout,
-// so nothing measured here moves.
-const ctx = await browser.newContext({
-  viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3,
-});
-await ctx.addCookies([sessionCookie()]);
-// Set before any document runs, the same way the pre-paint script would find
-// it: if this theme only works after a click, it flashes the wrong one first.
-await ctx.addInitScript(() => {
-  try {
-    localStorage.setItem("pylon:theme", "16bit");
-    // Past the title screen. It is checked on its own, in its own context; a
-    // sheet over every page would otherwise be measuring itself.
-    sessionStorage.setItem("pylon:started", "1");
-  } catch { /* storage off */ }
-});
-const page = await ctx.newPage();
-page.setDefaultNavigationTimeout(120_000);
-await routes(page);
-
-// Headshots come from ESPN's CDN, which this sandbox cannot reach — so they
-// never load, the canvas never runs, and the conversion cannot be checked
-// where it matters most. Answering the CDN with a real PNG puts the whole
-// path under test offline: the image loads, the filter runs, and a failure
-// here is a failure in our code rather than in the network.
+// Headshots come from ESPN's CDN, which this sandbox cannot reach. Answering
+// it with a real PNG means faces load, so the check can see that they are
+// still on screen and are going through the filter.
 const FACE = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAXUlEQVR42u3QMQEAAAjDMMC/56EB" +
   "3RJInbTVAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAg" +
   "QIAAAQIECBAgQIDAjwUXHAABm2JhGwAAAABJRU5ErkJggg==",
   "base64",
 );
-await page.route("**a.espncdn.com/**", (route) =>
-  route.fulfill({ status: 200, contentType: "image/png", body: FACE }));
 
-for (const [label, url] of [["home", "/"], ["matchup", "/lineup"], ["roster", "/my-team"]]) {
+async function open({ width = 390, height = 844, reducedMotion = "no-preference" } = {}) {
+  const ctx = await browser.newContext({
+    viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, reducedMotion,
+  });
+  await ctx.addCookies([sessionCookie()]);
+  // Every play() the page attempts. The skin's cues are visual only.
+  await ctx.addInitScript(() => {
+    window.__plays = 0;
+    const orig = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function play(...args) {
+      window.__plays += 1;
+      return orig.apply(this, args);
+    };
+  });
+  const page = await ctx.newPage();
+  page.setDefaultNavigationTimeout(120_000);
+  await routes(page);
+  await page.route("**a.espncdn.com/**", (route) =>
+    route.fulfill({ status: 200, contentType: "image/png", body: FACE }));
+  return { ctx, page };
+}
+
+const avatar = ".gl-nav button[aria-haspopup='dialog']";
+
+/** Flip it the way a manager does: the first row of the avatar menu. */
+async function flip(page) {
+  await page.locator(avatar).click();
+  await page.locator("[role='dialog'] [role='switch']").first().click();
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+}
+
+const retroOn = (page) => page.evaluate(() => document.documentElement.dataset.retro === "1");
+
+// ------------------------------------------------------------- the switch
+console.log("===== the switch");
+const { ctx, page } = await open();
+{
+  await page.goto(`${BASE}/lineup`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(500);
+  ok("a launch starts modern", !(await retroOn(page)));
+
+  await page.locator(avatar).click();
+  const menu = await page.evaluate(() => {
+    const dialog = document.querySelector("[role='dialog']");
+    const first = dialog?.querySelector("[role='switch']");
+    const rows = [...(dialog?.querySelectorAll("a, button") ?? [])];
+    return {
+      label: first?.textContent ?? "",
+      checked: first?.getAttribute("aria-checked"),
+      // The switch is the first row under the franchise header.
+      firstRow: Boolean(first) && rows[0] === first,
+      appearance: [...(dialog?.querySelectorAll("[aria-label='Appearance'] button") ?? [])]
+        .map((b) => b.textContent?.trim()),
+    };
+  });
+  ok("the avatar menu's first row is the switch",
+    menu.firstRow && /16-bit mode/.test(menu.label), JSON.stringify(menu));
+  ok("and it is off", menu.checked === "false");
+  ok(`Appearance is a brightness again (${menu.appearance.join(", ")})`,
+    JSON.stringify(menu.appearance) === JSON.stringify(["System", "Light", "Dark"]));
+  await page.keyboard.press("Escape");
+
+  await flip(page);
+  ok("pressing it turns the skin on", await retroOn(page));
+
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForTimeout(500);
+  ok("a reload in the same session keeps it", await retroOn(page));
+
+  const cold = await open();
+  await cold.page.goto(`${BASE}/lineup`, { waitUntil: "networkidle" });
+  ok("a cold launch is modern again", !(await retroOn(cold.page)));
+  // A "16bit" the old Appearance picker left behind is not a way in.
+  await cold.page.evaluate(() => localStorage.setItem("pylon:theme", "16bit"));
+  await cold.page.reload({ waitUntil: "networkidle" });
+  const stale = await cold.page.evaluate(() => ({
+    retro: document.documentElement.dataset.retro ?? "",
+    theme: document.documentElement.dataset.theme,
+  }));
+  ok("an old stored 16bit theme reads as an ordinary one",
+    stale.retro === "" && (stale.theme === "dark" || stale.theme === "light"), JSON.stringify(stale));
+  await cold.ctx.close();
+}
+
+// ------------------------------------------------------------ every screen
+for (const [label, url] of [["matchup", "/lineup"], ["roster", "/my-team"], ["standings", "/standings"],
+  ["players", "/players"], ["gamecast", "/games"]]) {
   await page.goto(`${BASE}${url}`, { waitUntil: "networkidle" });
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(900);
 
   const m = await page.evaluate(() => {
     const root = document.documentElement;
     const cs = getComputedStyle(root);
-    const body = getComputedStyle(document.body);
-    // A card, whichever page this is: the first element with a real border.
-    const card = [...document.querySelectorAll("div")].find((d) => {
-      const s = getComputedStyle(d);
-      return parseFloat(s.borderTopWidth) > 0 && d.getBoundingClientRect().width > 120;
-    });
+    const panel = document.querySelector("[style*='--gl-panel']");
+    const imgs = [...document.querySelectorAll("img")].filter((i) => i.getBoundingClientRect().width > 0);
+    const crest = document.querySelector(".gl-crest");
     return {
-      theme: root.dataset.theme,
+      retro: root.dataset.retro,
       bg: cs.getPropertyValue("--bg").trim(),
-      accent: cs.getPropertyValue("--accent-link").trim(),
+      accent: cs.getPropertyValue("--accent-solid").trim(),
       radius: cs.getPropertyValue("--radius-lg").trim(),
-      cardRadius: card ? getComputedStyle(card).borderTopLeftRadius : "none",
-      bodyBg: body.backgroundColor,
+      body: getComputedStyle(document.body).fontFamily,
+      heading: cs.getPropertyValue("--font-heading").trim(),
+      panel: Boolean(panel),
+      panelBorder: panel ? getComputedStyle(panel).borderTopColor : "",
+      panelWidth: panel ? getComputedStyle(panel).borderTopWidth : "",
+      panelBlur: panel ? getComputedStyle(panel).backdropFilter : "none",
+      glow: (() => {
+        const g = document.querySelector("[data-glow]");
+        return g ? getComputedStyle(g).display : "absent";
+      })(),
+      images: imgs.length,
+      filtered: imgs.filter((i) => getComputedStyle(i).filter.includes("px16")).length,
+      hidden: imgs.filter((i) => getComputedStyle(i).visibility === "hidden" || getComputedStyle(i).opacity === "0").length,
+      filter: Boolean(document.querySelector("filter#px16")),
+      crest: Boolean(crest),
+      crestRadius: crest ? getComputedStyle(crest).borderTopLeftRadius : "",
+      scan: (() => {
+        const s = document.querySelector(".gl-px-scan");
+        return s ? getComputedStyle(s).pointerEvents : "absent";
+      })(),
+      badge: document.querySelector(".gl-px-badge")?.textContent ?? "",
+      sprites: document.querySelectorAll(".gl-px-sprite").length,
+      audio: document.querySelectorAll("audio").length,
+      plays: window.__plays,
       scroll: root.scrollWidth,
       width: window.innerWidth,
-      // The scanline layer, which must be there and must never take a tap.
-      lines: getComputedStyle(document.body, "::after").pointerEvents,
-      // A crest is a circle in every other theme. This is the one that kept
-      // giving the game away.
-      crest: (() => {
-        const c = document.querySelector(".gl-crest");
-        return c ? getComputedStyle(c).borderTopLeftRadius : "none";
-      })(),
-      // The heading face asks for the pixel font first. Whether the glyphs
-      // arrive depends on a CDN this check cannot reach, so what is asserted
-      // is the request, not the rendering.
-      heading: getComputedStyle(document.documentElement).getPropertyValue("--font-heading").trim(),
-      fontLink: Boolean(document.getElementById("pylon-pixel-font")),
-      // Exactly one element animates, and it is the pylon and wordmark pair.
-      // A bounce that spread to anything else would be a selector too broad.
-      bounce: [...document.querySelectorAll("*")]
-        .filter((el) => getComputedStyle(el).animationName === "gl-bounce").length,
-      hops: getComputedStyle(document.querySelector(".gl-mark") ?? document.body).animationIterationCount,
-      pylonShadow: getComputedStyle(document.querySelector(".gl-mark svg") ?? document.body).filter,
-      wordShadow: getComputedStyle(
-        document.querySelector(".gl-mark .gl-wordmark") ?? document.body).textShadow,
-      musicButton: Boolean(document.querySelector(".gl-music")),
-      // It used to be fixed to the bottom-left corner, which put a forty-pixel
-      // square on top of a roster row. Nothing in this app covers content.
-      musicFixed: (() => {
-        const b = document.querySelector(".gl-music");
-        return b ? getComputedStyle(b).position === "fixed" : null;
-      })(),
-      // And it is in the header, with the other two standing controls, rather
-      // than merely somewhere that happens not to be fixed.
-      musicInNav: (() => {
-        const b = document.querySelector(".gl-music");
-        return b ? Boolean(b.closest(".gl-nav")) : null;
-      })(),
-      musicPlaying: (() => {
-        const a = document.querySelector("audio[src*='16bit-theme']");
-        return a ? !a.paused : null;
-      })(),
-      musicPreload: document.querySelector("audio[src*='16bit-theme']")?.getAttribute("preload") ?? "",
-      musicArmed: document.querySelector(".gl-music")?.getAttribute("aria-pressed") ?? "",
-      faces: document.querySelectorAll(".gl-face").length,
-      // Counted off the alt-less faces in player rows: once converted the src
-      // is a data URL, so the /headshots/ selector no longer finds them.
-      allFaces: document.querySelectorAll(".gl-face").length,
-      spriteFaces: [...document.querySelectorAll(".gl-face")]
-        .filter((el) => (el.getAttribute("src") ?? "").startsWith("data:image/png")).length,
-      idle: [...document.querySelectorAll(".gl-face")]
-        .filter((el) => getComputedStyle(el).animationName === "gl-idle").length,
     };
   });
 
   console.log(`\n===== ${label} (${url})`);
-  ok("the theme is on the root", m.theme === "16bit", m.theme);
-  ok("the palette swapped", m.bg === "#12102a", `--bg ${m.bg}`);
-  ok("and so did the accent", m.accent === "#5ce1ff", `--accent-link ${m.accent}`);
-  ok("the corners are square", m.radius === "0px", `--radius-lg ${m.radius}`);
-  ok("a real card is square too", m.cardRadius === "0px", m.cardRadius);
-  ok("the scanlines take no taps", m.lines === "none", m.lines);
-  ok(`nothing runs off the side (${m.scroll}px wide)`, m.scroll <= m.width);
-  ok("a crest is square", m.crest === "0px" || m.crest === "none", m.crest);
-  ok("headings ask for the pixel face first", m.heading.startsWith('"Pixelify Sans"'), m.heading);
-  ok("and it is only fetched once the theme is on", m.fontLink);
-  ok("the header mark is the one thing that bounces", m.bounce === 1, String(m.bounce));
-  ok(`and it hops more than once (${m.hops})`, m.hops === "3", m.hops);
-  // The shadow is the part a still screenshot can actually show, and the part
-  // that has to beat an inline filter on the svg.
-  ok(`the pylon casts a hard shadow (${m.pylonShadow})`,
-    /drop-shadow\(.*2px 2px 0/.test(m.pylonShadow) && !/9px/.test(m.pylonShadow));
-  ok(`and so does the wordmark (${m.wordShadow})`, /2px 2px/.test(m.wordShadow));
-  ok(`every headshot idles (${m.idle})`, m.idle > 0 || m.faces === 0, `${m.idle} of ${m.faces}`);
-  // The one the theme was missing. image-rendering: pixelated does nothing to
-  // a downscaled image, so a face only becomes a sprite if the canvas has
-  // actually been through it — which means a data: src, not a CDN URL.
-  ok(`and every face is a sprite (${m.spriteFaces} of ${m.allFaces})`,
-    m.spriteFaces === m.allFaces);
-
-  // The music. On by default now: choosing this theme is choosing a
-  // cartridge, and a cartridge has a title theme. What a page can promise is
-  // that the switch is armed and the track is ready — whether a browser lets
-  // it sound before the first tap is the browser's call, and is checked on its
-  // own below.
-  ok("there is a mute switch", m.musicButton);
-  ok("and it is on without anybody asking", m.musicArmed === "true", m.musicArmed);
-  ok("and it covers nothing", m.musicFixed === false, `position ${m.musicFixed}`);
-  ok("because it lives in the header", m.musicInNav === true, String(m.musicInNav));
-  ok("and the track is fetched ready to play", m.musicPreload === "auto", m.musicPreload);
-
-  if (SHOTS) {
-    await page.screenshot({ path: `${SHOTS}/16bit-${label}.png`, fullPage: true });
-    // The header on its own and close up. The bounce has finished by the time
-    // any screenshot is taken, but the shadow has not, and two pixels of it in
-    // a 390px-wide full-page shot is not something a person can judge.
-    if (label === "home") {
-      const mark = page.locator(".gl-mark");
-      if (await mark.count()) {
-        await mark.screenshot({ path: `${SHOTS}/16bit-mark.png`, scale: "device" });
-      }
-    }
+  ok("the skin is on", m.retro === "1");
+  ok("navy ground", m.bg === "#0b1440", m.bg);
+  ok("gold accent", m.accent === "#f2c14e", m.accent);
+  ok("square corners", m.radius === "0px", m.radius);
+  ok("Pixelify Sans for body text", m.body.startsWith('"Pixelify Sans"'), m.body);
+  ok("Silkscreen for headings", m.heading.startsWith('"Silkscreen"'), m.heading);
+  if (m.panel) {
+    ok(`panels are gold-bordered (${m.panelBorder} ${m.panelWidth})`,
+      m.panelBorder === "rgb(242, 193, 78)" && m.panelWidth === "2px");
+    ok("and not glass", m.panelBlur === "none", m.panelBlur);
   }
+  ok("the background glows are gone", m.glow === "none" || m.glow === "absent", m.glow);
+  ok("the pixel filter is in the document", m.filter);
+  ok(`every image goes through it (${m.filtered} of ${m.images})`, m.filtered === m.images);
+  ok("and none is hidden", m.hidden === 0, String(m.hidden));
+  if (m.crest) ok("a crest is square", m.crestRadius === "0px", m.crestRadius);
+  ok("scanlines are up and take no taps", m.scan === "none", m.scan);
+  ok(`the header carries the badge ("${m.badge}")`, m.badge === "●16");
+  if (label === "gamecast") ok(`every game has a runner (${m.sprites})`, m.sprites > 0);
+  ok("there is no audio at all", m.audio === 0 && m.plays === 0, `${m.audio} elements, ${m.plays} plays`);
+  ok(`nothing runs off the side (${m.scroll}px)`, m.scroll <= m.width);
+
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/16bit-${label}.png`, fullPage: true });
 }
 
-// ------------------------------------------------------- the sprite filter
-// The crests and club marks are redrawn through a canvas at render. Two ways
-// that can go wrong and neither is visible in a screenshot: the conversion
-// silently failing everywhere (a tainted canvas, a CDN that will not send
-// CORS) and leaving the original photograph, or the conversion running in a
-// theme that did not ask for it.
-console.log("\n===== the sprite filter");
+// -------------------------------------------------------------- the cues
+console.log("\n===== ♪ BLIP");
 {
   await page.goto(`${BASE}/lineup`, { waitUntil: "networkidle" });
-  await page.waitForTimeout(1800);
-
-  const marks = await page.evaluate(() =>
-    [...document.querySelectorAll("img")]
-      .map((el) => el.getAttribute("src") ?? "")
-      .filter((src) => src && !src.startsWith("data:image/gif")));
-  console.log(`    (${marks.length} images: ${marks.map((m) => m.slice(0, 28)).join(" | ")})`);
-
-  const sprites = marks.filter((src) => src.startsWith("data:image/png"));
-  ok(`something was converted (${sprites.length} of ${marks.length} images)`, sprites.length > 0);
-
-  // A sprite is tiny by construction — a 24px-square PNG — and that is what
-  // keeps a page of them cheap. A conversion that quietly emitted the full
-  // image would still be a data URL and would still look right.
-  const biggest = Math.max(0, ...sprites.map((s) => s.length));
-  ok(`and the sprites are small (largest ${biggest} chars)`, biggest > 0 && biggest < 12_000);
+  await page.waitForTimeout(500);
+  await page.locator(".gl-tabbar a[href]:not([aria-current])").first().click();
+  const blip = await page.waitForSelector(".gl-px-blip", { timeout: 1500 }).then(() => true).catch(() => false);
+  ok("a tab press shows it", blip);
+  await page.waitForTimeout(1200);
+  ok("and it goes again", (await page.locator(".gl-px-blip").count()) === 0);
 }
 
-console.log("\n===== and not in the other themes");
+console.log("\n===== ♪ TOUCHDOWN! ♪");
 {
-  const plain = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
-  await plain.addCookies([sessionCookie()]);
-  await plain.addInitScript(() => {
-    try { localStorage.setItem("pylon:theme", "dark"); } catch { /* storage off */ }
-  });
-  const dark = await plain.newPage();
-  dark.setDefaultNavigationTimeout(120_000);
-  await routes(dark);
-  await dark.goto(`${BASE}/the-league`, { waitUntil: "networkidle" });
-  await dark.waitForTimeout(1200);
-
-  const converted = await dark.evaluate(() =>
-    [...document.querySelectorAll("img")]
-      .filter((el) => (el.getAttribute("src") ?? "").startsWith("data:image/png")).length);
-  ok("the dark theme does no canvas work at all", converted === 0, String(converted));
-  const noise = await dark.evaluate(() => ({
-    audio: document.querySelectorAll("audio[src*='16bit-theme']").length,
-    button: document.querySelectorAll(".gl-music").length,
-  }));
-  // 1.3MB of Genesis soundtrack that nobody on the dark theme asked for.
-  ok("and never fetches the music", noise.audio === 0 && noise.button === 0,
-    JSON.stringify(noise));
-  await plain.close();
-}
-
-// ------------------------------------------------------------- the music
-// A switch that exists is not a switch that works. A real click is a user
-// gesture, which is the thing the browser was holding out for.
-// ------------------------------------------------------- the title screen
-// The press the browser is holding out for, turned into the press a cartridge
-// asks for anyway. Four things have to hold, and all four have failed in some
-// version of this: it is there in the retro theme, it is NOT there in the flat
-// ones, a press makes the music play, and it does not come back on a reload
-// during the same session.
-console.log("\n===== the title screen");
-{
-  const openFresh = async (theme) => {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-    await ctx.addCookies([sessionCookie()]);
-    await ctx.addInitScript((t) => {
-      try {
-        localStorage.setItem("pylon:theme", t);
-        localStorage.removeItem("gl.retro.music");
-      } catch { /* storage off */ }
-    }, theme);
-    const p = await ctx.newPage();
-    p.setDefaultNavigationTimeout(120_000);
-    await routes(p);
-    await p.goto(`${BASE}/`, { waitUntil: "networkidle" });
-    await p.waitForTimeout(700);
-    return { ctx, page: p };
-  };
-
-  const retro = await openFresh("16bit");
-  const seen = await retro.page.evaluate(() => {
-    const el = document.querySelector("#gl-start");
-    if (!el) return null;
-    const r = el.getBoundingClientRect();
-    return {
-      covers: Math.round(r.width) >= window.innerWidth && Math.round(r.height) >= window.innerHeight,
-      button: document.querySelector(".gl-start-btn")?.textContent?.trim() ?? "",
-      note: document.querySelector(".gl-start-note")?.textContent?.trim() ?? "",
-      bouncing: getComputedStyle(document.querySelector(".gl-start-pylon")).animationName,
-      loops: getComputedStyle(document.querySelector(".gl-start-pylon")).animationIterationCount,
-      // The launch sheet behind must not be timing itself out while this waits.
-      held: document.documentElement.dataset.pressStart === "1",
-      playing: !document.querySelector("audio[src*='16bit-theme']")?.paused,
-    };
-  });
-  ok("it is there on a cold open", Boolean(seen), JSON.stringify(seen));
-  ok("and it covers the screen", seen?.covers === true);
-  ok(`with a start button ("${seen?.button}")`, /start/i.test(seen?.button ?? ""));
-  ok(`and a bouncing pylon (${seen?.bouncing} x${seen?.loops})`,
-    seen?.bouncing === "gl-bounce" && seen?.loops === "infinite");
-  ok("the launch sheet behind it is held open", seen?.held === true);
-  ok("nothing is playing yet", seen?.playing === false, String(seen?.playing));
-  ok(`and it says what the press will do ("${seen?.note}")`, seen?.note === "Sound on");
-
-  // The press. A real one, on the button, which is the gesture the whole
-  // screen exists to collect.
-  await retro.page.locator(".gl-start-btn").click();
-  await retro.page.waitForTimeout(1200);
-
-  const after = await retro.page.evaluate(() => {
-    const a = document.querySelector("audio[src*='16bit-theme']");
-    return {
-      gone: !document.querySelector("#gl-start"),
-      held: document.documentElement.dataset.pressStart === "1",
-      playing: a ? !a.paused : null,
-      volume: a ? Math.round(a.volume * 100) / 100 : null,
-      stored: localStorage.getItem("gl.retro.music"),
-      session: sessionStorage.getItem("pylon:started"),
-    };
-  });
-  ok("pressing it takes the screen away", after.gone === true);
-  ok("and releases the launch sheet", after.held === false);
-  ok(`and starts the music (${JSON.stringify(after)})`, after.playing === true);
-  ok(`at a volume somebody can live with (${after.volume})`,
-    (after.volume ?? 0) > 0 && (after.volume ?? 1) <= 0.6);
-  ok("the choice is written down", after.stored === "on", String(after.stored));
-
-  // A reload inside the same session goes straight through. This is what keeps
-  // it a title screen rather than a toll booth.
-  await retro.page.reload({ waitUntil: "networkidle" });
-  await retro.page.waitForTimeout(800);
-  const again = await retro.page.evaluate(() => ({
-    gate: Boolean(document.querySelector("#gl-start")),
-    session: sessionStorage.getItem("pylon:started"),
-  }));
-  ok("a reload in the same session skips it", again.gate === false, JSON.stringify(again));
-  await retro.ctx.close();
-
-  // Somebody who has turned the music off still gets the title screen — it is
-  // the app opening, not an advert for the soundtrack — but it must not
-  // promise them a noise.
-  const muted = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  await muted.addCookies([sessionCookie()]);
-  await muted.addInitScript(() => {
-    try {
-      localStorage.setItem("pylon:theme", "16bit");
-      localStorage.setItem("gl.retro.music", "off");
-    } catch { /* storage off */ }
-  });
-  const quiet = await muted.newPage();
-  quiet.setDefaultNavigationTimeout(120_000);
-  await routes(quiet);
-  await quiet.goto(`${BASE}/`, { waitUntil: "networkidle" });
-  await quiet.waitForTimeout(700);
-  const note = await quiet.evaluate(() =>
-    document.querySelector(".gl-start-note")?.textContent?.trim() ?? "");
-  ok(`it tells the truth to somebody who muted it ("${note}")`, note === "Sound off");
-  await quiet.locator(".gl-start-btn").click();
-  await quiet.waitForTimeout(900);
-  const stayedQuiet = await quiet.evaluate(() => {
-    const a = document.querySelector("audio[src*='16bit-theme']");
-    return { gone: !document.querySelector("#gl-start"), paused: a ? a.paused : null };
-  });
-  ok("and the press still opens the app", stayedQuiet.gone === true);
-  ok("without starting the music", stayedQuiet.paused === true, String(stayedQuiet.paused));
-  await muted.close();
-
-  // And it is a sixteen-bit thing only. On the dark theme there is no sound to
-  // unlock and this would be a splash screen on a website.
-  const plain = await openFresh("dark");
-  const onDark = await plain.page.evaluate(() => ({
-    gate: Boolean(document.querySelector("#gl-start")),
-    held: document.documentElement.dataset.pressStart === "1",
-  }));
-  ok("the dark theme never sees it", onDark.gate === false && onDark.held === false,
-    JSON.stringify(onDark));
-  await plain.ctx.close();
-}
-
-console.log("\n===== the music, and the switch that stops it");
-{
-  // A manager who has never touched the switch. The theme is chosen, the
-  // storage key is unset, and nothing has been pressed.
-  await page.evaluate(() => localStorage.removeItem("gl.retro.music"));
-  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
-  await page.waitForTimeout(800);
-
-  const armed = await page.evaluate(() =>
-    document.querySelector(".gl-music")?.getAttribute("aria-pressed"));
-  ok("the switch is on before anybody touches it", armed === "true", String(armed));
-
-  // A gesture that is not the switch, which is the whole point: the music has
-  // to arrive without anybody going looking for the button. A key press counts
-  // as a user gesture and cannot navigate anywhere by accident.
-  await page.keyboard.press("Shift");
-  await page.waitForTimeout(900);
-
-  const playing = await page.evaluate(() => {
-    const a = document.querySelector("audio[src*='16bit-theme']");
-    return a ? { paused: a.paused, loop: a.loop, t: a.currentTime } : null;
-  });
-  ok(`it plays without the switch being pressed (${JSON.stringify(playing)})`,
-    playing?.paused === false);
-  ok("and it loops", playing?.loop === true);
-
-  // The switch still stops it, and stopping it is what gets remembered — a
-  // default of on is worthless if it overrides somebody who wants quiet.
-  await page.locator(".gl-music").click();
+  // The matchup as the fixture serves it, then the same matchup a minute
+  // later with one of your players six points better off.
+  await page.goto(`${BASE}/lineup`, { waitUntil: "networkidle" });
   await page.waitForTimeout(400);
-  ok("pressing the switch stops it", await page.evaluate(() =>
-    document.querySelector("audio[src*='16bit-theme']")?.paused) === true);
+  const base = await page.evaluate(() => fetch("/api/matchup").then((r) => r.json()));
+  const later = structuredClone(base);
+  const star = later.rows.find((r) => r.home)?.home;
+  star.points = Math.round((star.points + 6.3) * 10) / 10;
 
-  const stored = await page.evaluate(() => localStorage.getItem("gl.retro.music"));
-  ok("and off is what gets written down", stored === "off", String(stored));
-
+  // Held on the first answer until the play is meant to happen: a dev build
+  // runs every effect twice, so "the first request" is not one request.
+  let scored = false;
+  await page.route("**/api/matchup**", (r) => r.fulfill({ json: scored ? later : base }));
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForTimeout(600);
-  await page.keyboard.press("Shift");
-  await page.waitForTimeout(700);
-  const stillQuiet = await page.evaluate(() => {
-    const a = document.querySelector("audio[src*='16bit-theme']");
-    return a ? a.paused : null;
-  });
-  ok("and it stays off through a reload and a press", stillQuiet === true, String(stillQuiet));
+  ok("nothing on the first reading", (await page.locator(".gl-px-fanfare").count()) === 0);
 
-  // And back on again, so the switch is a switch and not a one-way door.
-  await page.locator(".gl-music").click();
-  await page.waitForTimeout(700);
-  ok("pressing it again brings it back", await page.evaluate(() =>
-    document.querySelector("audio[src*='16bit-theme']")?.paused) === false);
-  await page.evaluate(() => localStorage.setItem("gl.retro.music", "off"));
+  // The board reloads on coming back to the foreground, the way a phone does.
+  scored = true;
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  const fan = await page.waitForSelector(".gl-px-fanfare", { timeout: 4000 })
+    .then((el) => el.textContent()).catch(() => null);
+  ok(`a six-point play fires it (${fan})`, Boolean(fan) && fan.includes(`${star.name} +6.3`));
+  if (SHOTS && fan) await page.screenshot({ path: `${SHOTS}/16bit-touchdown.png` });
+  await page.waitForTimeout(3000);
+  ok("and it closes on its own", (await page.locator(".gl-px-fanfare").count()) === 0);
+  await page.unroute("**/api/matchup**");
 }
 
-// ------------------------------------------- when the browser says no
-// The case that matters on a phone and cannot happen in this browser: a cold
-// launch refuses play() outright, because the page has not been touched. A
-// rejected promise is all the app gets — no event, no second chance — so
-// treating it as "the music is off" is how a default of on works on a desktop
-// and never once in somebody's hand.
-//
-// Chromium here is started with autoplay allowed, so the refusal has to be
-// staged: the first play() is made to reject, and what is asserted is that a
-// press afterwards tries again.
-console.log("\n===== when the browser refuses to play");
+// -------------------------------------------------------- less motion
+console.log("\n===== reduced motion");
 {
-  const blocked = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  await blocked.addCookies([sessionCookie()]);
-  await blocked.addInitScript(() => {
-    try {
-      localStorage.setItem("pylon:theme", "16bit");
-      localStorage.removeItem("gl.retro.music");
-      sessionStorage.setItem("pylon:started", "1");
-    } catch { /* storage off */ }
-    window.__tries = 0;
-    const real = HTMLMediaElement.prototype.play;
-    HTMLMediaElement.prototype.play = function play(...args) {
-      if (!(this.getAttribute("src") ?? "").includes("16bit-theme")) {
-        return real.apply(this, args);
-      }
-      window.__tries += 1;
-      // The first one is refused exactly the way a phone refuses it.
-      if (window.__tries === 1) return Promise.reject(new DOMException("blocked", "NotAllowedError"));
-      return real.apply(this, args);
-    };
-  });
-  const cold = await blocked.newPage();
-  cold.setDefaultNavigationTimeout(120_000);
-  await routes(cold);
-  await cold.goto(`${BASE}/`, { waitUntil: "networkidle" });
-  await cold.waitForTimeout(900);
-
-  const first = await cold.evaluate(() => ({
-    tries: window.__tries,
-    paused: document.querySelector("audio[src*='16bit-theme']")?.paused,
+  const calm = await open({ reducedMotion: "reduce" });
+  await calm.page.goto(`${BASE}/lineup`, { waitUntil: "networkidle" });
+  await flip(calm.page);
+  const m = await calm.page.evaluate(() => ({
+    scan: getComputedStyle(document.querySelector(".gl-px-scan")).animationName,
+    badge: getComputedStyle(document.querySelector(".gl-px-badge")).animationName,
+    view: getComputedStyle(document.querySelector(".gl-enter")).animationName,
   }));
-  ok(`it tries once on arrival (${first.tries})`, first.tries === 1);
-  ok("and is refused", first.paused === true, String(first.paused));
-
-  await cold.keyboard.press("Shift");
-  await cold.waitForTimeout(900);
-  const after = await cold.evaluate(() => ({
-    tries: window.__tries,
-    paused: document.querySelector("audio[src*='16bit-theme']")?.paused,
-  }));
-  ok(`the first press tries again (${after.tries})`, after.tries > first.tries);
-  ok("and this time it plays", after.paused === false, String(after.paused));
-
-  // One press is all it should take. A listener left armed would fire on every
-  // tap in the app for the rest of the session.
-  await cold.keyboard.press("Shift");
-  await cold.waitForTimeout(400);
-  const settled = await cold.evaluate(() => window.__tries);
-  ok(`and then stops asking (${settled})`, settled === after.tries);
-  await blocked.close();
+  ok("no scanline flicker, no blink, no wipe", m.scan === "none" && m.badge === "none" && m.view === "none",
+    JSON.stringify(m));
+  await calm.ctx.close();
 }
 
-// -------------------------------------------------- the header at 320px
-// The header now carries a third control, and it carries it only in this
-// theme — which means the width audit, which loads the dark theme, never sees
-// it. On the smallest phone the bar is already a wordmark and two round
-// controls in three hundred and twenty pixels, and it scrolls sideways under a
-// mask rather than overflowing: an avatar pushed past the edge does not
-// register as overflow anywhere, it just quietly stops being reachable.
-//
-// So what is asserted is the right edge of the last control, not the bar's
-// scrollWidth. The two disagree by exactly the bar's trailing padding — which
-// is twenty-six pixels of nothing, and measuring it was how the first version
-// of this check reported fifteen pixels of trouble that did not exist.
-console.log("\n===== the header on the smallest phone");
+// --------------------------------------------------- the smallest phone
+console.log("\n===== the header at 320");
 {
-  const small = await browser.newContext({ viewport: { width: 320, height: 800 }, isMobile: true, hasTouch: true });
-  await small.addCookies([sessionCookie()]);
-  await small.addInitScript(() => {
-    try {
-      localStorage.setItem("pylon:theme", "16bit");
-      sessionStorage.setItem("pylon:started", "1");
-    } catch { /* storage off */ }
-  });
-  const tiny = await small.newPage();
-  tiny.setDefaultNavigationTimeout(120_000);
-  await routes(tiny);
-  await tiny.goto(`${BASE}/`, { waitUntil: "networkidle" });
-  await tiny.waitForTimeout(600);
-
-  const head = await tiny.evaluate(() => {
+  const small = await open({ width: 320, height: 800 });
+  await small.page.goto(`${BASE}/lineup`, { waitUntil: "networkidle" });
+  await flip(small.page);
+  const head = await small.page.evaluate(() => {
     const nav = document.querySelector(".gl-nav");
-    const end = nav?.querySelector(".gl-navend");
-    const last = end?.lastElementChild;
-    const music = document.querySelector(".gl-music");
-    const box = (el) => {
-      if (!el) return null;
-      const r = el.getBoundingClientRect();
-      return { right: Math.round(r.right), w: Math.round(r.width), h: Math.round(r.height) };
-    };
+    const last = nav?.querySelector(".gl-navend")?.lastElementChild?.getBoundingClientRect();
+    const badge = document.querySelector(".gl-px-badge")?.getBoundingClientRect();
     return {
       width: window.innerWidth,
       scroll: document.documentElement.scrollWidth,
-      music: box(music),
-      last: box(last),
-      // Printed rather than asserted: when the edge assertion fails this says
-      // which part of the bar took the room.
-      parts: [...(end?.children ?? [])].map((el) => {
-        const r = el.getBoundingClientRect();
-        return `${el.className || el.tagName.toLowerCase()} ${Math.round(r.width)}`;
-      }).join(" | "),
+      last: last ? Math.round(last.right) : null,
+      badge: badge ? Math.round(badge.right) : null,
     };
   });
-
-  console.log(`    (header end: ${head.parts})`);
-  ok(`the page still does not run off the side (${head.scroll}px)`, head.scroll <= head.width);
-  ok("the switch is there at 320 too", Boolean(head.music), JSON.stringify(head.music));
-  ok(`and is still a tap target (${head.music?.w}x${head.music?.h})`,
-    (head.music?.w ?? 0) >= 32 && (head.music?.h ?? 0) >= 32);
-  // A square, and it has to stay one. The phone's min-width and min-height
-  // rules grow small controls by different amounts — thirty-four by forty —
-  // which is a rectangle standing between two circles.
-  ok(`and it is square (${head.music?.w}x${head.music?.h})`, head.music?.w === head.music?.h);
-  // The one a third control actually threatens: the avatar is the last thing
-  // in the bar, so it is the first thing a crowded header pushes off the edge.
-  ok(`the last control is reachable without dragging (ends at ${head.last?.right} of ${head.width})`,
-    (head.last?.right ?? 1e9) <= head.width);
-
-  if (SHOTS) {
-    const nav = tiny.locator(".gl-nav");
-    if (await nav.count()) await nav.screenshot({ path: `${SHOTS}/16bit-header-320.png`, scale: "device" });
-  }
-  await small.close();
+  ok(`the page does not run off the side (${head.scroll}px)`, head.scroll <= head.width);
+  ok(`the avatar is reachable (ends at ${head.last})`, (head.last ?? 1e9) <= head.width);
+  ok(`the badge is on screen (ends at ${head.badge})`, head.badge !== null && head.badge <= head.width);
+  if (SHOTS) await small.page.locator(".gl-nav").screenshot({ path: `${SHOTS}/16bit-header-320.png` });
+  await small.ctx.close();
 }
 
-// ---------------------------------------------------------- the tab sound
-// The bottom bar makes a noise in this theme and in no other. Nothing about
-// that is visible, so it is checked the only way it can be: by recording every
-// play() the page attempts and pressing a tab.
-console.log("\n===== the tab sound");
+// ------------------------------------------------------ and off again
+console.log("\n===== off again");
 {
-  const record = () => {
-    window.__plays = [];
-    const orig = HTMLMediaElement.prototype.play;
-    HTMLMediaElement.prototype.play = function play(...args) {
-      window.__plays.push(this.getAttribute("src") ?? this.src ?? "");
-      return orig.apply(this, args);
-    };
-  };
-
-  const tapATab = async (target) => {
-    // The League tab, which is a tab nobody starts on, so the press is a real
-    // navigation rather than a no-op on the current page.
-    await target.locator('.gl-tabbar a[href="/the-league"]').click();
-    await target.waitForTimeout(500);
-    return target.evaluate(() => window.__plays ?? []);
-  };
-
-  const retroCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  await retroCtx.addCookies([sessionCookie()]);
-  await retroCtx.addInitScript(() => {
-    try {
-      localStorage.setItem("pylon:theme", "16bit");
-      localStorage.setItem("gl.retro.music", "off");
-      sessionStorage.setItem("pylon:started", "1");
-    } catch { /* storage off */ }
-  });
-  await retroCtx.addInitScript(record);
-  const retro = await retroCtx.newPage();
-  retro.setDefaultNavigationTimeout(120_000);
-  await routes(retro);
-
-  // The file itself has to be there. A 404 is a silent tab in production and
-  // nothing here would otherwise notice.
-  const head = await retro.request.get(`${BASE}/assets/16bit-tab.mp3`);
-  ok(`the sound is served (${head.status()})`, head.ok());
-
-  await retro.goto(`${BASE}/`, { waitUntil: "networkidle" });
-  await retro.waitForTimeout(600);
-
-  const before = await retro.evaluate(() => (window.__plays ?? []).length);
-  ok("nothing plays on arrival", before === 0, String(before));
-
-  const plays = await tapATab(retro);
-  ok(`pressing a tab plays it (${JSON.stringify(plays)})`,
-    plays.some((src) => src.includes("16bit-tab")));
-  // The theme's music is off; the only thing that should have made a sound is
-  // the press. A tab that started the soundtrack would be a different bug.
-  ok("and nothing else", plays.every((src) => src.includes("16bit-tab")), JSON.stringify(plays));
-  await retroCtx.close();
-
-  const plainCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  await plainCtx.addCookies([sessionCookie()]);
-  await plainCtx.addInitScript(() => {
-    try { localStorage.setItem("pylon:theme", "dark"); } catch { /* storage off */ }
-  });
-  await plainCtx.addInitScript(record);
-  const quiet = await plainCtx.newPage();
-  quiet.setDefaultNavigationTimeout(120_000);
-  await routes(quiet);
-  await quiet.goto(`${BASE}/`, { waitUntil: "networkidle" });
-  await quiet.waitForTimeout(600);
-
-  const silent = await tapATab(quiet);
-  ok("the dark theme presses silently", silent.length === 0, JSON.stringify(silent));
-  await plainCtx.close();
+  await page.goto(`${BASE}/lineup`, { waitUntil: "networkidle" });
+  await flip(page); // the same switch, pressed again
+  const m = await page.evaluate(() => ({
+    retro: document.documentElement.dataset.retro ?? "",
+    scan: document.querySelectorAll(".gl-px-scan").length,
+    filtered: [...document.querySelectorAll("img")].filter((i) => getComputedStyle(i).filter.includes("px16")).length,
+    bg: getComputedStyle(document.documentElement).getPropertyValue("--bg").trim(),
+  }));
+  ok("the skin comes off", m.retro === "" && m.scan === 0, JSON.stringify(m));
+  ok("no image is filtered", m.filtered === 0);
+  ok("and the palette is modern", m.bg !== "#0b1440", m.bg);
 }
 
-// And the switch itself: three themes have to be reachable, and picking one
-// has to survive a reload or it is a toy.
-await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
-await page.waitForTimeout(400);
-const stored = await page.evaluate(() => localStorage.getItem("pylon:theme"));
-ok("\nthe choice is what the app stored", stored === "16bit", String(stored));
-
+await ctx.close();
 await browser.close();
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);

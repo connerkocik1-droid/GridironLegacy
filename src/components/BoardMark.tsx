@@ -2,7 +2,8 @@
 
 import { logo } from "@/data/league-data";
 import { clubAbbrev, monogram } from "@/lib/club-mark";
-import { usePixelArt } from "@/lib/use-pixel-art";
+import { useRetro } from "@/lib/retro";
+import { teamLogoPx } from "@/lib/team-logo";
 
 /**
  * A team's mark on a Pylon Report board.
@@ -13,13 +14,15 @@ import { usePixelArt } from "@/lib/use-pixel-art";
  * letters are not a substitute for the artwork, they are what keeps the two
  * boards looking like one board until somebody supplies it.
  *
- * Goes through the sprite filter like every other mark, so it is a photograph
- * on the flat themes and pixel art on the retro one without knowing which.
+ * In sixteen-bit mode a real logo is pixelated by the stylesheet like every
+ * other image, and a monogram tile becomes a 16x16 pixel mark from the same
+ * generator the fantasy crests use — the fallback until a school's artwork is
+ * supplied, never a replacement for it.
  */
 export default function BoardMark({ team, size = 20 }: { team: string; size?: number }) {
   const abbrev = clubAbbrev(team);
   const src = abbrev ? logo(abbrev) : "";
-  const sprite = usePixelArt(src, Math.max(12, Math.round(size * 0.9)));
+  const retro = useRetro();
 
   const box: React.CSSProperties = {
     width: size,
@@ -29,6 +32,16 @@ export default function BoardMark({ team, size = 20 }: { team: string; size?: nu
     placeItems: "center",
     borderRadius: "var(--radius-sm)",
   };
+
+  if (!src && retro) {
+    return (
+      <span aria-hidden style={{
+        ...box,
+        background: `${teamLogoPx(team, monogram(team))} center / contain no-repeat`,
+        imageRendering: "pixelated",
+      }} />
+    );
+  }
 
   if (!src) {
     return (
@@ -48,7 +61,7 @@ export default function BoardMark({ team, size = 20 }: { team: string; size?: nu
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={sprite} alt="" width={size} height={size}
+    <img src={src} alt="" width={size} height={size}
       style={{ ...box, objectFit: "contain" }} />
   );
 }

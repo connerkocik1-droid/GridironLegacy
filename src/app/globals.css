@@ -340,18 +340,6 @@ a:hover {
     align-items: center;
   }
 
-  /* The same problem for the one control in the header that is not round.
-     The mute switch is a square and cannot use .gl-round, but it stands
-     between two things that do — and the two rules above leave it thirty-four
-     by forty, a rectangle in a row of circles. Squared off at the same thumb
-     size, which is also six pixels the bar was spending on nothing. */
-  .gl-music {
-    width: 40px !important;
-    height: 40px !important;
-    min-width: 40px !important;
-    min-height: 40px !important;
-  }
-
   /* The header, given room. Two round controls and a wordmark on a 320px
      screen is most of the width; the tracking comes in a little and the two
      controls sit closer together, which is fifteen pixels back without
@@ -1017,103 +1005,6 @@ button[disabled]:active {
   display: none;
 }
 
-/* ------------------------------------------------------------ press start ---
-   The sixteen-bit title screen. Rendered by PressStart, and only in that
-   theme, so none of this needs a theme selector to guard it. */
-
-#gl-start {
-  position: fixed;
-  inset: 0;
-  /* Over the launch sheet, which is at 100. */
-  z-index: 110;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 18px;
-  padding: 0 24px calc(10vh + env(safe-area-inset-bottom));
-  cursor: pointer;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  background:
-    radial-gradient(120% 80% at 50% -10%, rgb(var(--glow-rgb) / 0.4), transparent 60%),
-    var(--bg);
-
-  /* The same failsafe every full-screen thing in this app carries. A title
-     screen is meant to wait, so this waits a long time — but it cannot wait
-     for ever, or a phone put down mid-press is a phone that never gets to the
-     app again. */
-  animation: gl-launch-timeout 320ms ease 40s forwards;
-}
-
-/* Nothing behind it moves while it is up. */
-html[data-press-start] body {
-  overflow: hidden;
-}
-
-/* And the launch sheet underneath holds its place rather than timing out
-   during a press that has not happened yet. */
-html[data-press-start] #gl-launch {
-  animation: none;
-}
-
-.gl-start-pylon {
-  transform-origin: 50% 100%;
-  /* The header's bounce, looping. There it is three hops and done, because it
-     fires on a press; here it is the thing that says the screen is waiting. */
-  animation: gl-bounce 620ms steps(12, end) infinite;
-  filter: drop-shadow(3px 3px 0 var(--accent-deep));
-}
-
-.gl-start-name {
-  font-family: var(--font-heading);
-  font-size: 26px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text);
-  text-align: center;
-  text-shadow: 3px 3px 0 var(--accent-deep);
-}
-
-.gl-start-btn {
-  margin-top: 10px;
-  font-family: var(--font-heading);
-  font-size: 15px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--accent-text);
-  background: rgb(var(--accent-rgb) / 0.22);
-  border: 2px solid rgb(var(--accent-rgb) / 0.7);
-  border-radius: 0;
-  padding: 12px 22px;
-  min-height: 48px;
-  cursor: pointer;
-  box-shadow: 3px 3px 0 var(--accent-deep);
-  /* The blink every cabinet does. Stepped rather than faded, because a
-     sixteen-bit machine had no opacity to fade with. */
-  animation: gl-start-blink 1.1s steps(1, end) infinite;
-}
-
-.gl-start-note {
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-
-@keyframes gl-start-blink {
-  0%, 60% { opacity: 1; }
-  61%, 100% { opacity: 0.35; }
-}
-
-/* Motion is decoration here and goes first. The screen still waits for a
-   press; it simply sits still while it does. */
-@media (prefers-reduced-motion: reduce) {
-  .gl-start-pylon,
-  .gl-start-btn {
-    animation: none;
-  }
-}
-
 @keyframes gl-launch-timeout {
   to {
     opacity: 0;
@@ -1511,98 +1402,280 @@ html[data-press-start] #gl-launch {
 
 
 /* ----------------------------------------------------- the sixteen-bit set ---
-   The half of the retro theme that is not colour. theme.css carries the
-   palette; a palette alone reads as "a dark app with brighter purples", and
-   what makes a screen look like a console is its geometry.
+   Everything about sixteen-bit mode that is not colour. theme.css remaps the
+   tokens; this is the geometry, the type, the panels, the pixel images and
+   the overlays. All of it hangs off data-retro on the root, and most of it is
+   !important because the surfaces it overrides are styled inline — this is
+   the one place a stylesheet has to beat every style attribute at once.
 
-   Three rules, in the order they matter:
+   Ported from prototype/Pylon App.dc.html. */
 
-   Square. Every radius token goes to nought, so every card, chip, button and
-   avatar in the app squares off at once without a single component knowing
-   about it. This is the single biggest part of the effect.
+@font-face {
+  font-family: "Silkscreen";
+  src: url("/fonts/silkscreen-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
-   Hard shadows. A blurred shadow is a thing a CRT cannot draw. The app's
-   shadows are inline and cannot be reached from here, but the glow under a
-   live element can be, and a sharp offset block reads as a sprite's drop
-   shadow rather than as depth.
+@font-face {
+  font-family: "Pixelify Sans";
+  src: url("/fonts/pixelify-sans-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
-   Pixelated images. A headshot scaled from five hundred pixels to twenty-six
-   is resampled smooth by default; nearest-neighbour instead makes it a sprite.
-   This is the detail that stops the theme reading as a colour scheme. */
+@font-face {
+  font-family: "Pixelify Sans";
+  src: url("/fonts/pixelify-sans-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
 
-:root[data-theme="16bit"] {
+:root[data-retro="1"] {
   --radius-sm: 0px;
   --radius-md: 0px;
   --radius-lg: 0px;
 }
 
-:root[data-theme="16bit"] img {
+/* A 4px dot texture on the navy ground. */
+:root[data-retro="1"] body {
+  background-color: var(--bg);
+  background-image: radial-gradient(#16246a 1px, transparent 1.2px);
+  background-size: 4px 4px;
+}
+
+/* Square, flat and upright. No glass, no italics, no soft text glow. */
+:root[data-retro="1"] * {
+  border-radius: 0 !important;
+  /* Unprefixed only: the build's CSS minifier writes the -webkit- one itself,
+     and given both it kept the prefixed one and dropped this. */
+  backdrop-filter: none !important;
+  font-style: normal !important;
+  text-shadow: none !important;
+}
+
+/* What modern sets in light or italic display type — rank numerals, scores,
+   headlines — is set in Silkscreen. */
+:root[data-retro="1"] [style*="italic"],
+:root[data-retro="1"] [style*="font-weight: 300"] {
+  font-family: "Silkscreen", ui-monospace, monospace !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  -webkit-text-fill-color: currentColor;
+}
+
+/* Gradient text has no sixteen-bit equivalent; it becomes solid light gold. */
+:root[data-retro="1"] [style*="background-clip: text"] {
+  -webkit-text-fill-color: var(--accent-text) !important;
+  filter: none !important;
+}
+
+/* The indigo glows the glass sits over. Nothing here is glass. */
+:root[data-retro="1"] [data-glow] {
+  display: none !important;
+}
+
+/* Panels lose their glass and gain a gold border, a navy outline and a hard
+   offset shadow. The tab bar keeps only its top edge and the header only its
+   bottom one. A panel is anything marked data-panel, or anything whose style
+   spreads panelMark / barMark from liquid-glass.ts. */
+:root[data-retro="1"] :is([data-panel], [style*="--gl-panel"], [style*="--gl-bar"]) {
+  background: #0f1a52 !important;
+  border: 2px solid #f2c14e !important;
+  box-shadow: 0 0 0 2px #050a26, 3px 3px 0 2px #050a26 !important;
+}
+
+:root[data-retro="1"] [data-panel="tab"] {
+  border-width: 2px 0 0 0 !important;
+  box-shadow: 0 -2px 0 #050a26 !important;
+}
+
+:root[data-retro="1"] :is([data-panel="bar"], [style*="--gl-bar"]) {
+  border-width: 0 0 2px 0 !important;
+  box-shadow: 0 2px 0 #050a26 !important;
+}
+
+:root[data-retro="1"] svg {
+  shape-rendering: crispEdges;
+}
+
+/* Every image — headshots, uploaded crests, club and school logos — is
+   pixelated live by the #px16 filter in RetroLayer, from the same asset the
+   modern skin shows. Never hidden, never swapped for other art, and there is
+   no second pre-pixelated set of files. */
+:root[data-retro="1"] img {
+  filter: url(#px16) contrast(1.08) saturate(1.15);
   image-rendering: pixelated;
 }
 
-/* A crest or a headshot is a circle in every other theme and a square here,
-   which is the point — but a few are drawn with an inline border-radius that
-   no token reaches, so they are squared off by name. */
-:root[data-theme="16bit"] .gl-mcell-face,
-:root[data-theme="16bit"] .gl-crest {
-  border-radius: 0 !important;
+/* A screen arriving wipes in top to bottom in five steps instead of fading.
+   backwards rather than both: a clip-path left on the route wrapper after
+   the wipe would clip every fixed overlay inside it. */
+:root[data-retro="1"] .gl-enter {
+  animation: gl-px-view 0.4s steps(5) backwards;
 }
 
-/* The scanlines.
+@keyframes gl-px-view {
+  from { opacity: 0.2; clip-path: inset(0 0 100% 0); }
+  to   { opacity: 1;   clip-path: inset(0 0 0 0); }
+}
 
-   Fixed rather than on a wrapper, so it does not scroll with the page — a
-   scanline that moves with the content is a texture, and the point is that it
-   belongs to the screen rather than to the app. pointer-events: none is
-   load-bearing: without it this eats every tap in the app.
+/* The two-frame runner on a GameCast row. */
+.gl-px-sprite {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  background-repeat: no-repeat;
+  background-size: 48px 24px;
+  image-rendering: pixelated;
+  animation: gl-px-run 0.42s steps(2) infinite;
+}
 
-   Two pixels, and faint. At full strength it is a novelty that gets switched
-   off within a week; at this weight it is the thing you notice only when you
-   go back to the flat theme. */
-:root[data-theme="16bit"] body::after {
-  content: "";
+@keyframes gl-px-run {
+  from { background-position: 0 0; }
+  to   { background-position: -48px 0; }
+}
+
+/* ●16, blinking beside the wordmark. Inline in the header, so it can never
+   land on the score or the avatar. */
+.gl-px-badge {
+  flex: 0 0 auto;
+  font-family: "Silkscreen", ui-monospace, monospace;
+  font-size: 7px;
+  letter-spacing: 0;
+  color: #f2c14e;
+  animation: gl-px-blink 1.2s steps(1) infinite;
+}
+
+@keyframes gl-px-blink {
+  50% { opacity: 0; }
+}
+
+/* Scanlines: a dark line every 3px, with a slow three-step flicker. Fixed, so
+   they belong to the screen rather than scrolling with the page, and
+   pointer-events: none, without which they would eat every tap in the app. */
+.gl-px-scan {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  background: repeating-linear-gradient(180deg, rgb(0 0 0 / .28) 0 1px, transparent 1px 3px);
+  animation: gl-px-scan 2.4s steps(3) infinite;
+}
+
+.gl-px-vignette {
   position: fixed;
   inset: 0;
   z-index: 9999;
   pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgb(0 0 0 / .16) 0px,
-    rgb(0 0 0 / .16) 1px,
-    transparent 1px,
-    transparent 3px
-  );
+  background: radial-gradient(ellipse at center, transparent 58%, rgb(2 4 18 / .55) 100%);
 }
 
-/* Somebody who has asked for less motion has not asked for less texture — the
-   scanlines do not move — but a CRT on a phone at night is a lot of contrast,
-   so it lightens rather than disappears. */
+@keyframes gl-px-scan {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.7; }
+}
+
+/* "♪ BLIP", over the tab bar, on any tab or sub-tab change. */
+.gl-px-blip {
+  position: fixed;
+  left: 50%;
+  bottom: calc(66px + env(safe-area-inset-bottom));
+  z-index: 9997;
+  pointer-events: none;
+  padding: 4px 8px;
+  font-family: "Silkscreen", ui-monospace, monospace;
+  font-size: 10px;
+  color: #0b1440;
+  background: #f2c14e;
+  box-shadow: 2px 2px 0 #050a26;
+  animation: gl-px-blip 0.7s steps(6) both;
+}
+
+@keyframes gl-px-blip {
+  0%   { opacity: 0; transform: translate(-50%, 8px) scale(.6); }
+  20%  { opacity: 1; transform: translate(-50%, 0) scale(1.15); }
+  75%  { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -10px); }
+}
+
+/* "♪ TOUCHDOWN! ♪" — one of your players, 3+ points in one live reading. */
+.gl-px-fanfare {
+  position: fixed;
+  top: calc(92px + env(safe-area-inset-top));
+  left: 10px;
+  right: 10px;
+  max-width: 420px;
+  margin: 0 auto;
+  z-index: 9997;
+  pointer-events: none;
+  padding: 10px 12px;
+  text-align: center;
+  background: #0f1a52;
+  border: 3px solid #f2c14e;
+  box-shadow: 0 0 0 2px #050a26, 4px 4px 0 2px #050a26;
+  animation: gl-px-fanfare 2.6s steps(8) both;
+}
+
+.gl-px-fanfare-head {
+  font-family: "Silkscreen", ui-monospace, monospace;
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  color: #ffe08a;
+}
+
+.gl-px-fanfare-text {
+  font-family: "Pixelify Sans", ui-monospace, monospace;
+  font-size: 12px;
+  color: #f4efd8;
+  margin-top: 4px;
+}
+
+@keyframes gl-px-fanfare {
+  0%   { transform: translateY(-140%); }
+  12%  { transform: none; }
+  86%  { transform: none; }
+  100% { transform: translateY(-140%); }
+}
+
+/* Less motion: the flicker, the wipe, the blip and the fanfare's drop all go.
+   The banner still shows, standing still; the scanlines stay, because they do
+   not move. */
 @media (prefers-reduced-motion: reduce) {
-  :root[data-theme="16bit"] body::after {
-    background: repeating-linear-gradient(
-      to bottom,
-      rgb(0 0 0 / .08) 0px,
-      rgb(0 0 0 / .08) 1px,
-      transparent 1px,
-      transparent 3px
-    );
+  .gl-px-scan,
+  .gl-px-sprite,
+  .gl-px-badge,
+  :root[data-retro="1"] .gl-enter {
+    animation: none;
+  }
+  .gl-px-scan {
+    opacity: 0.55;
+  }
+  .gl-px-blip {
+    animation: none;
+    transform: translate(-50%, 0);
+  }
+  .gl-px-fanfare {
+    animation: none;
   }
 }
 
 
 /* ------------------------------------------------- the title-screen bounce ---
-   The pylon and the wordmark, on arrival and on a tap.
+   The pylon and the wordmark, on arrival and on a tap, in sixteen-bit mode.
 
    Squash and stretch rather than a slide: it is the oldest trick in sprite
    animation and it is what makes a thing read as drawn rather than as moved.
    The transform-origin is the bottom, because a thing that squashes about its
    centre is not landing, it is throbbing.
 
-   Two-thirds of a second and then it stops. It is a greeting, not a loop —
-   anything that keeps moving on the screen a manager opens twenty times a day
-   stops being charming by Wednesday and starts competing with the score.
+   Three hops and then it stops. It is a greeting, not a loop.
 
-   Retro only. On the flat themes a bouncing wordmark reads as a rendering
-   fault; under scanlines it reads as a title screen. */
+   Retro only. On glass a bouncing wordmark reads as a rendering fault; under
+   scanlines it reads as a title screen. */
 
 @keyframes gl-bounce {
   0%   { transform: scale(1, 1)       translateY(0); }
@@ -1613,114 +1686,70 @@ html[data-press-start] #gl-launch {
   100% { transform: scale(1, 1)       translateY(0); }
 }
 
-:root[data-theme="16bit"] .gl-mark {
+:root[data-retro="1"] .gl-mark {
   transform-origin: 50% 100%;
   cursor: pointer;
   /* The tap target is the pair, so the press does not have to find the 11px
-     pylon. Negative margin gives back exactly what the padding takes, so the
-     header does not grow to hold a thing that is only sometimes interactive. */
+     pylon. Negative margin gives back exactly what the padding takes. */
   padding: 6px 8px;
   margin: -6px -8px;
 }
 
-:root[data-theme="16bit"] .gl-mark,
-:root[data-theme="16bit"] .gl-mark.gl-bounce {
-  /* Three hops, not one.
-     
-     One was the right instinct and the wrong number: six hundred milliseconds
-     of it finishes while the rest of the page is still painting, so the thing
-     a manager was told to look for had already happened. Three lands at just
-     under two seconds — long enough to be seen arriving, short enough that it
-     is over before anybody wants it to be. Still not infinite. */
+:root[data-retro="1"] .gl-mark,
+:root[data-retro="1"] .gl-mark.gl-bounce {
   animation: gl-bounce 620ms steps(12, end) 3 both;
 }
 
 /* A replay is the class going off and back on, so the second run needs a name
-   the first one does not have — otherwise the browser sees the same animation
-   already finished and does nothing. */
-:root[data-theme="16bit"] .gl-mark.gl-bounce {
+   the first one does not have. */
+:root[data-retro="1"] .gl-mark.gl-bounce {
   animation-name: gl-bounce;
 }
 
-/* The shadow a sprite casts: offset, hard-edged, and the same on both halves.
-
-   A blur is the one thing a console could not draw, so it is two pixels down
-   and two across with no softening at all.
-
-   Violet rather than black, which is the part that took looking at a
-   screenshot to get right. A near-black shadow is what a title screen of the
-   era used, and it worked because those screens had a light or a busy
-   background to lift the wordmark off. This theme's ground is #12102a — a
-   black shadow on it is a black shape on a black field, and the first attempt
-   was invisible at the size it is actually drawn. The deep accent violet is
-   dark enough to read as shadow rather than as a second copy of the word, and
-   far enough from the ground to be seen at all.
-
-   The pylon's own glow has to be overridden rather than joined. It is a nine
-   pixel soft orange drop-shadow written inline on the svg, which is right in
-   the other two themes and is exactly the thing this theme is not: !important
-   because an inline filter cannot be reached any other way.
-
-   The shadow travels with the bounce, because it is behind the mark rather
-   than under it — a shadow that stayed on the ground while the sprite hopped
-   would be a different and much fussier effect than the one asked for. */
-:root[data-theme="16bit"] .gl-mark svg {
-  filter: drop-shadow(2px 2px 0 var(--accent-deep)) !important;
+/* The shadow a sprite casts: two pixels down and across, no softening, in the
+   navy outline colour the panels use. !important on the svg because its own
+   soft orange glow is written inline; and on the wordmark because the skin
+   clears every other text-shadow. */
+:root[data-retro="1"] .gl-mark svg {
+  filter: drop-shadow(2px 2px 0 #050a26) !important;
 }
 
-:root[data-theme="16bit"] .gl-mark .gl-wordmark {
-  text-shadow: 2px 2px 0 var(--accent-deep);
+:root[data-retro="1"] .gl-mark .gl-wordmark {
+  text-shadow: 2px 2px 0 #050a26 !important;
 }
 
-/* Asked for less motion, and answered here rather than in the component. The
-   shadow stays: it is not motion, and a title without it is a title that
-   looks unfinished rather than calmer. */
 @media (prefers-reduced-motion: reduce) {
-  :root[data-theme="16bit"] .gl-mark,
-  :root[data-theme="16bit"] .gl-mark.gl-bounce {
+  :root[data-retro="1"] .gl-mark,
+  :root[data-retro="1"] .gl-mark.gl-bounce {
     animation: none;
   }
 }
 
 
 /* --------------------------------------------------------- the idle sprite ---
-   Every headshot in the app breathes, very slightly.
+   Every headshot breathes, very slightly, in sixteen-bit mode.
 
-   Reached by a class, which is only possible because every face in the app now
-   comes through one component. It used to be reached by "/headshots/" being in
-   the src — which worked until the sprite filter replaced that src with a data
-   URL, and the faces converted and stopped breathing in the same change.
-
-   Two pixels, four steps, two and a half seconds, and staggered so a row of
-   eleven men is not a chorus line. steps() rather than a smooth ease: a sprite
-   moves between frames, and easing it is the one thing that would make this
-   read as a web page pretending rather than a game.
-
-   The pixelation is already on — the theme renders every image
-   nearest-neighbour — so this is the motion and not the look. */
+   Reached by the gl-face class, which every face in the app carries because it
+   comes through Headshot. Two pixels, four steps, staggered so a row of eleven
+   men is not a chorus line. */
 
 @keyframes gl-idle {
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-2px); }
 }
 
-:root[data-theme="16bit"] .gl-face {
+:root[data-retro="1"] .gl-face {
   animation: gl-idle 2.4s steps(4, end) infinite;
 }
 
-/* A stagger, so eleven faces are not one face eleven times. Cheap and crude on
-   purpose: five buckets by position in the row is enough to break the unison,
-   and a per-player delay would want a component to compute it. */
-:root[data-theme="16bit"] .gl-face:nth-of-type(5n + 1) { animation-delay: 0ms; }
-:root[data-theme="16bit"] .gl-face:nth-of-type(5n + 2) { animation-delay: 320ms; }
-:root[data-theme="16bit"] .gl-face:nth-of-type(5n + 3) { animation-delay: 640ms; }
-:root[data-theme="16bit"] .gl-face:nth-of-type(5n + 4) { animation-delay: 960ms; }
-:root[data-theme="16bit"] .gl-face:nth-of-type(5n + 5) { animation-delay: 1280ms; }
+:root[data-retro="1"] .gl-face:nth-of-type(5n + 1) { animation-delay: 0ms; }
+:root[data-retro="1"] .gl-face:nth-of-type(5n + 2) { animation-delay: 320ms; }
+:root[data-retro="1"] .gl-face:nth-of-type(5n + 3) { animation-delay: 640ms; }
+:root[data-retro="1"] .gl-face:nth-of-type(5n + 4) { animation-delay: 960ms; }
+:root[data-retro="1"] .gl-face:nth-of-type(5n + 5) { animation-delay: 1280ms; }
 
-/* An idle animation is the definition of decorative motion, so it is the
-   first thing to go. */
 @media (prefers-reduced-motion: reduce) {
-  :root[data-theme="16bit"] .gl-face {
+  :root[data-retro="1"] .gl-face {
     animation: none;
   }
 }

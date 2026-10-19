@@ -2,7 +2,7 @@
 
 import Headshot from "./Headshot";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import TeamMark from "./TeamMark";
 import Skeleton from "./Skeleton";
@@ -16,6 +16,8 @@ import { useRefreshable } from "@/lib/use-refresh";
 import { setStatLines, useStatLines } from "@/lib/use-stat-lines";
 import type { MatchupRow, SideEntry } from "@/lib/matchup";
 import { recordText } from "@/lib/record";
+import { fanfare } from "@/lib/retro";
+import { biggestJump, fanfareText, type Reading } from "@/lib/retro-cues";
 
 interface Side {
   id: string;
@@ -420,6 +422,24 @@ export default function MatchupBoard() {
     [params, pathname, router],
   );
 
+  // The reader's own lineup as it stood at the last reading, for sixteen-bit
+  // mode's touchdown fanfare. Keyed by week and franchise so switching the
+  // board to another week or pair is a first reading, not a jump.
+  const lastMine = useRef<{ key: string; readings: Reading[] } | null>(null);
+
+  const cheer = useCallback((next: Board) => {
+    if (!next.mine) return;
+    const key = `${next.week}:${next.home.id}`;
+    const readings: Reading[] = next.rows.flatMap((row) =>
+      row.home ? [{ name: row.home.name, points: row.home.points, live: row.home.live }] : [],
+    );
+    const before = lastMine.current?.key === key ? lastMine.current.readings : null;
+    lastMine.current = { key, readings };
+    const jump = next.live ? biggestJump(before, readings) : null;
+    // A no-op unless sixteen-bit mode is on.
+    if (jump) fanfare(fanfareText(jump));
+  }, []);
+
   const load = useCallback(async () => {
     try {
       const params = new URLSearchParams();
@@ -459,13 +479,14 @@ export default function MatchupBoard() {
       }
 
       setBye(null);
+      cheer(body);
       setBoard(body);
       if (!opponent) setScheduled({ id: body.away.id, franchise: body.away.franchise });
       setError(null);
     } catch {
       setError("Could not load this week's matchup.");
     }
-  }, [opponent, asHome, asWeek]);
+  }, [opponent, asHome, asWeek, cheer]);
 
   // Answers a pull-to-refresh as well as its own timer.
   useRefreshable(load);

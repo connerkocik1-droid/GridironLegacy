@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { AppTab } from "@/lib/app-tabs";
 import { subTabFor } from "@/lib/app-tabs";
+import { blip } from "@/lib/retro";
 
 /**
  * The strip of destinations under a tab — Roster, Matchup, Around League,
@@ -40,6 +41,7 @@ export default function SubTabBar({ tab }: { tab: AppTab }) {
             href={sub.href}
             role="tab"
             aria-selected={on}
+            onClick={on ? undefined : blip}
             style={{
               flex: "0 0 auto",
               fontSize: 12,

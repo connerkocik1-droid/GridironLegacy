@@ -374,7 +374,7 @@ export default function MyTeamRoster() {
                     {/* His face. The roster listed fifteen names and no
                         pictures, which is the one screen in the app where a
                         manager is scanning for a man rather than reading about
-                        one — and in the retro theme it is where the sprites
+                        one — and in sixteen-bit mode it is where the pixel faces
                         were most worth seeing and least visible. Thirty
                         pixels: big enough to recognise, small enough that the
                         two lines beside it still fit a phone. */}

@@ -8,7 +8,7 @@ import LaunchScreen from "@/components/LaunchScreen";
 import OfflineBar from "@/components/OfflineBar";
 import PullToRefresh from "@/components/PullToRefresh";
 import ServiceWorker from "@/components/ServiceWorker";
-import ThemeMusic from "@/components/ThemeMusic";
+import RetroLayer from "@/components/RetroLayer";
 import TabBar from "@/components/TabBar";
 import "./nocturne.css";
 // The palette, before anything that names it.
@@ -149,22 +149,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           failure — the page renders, the theme simply never applies.
         */}
         <Script id="pylon-theme" strategy="beforeInteractive">
-          {'(function(){try{var c=localStorage.getItem("pylon:theme");' +
-            'var t=(c==="light"||c==="dark"||c==="16bit")?c:' +
-            '(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");' +
-            'document.documentElement.dataset.theme=t;' +
-            // The pixel face, asked for here rather than by the theme store:
-            // the store does not start until something calls useTheme, and the
-            // only thing that does is the appearance picker inside the profile
-            // menu — so the font arrived when you opened that menu rather than
-            // when you loaded the page, which is a page of Inter and then a
-            // reflow. Requested only for the one theme that names it.
-            'if(t==="16bit"&&!document.getElementById("pylon-pixel-font")){' +
-            'var l=document.createElement("link");l.id="pylon-pixel-font";' +
-            'l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?' +
-            'family=Pixelify+Sans:wght@400;600&display=swap";' +
-            'document.head.appendChild(l);}}' +
-            'catch(e){document.documentElement.dataset.theme="dark";}})()'}
+          {'(function(){var d=document.documentElement;try{var c=localStorage.getItem("pylon:theme");' +
+            'd.dataset.theme=(c==="light"||c==="dark")?c:' +
+            '(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");}' +
+            'catch(e){d.dataset.theme="dark";}' +
+            // Sixteen-bit mode, which is a skin over the theme rather than a
+            // theme. Session-only, so a reload keeps it and a cold launch is
+            // modern — and set here so a reload does not flash glass first.
+            // See retro.ts. Its fonts are self-hosted @font-face rules, which
+            // the browser fetches only once something is drawn in them.
+            'try{if(sessionStorage.getItem("pylon:retro")==="1")d.dataset.retro="1";}catch(e){}})()'}
         </Script>
 
         {/* What iOS shows while a home-screen launch is starting.
@@ -213,12 +207,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             rather than off the wire. Nothing at all when online. */}
         <OfflineBar />
 
-        {/* The retro theme's music, and its switch. Above the router rather
-            than inside a page: every screen in this app is a fresh mount, so
-            an <audio> in a page would restart the theme from the top each time
-            somebody pressed a tab. It renders nothing at all in the other two
-            themes, so nobody else fetches the track. */}
-        <ThemeMusic />
+        {/* Sixteen-bit mode's overlays and its pixel filter. Above the router
+            rather than inside a page, so the scanlines and the cues belong to
+            the screen and do not remount with every tab. */}
+        <RetroLayer />
         {/* Installs the offline worker, in production builds only. */}
         <ServiceWorker />
       </body>

@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/styles.css">
 <script src="_ds/nocturne-a15a1733-bc9c-441e-a8c1-6f7c4c14cee0/_ds_bundle.js"></script>
 <script src="./image-slot.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Silkscreen&display=swap">
 <style>
   body { margin:0; background:#0b0d16; display:flex; align-items:center; justify-content:center; min-height:100vh; font-family:var(--font-body); }
   a { color:var(--color-accent-300); text-decoration:none; }
@@ -21,6 +22,36 @@
   @keyframes ap-view { from { opacity:0; transform:translateY(6px);} to { opacity:1; transform:none;} }
   @keyframes ap-flash { 0% { opacity:0; transform:translateY(4px) scale(.8);} 14% { opacity:1; transform:scale(1.12);} 70% { opacity:1; transform:none;} 100% { opacity:0; transform:translateY(-6px);} }
   image-slot[data-overlay]::part(empty), image-slot[data-overlay]::part(ring) { opacity:0; }
+  /* 16-bit skin. A whole-app theme switch keyed on one attribute — the one place
+     a stylesheet earns its keep over inline styles, since it has to override
+     every surface at once. */
+  [data-retro="1"] {
+    --color-bg:#0b1440; --color-surface:#13205c; --color-text:#f4efd8;
+    --color-accent:#f2c14e; --color-accent-100:#fff4cc; --color-accent-200:#ffe08a; --color-accent-300:#f7cf62; --color-accent-400:#f2c14e; --color-accent-500:#e0aa2a; --color-accent-600:#b8861a; --color-accent-700:#7a5a12; --color-accent-800:#4a3a12; --color-accent-900:#2a220c;
+    --color-neutral-100:#e6ecff; --color-neutral-200:#c9d3f5; --color-neutral-300:#a9b6e6; --color-neutral-400:#8f9dd2; --color-neutral-500:#7080b8; --color-neutral-600:#4f5d92; --color-neutral-700:#34406e; --color-neutral-800:#232d55; --color-neutral-900:#182040;
+    --color-section:#0d1a52; --color-section-glow:#13205c;
+    --font-body:"Pixelify Sans", ui-monospace, monospace; --font-heading:"Silkscreen", ui-monospace, monospace;
+    background-color:#0b1440 !important;
+    background-image:radial-gradient(#16246a 1px, transparent 1.2px) !important; background-size:4px 4px !important;
+  }
+  [data-retro="1"] * { border-radius:0 !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; font-style:normal !important; text-shadow:none !important; }
+  [data-retro="1"] [style*="italic"], [data-retro="1"] [style*="font-weight: 300"] { font-family:"Silkscreen", ui-monospace, monospace !important; font-weight:400 !important; letter-spacing:0 !important; -webkit-text-fill-color:currentColor; }
+  [data-retro="1"] [style*="background-clip: text"] { -webkit-text-fill-color:#ffe08a !important; filter:none !important; }
+  [data-retro="1"] [data-glow] { display:none !important; }
+  [data-retro="1"] [data-panel] { background:#0f1a52 !important; border:2px solid #f2c14e !important; box-shadow:0 0 0 2px #050a26, 3px 3px 0 2px #050a26 !important; }
+  [data-retro="1"] [data-panel="tab"] { border-width:2px 0 0 0 !important; box-shadow:0 -2px 0 #050a26 !important; }
+  [data-retro="1"] svg { shape-rendering:crispEdges; }
+  [data-retro="1"] [data-view] { animation:ap-pxview .4s steps(5) both !important; }
+  /* Uploaded photos and logos are pixelated live, not swapped for other files:
+     the #px16 filter samples a 3px grid, then a 6-step posterize narrows the palette. */
+  [data-retro="1"] image-slot { filter:url(#px16) contrast(1.08) saturate(1.15); image-rendering:pixelated; }
+  [data-sprite="1"] { animation:ap-run .42s steps(2) infinite; image-rendering:pixelated; }
+  @keyframes ap-pxview { from { opacity:.2; clip-path:inset(0 0 100% 0);} to { opacity:1; clip-path:inset(0 0 0 0);} }
+  @keyframes ap-run { from { background-position:0 0;} to { background-position:-48px 0;} }
+  @keyframes ap-scan { 0%,100% { opacity:.55;} 50% { opacity:.7;} }
+  @keyframes ap-blip { 0% { opacity:0; transform:translate(-50%,8px) scale(.6);} 20% { opacity:1; transform:translate(-50%,0) scale(1.15);} 75% { opacity:1; transform:translate(-50%,0);} 100% { opacity:0; transform:translate(-50%,-10px);} }
+  @keyframes ap-fanfare { 0% { transform:translateY(-140%);} 12% { transform:none;} 86% { transform:none;} 100% { transform:translateY(-140%);} }
+  @keyframes ap-blink { 50% { opacity:0;} }
   @keyframes ap-marquee { from { transform:translateX(0);} to { transform:translateX(-50%);} }
   @keyframes ap-pulse { 0%,100% { opacity:.3; transform:scale(1);} 50% { opacity:1; transform:scale(1.35);} }
   @keyframes ap-rise { from { opacity:0; transform:translateY(8px);} to { opacity:1; transform:none;} }
@@ -30,9 +61,9 @@
 </helmet>
 
 <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
-<div style="height:100%;position:relative;overflow:hidden;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);font-variant-numeric:tabular-nums">
+<div data-retro="{{ retroAttr }}" style="height:100%;position:relative;overflow:hidden;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);font-variant-numeric:tabular-nums">
 
-  <div style="position:absolute;inset:0;pointer-events:none;overflow:hidden">
+  <div data-glow="1" style="position:absolute;inset:0;pointer-events:none;overflow:hidden">
     <div style="position:absolute;top:-160px;left:-140px;width:460px;height:420px;border-radius:50%;background:radial-gradient(circle, var(--color-section-glow), transparent 66%);filter:blur(30px);opacity:.8"></div>
     <div style="position:absolute;top:300px;right:-200px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle, var(--color-accent-800), transparent 64%);filter:blur(40px);opacity:.75"></div>
     <div style="position:absolute;bottom:-120px;left:-60px;width:460px;height:360px;border-radius:50%;background:radial-gradient(circle, var(--color-section), transparent 66%);filter:blur(40px);opacity:.85"></div>
@@ -41,9 +72,9 @@
   <div style="position:relative;height:100%;display:flex;flex-direction:column">
 
     <div style="flex:0 0 auto;padding:50px 10px 0;position:relative;z-index:12">
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:linear-gradient(180deg,color-mix(in oklch, var(--color-text) 7%, transparent),color-mix(in oklch, var(--color-text) 2%, transparent));backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);border:1px solid color-mix(in oklch, var(--color-text) 9%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 12%, transparent), var(--shadow-md)">
+      <div data-panel="1" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:linear-gradient(180deg,color-mix(in oklch, var(--color-text) 7%, transparent),color-mix(in oklch, var(--color-text) 2%, transparent));backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);border:1px solid color-mix(in oklch, var(--color-text) 9%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 12%, transparent), var(--shadow-md)">
         <svg width="12" height="24" viewBox="28 6 44 108" style="flex:0 0 auto;overflow:visible;filter:drop-shadow(0 0 3px rgba(245,138,68,.7))"><polygon points="32,20 50,30 50,110 32,100" style="fill:rgba(255,180,106,.42)"></polygon><polygon points="50,30 68,20 68,100 50,110" style="fill:rgba(245,138,68,.72)"></polygon><polygon points="50,8 70,19 50,30 30,19" style="fill:#ffe2c4"></polygon><polygon points="32,62 50,72 68,62 68,72 50,82 32,72" style="fill:#161826;opacity:.75"></polygon><line x1="50" y1="30" x2="50" y2="110" style="stroke:#ffe2c4;stroke-width:4"></line></svg>
-        <span style="display:flex;align-items:baseline;gap:5px;min-width:0;flex:1 1 auto;overflow:hidden;white-space:nowrap;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-style:italic"><span style="font-weight:600">Pylon</span><span style="font-weight:400;color:var(--color-accent-300)">Fantasy</span></span>
+        <span style="display:flex;align-items:baseline;gap:5px;min-width:0;flex:1 1 auto;overflow:hidden;white-space:nowrap;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-style:italic"><span style="font-weight:600">Pylon</span><span style="font-weight:400;color:var(--color-accent-300)">Fantasy</span><sc-if value="{{ retro }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Silkscreen', monospace;font-size:7px;letter-spacing:0;color:#f2c14e;flex:0 0 auto;animation:ap-blink 1.2s steps(1) infinite">●16</span></sc-if></span>
 
         <button onClick="{{ onScore }}" style="flex:0 0 auto;margin-left:auto;cursor:pointer;display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:4px;border:1px solid color-mix(in oklch, var(--color-text) 10%, transparent);background:color-mix(in oklch, var(--color-text) 4%, transparent);color:var(--color-text);font-family:var(--font-body)" style-hover="border-color:var(--color-accent-600)">
           <span style="width:5px;height:5px;border-radius:50%;background:var(--color-accent-300);box-shadow:0 0 8px var(--color-accent);animation:ap-pulse 1.6s infinite"></span>
@@ -58,7 +89,7 @@
       </div>
 
       <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
-        <div style="position:absolute;top:96px;left:10px;right:10px;max-height:640px;overflow:auto;border-radius:6px;background:linear-gradient(180deg,color-mix(in oklch, var(--color-bg) 72%, transparent),color-mix(in oklch, var(--color-bg) 88%, transparent));backdrop-filter:blur(30px) saturate(170%);-webkit-backdrop-filter:blur(30px) saturate(170%);border:1px solid color-mix(in oklch, var(--color-text) 11%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 12%, transparent), var(--shadow-lg);animation:ap-drop .22s ease both">
+        <div data-panel="1" style="position:absolute;top:96px;left:10px;right:10px;max-height:640px;overflow:auto;border-radius:6px;background:linear-gradient(180deg,color-mix(in oklch, var(--color-bg) 72%, transparent),color-mix(in oklch, var(--color-bg) 88%, transparent));backdrop-filter:blur(30px) saturate(170%);-webkit-backdrop-filter:blur(30px) saturate(170%);border:1px solid color-mix(in oklch, var(--color-text) 11%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 12%, transparent), var(--shadow-lg);animation:ap-drop .22s ease both">
           <div style="display:flex;align-items:center;gap:10px;padding:14px 16px 10px">
             <sc-if value="{{ menuBack }}" hint-placeholder-val="{{ false }}">
               <button onClick="{{ onMenuBack }}" style="cursor:pointer;border:0;background:transparent;color:var(--color-accent-300);font-size:16px;padding:0 4px 0 0">‹</button>
@@ -126,7 +157,7 @@
     </div>
 
     <sc-if value="{{ hasTicker }}" hint-placeholder-val="{{ true }}">
-      <div style="flex:0 0 auto;display:flex;align-items:center;margin:6px 10px 0;border-radius:4px;overflow:hidden;background:color-mix(in oklch, var(--color-text) 3%, transparent);border:1px solid color-mix(in oklch, var(--color-text) 7%, transparent)">
+      <div data-panel="1" style="flex:0 0 auto;display:flex;align-items:center;margin:6px 10px 0;border-radius:4px;overflow:hidden;background:color-mix(in oklch, var(--color-text) 3%, transparent);border:1px solid color-mix(in oklch, var(--color-text) 7%, transparent)">
         <span style="flex:0 0 auto;font-size:9px;font-weight:500;letter-spacing:.16em;padding:5px 8px;color:var(--color-accent-100);background:color-mix(in oklch, var(--color-accent) 22%, transparent);font-style:italic">{{ tickLabel }}</span>
         <div style="flex:1;min-width:0;overflow:hidden;position:relative;padding:5px 0">
           <div style="display:flex;width:max-content;animation:ap-marquee 46s linear infinite">
@@ -150,7 +181,7 @@
     </div>
 
     <div style="flex:1;overflow:auto;padding:9px 10px 14px">
-     <div key="{{ viewKey }}" style="animation:ap-view .26s ease both">
+     <div key="{{ viewKey }}" data-view="1" style="animation:ap-view .26s ease both">
 
       <sc-if value="{{ hasChips }}" hint-placeholder-val="{{ false }}">
         <div style="display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding:0 0 8px">
@@ -168,7 +199,7 @@
       </sc-for>
 
       <sc-for list="{{ matchup }}" as="mu" hint-placeholder-count="0">
-        <div style="border-radius:6px;overflow:hidden;margin-bottom:8px;background:linear-gradient(160deg,color-mix(in oklch, var(--color-accent) 16%, transparent),color-mix(in oklch, var(--color-text) 2%, transparent));backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);border:1px solid color-mix(in oklch, var(--color-text) 10%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 12%, transparent), var(--shadow-lg)">
+        <div data-panel="1" style="border-radius:6px;overflow:hidden;margin-bottom:8px;background:linear-gradient(160deg,color-mix(in oklch, var(--color-accent) 16%, transparent),color-mix(in oklch, var(--color-text) 2%, transparent));backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);border:1px solid color-mix(in oklch, var(--color-text) 10%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 12%, transparent), var(--shadow-lg)">
           <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:8px;padding:10px 12px">
             <div>
               <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ mu.meName }}</div>
@@ -187,7 +218,7 @@
             <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;letter-spacing:.1em;color:var(--color-neutral-400)"><span>{{ mu.probL }}</span><span>{{ mu.probR }}</span></div>
           </div>
         </div>
-        <div style="border-radius:6px;overflow:hidden;background:color-mix(in oklch, var(--color-text) 3%, transparent);border:1px solid color-mix(in oklch, var(--color-text) 7%, transparent)">
+        <div data-panel="1" style="border-radius:6px;overflow:hidden;background:color-mix(in oklch, var(--color-text) 3%, transparent);border:1px solid color-mix(in oklch, var(--color-text) 7%, transparent)">
           <sc-for list="{{ mu.rows }}" as="r" hint-placeholder-count="10">
             <div style="{{ r.wrapStyle }}">
               <div style="display:flex;align-items:center;gap:6px">
@@ -222,7 +253,7 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:7px">
           <sc-for list="{{ pg.rows }}" as="m" hint-placeholder-count="5">
-            <div style="{{ m.cardStyle }}">
+            <div data-panel="1" style="{{ m.cardStyle }}">
               <div style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px">
                 <div style="display:flex;align-items:center;gap:8px;min-width:0">
                   <span style="position:relative;flex:0 0 auto;display:inline-flex"><span style="{{ m.aTileStyle }}">{{ m.aAbbr }}</span><sc-if value="{{ m.aMine }}" hint-placeholder-val="{{ false }}"><image-slot data-overlay="1" id="app-team-photo" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" shape="rounded" radius="5"></image-slot></sc-if></span>
@@ -253,7 +284,7 @@
       </sc-for>
 
       <sc-for list="{{ balance }}" as="b" hint-placeholder-count="0">
-        <div style="border-radius:6px;padding:10px 12px;margin-bottom:8px;background:linear-gradient(160deg,color-mix(in oklch, var(--color-accent) 14%, transparent),color-mix(in oklch, var(--color-text) 2%, transparent));backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid color-mix(in oklch, var(--color-text) 10%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 12%, transparent)">
+        <div data-panel="1" style="border-radius:6px;padding:10px 12px;margin-bottom:8px;background:linear-gradient(160deg,color-mix(in oklch, var(--color-accent) 14%, transparent),color-mix(in oklch, var(--color-text) 2%, transparent));backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid color-mix(in oklch, var(--color-text) 10%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 12%, transparent)">
           <div style="display:flex;align-items:baseline;gap:10px">
             <div><div style="font-size:9px;letter-spacing:.16em;color:var(--color-neutral-500)">YOU SEND</div><div style="font-size:20px;font-weight:300;font-style:italic;letter-spacing:-.04em;color:var(--color-accent-200);margin-top:4px">{{ b.send }}</div></div>
             <span style="margin:0 auto;color:var(--color-neutral-600)">⇄</span>
@@ -268,7 +299,7 @@
       <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="0">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
           <sc-for list="{{ t.items }}" as="i" hint-placeholder-count="3">
-            <a href="#" style="display:block;padding:11px 11px;border-radius:6px;color:var(--color-text);background:linear-gradient(160deg,color-mix(in oklch, var(--color-text) 6%, transparent),color-mix(in oklch, var(--color-text) 1.5%, transparent));backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid color-mix(in oklch, var(--color-text) 9%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 11%, transparent)" style-hover="border-color:var(--color-accent-600)">
+            <a href="#" data-panel="1" style="display:block;padding:11px 11px;border-radius:6px;color:var(--color-text);background:linear-gradient(160deg,color-mix(in oklch, var(--color-text) 6%, transparent),color-mix(in oklch, var(--color-text) 1.5%, transparent));backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid color-mix(in oklch, var(--color-text) 9%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 11%, transparent)" style-hover="border-color:var(--color-accent-600)">
               <div style="font-size:9px;letter-spacing:.18em;color:var(--color-accent-300)">{{ i.kicker }}</div>
               <div style="font-size:17px;font-weight:500;font-style:italic;letter-spacing:-.02em;margin-top:8px">{{ i.title }}</div>
               <div style="font-size:11px;color:var(--color-neutral-400);margin-top:5px;line-height:1.45">{{ i.note }}</div>
@@ -287,14 +318,14 @@
               <span style="font-size:10px;color:var(--color-neutral-500);flex:0 0 auto">{{ g.note }}</span>
             </div>
           </sc-if>
-          <div style="border-radius:6px;overflow:hidden;background:color-mix(in oklch, var(--color-text) 3%, transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid color-mix(in oklch, var(--color-text) 7%, transparent)">
+          <div data-panel="1" style="border-radius:6px;overflow:hidden;background:color-mix(in oklch, var(--color-text) 3%, transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid color-mix(in oklch, var(--color-text) 7%, transparent)">
             <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="8">
               <div style="{{ r.wrapStyle }}">
                 <div onClick="{{ r.onClick }}" style="{{ r.rowStyle }}" style-hover="background-color:color-mix(in oklch, var(--color-text) 4%, transparent)" style-active="transform:scale(.985);background-color:color-mix(in oklch, var(--color-accent) 12%, transparent)">
                   <sc-if value="{{ r.hasNum }}" hint-placeholder-val="{{ false }}"><span style="{{ r.numStyle }}">{{ r.num }}</span></sc-if>
                   <sc-if value="{{ r.hasChg }}" hint-placeholder-val="{{ false }}"><span style="{{ r.chgStyle }}">{{ r.chg }}</span></sc-if>
                   <sc-if value="{{ r.hasCheck }}" hint-placeholder-val="{{ false }}"><span style="{{ r.checkStyle }}">{{ r.check }}</span></sc-if>
-                  <sc-if value="{{ r.hasTile }}" hint-placeholder-val="{{ false }}"><span style="position:relative;flex:0 0 auto;display:inline-flex"><span style="{{ r.tileStyle }}">{{ r.tile }}</span><sc-if value="{{ r.mineLogo }}" hint-placeholder-val="{{ false }}"><image-slot data-overlay="1" id="app-team-photo" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" shape="rounded" radius="4"></image-slot></sc-if></span></sc-if>
+                  <sc-if value="{{ r.hasTile }}" hint-placeholder-val="{{ false }}"><span style="position:relative;flex:0 0 auto;display:inline-flex"><span data-sprite="{{ r.spriteAttr }}" style="{{ r.tileStyle }}">{{ r.tile }}</span><sc-if value="{{ r.mineLogo }}" hint-placeholder-val="{{ false }}"><image-slot data-overlay="1" id="app-team-photo" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" shape="rounded" radius="4"></image-slot></sc-if><sc-if value="{{ r.hasHead }}" hint-placeholder-val="{{ false }}"><image-slot data-overlay="1" id="{{ r.headId }}" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" shape="rounded" radius="4"></image-slot></sc-if></span></sc-if>
                   <div style="min-width:0;flex:1">
                     <div style="display:flex;align-items:center;gap:6px;min-width:0">
                       <span style="{{ r.titleStyle }}">{{ r.title }}</span>
@@ -341,7 +372,7 @@
      </div>
     </div>
 
-    <div style="flex:0 0 auto;display:grid;grid-template-columns:repeat(3,1fr);padding:4px 6px 22px;background:linear-gradient(180deg,color-mix(in oklch, var(--color-text) 6%, transparent),color-mix(in oklch, var(--color-bg) 70%, transparent));backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);border-top:1px solid color-mix(in oklch, var(--color-text) 10%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 10%, transparent);position:relative;z-index:5">
+    <div data-panel="tab" style="flex:0 0 auto;display:grid;grid-template-columns:repeat(3,1fr);padding:4px 6px 22px;background:linear-gradient(180deg,color-mix(in oklch, var(--color-text) 6%, transparent),color-mix(in oklch, var(--color-bg) 70%, transparent));backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);border-top:1px solid color-mix(in oklch, var(--color-text) 10%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 10%, transparent);position:relative;z-index:5">
       <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
         <button onClick="{{ t.onClick }}" style="{{ t.style }}" style-active="transform:scale(.9)">
           <span style="{{ t.markStyle }}"></span>
@@ -353,10 +384,10 @@
 
     <sc-for list="{{ sheet }}" as="p" hint-placeholder-count="0">
       <div onClick="{{ p.onClose }}" style="position:absolute;inset:0;z-index:40;background:color-mix(in oklch, var(--color-bg) 55%, transparent);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:ap-fade .2s ease both"></div>
-      <div style="position:absolute;left:0;right:0;bottom:0;z-index:41;max-height:80%;overflow:auto;border-radius:10px 10px 0 0;padding:8px 16px 30px;background:linear-gradient(180deg,color-mix(in oklch, var(--color-surface) 82%, transparent),color-mix(in oklch, var(--color-bg) 94%, transparent));backdrop-filter:blur(30px) saturate(170%);-webkit-backdrop-filter:blur(30px) saturate(170%);border-top:1px solid color-mix(in oklch, var(--color-text) 12%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 14%, transparent), var(--shadow-lg);animation:ap-sheet .32s cubic-bezier(.2,.9,.2,1) both">
+      <div data-panel="1" style="position:absolute;left:0;right:0;bottom:0;z-index:41;max-height:80%;overflow:auto;border-radius:10px 10px 0 0;padding:8px 16px 30px;background:linear-gradient(180deg,color-mix(in oklch, var(--color-surface) 82%, transparent),color-mix(in oklch, var(--color-bg) 94%, transparent));backdrop-filter:blur(30px) saturate(170%);-webkit-backdrop-filter:blur(30px) saturate(170%);border-top:1px solid color-mix(in oklch, var(--color-text) 12%, transparent);box-shadow:inset 0 1px 0 color-mix(in oklch, var(--color-text) 14%, transparent), var(--shadow-lg);animation:ap-sheet .32s cubic-bezier(.2,.9,.2,1) both">
         <div onClick="{{ p.onClose }}" style="width:36px;height:4px;border-radius:2px;margin:0 auto 14px;background:color-mix(in oklch, var(--color-text) 22%, transparent);cursor:pointer"></div>
         <div style="display:flex;align-items:center;gap:12px">
-          <span style="flex:0 0 auto;width:44px;height:44px;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--color-accent-100);background:color-mix(in oklch, var(--color-accent) 20%, transparent);border:1px solid color-mix(in oklch, var(--color-accent) 35%, transparent)"><span style="font-size:13px;font-weight:600;font-style:italic">{{ p.pos }}</span><span style="font-size:8px;letter-spacing:.08em;color:var(--color-accent-300)">{{ p.team }}</span></span>
+          <span style="position:relative;flex:0 0 auto;width:56px;height:56px"><span style="position:absolute;inset:0;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--color-accent-100);background:color-mix(in oklch, var(--color-accent) 20%, transparent);border:1px solid color-mix(in oklch, var(--color-accent) 35%, transparent)"><span style="font-size:13px;font-weight:600;font-style:italic">{{ p.pos }}</span><span style="font-size:8px;letter-spacing:.08em;color:var(--color-accent-300)">{{ p.team }}</span></span><image-slot data-overlay="1" id="{{ p.headId }}" style="position:absolute;inset:0;width:100%;height:100%" shape="rounded" radius="5" placeholder="Headshot"></image-slot><span style="{{ p.badgeStyle }}">{{ p.team }}</span></span>
           <div style="min-width:0;flex:1">
             <div style="font-size:20px;font-weight:500;font-style:italic;letter-spacing:-.025em;line-height:1.1;text-wrap:balance">{{ p.name }}</div>
             <div style="display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap">
@@ -396,7 +427,32 @@
         <div style="font-size:10px;line-height:1.5;color:var(--color-neutral-500);margin-top:9px;text-wrap:pretty">{{ p.note }}</div>
       </div>
     </sc-for>
+
+    <sc-if value="{{ fanfareOn }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;top:92px;left:10px;right:10px;z-index:45;padding:10px 12px;text-align:center;background:#0f1a52;border:3px solid #f2c14e;box-shadow:0 0 0 2px #050a26, 4px 4px 0 2px #050a26;animation:ap-fanfare 2.6s steps(8) both">
+        <div style="font-family:'Silkscreen', monospace;font-size:20px;color:#ffe08a;letter-spacing:.04em">♪ TOUCHDOWN! ♪</div>
+        <div style="font-family:'Pixelify Sans', monospace;font-size:12px;color:#f4efd8;margin-top:4px">{{ fanfareText }}</div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ blipOn }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;bottom:84px;left:50%;z-index:46;padding:4px 8px;font-family:'Silkscreen', monospace;font-size:10px;color:#0b1440;background:#f2c14e;box-shadow:2px 2px 0 #050a26;animation:ap-blip .7s steps(6) both">♪ BLIP</div>
+    </sc-if>
   </div>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <filter id="px16" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feFlood x="1" y="1" width="1" height="1"></feFlood>
+      <feComposite width="3" height="3"></feComposite>
+      <feTile result="grid"></feTile>
+      <feComposite in="SourceGraphic" in2="grid" operator="in"></feComposite>
+      <feMorphology operator="dilate" radius="1" result="px"></feMorphology>
+      <feComponentTransfer in="px"><feFuncR type="discrete" tableValues="0 .2 .4 .6 .8 1"></feFuncR><feFuncG type="discrete" tableValues="0 .2 .4 .6 .8 1"></feFuncG><feFuncB type="discrete" tableValues="0 .2 .4 .6 .8 1"></feFuncB></feComponentTransfer>
+    </filter>
+  </defs></svg>
+  <sc-if value="{{ retro }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;z-index:70;pointer-events:none;background:repeating-linear-gradient(180deg, rgba(0,0,0,.28) 0 1px, transparent 1px 3px);animation:ap-scan 2.4s steps(3) infinite"></div>
+    <div style="position:absolute;inset:0;z-index:71;pointer-events:none;background:radial-gradient(ellipse at center, transparent 58%, rgba(2,4,18,.55) 100%)"></div>
+  </sc-if>
 </div>
 </x-import>
 </x-dc>
@@ -594,13 +650,53 @@ function teamLogo(abbr) {
     '<text x="20" y="24.5" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="' + (abbr.length > 2 ? 11 : 13) + '" font-weight="700" font-style="italic" fill="' + lite + '">' + abbr + '</text></svg>';
   return (LOGO_CACHE[abbr] = 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")');
 }
-const logoCss = (abbr, px, me) => "flex:0 0 auto;display:inline-block;width:" + px + "px;height:" + px + "px;font-size:0;color:transparent;background:" + teamLogo(abbr) +
+// 16-bit marks: the same seeded identity, rasterised onto a 16×16 grid with a
+// 3×5 bitmap font for the initials.
+const GLYPH = { A:"010101111101101", B:"110101110101110", C:"011100100100011", D:"110101101101110", E:"111100110100111", F:"111100110100100", G:"011100101101011", H:"101101111101101", I:"111010010010111", J:"001001001101010", K:"101101110101101", L:"100100100100111", M:"101111111101101", N:"110101101101101", O:"010101101101010", P:"110101110100100", Q:"010101101110011", R:"110101110101101", S:"011100010001110", T:"111010010010010", U:"101101101101111", V:"101101101101010", W:"101101111111101", X:"101101010101101", Y:"101101010010010", Z:"111001010100111" };
+let RETRO = false;
+function teamLogoPx(abbr) {
+  const ck = "px" + abbr; if (LOGO_CACHE[ck]) return LOGO_CACHE[ck];
+  const r = rng("logo" + abbr), h = Math.floor(r() * 360), shape = Math.floor(r() * 5), pat = Math.floor(r() * 6);
+  const base = "hsl(" + h + ",58%,46%)", dark = "hsl(" + h + ",52%,24%)", lite = "#f4efd8", ink = "#050a26";
+  const inShape = (u, v) => shape === 0 ? ((Math.abs(u) < .88 && v < .15) || (u * u / .77 + (v - .15) * (v - .15) / .72 <= 1))
+    : shape === 1 ? (Math.abs(v) <= .92 && Math.abs(u) * .87 + Math.abs(v) * .5 <= .9)
+    : shape === 2 ? (u * u + v * v <= .92) : shape === 3 ? (Math.abs(u) <= .88 && Math.abs(v) <= .88) : (Math.abs(u) + Math.abs(v) <= 1);
+  const inPat = (u, v) => pat === 0 ? u + v > 0 : pat === 1 ? Math.abs(v) < .25 : pat === 2 ? (v > Math.abs(u) * .6 - .15 && v < Math.abs(u) * .6 + .22) : pat === 3 ? (u * u + v * v > .14 && u * u + v * v < .36) : pat === 4 ? u < 0 : false;
+  const N = 16, cell = (x, y) => { const u = (x + .5) / N * 2 - 1, v = (y + .5) / N * 2 - 1; return inShape(u, v); };
+  let rects = "";
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    if (!cell(x, y)) continue;
+    const edge = !cell(x - 1, y) || !cell(x + 1, y) || !cell(x, y - 1) || !cell(x, y + 1);
+    const u = (x + .5) / N * 2 - 1, v = (y + .5) / N * 2 - 1;
+    rects += '<rect x="' + x + '" y="' + y + '" width="1" height="1" fill="' + (edge ? ink : inPat(u, v) ? dark : base) + '"/>';
+  }
+  const txt = abbr.slice(0, 2).toUpperCase();
+  [...txt].forEach((ch, i) => { const g = GLYPH[ch] || GLYPH.X; for (let k = 0; k < 15; k++) if (g[k] === "1") rects += '<rect x="' + (4 + i * 4 + (k % 3)) + '" y="' + (5 + Math.floor(k / 3)) + '" width="1" height="1" fill="' + lite + '"/>'; });
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">' + rects + '</svg>';
+  return (LOGO_CACHE[ck] = 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")');
+}
+// Two-frame running sprite in a team's colours, for the GameCast scoreboard.
+function spriteFor(abbr) {
+  const ck = "sp" + abbr; if (LOGO_CACHE[ck]) return LOGO_CACHE[ck];
+  const h = Math.floor(rng("logo" + abbr)() * 360), col = { h: "hsl(" + h + ",60%,48%)", j: "hsl(" + h + ",55%,38%)", w: "#f4efd8", k: "#050a26", s: "#d9a066" };
+  const top = ["....hhhh....", "...hhhhhh...", "...hhhwwk...", "....hhhh....", "...jjjjjj...", "..sjjwwjjs..", "...jjjjjj...", "....kkkk...."];
+  const fA = top.concat(["...kk..kk...", "..kk....kk..", "..w......w..", "............"]);
+  const fB = top.concat(["....kkkk....", "....kkkk....", "....w..w....", "............"]);
+  let rects = "";
+  [fA, fB].forEach((f, fi) => f.forEach((row, y) => [...row].forEach((c, x) => { if (c !== ".") rects += '<rect x="' + (x + fi * 12) + '" y="' + y + '" width="1" height="1" fill="' + col[c] + '"/>'; })));
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 12" shape-rendering="crispEdges">' + rects + '</svg>';
+  return (LOGO_CACHE[ck] = 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")');
+}
+const REAL_TEAMS = new Set([...NFL.map(t => t.abbr), ...CFB.map(t => t.abbr), ...P50.map(p => p.sch)]);
+const headId = n => "hs-" + n.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+const logoCss = (abbr, px, me) => "flex:0 0 auto;display:inline-block;width:" + px + "px;height:" + px + "px;font-size:0;color:transparent;" + (RETRO ? "image-rendering:pixelated;" : "") + "background:" + (RETRO ? teamLogoPx(abbr) : teamLogo(abbr)) +
   " center/contain no-repeat;" + (me ? "filter:drop-shadow(0 0 5px var(--color-accent));" : "");
 
 const TX_TONE = { ADDED: "#7fd8a8", CLAIM: "#e0b573", RECEIVED: "var(--color-accent-300)", SENT: "var(--color-neutral-400)", DROP: "#e07a7a" };
 
 class Component extends DCLogic {
   state = {
+    retro: false, blip: 0, fanfare: null,
     more: {}, dropped: {}, ir: {}, sheet: null, flash: {},
     tab: "league", sub: { league: "Matchup", gm: "Free Agency", rank: "League Power" },
     P: 0.6, tickMode: 0, open: null,
@@ -617,12 +713,15 @@ class Component extends DCLogic {
       const P0 = this.state.P, P1 = Math.min(1.12, P0 + 0.005), now = Date.now();
       const fl = {};
       Object.keys(this.state.flash).forEach(k => { if (this.state.flash[k].until > now) fl[k] = this.state.flash[k]; });
-      PLAYERS.forEach(p => { if (p.own !== ME && p.own !== OPP) return; const d = livePts(p, P1) - livePts(p, P0); if (d > 0.05) fl[p.n] = { d, until: now + 2400 }; });
-      this.setState({ P: P1, flash: fl });
+      let fan = this.state.fanfare && this.state.fanfare.until > now ? this.state.fanfare : null;
+      PLAYERS.forEach(p => { if (p.own !== ME && p.own !== OPP) return; const d = livePts(p, P1) - livePts(p, P0); if (d > 0.05) fl[p.n] = { d, until: now + 2400 };
+        if (this.state.retro && p.own === ME && d >= 3 && !fan) fan = { text: p.n + " +" + d.toFixed(1), until: now + 2600 }; });
+      this.setState({ P: P1, flash: fl, fanfare: fan });
     }, 2500);
     this.cycle = setInterval(() => this.setState(s => ({ tickMode: (s.tickMode + 1) % 2 })), 14000);
   }
-  componentWillUnmount() { clearInterval(this.live); clearInterval(this.cycle); }
+  componentWillUnmount() { clearInterval(this.live); clearInterval(this.cycle); clearTimeout(this.blipT); }
+  blip() { if (!this.state.retro) return; clearTimeout(this.blipT); this.setState({ blip: Date.now() + 700 }); this.blipT = setTimeout(() => this.setState({ blip: 0 }), 760); }
 
   set(k, v) { this.setState(s => ({ [k]: Object.assign({}, s[k], v) })); }
 
@@ -634,10 +733,12 @@ class Component extends DCLogic {
       rowStyle: "display:flex;align-items:center;gap:8px;min-height:44px;box-sizing:border-box;padding:" + (o.tight ? "5px 10px" : "6px 10px") + ";" + (o.key || o.onClick || o.player ? "cursor:pointer;" : "") + "transition:background-color .15s ease, transform .12s ease",
       onClick: o.onClick || (o.player ? () => self.setState({ sheet: o.player }) : o.key ? () => self.setState({ open: open ? null : o.key }) : undefined),
       mineLogo: o.logo === TEAMS[ME].abbr,
+      hasHead: !!o.player, headId: o.player ? headId(o.player) : "",
       hasNum: o.num != null, num: o.num, numStyle: numCss(o.num, o.lit),
       hasChg: o.chg != null, chg: o.chg && o.chg.label, chgStyle: o.chg ? "flex:0 0 auto;width:26px;font-size:10px;font-weight:500;color:" + (o.chg.tone === "up" ? "var(--color-accent-300)" : o.chg.tone === "down" ? "#e07a7a" : o.chg.tone === "new" ? "var(--color-accent-100)" : "var(--color-neutral-600)") : "",
       hasCheck: o.check != null, check: o.check ? "✓" : "", checkStyle: "flex:0 0 auto;width:17px;height:17px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--color-bg);" + (o.check ? "background:var(--color-accent-300);border:1px solid var(--color-accent-300)" : "border:1px solid var(--color-neutral-600)"),
-      hasTile: !!(o.tile || o.logo), tile: o.tile || o.logo, tileStyle: o.logo ? logoCss(o.logo, 26, o.tileTone === "me") : tileCss(o.tileTone),
+      hasTile: !!(o.tile || o.logo || o.sprite), tile: o.tile || o.logo, spriteAttr: o.sprite ? "1" : "0",
+      tileStyle: (RETRO && !o.logo && !o.sprite && REAL_TEAMS.has(o.tile)) ? logoCss(o.tile, 24, false) : o.sprite ? "flex:0 0 auto;display:inline-block;width:24px;height:24px;font-size:0;color:transparent;image-rendering:pixelated;background:" + spriteFor(o.sprite) + " 0 0/48px 24px no-repeat" : o.logo ? logoCss(o.logo, 26, o.tileTone === "me") : tileCss(o.tileTone),
       title: o.title, titleStyle: "font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;" + (o.titleColor ? "color:" + o.titleColor : ""),
       tags: (o.tags || []).map(t => ({ label: t[0], style: tagCss(t[1]) })),
       sub: o.sub || "",
@@ -677,6 +778,7 @@ class Component extends DCLogic {
 
   renderVals() {
     const S = this.state, self = this, P = S.P, tab = S.tab, sub = S.sub[tab];
+    RETRO = !!S.retro;
     EXCLUDE = new Set(Object.keys(S.dropped).filter(k => S.dropped[k]).concat(Object.keys(S.ir).filter(k => S.ir[k])));
     const fnLive = p => livePts(p, P);
     const fnProj = p => livePts(p, P) + p.proj * (1 - teamProgress(p.t, P));
@@ -769,7 +871,7 @@ class Component extends DCLogic {
           const st = gameState(g, P), as = Math.floor(g.af * st.k), hs = Math.floor(g.hf * st.k);
           const r = rng(g.a + g.h), plays = st.k > 0 ? [0, 1, 2, 3].map(j => { const tm = r() > .5 ? g.a : g.h; return [j === 0 ? "LAST" : "", PLAYS[Math.floor(r() * PLAYS.length)].replace("{T}", tm)]; }) : [["", "Kickoff " + st.label]];
           const mine = PLAYERS.filter(p => p.own === ME && (p.t === g.a || p.t === g.h));
-          return { key: "g" + g.a, tile: g.a, title: g.a + " " + as + " · " + g.h + " " + hs, tags: st.live ? [["LIVE", "live"]] : st.final ? [["FINAL", "flat"]] : [], sub: st.label + (mine.length ? " · yours: " + mine.map(p => p.n.split(" ").slice(-1)[0]).join(", ") : ""),
+          return { key: "g" + g.a, tile: g.a, sprite: S.retro ? (hs > as ? g.h : g.a) : null, title: g.a + " " + as + " · " + g.h + " " + hs, tags: st.live ? [["LIVE", "live"]] : st.final ? [["FINAL", "flat"]] : [], sub: st.label + (mine.length ? " · yours: " + mine.map(p => p.n.split(" ").slice(-1)[0]).join(", ") : ""),
             val: as > hs ? g.a : hs > as ? g.h : "TIE", valSub: st.final ? "WON" : st.live ? "LEADS" : "", detail: plays.concat(mine.map(p => ["YOURS", p.n + " · " + fnLive(p).toFixed(1) + " pts"])) };
         }))];
         foot = "Tap a game for the latest plays. Play-by-play is sample data in this prototype.";
@@ -915,6 +1017,7 @@ class Component extends DCLogic {
     const step = (k, d, lo, hi) => () => setCm({ [k]: clamp(cm[k] + d, lo, hi) });
 
     const MENU = [
+      { id: "retro", label: "16-bit mode", hint: S.retro ? "ON" : "OFF", accent: S.retro, controls: [toggle("16-bit mode", "SNES-style skin. Same app, same data. Resets to modern on launch.", S.retro, () => self.setState({ retro: !S.retro }))] },
       { id: "edit", label: "Edit team", hint: S.teamName, controls: [{ isInput: true, label: "TEAM NAME", inputType: "text", value: S.teamName, placeholder: "", onChange: e => self.setState({ teamName: e.target.value }) }, { isPhoto: true }] },
       { id: "pin", label: "Change PIN", hint: "••••", controls: [{ isInput: true, label: "CURRENT PIN", inputType: "password", value: "", placeholder: "••••", onChange: () => {} }, { isInput: true, label: "NEW PIN", inputType: "password", value: "", placeholder: "••••", onChange: () => {} }, button("SET PIN", () => {})] },
       { id: "alerts", label: "Alerts", hint: Object.values(S.alerts).filter(Boolean).length + " on", controls: [["injury", "Injury news"], ["wire", "Watchlist moves"], ["trades", "Trade offers"], ["recap", "Weekly recap"]].map(([k, l]) => toggle(l, "", S.alerts[k], () => self.set("alerts", { [k]: !S.alerts[k] }))) },
@@ -978,7 +1081,8 @@ class Component extends DCLogic {
       const now = posRank(sp), tr = trail("sh" + sp.n, Math.max(1, sp.pre), now, Math.max(sp.pre, now, 12));
       const sk = spark(tr, Math.max(sp.pre, now, 12));
       sheet = [{
-        name: sp.n, pos: sp.pos === "DST" ? "DEF" : sp.pos, team: sp.t,
+        name: sp.n, pos: sp.pos === "DST" ? "DEF" : sp.pos, team: sp.t, headId: headId(sp.n),
+        badgeStyle: (RETRO ? logoCss(sp.t, 22, false) : "display:flex;align-items:center;justify-content:center;width:22px;height:22px;font-size:7px;font-weight:600;color:var(--color-accent-100);background:var(--color-bg);border:1px solid var(--color-accent-600);border-radius:3px") + ";position:absolute;right:-6px;bottom:-6px;z-index:2",
         owner: sp.own === -1 ? "Free agent" : TEAMS[sp.own].team + " · " + TEAMS[sp.own].owner,
         tags: (des ? [[des, "warn"]] : []).concat(onIr ? [["IR", "warn"]] : []).concat(playerStatus(sp, P).indexOf("Q") === 0 ? [["LIVE · " + playerStatus(sp, P), "live"]] : [[playerStatus(sp, P), "flat"]]).map(t => ({ label: t[0], style: tagCss(t[1]) })),
         stats: [{ k: "SEASON", v: sp.season.toFixed(1) }, { k: "PER GAME", v: (sp.season / (WEEK - 1)).toFixed(1) }, { k: "WEEK " + WEEK, v: fnLive(sp).toFixed(1) }, { k: "DRAFTED → NOW", v: sp.pos + sp.pre + "→" + now }],
@@ -1005,7 +1109,10 @@ class Component extends DCLogic {
       menuOpen: S.menuOpen, menuBack: S.menuView === "commish", onMenuBack: () => self.setState({ menuView: "menu", menuRow: null }),
       menuTitle: S.menuView === "commish" ? "Commissioner settings" : S.teamName,
       menuSub: S.menuView === "commish" ? "Pylon Fantasy · " + cm.teams + " teams · Week " + (cm.locked ? WEEK + 1 : WEEK) : "Conner · Commissioner",
-      menuRows, sheet, viewKey: tab + ":" + sub,
+      menuRows, sheet, viewKey: tab + ":" + sub + (S.retro ? ":16" : ""),
+      retro: !!S.retro, retroAttr: S.retro ? "1" : "0",
+      blipOn: !!(S.retro && S.blip > Date.now()),
+      fanfareOn: !!(S.retro && S.fanfare && S.fanfare.until > Date.now()), fanfareText: S.fanfare ? S.fanfare.text : "",
       avatarLogo: logoCss(TEAMS[ME].abbr, 30, false).replace("display:inline-block", "display:block;position:absolute;inset:0;width:100%;height:100%"),
 
       hasTicker: !!tick, tickLabel: tick ? tick.label : "",
@@ -1013,14 +1120,14 @@ class Component extends DCLogic {
         bStyle: "color:" + (t.live ? "var(--color-accent-300)" : "var(--color-neutral-400)"),
         dotStyle: "width:4px;height:4px;border-radius:50%;flex:0 0 auto;background:" + (t.live ? "var(--color-accent-300);box-shadow:0 0 6px var(--color-accent)" : "var(--color-neutral-600)") })) : [],
 
-      subtabs: SUBS[tab].map(s => ({ label: s, onClick: () => self.setState(st => ({ sub: Object.assign({}, st.sub, { [tab]: s }), open: null })),
+      subtabs: SUBS[tab].map(s => ({ label: s, onClick: () => { self.blip(); self.setState(st => ({ sub: Object.assign({}, st.sub, { [tab]: s }), open: null })); },
         style: "cursor:pointer;flex:0 0 auto;font-family:var(--font-body);font-size:12px;padding:0 0 10px;border:0;background:transparent;white-space:nowrap;transition:color .15s ease;color:" +
           (sub === s ? "var(--color-text);box-shadow:inset 0 -2px 0 var(--color-accent)" : "var(--color-neutral-500)") })),
 
       hasChips: !!chips, chips: chips || [], notes, matchup, balance, tiles, pairs, groups, hasFoot: !!foot, foot,
 
       tabs: [["league", "The League"], ["gm", "General Manager"], ["rank", "Rankings"]].map(([k, l]) => { const on = tab === k;
-        return { label: l, path: ICON[k], onClick: () => self.setState({ tab: k, open: null, menuOpen: false }),
+        return { label: l, path: ICON[k], onClick: () => { self.blip(); self.setState({ tab: k, open: null, menuOpen: false }); },
           style: "cursor:pointer;position:relative;border:0;background:transparent;padding:7px 0 4px;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:var(--font-body)",
           iconStyle: "fill:" + (on ? "var(--color-accent-200)" : "var(--color-neutral-500)") + (on ? ";filter:drop-shadow(0 0 6px var(--color-accent))" : ""),
           labelStyle: "font-size:10px;" + (on ? "color:var(--color-text);font-style:italic;font-weight:500" : "color:var(--color-neutral-500)"),

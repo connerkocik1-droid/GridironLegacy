@@ -6,8 +6,8 @@ import CommissionerOnly from "./CommissionerOnly";
 import Notices from "./Notices";
 import ProfileMenu from "./ProfileMenu";
 import HeaderMark from "./HeaderMark";
-import MusicToggle from "./MusicToggle";
 import { APP_TABS, appTabFor } from "@/lib/app-tabs";
+import { blip } from "@/lib/retro";
 
 // Three doors, on a desktop too.
 //
@@ -95,7 +95,9 @@ export default function Nav({ current }: { current?: string }) {
   const active = appTabFor(pathname);
 
   return (
-    <div className="gl-nav" style={bar}>
+    // data-panel="bar": in sixteen-bit mode the header is a full-width bar
+    // with a gold bottom edge, the tab bar's mirror image.
+    <div className="gl-nav" data-panel="bar" style={bar}>
       <HeaderMark />
 
       {/* Hidden on a phone, where the same three sit in a bar at the bottom
@@ -110,6 +112,7 @@ export default function Nav({ current }: { current?: string }) {
             href={tab.href}
             className="gl-navlink"
             aria-current={active?.id === tab.id ? "page" : undefined}
+            onClick={active?.id === tab.id ? undefined : blip}
             style={primaryLink(active?.id === tab.id)}
           >
             {tab.label}
@@ -144,7 +147,6 @@ export default function Nav({ current }: { current?: string }) {
         }}
       >
         <Notices />
-        <MusicToggle />
         <ProfileMenu />
       </div>
     </div>

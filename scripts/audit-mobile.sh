@@ -15,7 +15,7 @@
 #   ./scripts/audit-mobile.sh --report    # does the Pylon Report read and publish?
 #   ./scripts/audit-mobile.sh --profile   # does a profile offer the right moves?
 #   ./scripts/audit-mobile.sh --fit       # how many screens tall is each page?
-#   ./scripts/audit-mobile.sh --retro     # does the 16-bit theme apply and hold?
+#   ./scripts/audit-mobile.sh --retro     # does 16-bit mode apply and hold?
 #
 # Loads each page at 320px and 390px against a fixture of twelve franchises
 # with long names, and fails on anything that runs off the screen, is too small
