@@ -6,6 +6,11 @@
  * week — reusing that file's team-name key so a prospect is recognised the
  * same forgiving way a team is.
  *
+ * Order comes from the Pylon Rating, not a separate drag position: the
+ * commissioner edits the number, the board sorts itself, and rank is which
+ * place that lands a prospect in. Tiers (TIERS in the view layer) are cut
+ * points on the same number, derived rather than stored.
+ *
  * The one place a paste still happens: there's no prior week to carry
  * forward the first time this runs, so parseBigBoard reads a one-time bulk
  * paste to seed the first fifty. After that the commissioner edits the list
@@ -24,11 +29,14 @@ export interface ProspectEntry {
   player: string;
   /** "QB", "EDGE", … — whatever the sheet called it, upper-cased. */
   position: string;
-  college: string;
+  /** 2–4 letters. Shares a logo with the CFB board's row for the same school. */
+  schoolAbbr: string;
+  /** 0–100. What the board actually sorts on. */
+  rating: number;
 }
 
 export interface ProspectBoard {
-  /** The ranking proper — 1 to 50. */
+  /** The ranking proper — 1 to 50, by rating. */
   ranked: ProspectEntry[];
   /** Kept for a board published before this was a maintained list. */
   honorable: ProspectEntry[];
@@ -42,9 +50,17 @@ export interface ParsedBigBoard {
 
 const EMPTY = (): ProspectBoard => ({ ranked: [], honorable: [] });
 
+/** Renumber a list 1..n by descending rating — the board's actual order. */
+export function byRating(list: ProspectEntry[]): ProspectEntry[] {
+  return list
+    .slice()
+    .sort((a, z) => z.rating - a.rating)
+    .map((e, i) => ({ ...e, rank: i + 1 }));
+}
+
 /**
  * Read the big board grid, for the one-time seed: rank, player, position,
- * college — one prospect per row.
+ * school, rating — one prospect per row.
  */
 export function parseBigBoard(text: string): ParsedBigBoard {
   const board = EMPTY();
@@ -64,16 +80,18 @@ export function parseBigBoard(text: string): ParsedBigBoard {
       continue;
     }
 
+    const rating = Number(cells[4]);
     const entry: ProspectEntry = {
       rank,
       player,
       position: (cells[2] ?? "").trim().toUpperCase().slice(0, 6),
-      college: (cells[3] ?? "").trim(),
+      schoolAbbr: (cells[3] ?? "").trim().toUpperCase().slice(0, 4),
+      rating: Number.isFinite(rating) ? Math.max(0, Math.min(100, rating)) : 0,
     };
     (rank <= BIG_BOARD_RANKED ? board.ranked : board.honorable).push(entry);
   }
 
-  board.ranked.sort((a, z) => a.rank - z.rank);
+  board.ranked = byRating(board.ranked);
   board.honorable.sort((a, z) => a.rank - z.rank);
 
   return { board, ignored };
@@ -95,4 +113,16 @@ export function prospectMovement(now: ProspectBoard, before: ProspectBoard | nul
   }
 
   return out;
+}
+
+/** Rating cutoffs for the tier headers. Derived display only, never stored. */
+export const TIERS = [
+  { name: "TIER 1 · BLUE CHIP", min: 95, range: "95.0 and up" },
+  { name: "TIER 2 · FIRST ROUND", min: 90, range: "90.0 – 94.9" },
+  { name: "TIER 3 · DAY ONE / TWO", min: 85, range: "85.0 – 89.9" },
+  { name: "TIER 4 · DAY TWO", min: -1, range: "Below 85.0" },
+] as const;
+
+export function tierOf(rating: number): (typeof TIERS)[number] {
+  return TIERS.find((t) => rating >= t.min) ?? TIERS[TIERS.length - 1];
 }

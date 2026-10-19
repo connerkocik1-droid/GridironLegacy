@@ -60,11 +60,63 @@ export const NFL_TEAMS: readonly string[] = [
   "Washington Commanders",
 ];
 
+/**
+ * Abbreviation and division for all thirty-two, in NFL_TEAMS order — static
+ * facts about a club rather than anything the commissioner edits week to
+ * week, so they're looked up rather than typed in.
+ */
+const NFL_META: readonly { abbr: string; division: string }[] = [
+  { abbr: "ARI", division: "NFC West" },
+  { abbr: "ATL", division: "NFC South" },
+  { abbr: "BAL", division: "AFC North" },
+  { abbr: "BUF", division: "AFC East" },
+  { abbr: "CAR", division: "NFC South" },
+  { abbr: "CHI", division: "NFC North" },
+  { abbr: "CIN", division: "AFC North" },
+  { abbr: "CLE", division: "AFC North" },
+  { abbr: "DAL", division: "NFC East" },
+  { abbr: "DEN", division: "AFC West" },
+  { abbr: "DET", division: "NFC North" },
+  { abbr: "GB", division: "NFC North" },
+  { abbr: "HOU", division: "AFC South" },
+  { abbr: "IND", division: "AFC South" },
+  { abbr: "JAX", division: "AFC South" },
+  { abbr: "KC", division: "AFC West" },
+  { abbr: "LV", division: "AFC West" },
+  { abbr: "LAC", division: "AFC West" },
+  { abbr: "LAR", division: "NFC West" },
+  { abbr: "MIA", division: "AFC East" },
+  { abbr: "MIN", division: "NFC North" },
+  { abbr: "NE", division: "AFC East" },
+  { abbr: "NO", division: "NFC South" },
+  { abbr: "NYG", division: "NFC East" },
+  { abbr: "NYJ", division: "AFC East" },
+  { abbr: "PHI", division: "NFC East" },
+  { abbr: "PIT", division: "AFC North" },
+  { abbr: "SF", division: "NFC West" },
+  { abbr: "SEA", division: "NFC West" },
+  { abbr: "TB", division: "NFC South" },
+  { abbr: "TEN", division: "AFC South" },
+  { abbr: "WAS", division: "NFC East" },
+];
+
+/** An NFL club's abbreviation and division, by its full name. */
+export function nflMeta(team: string): { abbr: string; division: string } {
+  const i = NFL_TEAMS.indexOf(team);
+  return i >= 0 ? NFL_META[i] : { abbr: team.slice(0, 3).toUpperCase(), division: "" };
+}
+
 export interface Entry {
   rank: number;
   team: string;
   /** "2-0". Empty when there isn't one yet. */
   record: string;
+  /** 2–4 letters. College: typed in when the team is added. NFL: looked up. */
+  abbr: string;
+  /** College only — the conference filter reads this. */
+  conference: string;
+  /** "W 38-14 vs Wisconsin", "Bye", "Idle". Empty when there isn't one yet. */
+  lastResult: string;
 }
 
 export interface BoardReport {
@@ -122,6 +174,13 @@ export function movement(now: BoardReport, before: BoardReport | null): Map<stri
   }
 
   return out;
+}
+
+/** Ranked last week, not ranked (or mentioned) this week. */
+export function droppedOut(now: BoardReport, before: BoardReport | null): Entry[] {
+  if (!before) return [];
+  const stillHere = new Set([...now.ranked, ...now.honorable].map((e) => keyOf(e.team)));
+  return before.ranked.filter((e) => !stillHere.has(keyOf(e.team)));
 }
 
 /** What the arrow says out loud, for a screen reader. */
@@ -207,4 +266,10 @@ export function parsePolls(text: string): { polls: Polls; ignored: string[] } {
   }
 
   return { polls, ignored };
+}
+
+/** Where a team sits in each poll, null where it's unranked there. */
+export function pollRanksFor(team: string, polls: Polls): Record<PollKey, number | null> {
+  const rankIn = (list: PollEntry[]) => list.find((e) => keyOf(e.team) === keyOf(team))?.rank ?? null;
+  return { ap: rankIn(polls.ap), coaches: rankIn(polls.coaches), cfp: rankIn(polls.cfp) };
 }

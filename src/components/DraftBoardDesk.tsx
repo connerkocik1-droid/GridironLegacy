@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BIG_BOARD_RANKED, parseBigBoard, type ProspectBoard, type ProspectEntry } from "@/lib/pylon-draft-board";
+import {
+  BIG_BOARD_RANKED,
+  byRating,
+  parseBigBoard,
+  type ProspectBoard,
+  type ProspectEntry,
+} from "@/lib/pylon-draft-board";
 import { DragHandleProps, GripHandle, SortableList } from "./SortableList";
 
 /**
@@ -26,7 +32,8 @@ export default function DraftBoardDesk({
   const [seedGrid, setSeedGrid] = useState("");
   const [newPlayer, setNewPlayer] = useState("");
   const [newPosition, setNewPosition] = useState("");
-  const [newCollege, setNewCollege] = useState("");
+  const [newSchool, setNewSchool] = useState("");
+  const [newRating, setNewRating] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,21 +73,32 @@ export default function DraftBoardDesk({
     setList((prev) => reranked(prev.filter((e) => keyFor(e) !== key)));
   }
 
+  function setRating(key: string, rating: number) {
+    setList((prev) => prev.map((e) => (keyFor(e) === key ? { ...e, rating } : e)));
+  }
+
+  function sortByRating() {
+    setList((prev) => byRating(prev));
+  }
+
   function addProspect() {
     const player = newPlayer.trim();
-    if (!player || list.length >= BIG_BOARD_RANKED) return;
+    const rating = Number(newRating);
+    if (!player || !Number.isFinite(rating) || list.length >= BIG_BOARD_RANKED) return;
     setList((prev) => [
       ...prev,
       {
         rank: prev.length + 1,
         player,
         position: newPosition.trim().toUpperCase().slice(0, 6),
-        college: newCollege.trim(),
+        schoolAbbr: newSchool.trim().toUpperCase().slice(0, 4),
+        rating: Math.max(0, Math.min(100, rating)),
       },
     ]);
     setNewPlayer("");
     setNewPosition("");
-    setNewCollege("");
+    setNewSchool("");
+    setNewRating("");
   }
 
   async function publish(remove = false) {
@@ -132,8 +150,9 @@ export default function DraftBoardDesk({
         <>
           <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
             Nothing published yet — paste the first fifty in once to start the
-            board, then drag, add and drop from here on. One prospect per
-            row: a rank, a player, a position and a college.
+            board, then edit ratings and add or drop from here on. One
+            prospect per row: a rank, a player, a position, a school
+            abbreviation and a Pylon Rating.
           </p>
           <label style={{ ...label, display: "block" }}>
             Seed the board
@@ -142,7 +161,7 @@ export default function DraftBoardDesk({
               onChange={(e) => setSeedGrid(e.target.value)}
               rows={6}
               spellCheck={false}
-              placeholder={"1\tJane Doe\tQB\tOhio State\n2\tJohn Roe\tEDGE\tGeorgia"}
+              placeholder={"1\tJane Doe\tQB\tOSU\t98.4\n2\tJohn Roe\tEDGE\tUGA\t97.9"}
               style={area}
             />
           </label>
@@ -163,7 +182,8 @@ export default function DraftBoardDesk({
       ) : (
         <>
           <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
-            Drag a row to reorder it. Top fifty is the board.
+            Edit a rating and press Sort to put the board back in order, or
+            drag a row by hand. Top fifty is the board.
           </p>
 
           <label style={label}>
@@ -178,8 +198,20 @@ export default function DraftBoardDesk({
           </label>
 
           <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)", margin: "0 0 6px" }}>
-              {`PYLON 50 (${list.length})`}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 8,
+                margin: "0 0 6px",
+              }}
+            >
+              <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--text-dim)" }}>
+                {`PYLON 50 (${list.length})`}
+              </div>
+              <button onClick={sortByRating} style={{ ...quiet, marginLeft: "auto", padding: "3px 9px", fontSize: 10 }}>
+                Sort by rating
+              </button>
             </div>
             {list.length === 0 ? (
               <div style={{ fontSize: 12, color: "var(--text-faint)" }}>Nothing yet.</div>
@@ -196,7 +228,13 @@ export default function DraftBoardDesk({
                   getId={keyFor}
                   onReorder={(next) => setList(reranked(next))}
                   renderRow={(entry, i, handle) => (
-                    <Row entry={entry} index={i} handle={handle} onRemove={() => removeRow(keyFor(entry))} />
+                    <Row
+                      entry={entry}
+                      index={i}
+                      handle={handle}
+                      onRatingChange={(rating) => setRating(keyFor(entry), rating)}
+                      onRemove={() => removeRow(keyFor(entry))}
+                    />
                   )}
                 />
               </div>
@@ -219,16 +257,24 @@ export default function DraftBoardDesk({
               style={{ ...numberField, width: "auto", flex: "0 1 60px" }}
             />
             <input
-              value={newCollege}
-              onChange={(e) => setNewCollege(e.target.value)}
+              value={newSchool}
+              onChange={(e) => setNewSchool(e.target.value)}
               disabled={list.length >= BIG_BOARD_RANKED}
-              placeholder="College"
-              style={{ ...numberField, width: "auto", flex: "1 1 120px" }}
+              placeholder="School abbr"
+              style={{ ...numberField, width: "auto", flex: "1 1 100px" }}
+            />
+            <input
+              value={newRating}
+              onChange={(e) => setNewRating(e.target.value)}
+              disabled={list.length >= BIG_BOARD_RANKED}
+              placeholder="Rating"
+              inputMode="decimal"
+              style={{ ...numberField, width: "auto", flex: "0 1 70px" }}
             />
             <button
               onClick={addProspect}
-              disabled={!newPlayer.trim() || list.length >= BIG_BOARD_RANKED}
-              style={action(!!newPlayer.trim() && list.length < BIG_BOARD_RANKED)}
+              disabled={!newPlayer.trim() || !newRating.trim() || list.length >= BIG_BOARD_RANKED}
+              style={action(!!newPlayer.trim() && !!newRating.trim() && list.length < BIG_BOARD_RANKED)}
             >
               Add
             </button>
@@ -262,11 +308,13 @@ function Row({
   entry,
   index,
   handle,
+  onRatingChange,
   onRemove,
 }: {
   entry: ProspectEntry;
   index: number;
   handle: DragHandleProps;
+  onRatingChange: (rating: number) => void;
   onRemove: () => void;
 }) {
   return (
@@ -298,10 +346,29 @@ function Row({
         {entry.position ? (
           <span style={{ color: "var(--text-dim)" }}>{` · ${entry.position}`}</span>
         ) : null}
-        {entry.college ? (
-          <span style={{ color: "var(--text-faint)" }}>{` · ${entry.college}`}</span>
+        {entry.schoolAbbr ? (
+          <span style={{ color: "var(--text-faint)" }}>{` · ${entry.schoolAbbr}`}</span>
         ) : null}
       </span>
+      <input
+        value={entry.rating}
+        onChange={(e) => {
+          const v = Number(e.target.value);
+          if (Number.isFinite(v)) onRatingChange(Math.max(0, Math.min(100, v)));
+        }}
+        inputMode="decimal"
+        style={{
+          width: 48,
+          flex: "0 0 auto",
+          padding: "5px 6px",
+          background: "rgb(var(--raised-rgb) / .7)",
+          border: "1px solid rgb(var(--accent-rgb) / .25)",
+          borderRadius: 6,
+          color: "var(--text)",
+          fontSize: 11.5,
+          textAlign: "center",
+        }}
+      />
       <button
         onClick={onRemove}
         aria-label={`Remove ${entry.player}`}

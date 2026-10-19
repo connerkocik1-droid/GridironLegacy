@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { parsePolls, NFL_TEAMS, RANKED, type BoardReport, type Entry } from "@/lib/pylon-report";
+import { parsePolls, nflMeta, NFL_TEAMS, RANKED, type BoardReport, type Entry } from "@/lib/pylon-report";
 import { DragHandleProps, GripHandle, SortableList } from "./SortableList";
 
 /**
@@ -31,6 +31,8 @@ export default function ReportDesk({
   const [nfl, setNfl] = useState<Entry[]>([]);
   const [pollsGrid, setPollsGrid] = useState("");
   const [newTeam, setNewTeam] = useState("");
+  const [newAbbr, setNewAbbr] = useState("");
+  const [newConference, setNewConference] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,9 +63,9 @@ export default function ReportDesk({
 
   const anything = college.length > 0 || nfl.length > 0;
 
-  function setRecord(board: "college" | "nfl", key: string, record: string) {
+  function setField(board: "college" | "nfl", key: string, field: "record" | "lastResult", value: string) {
     const setter = board === "college" ? setCollege : setNfl;
-    setter((list) => list.map((e) => (keyFor(e) === key ? { ...e, record } : e)));
+    setter((list) => list.map((e) => (keyFor(e) === key ? { ...e, [field]: value } : e)));
   }
 
   function removeRow(board: "college" | "nfl", key: string) {
@@ -73,9 +75,15 @@ export default function ReportDesk({
 
   function addTeam() {
     const team = newTeam.trim();
-    if (!team || college.length >= RANKED.college) return;
-    setCollege((list) => [...list, { rank: list.length + 1, team, record: "" }]);
+    const abbr = newAbbr.trim().toUpperCase();
+    if (!team || !abbr || college.length >= RANKED.college) return;
+    setCollege((list) => [
+      ...list,
+      { rank: list.length + 1, team, abbr, conference: newConference.trim(), record: "", lastResult: "" },
+    ]);
     setNewTeam("");
+    setNewAbbr("");
+    setNewConference("");
   }
 
   async function publish(remove = false) {
@@ -146,14 +154,28 @@ export default function ReportDesk({
         title={`College (${college.length})`}
         list={college}
         onReorder={setCollege}
-        onRecordChange={(key, record) => setRecord("college", key, record)}
+        onFieldChange={(key, field, value) => setField("college", key, field, value)}
         onRemove={(key) => removeRow("college", key)}
       />
 
-      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+      <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
         <input
           value={newTeam}
           onChange={(e) => setNewTeam(e.target.value)}
+          disabled={college.length >= RANKED.college}
+          placeholder={college.length >= RANKED.college ? "Top 25 is full — drop one first" : "Team"}
+          style={{ ...numberField, width: "auto", flex: "2 1 160px" }}
+        />
+        <input
+          value={newAbbr}
+          onChange={(e) => setNewAbbr(e.target.value)}
+          disabled={college.length >= RANKED.college}
+          placeholder="Abbr"
+          style={{ ...numberField, width: "auto", flex: "0 1 70px" }}
+        />
+        <input
+          value={newConference}
+          onChange={(e) => setNewConference(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -161,13 +183,13 @@ export default function ReportDesk({
             }
           }}
           disabled={college.length >= RANKED.college}
-          placeholder={college.length >= RANKED.college ? "Top 25 is full — drop one first" : "Add a team…"}
-          style={{ ...numberField, width: "auto", flex: 1 }}
+          placeholder="Conference"
+          style={{ ...numberField, width: "auto", flex: "1 1 110px" }}
         />
         <button
           onClick={addTeam}
-          disabled={!newTeam.trim() || college.length >= RANKED.college}
-          style={action(!!newTeam.trim() && college.length < RANKED.college)}
+          disabled={!newTeam.trim() || !newAbbr.trim() || college.length >= RANKED.college}
+          style={action(!!newTeam.trim() && !!newAbbr.trim() && college.length < RANKED.college)}
         >
           Add
         </button>
@@ -178,7 +200,7 @@ export default function ReportDesk({
           title={`NFL (${nfl.length})`}
           list={nfl}
           onReorder={setNfl}
-          onRecordChange={(key, record) => setRecord("nfl", key, record)}
+          onFieldChange={(key, field, value) => setField("nfl", key, field, value)}
           onRemove={(key) => removeRow("nfl", key)}
         />
       </div>
@@ -226,20 +248,23 @@ function reranked(list: Entry[]): Entry[] {
 }
 
 function seedNfl(): Entry[] {
-  return NFL_TEAMS.map((team, i) => ({ rank: i + 1, team, record: "" }));
+  return NFL_TEAMS.map((team, i) => {
+    const { abbr } = nflMeta(team);
+    return { rank: i + 1, team, abbr, conference: "", record: "", lastResult: "" };
+  });
 }
 
 function BoardEditor({
   title,
   list,
   onReorder,
-  onRecordChange,
+  onFieldChange,
   onRemove,
 }: {
   title: string;
   list: Entry[];
   onReorder: (next: Entry[]) => void;
-  onRecordChange: (key: string, record: string) => void;
+  onFieldChange: (key: string, field: "record" | "lastResult", value: string) => void;
   onRemove: (key: string) => void;
 }) {
   return (
@@ -266,7 +291,7 @@ function BoardEditor({
                 entry={entry}
                 index={i}
                 handle={handle}
-                onRecordChange={(record) => onRecordChange(keyFor(entry), record)}
+                onFieldChange={(field, value) => onFieldChange(keyFor(entry), field, value)}
                 onRemove={() => onRemove(keyFor(entry))}
               />
             )}
@@ -281,13 +306,13 @@ function Row({
   entry,
   index,
   handle,
-  onRecordChange,
+  onFieldChange,
   onRemove,
 }: {
   entry: Entry;
   index: number;
   handle: DragHandleProps;
-  onRecordChange: (record: string) => void;
+  onFieldChange: (field: "record" | "lastResult", value: string) => void;
   onRemove: () => void;
 }) {
   return (
@@ -316,10 +341,11 @@ function Row({
       </span>
       <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis" }}>
         {entry.team}
+        <span style={{ color: "var(--text-dim)" }}>{` · ${entry.abbr}`}</span>
       </span>
       <input
         value={entry.record}
-        onChange={(e) => onRecordChange(e.target.value)}
+        onChange={(e) => onFieldChange("record", e.target.value)}
         placeholder="0-0"
         style={{
           width: 48,
@@ -331,6 +357,21 @@ function Row({
           color: "var(--text)",
           fontSize: 11.5,
           textAlign: "center",
+        }}
+      />
+      <input
+        value={entry.lastResult}
+        onChange={(e) => onFieldChange("lastResult", e.target.value)}
+        placeholder="Last result"
+        style={{
+          width: 110,
+          flex: "0 0 auto",
+          padding: "5px 6px",
+          background: "rgb(var(--raised-rgb) / .7)",
+          border: "1px solid rgb(var(--accent-rgb) / .25)",
+          borderRadius: 6,
+          color: "var(--text)",
+          fontSize: 11.5,
         }}
       />
       <button

@@ -1,6 +1,7 @@
 import PylonReportPage from "@/components/PylonReportPage";
-import { movement, type BoardReport, type Move, type Polls } from "@/lib/pylon-report";
-import { prospectMovement, type ProspectBoard } from "@/lib/pylon-draft-board";
+import { keyOf, type BoardReport, type Polls } from "@/lib/pylon-report";
+import { weeklyValues } from "@/lib/pylon-report-view";
+import type { ProspectBoard, ProspectEntry } from "@/lib/pylon-draft-board";
 import { isConfigured, serviceClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,10 @@ const EMPTY_PROSPECTS: ProspectBoard = { ranked: [], honorable: [] };
  * itself reads the league with the service client rather than a session,
  * because there isn't one yet. This page has the same shape of absence: a
  * visitor who has never logged in is exactly who it's for.
+ *
+ * Four weeks are read rather than two: the sparkline trails need real
+ * history, and the simplest source of it is just the last four published
+ * boards, the same rows movement() already reads two of.
  */
 async function load() {
   if (!isConfigured() || !process.env.LEAGUE_ID) return null;
@@ -42,7 +47,7 @@ async function load() {
       .select("week, college, nfl, published_at")
       .eq("league_id", process.env.LEAGUE_ID)
       .order("week", { ascending: false })
-      .limit(2);
+      .limit(4);
     if (error) throw error;
 
     const { data: boardData, error: boardError } = await db
@@ -50,35 +55,48 @@ async function load() {
       .select("week, board, published_at")
       .eq("league_id", process.env.LEAGUE_ID)
       .order("week", { ascending: false })
-      .limit(2);
+      .limit(4);
 
     const rows = (data ?? []) as ReportRow[];
     const now = rows[0] ?? null;
     const before = rows[1] ?? null;
+    const oldestFirst = rows.slice().reverse();
 
     const boardRows = boardError ? [] : ((boardData ?? []) as DraftBoardRow[]);
     const nowBoard = boardRows[0] ?? null;
     const beforeBoard = boardRows[1] ?? null;
+    const boardOldestFirst = boardRows.slice().reverse();
 
     return {
       week: now?.week ?? null,
       publishedAt: now?.published_at ?? null,
       college: now?.college ?? EMPTY_BOARD,
+      collegeBefore: before?.college ?? null,
       nfl: now?.nfl ?? EMPTY_BOARD,
+      nflBefore: before?.nfl ?? null,
       polls: now?.college?.polls ?? EMPTY_POLLS,
-      collegeMoves: movement(now?.college ?? EMPTY_BOARD, before?.college ?? null),
-      nflMoves: movement(now?.nfl ?? EMPTY_BOARD, before?.nfl ?? null),
+      collegeHistory: weeklyValues(
+        oldestFirst.map((r) => r.college ?? EMPTY_BOARD),
+        (e) => keyOf(e.team),
+        (e) => e.rank,
+      ),
+      nflHistory: weeklyValues(
+        oldestFirst.map((r) => r.nfl ?? EMPTY_BOARD),
+        (e) => keyOf(e.team),
+        (e) => e.rank,
+      ),
       bigBoard: nowBoard?.board ?? EMPTY_PROSPECTS,
+      bigBoardBefore: beforeBoard?.board ?? null,
       bigBoardWeek: nowBoard?.week ?? null,
-      bigBoardMoves: prospectMovement(nowBoard?.board ?? EMPTY_PROSPECTS, beforeBoard?.board ?? null),
+      bigBoardHistory: weeklyValues(
+        boardOldestFirst.map((r) => r.board ?? EMPTY_PROSPECTS),
+        (e: ProspectEntry) => keyOf(e.player),
+        (e: ProspectEntry) => e.rating,
+      ),
     };
   } catch {
     return null;
   }
-}
-
-function asObject(moves: Map<string, Move>): Record<string, Move> {
-  return Object.fromEntries(moves);
 }
 
 export default async function PylonReportRoute() {
@@ -87,15 +105,17 @@ export default async function PylonReportRoute() {
   return (
     <PylonReportPage
       week={data?.week ?? null}
-      publishedAt={data?.publishedAt ?? null}
       college={data?.college ?? EMPTY_BOARD}
-      nfl={data?.nfl ?? EMPTY_BOARD}
+      collegeBefore={data?.collegeBefore ?? null}
+      collegeHistory={data?.collegeHistory ?? {}}
       polls={data?.polls ?? EMPTY_POLLS}
-      collegeMoves={asObject(data?.collegeMoves ?? new Map())}
-      nflMoves={asObject(data?.nflMoves ?? new Map())}
+      nfl={data?.nfl ?? EMPTY_BOARD}
+      nflBefore={data?.nflBefore ?? null}
+      nflHistory={data?.nflHistory ?? {}}
       bigBoard={data?.bigBoard ?? EMPTY_PROSPECTS}
+      bigBoardBefore={data?.bigBoardBefore ?? null}
       bigBoardWeek={data?.bigBoardWeek ?? null}
-      bigBoardMoves={asObject(data?.bigBoardMoves ?? new Map())}
+      bigBoardHistory={data?.bigBoardHistory ?? {}}
     />
   );
 }

@@ -109,12 +109,14 @@ function boardFrom(raw: unknown): ProspectBoard {
   const from = (list: unknown): ProspectBoard["ranked"] =>
     (Array.isArray(list) ? list : [])
       .map((e) => {
-        const row = e as { rank?: unknown; player?: unknown; position?: unknown; college?: unknown };
+        const row = e as { rank?: unknown; player?: unknown; position?: unknown; schoolAbbr?: unknown; rating?: unknown };
+        const rating = Number(row?.rating);
         return {
           rank: Number(row?.rank) || 0,
           player: String(row?.player ?? "").trim().slice(0, 80),
-          position: String(row?.position ?? "").trim().slice(0, 6),
-          college: String(row?.college ?? "").trim().slice(0, 80),
+          position: String(row?.position ?? "").trim().toUpperCase().slice(0, 6),
+          schoolAbbr: String(row?.schoolAbbr ?? "").trim().toUpperCase().slice(0, 4),
+          rating: Number.isFinite(rating) ? Math.max(0, Math.min(100, rating)) : 0,
         };
       })
       .filter((e) => e.player && e.rank > 0)

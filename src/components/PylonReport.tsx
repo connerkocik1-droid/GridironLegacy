@@ -281,7 +281,7 @@ export default function PylonReport() {
                       border: "1.5px solid rgb(var(--accent-bright-rgb) / .7)",
                     }}
                   >
-                    {monogram(top.team)}
+                    {top.abbr || monogram(top.team)}
                   </span>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 10, letterSpacing: ".2em", color: "var(--accent-link)" }}>

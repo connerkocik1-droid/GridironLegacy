@@ -155,11 +155,21 @@ function boardFrom(raw: unknown): BoardReport {
   const from = (list: unknown): BoardReport["ranked"] =>
     (Array.isArray(list) ? list : [])
       .map((e) => {
-        const row = e as { rank?: unknown; team?: unknown; record?: unknown };
+        const row = e as {
+          rank?: unknown;
+          team?: unknown;
+          record?: unknown;
+          abbr?: unknown;
+          conference?: unknown;
+          lastResult?: unknown;
+        };
         return {
           rank: Number(row?.rank) || 0,
           team: String(row?.team ?? "").trim().slice(0, 80),
           record: String(row?.record ?? "").trim().slice(0, 12),
+          abbr: String(row?.abbr ?? "").trim().toUpperCase().slice(0, 4),
+          conference: String(row?.conference ?? "").trim().slice(0, 30),
+          lastResult: String(row?.lastResult ?? "").trim().slice(0, 60),
         };
       })
       .filter((e) => e.team && e.rank > 0)
