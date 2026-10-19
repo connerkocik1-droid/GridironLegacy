@@ -35,6 +35,9 @@ const officeIcon = (
   </svg>
 );
 
+// The liquid-glass treatment from the redesign handoff: a two-stop gradient
+// over a heavy blur, a hairline border, and an inset top highlight — rather
+// than the flat translucent fill this bar used before.
 const bar: React.CSSProperties = {
   position: "sticky",
   top: 0,
@@ -43,9 +46,15 @@ const bar: React.CSSProperties = {
   alignItems: "center",
   gap: 14,
   padding: "10px 26px",
-  borderBottom: "1px solid rgb(var(--accent-rgb) / .22)",
-  background: "rgb(var(--bg-rgb) / .9)",
-  backdropFilter: "blur(10px)",
+  border: "1px solid rgb(var(--accent-rgb) / .1)",
+  borderTop: "none",
+  borderLeft: "none",
+  borderRight: "none",
+  background:
+    "linear-gradient(180deg,rgb(var(--accent-rgb) / .09),rgb(var(--bg-rgb) / .86))",
+  backdropFilter: "blur(22px) saturate(160%)",
+  WebkitBackdropFilter: "blur(22px) saturate(160%)",
+  boxShadow: "inset 0 1px 0 rgb(var(--accent-rgb) / .14)",
   flexWrap: "wrap",
   rowGap: 6,
 };

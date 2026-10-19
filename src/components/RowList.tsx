@@ -282,8 +282,14 @@ export function RowGroup({
         style={{
           borderRadius: "var(--radius-md)",
           overflow: "hidden",
-          background: "rgb(var(--surface-rgb) / .35)",
+          // Liquid glass: an accent-tinted gradient over a blur, rather than
+          // the flat translucent fill this used before porting the DC's look.
+          background:
+            "linear-gradient(160deg,rgb(var(--accent-rgb) / .07),rgb(var(--surface-rgb) / .3))",
+          backdropFilter: "blur(18px) saturate(150%)",
+          WebkitBackdropFilter: "blur(18px) saturate(150%)",
           border: "1px solid rgb(var(--accent-rgb) / .14)",
+          boxShadow: "inset 0 1px 0 rgb(var(--accent-rgb) / .12)",
         }}
       >
         {shown.map((row, i) => (

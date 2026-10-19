@@ -61,9 +61,14 @@ export default function TabBar({ signedIn }: { signedIn: boolean }) {
         zIndex: 40,
         // `display` is set in globals.css, which knows the breakpoint.
         paddingBottom: "env(safe-area-inset-bottom)",
-        borderTop: "1px solid rgb(var(--accent-rgb) / .22)",
-        background: "rgb(var(--sunken-rgb) / .94)",
-        backdropFilter: "blur(14px)",
+        borderTop: "1px solid rgb(var(--accent-rgb) / .14)",
+        // Liquid glass, same treatment as the desktop Nav: a gradient over a
+        // heavy blur rather than one flat translucent fill.
+        background:
+          "linear-gradient(180deg,rgb(var(--accent-rgb) / .1),rgb(var(--sunken-rgb) / .92))",
+        backdropFilter: "blur(22px) saturate(160%)",
+        WebkitBackdropFilter: "blur(22px) saturate(160%)",
+        boxShadow: "inset 0 1px 0 rgb(var(--accent-rgb) / .12)",
       }}
     >
       {APP_TABS.map((tab) => (
