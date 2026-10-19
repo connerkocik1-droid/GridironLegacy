@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLogos } from "@/lib/use-logos";
 import { useRefreshable } from "@/lib/use-refresh";
 import TeamCrest from "./TeamCrest";
-import { AppView, GroupLabel, GroupSkeleton, Note, ink, tint } from "./RowList";
+import { AppView, GroupLabel, GroupSkeleton, Note, RowGroup, ink, tint, type RowSpec } from "./RowList";
 
 interface Side {
   id: string;
@@ -82,6 +82,7 @@ export default function AroundLeagueView() {
     return (
       <AppView>
         <Note tag="LEAGUE">No games scheduled yet. They appear here once the commissioner draws the season.</Note>
+        <RowGroup label="MORE FROM THE LEAGUE" rows={MORE} />
       </AppView>
     );
   }
@@ -152,7 +153,7 @@ export default function AroundLeagueView() {
                     <div style={{ fontSize: 10, color: "var(--ap-n500)", marginTop: 3, whiteSpace: "nowrap" }}>{owner(a)}</div>
                   </div>
                 </div>
-                <span style={{ fontSize: 9, letterSpacing: ".16em", color: "var(--ap-n600)" }}>VS</span>
+                <span style={{ fontSize: 10, letterSpacing: ".16em", color: "var(--ap-n600)" }}>VS</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, justifyContent: "flex-end" }}>
                   <div style={{ minWidth: 0, textAlign: "right" }}>
                     <div style={name}>{b.franchise}</div>
@@ -179,6 +180,17 @@ export default function AroundLeagueView() {
           );
         })}
       </div>
+      <div style={{ marginTop: 12 }}>
+        <RowGroup label="MORE FROM THE LEAGUE" rows={MORE} />
+      </div>
     </AppView>
   );
 }
+
+// Not in the design, which has no chat or news; kept so the redesign does
+// not leave either of them unreachable.
+const MORE: RowSpec[] = [
+  { key: "chat", tile: "CHAT", title: "League chat", sub: "Talk to the rest of the league", href: "/chat" },
+  { key: "news", tile: "NEWS", title: "News", sub: "Injuries and moves around the NFL", href: "/news" },
+  { key: "rules", tile: "RULES", title: "League rules", sub: "Roster, scoring and waivers", href: "/rules" },
+];

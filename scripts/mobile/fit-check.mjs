@@ -121,6 +121,10 @@ ok("stat lines start hidden", (await lineShowing()) === 0);
 await page.getByRole("button", { name: "STAT LINES" }).click();
 await page.waitForTimeout(150);
 ok("the switch brings them back", (await lineShowing()) > 0);
+// In place of each player's game status rather than under it, so the board
+// is one screen either way.
+const withLines = await page.evaluate(() => document.documentElement.scrollHeight);
+ok(`and the page stays inside one screen with them (${withLines}px)`, withLines <= 875);
 
 await page.reload({ waitUntil: "networkidle" });
 await page.waitForTimeout(600);

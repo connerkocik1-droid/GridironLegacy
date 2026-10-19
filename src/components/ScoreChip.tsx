@@ -34,7 +34,7 @@ export default function ScoreChip() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/matchup", { cache: "no-store" });
+      const res = await fetch("/api/matchup?for=header", { cache: "no-store" });
       if (!res.ok) return;
       const body = await res.json();
       if (!body?.home || !body?.away || !body.mine) return setMine(null);
@@ -96,7 +96,7 @@ export default function ScoreChip() {
       ) : null}
       {crest(me)}
       <span style={pts(lead)}>{me.total.toFixed(1)}</span>
-      <span aria-hidden style={{ fontSize: 9, color: "var(--ap-n600)" }}>
+      <span aria-hidden style={{ fontSize: 10, color: "var(--ap-n600)" }}>
         –
       </span>
       <span style={pts(!lead)}>{opp.total.toFixed(1)}</span>

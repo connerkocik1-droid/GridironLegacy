@@ -434,7 +434,7 @@ function Desk_() {
       <div style={{ ...heroPanel, padding: "10px 12px", marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
           <div>
-            <div style={{ fontSize: 9, letterSpacing: ".16em", color: "var(--ap-n500)" }}>YOU SEND</div>
+            <div style={{ fontSize: 10, letterSpacing: ".16em", color: "var(--ap-n500)" }}>YOU SEND</div>
             <div style={{ fontSize: 20, fontWeight: 300, fontStyle: "italic", letterSpacing: "-.04em", color: "var(--ap-a200)", marginTop: 4 }}>
               {sendValue.toFixed(1)}
             </div>
@@ -443,7 +443,7 @@ function Desk_() {
             ⇄
           </span>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 9, letterSpacing: ".16em", color: "var(--ap-n500)" }}>YOU GET</div>
+            <div style={{ fontSize: 10, letterSpacing: ".16em", color: "var(--ap-n500)" }}>YOU GET</div>
             <div style={{ fontSize: 20, fontWeight: 300, fontStyle: "italic", letterSpacing: "-.04em", marginTop: 4 }}>{getValue.toFixed(1)}</div>
           </div>
         </div>

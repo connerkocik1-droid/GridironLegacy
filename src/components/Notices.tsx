@@ -127,7 +127,7 @@ export function NoticeList({ onNavigate }: { onNavigate?: () => void }) {
           const row = (
             <>
               <div style={{ lineHeight: 1.5 }}>{n.body}</div>
-              <div style={{ fontSize: 9.5, color: "var(--ap-n500)", marginTop: 3, letterSpacing: ".14em" }}>
+              <div style={{ fontSize: 10, color: "var(--ap-n500)", marginTop: 3, letterSpacing: ".14em" }}>
                 {n.kind.toUpperCase()} · {when(n.created_at)}
               </div>
             </>

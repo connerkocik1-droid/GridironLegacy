@@ -8,10 +8,13 @@ import { recordText } from "@/lib/record";
 import { useRefreshable } from "@/lib/use-refresh";
 import { openPlayer } from "@/lib/player-sheet";
 import { gameFor, gameLabel, useNflGames } from "@/lib/use-nfl-games";
+import { healthOf, useHealthReport } from "@/lib/use-player-health";
+import { setStatLines, useStatLines } from "@/lib/use-stat-lines";
+import { HEALTH_SHORT, type Health } from "@/lib/health";
 import { fanfare } from "@/lib/retro";
 import { biggestJump, fanfareText, type Reading } from "@/lib/retro-cues";
 import DuesNotice from "./DuesNotice";
-import { AppView, GroupSkeleton, Note, bigItalic, hairline, heroPanel, ink, listPanel, tint } from "./RowList";
+import { AppView, GroupSkeleton, Note, bigItalic, hairline, heroPanel, ink, listPanel, tagStyle, tint } from "./RowList";
 
 interface Side {
   id: string;
@@ -67,6 +70,7 @@ function View() {
   const asWeek = params.get("week") ?? "";
   const opponent = params.get("opponent") ?? "";
   const { games } = useNflGames();
+  const lines = useStatLines();
 
   const [board, setBoard] = useState<Board | null>(null);
   const [bye, setBye] = useState<number | null>(null);
@@ -188,7 +192,15 @@ function View() {
   const homeLead = home.total >= away.total;
   const prob = board.winProbability != null ? Math.round(board.winProbability * 100) : null;
   const sub = (s: Side) => [s.name?.split(" ")[0], s.record ? recordText(s.record.w, s.record.l, s.record.t) : null].filter(Boolean).join(" · ");
-  const probLabel = board.final
+  // Somebody else's game is stated, not taken personally: who leads, by how
+  // much, rather than "your" chance of winning it.
+  const gap = Math.abs(home.total - away.total);
+  const theirs = !board.mine && board.started
+    ? gap < 0.05
+      ? "LEVEL"
+      : `${(home.total > away.total ? home.franchise : away.franchise).toUpperCase()} BY ${gap.toFixed(1)}`
+    : null;
+  const probLabel = theirs ?? (board.final
     ? board.mine
       ? home.total > away.total
         ? "FINAL · WON"
@@ -200,7 +212,7 @@ function View() {
       ? `WIN PROB ${prob}%`
       : board.started
         ? "IN PROGRESS"
-        : `WEEK ${board.week}`;
+        : `WEEK ${board.week}`);
   const projLabel =
     home.projected != null && away.projected != null
       ? `PROJ ${home.projected.toFixed(1)} – ${away.projected.toFixed(1)}`
@@ -213,7 +225,7 @@ function View() {
         <Note tag={`WEEK ${board.week}`}>
           {home.franchise} against {away.franchise}.{" "}
           <Link href="/lineup" style={{ color: "var(--ap-a300)" }}>
-            Back to your game →
+            Back to your own matchup →
           </Link>
         </Note>
       ) : null}
@@ -244,8 +256,30 @@ function View() {
               }}
             />
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 10, letterSpacing: ".1em", color: "var(--ap-n400)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, marginTop: 6, fontSize: 10, letterSpacing: ".1em", color: "var(--ap-n400)" }}>
             <span>{probLabel}</span>
+            {/* A preference rather than the point of the page, so it is small;
+                but on the page, because the reader who wants a stat line wants
+                it seconds after a score he does not believe. It swaps each
+                player's game status for his line, so the board stays one screen. */}
+            <button
+              type="button"
+              onClick={() => setStatLines(!lines)}
+              aria-pressed={lines}
+              style={{
+                border: 0,
+                background: "transparent",
+                padding: "0 4px",
+                margin: "-14px 0",
+                font: "inherit",
+                letterSpacing: ".1em",
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+                color: lines ? "var(--ap-a200)" : "var(--ap-n500)",
+              }}
+            >
+              STAT LINES
+            </button>
             <span>{projLabel}</span>
           </div>
         </div>
@@ -253,7 +287,7 @@ function View() {
 
       <div style={listPanel}>
         {board.rows.map((r, i) => (
-          <SlotRow key={`${r.slot}:${i}`} row={r} first={i === 0} flash={flash} games={games} />
+          <SlotRow key={`${r.slot}:${i}`} row={r} first={i === 0} flash={flash} games={games} lines={lines} />
         ))}
       </div>
     </AppView>
@@ -265,23 +299,35 @@ function SlotRow({
   first,
   flash,
   games,
+  lines,
 }: {
   row: MatchupRow;
   first: boolean;
   flash: Record<string, { d: number; until: number }>;
   games: ReturnType<typeof useNflGames>["games"];
+  lines: boolean;
 }) {
   const a = row.home?.points ?? 0;
   const b = row.away?.points ?? 0;
   const mx = Math.max(a, b, 1);
   // Expired chips are pruned by the board's timer, so presence is enough.
+  const report = useHealthReport();
   const fm = row.home ? (flash[row.home.name] ?? null) : null;
   const ft = row.away ? (flash[row.away.name] ?? null) : null;
   const label = (e: SideEntry | null) => {
     if (!e) return "";
     const g = gameFor(games, e.team);
-    if (g) return gameLabel(g);
-    if (e.game) return e.game.state === "post" ? "FINAL" : e.game.state === "in" ? "LIVE" : `PROJ ${e.projected.toFixed(1)}`;
+    if (g && !(e.game?.state === "pre")) return gameLabel(g);
+    if (e.game) {
+      if (e.game.state === "post") return "FINAL";
+      if (e.game.state === "in") return "LIVE";
+      // Not kicked off: who he plays and when, as the design writes it.
+      const at = new Date(e.game.startsAt);
+      const when = Number.isNaN(at.getTime())
+        ? ""
+        : at.toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" }).toUpperCase();
+      return `${e.game.away ? "@" : "vs "}${e.game.opponent} ${when}`.trim();
+    }
     return e.team ? "BYE" : "";
   };
   const started = (e: SideEntry | null) => !!e && (e.game ? e.game.state !== "pre" : e.live || e.points !== 0);
@@ -301,7 +347,7 @@ function SlotRow({
         key={`${f.d}`}
         style={{
           flex: "0 0 auto",
-          fontSize: 9,
+          fontSize: 10,
           fontWeight: 600,
           padding: "1px 4px",
           borderRadius: 2,
@@ -314,6 +360,14 @@ function SlotRow({
         +{f.d.toFixed(1)}
       </span>
     ) : null;
+  // Only the injury report's own word; the pool's preseason flag is stale.
+  const health = (e: SideEntry | null) => {
+    const h = e ? healthOf(report, e.name) : null;
+    // Squared to the status line, so a tagged row is no taller than the rest.
+    return h ? (
+      <span style={{ ...tagStyle("warn"), padding: "0 4px", lineHeight: "12px" }}>{HEALTH_SHORT[h.status as Health]}</span>
+    ) : null;
+  };
   const name = (e: SideEntry | null, right?: boolean) => (
     <button
       type="button"
@@ -327,21 +381,45 @@ function SlotRow({
         border: 0,
         background: "transparent",
         padding: 0,
+        // The phone rule grows every button to a 40px target; it reaches into
+        // the row's padding instead of making the row taller.
+        margin: "-6px 0 -5px",
         font: "inherit",
         color: "inherit",
       }}
     >
-      <div style={{ fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: right ? "var(--ap-n300)" : undefined }}>
+      <div style={{ fontSize: 12, lineHeight: "15px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: right ? "var(--ap-n300)" : undefined }}>
         {e ? e.name : "—"}
       </div>
-      <div style={{ fontSize: 9, color: "var(--ap-n500)", marginTop: 2 }}>{label(e)}</div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          justifyContent: right ? "flex-end" : "flex-start",
+          fontSize: 10,
+          lineHeight: "12px",
+          color: "var(--ap-n500)",
+          marginTop: 2,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {health(e)}
+        {lines && e?.statLine ? (
+          <span className="gl-mcell-line" style={{ overflow: "hidden", textOverflow: "ellipsis", color: "var(--ap-n300)" }}>
+            {e.statLine}
+          </span>
+        ) : (
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label(e)}</span>
+        )}
+      </div>
     </button>
   );
 
   return (
     <div
       style={{
-        padding: "7px 10px 6px",
+        padding: "6px 10px 5px",
         transition: "background-color .6s ease",
         ...(first ? {} : hairline),
         ...(fm ? { backgroundColor: tint(14) } : {}),
@@ -351,14 +429,14 @@ function SlotRow({
         {name(row.home)}
         {chip(fm, true)}
         <span style={ptsStyle(a >= b && started(row.home))}>{pts(row.home, a)}</span>
-        <span style={{ fontSize: 9, letterSpacing: ".12em", color: "var(--ap-n500)", width: 34, textAlign: "center", flex: "0 0 auto" }}>
+        <span style={{ fontSize: 10, letterSpacing: ".12em", color: "var(--ap-n500)", width: 34, textAlign: "center", flex: "0 0 auto" }}>
           {row.slot}
         </span>
         <span style={ptsStyle(b > a && started(row.away), true)}>{pts(row.away, b)}</span>
         {chip(ft, false)}
         {name(row.away, true)}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, marginTop: 5 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, marginTop: 4 }}>
         <div style={{ display: "flex", justifyContent: "flex-end", height: 3, borderRadius: "2px 0 0 2px", overflow: "hidden", background: ink(6) }}>
           <div
             style={{

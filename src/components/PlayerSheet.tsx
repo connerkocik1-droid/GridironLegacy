@@ -215,7 +215,7 @@ export default function PlayerSheet() {
               }}
             >
               <span style={{ fontSize: 13, fontWeight: 600, fontStyle: "italic" }}>{p?.position === "D/ST" ? "DEF" : (p?.position ?? "")}</span>
-              <span style={{ fontSize: 8, letterSpacing: ".08em", color: "var(--ap-a300)" }}>{p?.team ?? ""}</span>
+              <span style={{ fontSize: 10, letterSpacing: ".08em", color: "var(--ap-a300)" }}>{p?.team ?? ""}</span>
             </span>
             {/* The headshot over the tile; a man with no picture shows the tile. */}
             <Headshot name={name} width={56} height={56} style={{ position: "absolute", inset: 0, width: 56, height: 56, borderRadius: 5, objectFit: "cover" }} />
@@ -242,7 +242,7 @@ export default function PlayerSheet() {
           {stats.map((x) => (
             <div key={x.k}>
               <div style={{ fontSize: 18, fontWeight: 300, fontStyle: "italic", letterSpacing: "-.04em", color: "var(--ap-a100)" }}>{x.v}</div>
-              <div style={{ fontSize: 8, letterSpacing: ".14em", color: "var(--ap-n500)", marginTop: 3 }}>{x.k}</div>
+              <div style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--ap-n500)", marginTop: 3 }}>{x.k}</div>
             </div>
           ))}
         </div>
@@ -265,7 +265,7 @@ export default function PlayerSheet() {
               const last = i === log.length - 1;
               return (
                 <div key={w.week} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 4, height: "100%" }}>
-                  <span style={{ fontSize: 9, color: "var(--ap-n300)" }}>{w.points.toFixed(1)}</span>
+                  <span style={{ fontSize: 10, color: "var(--ap-n300)" }}>{w.points.toFixed(1)}</span>
                   <div
                     style={{
                       width: "100%",
@@ -277,7 +277,7 @@ export default function PlayerSheet() {
                       boxShadow: last ? "0 0 8px var(--ap-accent)" : undefined,
                     }}
                   />
-                  <span style={{ fontSize: 8, letterSpacing: ".08em", color: "var(--ap-n500)" }}>WK{w.week}</span>
+                  <span style={{ fontSize: 10, letterSpacing: ".08em", color: "var(--ap-n500)" }}>WK{w.week}</span>
                 </div>
               );
             })}

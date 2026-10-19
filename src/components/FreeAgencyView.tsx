@@ -240,7 +240,7 @@ export default function FreeAgencyView() {
       tile: p.team || p.position,
       title: p.name,
       tags,
-      sub: [p.position, p.team, p.posRank ? `drafted ${p.posRank}` : null, p.locked ? "playing now" : null].filter(Boolean).join(" · "),
+      sub: [p.position, p.team, p.posRank ? `drafted ${p.posRank}` : null, p.locked ? "playing now, locked until next week" : null].filter(Boolean).join(" · "),
       val: pts != null ? pts.toFixed(1) : undefined,
       valSub: p.ppg != null ? `${p.ppg.toFixed(1)} PG` : games ? `${((pts ?? 0) / games).toFixed(1)} PG` : undefined,
       actions,

@@ -93,7 +93,7 @@ const { ctx, page } = await open();
     // Every row control, less the panel's own close button.
     const rows = [...(dialog?.querySelectorAll("a, button") ?? [])].filter((b) => b.getAttribute("aria-label") !== "Close");
     return {
-      label: first?.textContent ?? "",
+      label: first?.closest("div")?.parentElement?.textContent ?? "",
       checked: first?.getAttribute("aria-checked"),
       // The switch is the first row under the franchise header.
       firstRow: Boolean(first) && rows[0] === first,

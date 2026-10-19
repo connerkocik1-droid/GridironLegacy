@@ -2,6 +2,7 @@
 
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { panelMark } from "@/lib/liquid-glass";
 
 /**
@@ -124,7 +125,7 @@ export interface RowSpec {
 
 export function tagStyle(tone: TagTone): CSSProperties {
   const base: CSSProperties = {
-    fontSize: 8,
+    fontSize: 10,
     letterSpacing: ".1em",
     padding: "2px 5px",
     borderRadius: 2,
@@ -146,15 +147,18 @@ export function Tag({ tag }: { tag: RowTag }) {
 export function tileStyle(me?: boolean, size = 24): CSSProperties {
   return {
     flex: "0 0 auto",
-    width: size,
+    // Grows past square for a four-letter club rather than spilling out.
+    minWidth: size,
     height: size,
+    padding: "0 2px",
+    boxSizing: "border-box",
     borderRadius: 3,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: size > 28 ? 9 : 8,
+    fontSize: 10,
     fontWeight: 600,
-    letterSpacing: ".02em",
+    letterSpacing: "-.02em",
     ...(me
       ? { color: "var(--bg)", background: "var(--ap-a300)" }
       : { color: "var(--ap-a200)", background: tint(14), border: `1px solid ${tint(22)}` }),
@@ -166,11 +170,11 @@ export function btnStyle(on?: boolean, tone?: "quiet", disabled?: boolean): CSSP
     cursor: disabled ? "default" : "pointer",
     flex: "0 0 auto",
     fontFamily: "inherit",
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: ".12em",
     padding: "6px 8px",
-    minHeight: 28,
-    minWidth: 30,
+    minHeight: 32,
+    minWidth: 32,
     borderRadius: 3,
     border: "1px solid",
     ...(on
@@ -252,6 +256,14 @@ function chgColor(tone: Movement["tone"]) {
   return "var(--ap-n600)";
 }
 
+/** What a screen reader says for an arrow a sighted reader reads by shape and colour. */
+function chgSpoken(m: Movement) {
+  if (m.tone === "new") return "New this week";
+  if (m.tone === "flat") return "Unchanged";
+  const n = Number(m.label.replace(/\D/g, "")) || 0;
+  return `${m.tone === "up" ? "Up" : "Down"} ${n} place${n === 1 ? "" : "s"}`;
+}
+
 /** ▲3, ▼1, — or NEW, from a previous and a current position (lower is better). */
 export function movement(prev: number | null | undefined, now: number): Movement {
   if (prev == null) return { tone: "new", label: "NEW" };
@@ -300,44 +312,27 @@ export function Row({ row, first }: { row: RowSpec; first?: boolean }) {
     else if (row.href) router.push(row.href);
     else if (expandable) setOpen((v) => !v);
   };
-
-  return (
-    <div
-      style={{
-        ...(first ? {} : hairline),
-        ...(row.hi ? { backgroundColor: tint(10), boxShadow: "inset 2px 0 0 var(--ap-accent)" } : {}),
-      }}
-    >
-      <div
-        className="gl-row"
-        onClick={clickable ? activate : undefined}
-        onKeyDown={
-          clickable
-            ? (e) => {
-                if (e.target !== e.currentTarget) return;
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  activate();
-                }
-              }
-            : undefined
-        }
-        role={clickable ? "button" : undefined}
-        tabIndex={clickable ? 0 : undefined}
-        aria-expanded={expandable ? open : undefined}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          minHeight: 44,
-          boxSizing: "border-box",
-          padding: row.tight ? "5px 10px" : "6px 10px",
-          cursor: clickable ? "pointer" : undefined,
-        }}
-      >
+  // A row that only goes somewhere is a real link — long-press, new tab and a
+  // screen reader all treat it as one. Not when it carries buttons, which
+  // cannot sit inside a link.
+  const link = !!row.href && !row.onClick && !row.actions?.length;
+  const rowBox: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    minHeight: 44,
+    boxSizing: "border-box",
+    padding: row.tight ? "5px 10px" : "6px 10px",
+  };
+  const inner = (
+    <>
         {row.num != null ? <span style={numStyle(row.lit)}>{row.num}</span> : null}
         {row.chg ? (
-          <span style={{ flex: "0 0 auto", width: 26, fontSize: 10, fontWeight: 500, color: chgColor(row.chg.tone) }}>
+          <span
+            role="img"
+            aria-label={chgSpoken(row.chg)}
+            style={{ flex: "0 0 auto", width: 26, fontSize: 10, fontWeight: 500, color: chgColor(row.chg.tone) }}
+          >
             {row.chg.label}
           </span>
         ) : null}
@@ -390,7 +385,7 @@ export function Row({ row, first }: { row: RowSpec; first?: boolean }) {
           {row.sub != null && row.sub !== "" ? (
             <div
               style={{
-                fontSize: 9.5,
+                fontSize: 10,
                 color: "var(--ap-n500)",
                 marginTop: 2,
                 whiteSpace: "nowrap",
@@ -417,7 +412,7 @@ export function Row({ row, first }: { row: RowSpec; first?: boolean }) {
               {row.val}
             </div>
             {row.valSub ? (
-              <div style={{ fontSize: 9, letterSpacing: ".06em", color: "var(--ap-n500)", marginTop: 2 }}>{row.valSub}</div>
+              <div style={{ fontSize: 10, letterSpacing: ".06em", color: "var(--ap-n500)", marginTop: 2 }}>{row.valSub}</div>
             ) : null}
           </div>
         ) : null}
@@ -438,7 +433,43 @@ export function Row({ row, first }: { row: RowSpec; first?: boolean }) {
             {a.label}
           </button>
         ))}
-      </div>
+    </>
+  );
+
+  return (
+    <div
+      style={{
+        ...(first ? {} : hairline),
+        ...(row.hi ? { backgroundColor: tint(10), boxShadow: "inset 2px 0 0 var(--ap-accent)" } : {}),
+      }}
+    >
+      {link ? (
+        <Link href={row.href!} className="gl-row" style={{ ...rowBox, color: "inherit", textDecoration: "none" }}>
+          {inner}
+        </Link>
+      ) : (
+        <div
+          className="gl-row"
+          onClick={clickable ? activate : undefined}
+          onKeyDown={
+            clickable
+              ? (e) => {
+                  if (e.target !== e.currentTarget) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    activate();
+                  }
+                }
+              : undefined
+          }
+          role={clickable ? "button" : undefined}
+          tabIndex={clickable ? 0 : undefined}
+          aria-expanded={expandable ? open : undefined}
+          style={{ ...rowBox, cursor: clickable ? "pointer" : undefined }}
+        >
+          {inner}
+        </div>
+      )}
 
       {open && row.opts?.length ? (
         <>
@@ -459,7 +490,7 @@ export function Row({ row, first }: { row: RowSpec; first?: boolean }) {
             ))}
           </div>
           {row.optNote ? (
-            <div style={{ fontSize: 9.5, color: "var(--ap-n500)", padding: "2px 12px 10px 46px" }}>{row.optNote}</div>
+            <div style={{ fontSize: 10, color: "var(--ap-n500)", padding: "2px 12px 10px 46px" }}>{row.optNote}</div>
           ) : null}
         </>
       ) : null}
@@ -485,7 +516,7 @@ export function GroupLabel({ label, note }: { label: ReactNode; note?: ReactNode
     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 2px 6px" }}>
       <span
         style={{
-          fontSize: 9.5,
+          fontSize: 10,
           fontWeight: 500,
           fontStyle: "italic",
           letterSpacing: ".18em",
@@ -582,7 +613,7 @@ export function Chips<T extends string>({
               fontFamily: "inherit",
               fontSize: 10.5,
               padding: "5px 9px",
-              minHeight: 30,
+              minHeight: 32,
               borderRadius: 2,
               border: `1px solid ${on ? "var(--ap-a600)" : ink(9)}`,
               background: on ? tint(20) : "transparent",
@@ -620,7 +651,7 @@ export function Note({ tag, children, tone = "accent" }: { tag: string; children
       <span
         style={{
           flex: "0 0 auto",
-          fontSize: 8,
+          fontSize: 10,
           letterSpacing: ".14em",
           padding: "2px 5px",
           borderRadius: 2,

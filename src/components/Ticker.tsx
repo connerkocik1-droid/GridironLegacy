@@ -116,7 +116,7 @@ function Strip({ label, items }: { label: string; items: Item[] }) {
       <span
         style={{
           flex: "0 0 auto",
-          fontSize: 9,
+          fontSize: 10,
           fontWeight: 500,
           letterSpacing: ".16em",
           padding: "5px 8px",

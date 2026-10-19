@@ -116,11 +116,13 @@ const params = new URLSearchParams(target.split("?")[1]);
 // and the cause are one layer apart: the address bar said the right thing
 // while the fetch behind it said /api/matchup?week=3.
 const asked = [];
-const watch = (r) => { if (r.url().includes("/api/matchup")) asked.push(r.url()); };
+// The header's score chip always asks for the reader's own game; that one is
+// its job. Everything else must be the pair that was pressed.
+const watch = (r) => { if (r.url().includes("/api/matchup") && !r.url().includes("for=header")) asked.push(r.url()); };
 page.on("request", watch);
 await page.locator(`a[href="${target}"]`).first().click();
 await page
-  .waitForFunction(() => /vs |Your matchup/.test(document.body.innerText), undefined, { timeout: 15000 })
+  .waitForFunction(() => / against |WIN PROB/.test(document.body.innerText), undefined, { timeout: 15000 })
   .catch(() => {});
 await page.waitForTimeout(900);
 page.off("request", watch);
@@ -139,11 +141,11 @@ ok("and does not lead with the reader's own roster",
   !/START RATE|DYNASTY · BEST BALL/.test(head));
 ok("nor offers the reader's own roster controls",
   (await page.locator('button:has-text("ACTIVATE")').count()) === 0);
-ok("the heading names them rather than saying 'Your matchup'",
-  /Thunderbolts vs Gold Coast Gladiators/.test(head) && !/Your matchup/.test(head));
+ok("the board names them both, as their game",
+  /Thunderbolts against Gold Coast Gladiators/.test(head));
 // "DOWN 2.8" over a game the reader is not playing in.
 ok("the margin is stated, not taken personally",
-  !/\b(UP|DOWN) \d/i.test(head) && /Gold Coast Gladiators by 2\.8/i.test(head));
+  !/\b(UP|DOWN) \d/i.test(head) && !/WIN PROB/.test(head) && /Gold Coast Gladiators by 2\.8/i.test(head));
 ok("and there is only one bar under the scores",
   (head.match(/OF THE POINTS/g) ?? []).length === 0);
 ok("both their franchises are named",
@@ -153,19 +155,19 @@ ok("and the request asked for that pair",
   Boolean(params.get("home")) && Boolean(params.get("opponent")));
 
 console.log("\n--- your own game ---");
-await open("/lineup", /Your matchup/);
+await open("/lineup", /WIN PROB/);
 const mine = await page.locator("body").innerText();
-ok("still says which side is you", /\bYOU\b/.test(mine));
+ok("your franchise is the left-hand side", /Steel Cartel[\s\S]*VS[\s\S]*Kim's Very Long/.test(mine));
 ok("shows the score and where it is heading", /104\.6/.test(mine) && /125\.1/.test(mine));
-ok("and the win probability", /WIN PROBABILITY/i.test(mine));
-ok("with your own margin beside it", /up 6\.4/i.test(mine));
+ok("and the win probability", /WIN PROB \d+%/.test(mine));
+ok("with both projected finals beside it", /PROJ 125\.1 – 113\.7/.test(mine));
 ok("and no second bar saying the same thing twice",
   (mine.match(/OF THE POINTS/g) ?? []).length === 0);
-ok("the heading still says it is yours", /Your matchup/.test(mine));
+ok("and no way back offered, because it is yours", !/YOUR OWN MATCHUP/i.test(mine));
 ok("a player who has not kicked off shows who he plays and when",
   /@LV\s+\w{3}\s+\d/.test(mine));
 ok("and a dash rather than a nought he has not scored", mine.includes("–"));
-ok("with his projection beside it", /22\.00/.test(mine));
+ok("with the slot between the two sides", /\bFLEX\b/.test(mine));
 
 console.log("\n--- and any team's roster, in full ---");
 // The rosters were never private; there was simply no page that asked, so the
@@ -179,9 +181,20 @@ ok("with the whole roster on it, bench included", /BENCH|Injured reserve/i.test(
 ok("and nothing on it can be pressed",
   (await page.locator('button:has-text("IR"), button:has-text("ACTIVATE")').count()) === 0);
 
-await open("/lineup", /Your matchup/);
+// Your own still offers its one decision: the reserve, from the player's
+// sheet on Roster. Rashee Rice is on it and cleared to play.
+await open("/my-team", /INJURED RESERVE/);
+// The shared fixture answers every one of this manager's own as on the
+// active roster, so his sheet is served the reserve's state here.
+const rice = await page.evaluate(() => fetch("/api/player/Rashee%20Rice").then((r) => r.json()));
+rice.actions = { ...rice.actions, where: "mine", onIr: true, rosterRoom: false };
+await page.route("**/api/player/Rashee*", (r) => r.fulfill({ json: rice }));
+await page.getByText("Rashee Rice", { exact: true }).first().click();
+await page.waitForFunction(() => /GAME LOG/.test(document.body.innerText), undefined, { timeout: 15000 }).catch(() => {});
+// The fixture's roster is full, so the sheet says what activating him needs
+// rather than offering a button the server would refuse.
 ok("while your own team still offers its one decision",
-  (await page.locator('button:has-text("IR"), button:has-text("ACTIVATE")').count()) > 0);
+  /ACTIVATE|Activating him needs a roster spot/.test(await page.getByRole("dialog").innerText()));
 
 console.log("\n--- and a Q only for somebody on the injury report ---");
 // healthOf used to fall back to the pool's own questionable column whenever
@@ -202,7 +215,7 @@ ok("the report's own players still wear their badge", /\bQ\b/.test(roster));
 
 console.log("\n--- the week's real football ---");
 {
-  await open("/games", /NFL Gamecast/);
+  await open("/games", /NFL WEEK 3/);
   const t = await page.locator("body").innerText();
 
   ok("it names the week", /WEEK 3/.test(t));
@@ -218,22 +231,21 @@ console.log("\n--- the week's real football ---");
     new Set(hrefs).size === hrefs.length);
 
   ok("a finished game says so", /FINAL/.test(t));
-  ok("and one still running says where it is", /3RD QUARTER/i.test(t));
+  ok("and one still running says where it is", /Q3 4:12/.test(t));
 
   // The reason this is not just a scoreboard: any of a dozen apps will say
   // Buffalo are up ten, and none of them knows four of your eighteen are on
   // that field. The fixture roster has players in all three games.
-  const stakes = (t.match(/OF YOURS/g) ?? []).length;
+  const stakes = (t.match(/yours:/g) ?? []).length;
   ok(`it says how many of your own are in each game (${stakes} of 3)`, stakes === 3);
 
-  // Sorted by kickoff and grouped by day, which is why the fixture's three
-  // games are deliberately hours apart.
-  const days = await page.locator("section").count();
-  ok(`grouped by day (${days} headings)`, days >= 2);
+  // Sorted by kickoff, which is why the fixture's three games are
+  // deliberately hours apart: the one that finished yesterday leads.
+  ok(`in kickoff order (${hrefs.join(", ")})`, hrefs[0] === "/game/401671802");
 
   // And the way in from the home page.
-  await open("/", /NFL Gamecast/);
-  ok("with a door to it on the home page",
+  await open("/", /WIN PROB/);
+  ok("with a door to it from where the app opens",
     (await page.locator('a[href="/games"]').count()) > 0);
 }
 

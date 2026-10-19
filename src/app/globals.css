@@ -338,6 +338,9 @@ a:hover {
   .gl-nav .gl-wordmark > span + span {
     display: none !important;
   }
+}
+
+@media (max-width: 720px) {
 
   /* A browser's own checkbox is thirteen pixels square, which on a phone is
      not a control, it is a dare. */
@@ -1422,11 +1425,13 @@ button[disabled]:active {
   transition: background-color .15s ease, transform .12s ease;
 }
 @media (hover: hover) {
-  .gl-row[role="button"]:hover {
+  .gl-row[role="button"]:hover,
+  a.gl-row:hover {
     background-color: color-mix(in oklch, var(--text) 4%, transparent);
   }
 }
-.gl-row[role="button"]:active {
+.gl-row[role="button"]:active,
+a.gl-row:active {
   transform: scale(.985);
   background-color: color-mix(in oklch, var(--ap-accent) 12%, transparent);
 }

@@ -75,8 +75,8 @@ let page, ctx;
   ok("and says which week it is recapping", /WEEK 3 · FINAL/.test(await text(page)));
 
   const seen = await open({ unseen: false });
-  ok("a manager who has seen it gets Home", await seen.page.locator(".gl-recap").count() === 0);
-  ok("and Home is really there behind it", /HERE NOW/.test(await seen.page.locator("body").innerText()));
+  ok("a manager who has seen it gets the app", await seen.page.locator(".gl-recap").count() === 0);
+  ok("and the matchup is really there behind it", /WIN PROB/.test(await seen.page.locator("body").innerText()));
   await seen.ctx.close();
 }
 
@@ -192,7 +192,7 @@ console.log("\n--- and it gets out of the way ---");
   await page.getByRole("button", { name: "TAKE ME HOME" }).click();
   await page.waitForTimeout(1400);
   ok("the recap leaves", (await stage(page).count()) === 0);
-  ok("Home is underneath it", /HERE NOW/.test(await page.locator("body").innerText()));
+  ok("the matchup is underneath it", /WIN PROB/.test(await page.locator("body").innerText()));
   ok(`and the week is marked seen (${JSON.stringify(marked)})`, marked?.week === 3);
 
   // Nothing is left holding the page still.

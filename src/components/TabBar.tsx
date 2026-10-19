@@ -109,11 +109,12 @@ function TabLink({ tab, active }: { tab: AppTab; active: boolean }) {
         style={{
           position: "absolute",
           top: -1,
-          left: "50%",
-          transform: "translateX(-50%)",
+          // Centred by its own margins rather than a transform, so a tab
+          // narrower than the mark clips it instead of pushing it off screen.
+          left: active ? "max(0px, calc(50% - 28px))" : "50%",
+          right: active ? "max(0px, calc(50% - 28px))" : "50%",
           height: 2,
-          width: active ? 56 : 0,
-          transition: "width .25s ease",
+          transition: "left .25s ease, right .25s ease",
           background: "linear-gradient(90deg,transparent,var(--ap-accent),transparent)",
           boxShadow: "0 0 10px var(--ap-accent)",
         }}

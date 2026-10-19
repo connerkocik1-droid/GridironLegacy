@@ -33,7 +33,7 @@ export const APP_TABS: AppTab[] = [
     subtabs: [
       { label: "Roster", href: "/my-team" },
       { label: "Matchup", href: "/lineup", owns: ["/lineup", "/matchup", "/matchups"] },
-      { label: "Around League", href: "/the-league", owns: ["/the-league", "/league", "/team", "/news", "/player-news", "/rules"] },
+      { label: "Around League", href: "/the-league", owns: ["/the-league", "/league", "/team", "/chat", "/news", "/player-news", "/rules"] },
       { label: "Standings", href: "/standings" },
       { label: "GameCast", href: "/games", owns: ["/games", "/game"] },
     ],

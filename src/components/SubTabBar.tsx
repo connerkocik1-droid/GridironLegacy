@@ -25,7 +25,7 @@ export default function SubTabBar({ tab }: { tab: AppTab }) {
         gap: 13,
         overflowX: "auto",
         scrollbarWidth: "none",
-        padding: "9px 4px 0",
+        padding: "0 4px",
         backgroundImage:
           "linear-gradient(90deg,transparent,color-mix(in oklch, var(--text) 9%, transparent) 40px,color-mix(in oklch, var(--text) 9%, transparent) calc(100% - 40px),transparent)",
         backgroundSize: "100% 1px",
@@ -45,6 +45,12 @@ export default function SubTabBar({ tab }: { tab: AppTab }) {
             style={{
               flex: "0 0 auto",
               fontSize: 12,
+              // The design's strip, with a full thumb-sized target: the text
+              // sits where it did and the extra height is above it.
+              display: "inline-flex",
+              alignItems: "flex-end",
+              minHeight: 40,
+              boxSizing: "border-box",
               padding: "0 0 10px",
               whiteSpace: "nowrap",
               textDecoration: "none",

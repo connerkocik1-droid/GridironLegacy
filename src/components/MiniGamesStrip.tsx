@@ -59,7 +59,7 @@ export default function MiniGamesStrip() {
             ["--gl-panel" as string]: 1,
           }}
         >
-          <div style={{ fontSize: 9, letterSpacing: ".18em", color: "var(--ap-a300)" }}>{t.kicker}</div>
+          <div style={{ fontSize: 10, letterSpacing: ".18em", color: "var(--ap-a300)" }}>{t.kicker}</div>
           <div style={{ fontSize: 17, fontWeight: 500, fontStyle: "italic", letterSpacing: "-.02em", marginTop: 8 }}>{t.name}</div>
           <div style={{ fontSize: 11, color: "var(--ap-n400)", marginTop: 5, lineHeight: 1.45 }}>{t.line}</div>
           <div style={{ fontSize: 10, letterSpacing: ".14em", color: "var(--ap-a200)", marginTop: 12 }}>{t.cta}</div>
