@@ -161,6 +161,7 @@ export default function Notices() {
 
       {open ? (
         <div
+          data-panel="1"
           style={{
             position: "absolute",
             top: 40,

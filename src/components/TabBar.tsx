@@ -5,8 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { APP_TABS, appTabFor, type AppTab } from "@/lib/app-tabs";
 import { useMe } from "@/lib/use-me";
-import { useResolvedTheme } from "@/lib/use-theme";
-import { playTabSound, primeTabSound } from "@/lib/retro-sfx";
+import { blip } from "@/lib/retro";
 
 /**
  * The three doors, where a thumb can reach them.
@@ -26,12 +25,6 @@ import { playTabSound, primeTabSound } from "@/lib/retro-sfx";
 export default function TabBar({ signedIn }: { signedIn: boolean }) {
   const me = useMe();
   const pathname = usePathname() ?? "/";
-
-  // The blip a tab makes in the sixteen-bit theme, and nowhere else.
-  const retro = useResolvedTheme() === "16bit";
-  useEffect(() => {
-    if (retro) primeTabSound();
-  }, [retro]);
 
   // Nothing for a signed-out visitor, or a league with no database yet —
   // every destination behind the bar would only ask them to sign in.
@@ -53,6 +46,7 @@ export default function TabBar({ signedIn }: { signedIn: boolean }) {
     <nav
       className="gl-tabbar"
       aria-label="Main"
+      data-panel="tab"
       style={{
         position: "fixed",
         left: 0,
@@ -72,7 +66,7 @@ export default function TabBar({ signedIn }: { signedIn: boolean }) {
       }}
     >
       {APP_TABS.map((tab) => (
-        <TabLink key={tab.id} tab={tab} active={active?.id === tab.id} sound={retro} />
+        <TabLink key={tab.id} tab={tab} active={active?.id === tab.id} />
       ))}
     </nav>
   );
@@ -98,11 +92,12 @@ const ICON: Record<AppTab["id"], React.ReactNode> = {
   ),
 };
 
-function TabLink({ tab, active, sound }: { tab: AppTab; active: boolean; sound?: boolean }) {
+function TabLink({ tab, active }: { tab: AppTab; active: boolean }) {
   return (
     <Link
       href={tab.href}
-      onClick={sound ? () => playTabSound() : undefined}
+      // "♪ BLIP" in sixteen-bit mode; a no-op otherwise. Visual only.
+      onClick={active ? undefined : blip}
       aria-current={active ? "page" : undefined}
       style={{
         flex: 1,

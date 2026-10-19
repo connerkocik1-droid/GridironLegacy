@@ -14,8 +14,20 @@
 
 import type { CSSProperties } from "react";
 
+/**
+ * Marks a surface as a panel for sixteen-bit mode, which swaps its glass for a
+ * gold border and a hard shadow (globals.css). A custom property rather than a
+ * data attribute so it travels inside the style objects below — every panel
+ * that spreads one of them is marked without its JSX knowing.
+ */
+export const panelMark = { ["--gl-panel" as string]: 1 } as CSSProperties;
+
+/** The same, for a full-width bar: a gold bottom edge rather than a box. */
+export const barMark = { ["--gl-bar" as string]: 1 } as CSSProperties;
+
 /** The accent-tinted glass panel: a card, a row group, a table wrapper. */
 export const glassPanel: CSSProperties = {
+  ...panelMark,
   background:
     "linear-gradient(160deg,rgb(var(--accent-rgb) / .07),rgb(var(--surface-rgb) / .3))",
   backdropFilter: "blur(18px) saturate(150%)",
@@ -27,6 +39,7 @@ export const glassPanel: CSSProperties = {
 /** A slightly brighter variant for the one card on a page that is "mine"
  * or otherwise meant to stand out among its siblings. */
 export const glassPanelAccent: CSSProperties = {
+  ...panelMark,
   background:
     "linear-gradient(160deg,rgb(var(--accent-rgb) / .16),rgb(var(--surface-rgb) / .3))",
   backdropFilter: "blur(18px) saturate(150%)",

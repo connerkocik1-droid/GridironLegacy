@@ -7,6 +7,8 @@ export default function AmbientGlow() {
   return (
     <div
       aria-hidden
+      // Hidden in sixteen-bit mode, where nothing is glass.
+      data-glow="1"
       style={{
         position: "fixed",
         inset: 0,

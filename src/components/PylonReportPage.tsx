@@ -15,6 +15,7 @@ import {
 } from "@/lib/pylon-report";
 import { byRating, tierOf, type ProspectBoard, type ProspectEntry } from "@/lib/pylon-draft-board";
 import { rankTrail, ratingTrail, sparkFields, type SparkFields } from "@/lib/pylon-report-view";
+import { barMark, panelMark } from "@/lib/liquid-glass";
 
 /**
  * The Pylon Report, in full — ported from the "Pylon Report Web" design
@@ -63,6 +64,7 @@ const glass = (opacity: "panel" | "nav" | "sheet"): React.CSSProperties => {
     border: "1px solid rgb(var(--accent-rgb) / .09)",
     boxShadow: "inset 0 1px 0 rgb(var(--accent-rgb) / .12), 0 16px 48px rgba(0,0,0,.4)",
     borderRadius: 6,
+    ...(opacity === "nav" ? barMark : panelMark),
   };
 };
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { setTheme, useTheme, type Choice } from "@/lib/use-theme";
+import { setRetro, useRetro } from "@/lib/retro";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useMe } from "@/lib/use-me";
@@ -131,6 +132,7 @@ export default function ProfileMenu() {
         createPortal(
           <div
             ref={panel}
+            data-panel="1"
             role="dialog"
             aria-label="Your profile"
             style={{
@@ -175,6 +177,8 @@ export default function ProfileMenu() {
               </div>
             </div>
 
+            <RetroSwitch />
+
             {/* The way to everything else about this franchise. Put above the
                 forms because most of what a manager wants from their own team
                 is not a settings change. */}
@@ -204,7 +208,51 @@ export default function ProfileMenu() {
 }
 
 /**
- * Light, dark, sixteen-bit, or whatever the phone says.
+ * Sixteen-bit mode, the first row of the menu.
+ *
+ * A switch rather than a fourth appearance: it is a skin over light or dark,
+ * not a brightness, and it does not stick — every launch starts modern, which
+ * the row says so nobody is surprised by it. See retro.ts.
+ */
+function RetroSwitch() {
+  const on = useRetro();
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={() => setRetro(!on)}
+      style={{ ...rowButton, alignItems: "flex-start" }}
+    >
+      <span style={{ minWidth: 0 }}>
+        <span style={{ display: "block", color: on ? "var(--accent-text)" : "var(--text-2)" }}>
+          16-bit mode
+        </span>
+        <span style={{ display: "block", fontSize: 10.5, color: "var(--text-dim)", marginTop: 3, lineHeight: 1.35 }}>
+          SNES-style skin. Same app, same data. Resets to modern on launch.
+        </span>
+      </span>
+      <span
+        aria-hidden
+        style={{
+          flex: "0 0 auto",
+          fontSize: 10,
+          letterSpacing: ".14em",
+          padding: "3px 7px",
+          borderRadius: "var(--radius-sm)",
+          border: `1px solid ${on ? "rgb(var(--accent-bright-rgb) / .6)" : "rgb(var(--accent-rgb) / .24)"}`,
+          background: on ? "rgb(var(--accent-rgb) / .26)" : "transparent",
+          color: on ? "var(--text)" : "var(--text-muted)",
+        }}
+      >
+        {on ? "ON" : "OFF"}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Light, dark, or whatever the phone says.
  *
  * Here rather than in a settings page because it is a preference about this
  * screen, not about this franchise — and because the profile menu is the one
@@ -212,19 +260,16 @@ export default function ProfileMenu() {
  *
  * System is the default and comes first: a phone that goes dark at sunset
  * should take the app with it, and most people never touch this at all. The
- * other two exist for the manager who wants dark at noon.
+ * other two exist for the manager who wants dark at noon. Sixteen-bit is not
+ * one of these; it is the switch at the top of the menu.
  */
 function ThemeChoice() {
   const choice = useTheme();
 
-  // 16-bit is last and named for what it is rather than for a mood. It is not
-  // a third brightness — no phone setting resolves to it — so it sits at the
-  // end of the row rather than between the two that are.
   const options: [Choice, string][] = [
     ["system", "System"],
     ["light", "Light"],
     ["dark", "Dark"],
-    ["16bit", "16-bit"],
   ];
 
   return (

@@ -225,95 +225,84 @@
 }
 
 /* ----------------------------------------------------------------- 16-bit ---
-   The same app on a CRT.
+   The same app as a Madden-era SNES menu: navy ground, gold borders, cream
+   type.
 
-   A third choice beside light and dark rather than a skin bolted over one of
-   them: it is the same token list again, so every screen in the app follows it
-   without knowing it exists, and nothing here is a filter or an overlay on the
-   other two.
+   A skin rather than a third theme. It is switched by data-retro on the root
+   (see retro.ts), sits over whichever of light and dark is on, and wins over
+   both because it comes after them at the same specificity. It is the same
+   token list again, so every screen recolours without knowing it exists; the
+   geometry, the overlays and the pixel faces are in globals.css.
 
-   What makes it read as sixteen-bit is three things, and only the first is in
-   this file. The palette is a console palette — few hues, all of them pushed
-   to the edge of the gamut, on a near-black indigo that is the colour a CRT
-   shows when it is showing nothing. The corners are square and the shadows are
-   hard, which is in globals.css because it is geometry rather than colour. And
-   the screen has scanlines, which is there too.
+   The accent ramp turns gold and the quiet text turns periwinkle. Pylon
+   orange is untouched, as it is in every theme: it is the mark, and the
+   waivers tags. --text-faint measures about 5.6:1 on a panel. */
 
-   The text scale is brighter than the dark theme's overall: saturated violets
-   and cyans on near-black eat contrast at the quiet end, so the quiet tones
-   are lifted rather than carried over. --text-faint here measures about 4.6:1
-   on a card, which is where the dark theme had to be pushed to as well. */
+:root[data-retro="1"] {
+  --bg: #0b1440;
+  --bg-rgb: 11 20 64;
+  --surface-rgb: 19 32 92;
+  --sunken-rgb: 13 26 82;
+  --raised-rgb: 35 45 85;
+  --glow-rgb: 19 32 92;
+  --board-solid: #0f1a52;
+  --well: #070e33;
 
-:root[data-theme="16bit"] {
-  --bg: #12102a;
-  --bg-rgb: 18 16 42;
-  --surface-rgb: 26 22 58;
-  --sunken-rgb: 12 10 30;
-  --raised-rgb: 40 34 82;
-  --glow-rgb: 88 60 160;
-  --board-solid: #1a1638;
-  --well: #0a0820;
+  --accent-rgb: 242 193 78;
+  --accent-bright-rgb: 255 224 138;
+  --accent-text: #ffe08a;
+  --accent-link: #f7cf62;
+  --accent-solid: #f2c14e;
+  --accent-deep: #7a5a12;
+  --accent-mid: #e0aa2a;
+  --accent-soft: #f7cf62;
 
-  /* Violet and cyan, the pairing every console of the era reached for. The
-     bright one is the cyan: it is what "this, now" looks like on a CRT. */
-  --accent-rgb: 158 92 255;
-  --accent-bright-rgb: 92 225 255;
-  --accent-text: #9df7ff;
-  --accent-link: #5ce1ff;
-  --accent-solid: #9e5cff;
-  --accent-deep: #5a2ea6;
-  --accent-mid: #9e5cff;
-  --accent-soft: #c79bff;
+  /* Cream at the top, the periwinkle neutral ramp below it. */
+  --text: #f4efd8;
+  --text-2: #e6ecff;
+  --text-3: #c9d3f5;
+  --text-muted: #a9b6e6;
+  --text-quiet: #a3b0e2;
+  --text-dim: #97a5dc;
+  --text-faint: #8f9dd2;
+  --text-off: #4f5d92;
 
-  --text: #f4f2ff;
-  --text-2: #e0daff;
-  --text-3: #cbc3f6;
-  --text-muted: #b3aae8;
-  --text-quiet: #a79edd;
-  --text-dim: #9a91d0;
-  --text-faint: #8f86cc;
-  --text-off: #605796;
+  /* Full-strength signals: on navy a muted green reads as grey. */
+  --good: #5fe39a;
+  --good-rgb: 95 227 154;
+  --warn: #ff9f43;
+  --warn-rgb: 255 159 67;
+  --bad: #ff6b6b;
+  --bad-text: #ff8f8f;
+  --bad-rgb: 255 107 107;
+  --bad-soft: #ff9a9a;
+  --suspended: #e58fff;
 
-  /* Full-strength signal colours. On this ground a muted green reads as grey,
-     so nothing here is muted. */
-  --good: #3dffa6;
-  --good-rgb: 61 255 166;
-  --warn: #ffd23d;
-  --warn-rgb: 255 210 61;
-  --bad: #ff5c7a;
-  --bad-text: #ff7d95;
-  --bad-rgb: 255 92 122;
-  --bad-soft: #ff8fa3;
-  --suspended: #ff7ae0;
-
-  --pos-qb: #ff6b6b;
-  --pos-qb-rgb: 255 107 107;
-  --pos-rb: #3dffa6;
-  --pos-rb-rgb: 61 255 166;
-  --pos-wr: #5ce1ff;
-  --pos-wr-rgb: 92 225 255;
+  --pos-qb: #ff7b7b;
+  --pos-qb-rgb: 255 123 123;
+  --pos-rb: #5fe39a;
+  --pos-rb-rgb: 95 227 154;
+  --pos-wr: #7cc8ff;
+  --pos-wr-rgb: 124 200 255;
   --pos-te: #ffb03d;
   --pos-te-rgb: 255 176 61;
-  --pos-k: #c79bff;
-  --pos-k-rgb: 199 155 255;
-  --pos-dst: #a8a8d8;
-  --pos-dst-rgb: 168 168 216;
+  --pos-k: #c9b6ff;
+  --pos-k-rgb: 201 182 255;
+  --pos-dst: #b4bde0;
+  --pos-dst-rgb: 180 189 224;
 
-  --scrim-rgb: 6 4 20;
-  --reveal-rgb: 52 28 110;
+  --scrim-rgb: 3 6 24;
+  --reveal-rgb: 26 40 110;
   --danger-ground-rgb: 70 20 44;
 
-  /* Headings only. A pixel face at ten pixels with a third of an em of
-     letter-spacing — which is what the eyebrow labels are — is unreadable, and
-     body copy in it is worse; the heading token covers the scores, the names
-     and the franchise titles, which are the places with room for it.
-
-     Inter is the fallback and is a real one: the font is fetched from a CDN by
-     use-theme.ts only once this theme is picked, so a phone offline gets the
-     palette, the square corners and the scanlines with the ordinary
-     letterforms, rather than getting nothing. */
-  --font-heading: "Pixelify Sans", var(--font-inter), "Inter", system-ui, sans-serif;
-  --font-heading-weight: 600;
+  /* Silkscreen for headings, scores and ranks; Pixelify Sans for everything
+     smaller. Both self-hosted in public/fonts (OFL) and declared in
+     globals.css, so the browser fetches them only once this is on. Inter
+     stays as the fallback, so a font that fails to load costs the letterforms
+     and nothing else. */
+  --font-heading: "Silkscreen", var(--font-inter), "Inter", ui-monospace, monospace;
+  --font-heading-weight: 400;
+  --font-body: "Pixelify Sans", var(--font-inter), "Inter", ui-monospace, monospace;
 }
 
 /* ------------------------------------------------------------ on the dark ---

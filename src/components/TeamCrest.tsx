@@ -1,20 +1,24 @@
 "use client";
 
 /**
- * A franchise's picture, or its initials when it has none.
+ * A franchise's picture, or a generated badge when it has none.
  *
  * The fallback is not a grey silhouette: a league of twelve blank circles
- * tells you nothing, while two letters in the franchise's own colour is
- * legible at sixteen pixels and different for every team.
+ * tells you nothing. It is a badge seeded from the franchise's name — a
+ * shield, hex, circle, square or diamond in the team's own hue, with its
+ * initials — so every team is different and keeps the same mark on every
+ * screen. In sixteen-bit mode the same seed is drawn on a 16x16 grid, so the
+ * team keeps its identity across both skins (see team-logo.ts).
  */
 
-import { usePixelArt } from "@/lib/use-pixel-art";
+import { useRetro } from "@/lib/retro";
+import { initialsOf, teamLogo, teamLogoPx } from "@/lib/team-logo";
+
 export default function TeamCrest({
   franchise,
   logo,
   size = 30,
   shape = "circle",
-  fallback = "initials",
 }: {
   franchise: string;
   logo: string | null;
@@ -22,35 +26,32 @@ export default function TeamCrest({
   /** A box sits beside a name in a list; a circle is the profile button. */
   shape?: "circle" | "box";
   /**
-   * What to draw with no picture. Initials suit a single prominent crest;
-   * beside a column of names an empty box is quieter and keeps the rows
-   * aligned whether or not anybody has uploaded anything.
+   * Kept for the callers that pass it. Both now draw the generated badge: the
+   * redesign gives every team without an upload its own mark everywhere it
+   * appears, lists included, rather than an empty box.
    */
   fallback?: "initials" | "empty";
 }) {
-  const initials = franchise
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() ?? "")
-    .join("");
+  const retro = useRetro();
 
-  // A stable hue per franchise, so a team keeps its colour between visits.
-  let hash = 0;
-  for (const ch of franchise) hash = (hash * 31 + ch.charCodeAt(0)) % 360;
-
-  const lettered = fallback === "initials";
-
-  // The retro theme redraws it as a sprite; every other theme gets the logo
-  // back unchanged. Converted at render rather than at upload, so a crest a
-  // manager uploads tonight is a sprite tonight and is still a photograph the
-  // moment they switch back — and so this covers the marks the app does not
-  // own as well as the ones it does.
-  //
-  // The grid follows the size it is drawn at: the same badge is a 44px header
-  // crest and a 14px row mark, and one sprite for both would be mush at one
-  // end or wasted detail at the other.
-  const sprite = usePixelArt(logo, Math.max(12, Math.round(size * 0.55)));
+  // No picture: the generated badge, which carries its own shape, so it is
+  // drawn bare rather than inside the circle an uploaded picture is cropped to.
+  if (!logo) {
+    return (
+      <span
+        aria-hidden
+        className="gl-crest"
+        style={{
+          width: size,
+          height: size,
+          flex: "0 0 auto",
+          display: "inline-block",
+          background: `${retro ? teamLogoPx(franchise, initialsOf(franchise)) : teamLogo(franchise, initialsOf(franchise))} center / contain no-repeat`,
+          imageRendering: retro ? "pixelated" : undefined,
+        }}
+      />
+    );
+  }
 
   return (
     <span
@@ -67,32 +68,18 @@ export default function TeamCrest({
         display: "grid",
         placeItems: "center",
         overflow: "hidden",
-        border: `1px solid ${
-          logo || lettered ? "rgb(var(--accent-bright-rgb) / .45)" : "rgb(var(--accent-rgb) / .28)"
-        }`,
-        background: logo
-          ? "var(--well)"
-          : lettered
-            ? `hsl(${hash} 34% 26%)`
-            : "rgb(var(--sunken-rgb) / .6)",
-        color: `hsl(${hash} 60% 82%)`,
-        fontSize: Math.max(9, Math.round(size * 0.36)),
-        letterSpacing: ".04em",
-        fontFamily: "var(--font-heading)",
+        border: "1px solid rgb(var(--accent-bright-rgb) / .45)",
+        background: "var(--well)",
       }}
     >
-      {logo ? (
+      {(
         // Plain <img>: the source is a data URI held in the league's own
         // database, which next/image has nothing to optimise and no loader for.
+        // In sixteen-bit mode the stylesheet pixelates it through #px16 — the
+        // upload itself is never touched.
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={sprite}
-          alt=""
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
-      ) : lettered ? (
-        initials || "?"
-      ) : null}
+        <img src={logo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      )}
     </span>
   );
 }

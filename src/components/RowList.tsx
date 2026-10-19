@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { panelMark } from "@/lib/liquid-glass";
 
 /**
  * The one list row the redesign is built from. Almost every list in the
@@ -290,6 +291,7 @@ export function RowGroup({
           WebkitBackdropFilter: "blur(18px) saturate(150%)",
           border: "1px solid rgb(var(--accent-rgb) / .14)",
           boxShadow: "inset 0 1px 0 rgb(var(--accent-rgb) / .12)",
+          ...panelMark,
         }}
       >
         {shown.map((row, i) => (

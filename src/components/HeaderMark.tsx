@@ -1,5 +1,7 @@
 "use client";
 
+import { useRetro } from "@/lib/retro";
+
 /**
  * The pylon and the wordmark, and the bounce they do.
  *
@@ -19,6 +21,7 @@
  * whole header: the cost of this animation is this file and nothing else.
  */
 export default function HeaderMark() {
+  const retro = useRetro();
   return (
   <div
     className="gl-mark"
@@ -58,6 +61,13 @@ export default function HeaderMark() {
     >
       Pylon<span style={{ color: "var(--accent-link)" }}> Fantasy</span>
     </span>
+    {/* Sixteen-bit mode's badge, inline beside the wordmark so it can never
+        land on anything else in the header. */}
+    {retro ? (
+      <span aria-hidden className="gl-px-badge" style={{ marginLeft: -4 }}>
+        ●16
+      </span>
+    ) : null}
   </div>
   );
 }

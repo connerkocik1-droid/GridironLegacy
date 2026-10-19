@@ -6,6 +6,8 @@ import Skeleton from "./Skeleton";
 import { useRefreshable } from "@/lib/use-refresh";
 import { player } from "@/lib/roster";
 import type { Game } from "@/lib/espn";
+import { useRetro } from "@/lib/retro";
+import { spriteFor } from "@/lib/team-logo";
 
 /**
  * Every NFL game this week, and which of them you have a stake in.
@@ -204,8 +206,13 @@ export default function GamesBoard() {
 }
 
 function GameRow({ game, first, mine }: { game: Game; first: boolean; mine: number }) {
+  const retro = useRetro();
   const { home, away, state } = game;
   if (!home || !away) return null;
+
+  // Sixteen-bit mode's runner, in the colours of whichever club is ahead (the
+  // away side until somebody is). A scoreboard only — there is no field.
+  const leader = home.score > away.score ? home.abbrev : away.abbrev;
 
   const started = state !== "pre";
   const live = state === "in";
@@ -231,6 +238,9 @@ function GameRow({ game, first, mine }: { game: Game; first: boolean; mine: numb
         boxShadow: mine ? "inset 2px 0 0 var(--accent-link)" : undefined,
       }}
     >
+      {retro ? (
+        <span aria-hidden className="gl-px-sprite" style={{ backgroundImage: spriteFor(leader) }} />
+      ) : null}
       <div style={{ minWidth: 0, flex: 1 }}>
         <Side side={away} other={home} started={started} />
         <Side side={home} other={away} started={started} />
