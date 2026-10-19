@@ -62,9 +62,17 @@ const RNG = seed => () => {
   return seed / 4294967296;
 };
 
+// Points per catch in the league's own format: full PPR unless the settings say
+// otherwise, which is what seed_league writes and what the scorer assumes. This
+// was a fixed half point, which stopped being this league's scoring in 0038.
+function perCatch(settings) {
+  const s = (settings || ACTIVE || {}).scoring;
+  return s === "standard" ? 0 : s === "half" ? 0.5 : 1;
+}
+
 // Points per game off 2025 production, in this league's scoring. Players with
 // nothing on file fall back to a curve on consensus ADP.
-export function proj(m, p) {
+export function proj(m, p, settings) {
   if (!p) return 0;
   if (m.KICK[p.n]) return +m.KICK[p.n].ppg;
   if (p.p === "D/ST" && m.DEFENSE[p.t]) return +m.DEFENSE[p.t].ppg;
@@ -74,7 +82,7 @@ export function proj(m, p) {
     let pts = 0;
     if (pa) pts += pa.yds / 25 + pa.td * 4 - pa.int * 2;
     if (ru) pts += ru.yds / 10 + ru.td * 6;
-    if (re) pts += re.yds / 10 + re.td * 6 + re.rec * 0.5;
+    if (re) pts += re.yds / 10 + re.td * 6 + re.rec * perCatch(settings);
     return Math.round((pts / gp) * 10) / 10;
   }
   return Math.round(Math.max(2, 26 - Math.log(Math.max(1, p.adp)) * 4) * 10) / 10;
@@ -119,7 +127,7 @@ export function buildLeague(m, settings) {
 
 // The best legal ten from a roster: named slots first, then the flexes.
 export function startersOf(m, roster, settings) {
-  const pool = roster.slice().sort((a, b) => proj(m, b.p) - proj(m, a.p));
+  const pool = roster.slice().sort((a, b) => proj(m, b.p, settings) - proj(m, a.p, settings));
   const used = {};
   const out = [];
   slotsOf(settings).forEach(slot => {
@@ -135,14 +143,14 @@ export function startersOf(m, roster, settings) {
 
 // What a roster is worth per week: the sum of its best legal lineup.
 export function lineupPoints(m, roster, settings) {
-  return startersOf(m, roster, settings).reduce((s, r) => s + (r.x ? proj(m, r.x.p) : 0), 0);
+  return startersOf(m, roster, settings).reduce((s, r) => s + (r.x ? proj(m, r.x.p, settings) : 0), 0);
 }
 
 // Dynasty value: this season's rate, weighted by the years a player has left.
 // A 24-year-old and a 31-year-old at the same points per game are not the same
 // asset, which is the whole premise of a dynasty league.
-export function dynastyValue(m, p) {
-  const rate = proj(m, p);
+export function dynastyValue(m, p, settings) {
+  const rate = proj(m, p, settings);
   const age = m.ageOf(p);
   if (age == null || p.p === "K" || p.p === "D/ST") return Math.round(rate * 10) / 10;
   const peak = p.p === "RB" ? 26 : p.p === "QB" ? 30 : 27;

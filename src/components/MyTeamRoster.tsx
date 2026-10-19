@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Skeleton from "./Skeleton";
+import Headshot from "./Headshot";
 import PlayerName from "./PlayerName";
 import { useRefreshable } from "@/lib/use-refresh";
 import { flagColor, flagsFor, player, proj, type LeagueShape } from "@/lib/roster";
+import { scoringOf } from "@/lib/scoring-format";
 import { optimalLineup } from "@/lib/start-rate";
 import { fieldedAt, positionForm, tierOf, type Scored } from "@/lib/position-form";
 import { ROLES } from "@/data/league-data";
@@ -157,7 +159,7 @@ export default function MyTeamRoster() {
   const values = useMemo(() => {
     const out = new Map<string, number>();
     for (const name of feed?.roster ?? []) {
-      out.set(name, live ? (feed?.scores?.[name]?.points ?? 0) : proj(name));
+      out.set(name, live ? (feed?.scores?.[name]?.points ?? 0) : proj(name, scoringOf(feed?.settings)));
     }
     return out;
   }, [feed, live]);
@@ -369,6 +371,26 @@ export default function MyTeamRoster() {
                       opacity: ir ? 0.6 : undefined,
                     }}
                   >
+                    {/* His face. The roster listed fifteen names and no
+                        pictures, which is the one screen in the app where a
+                        manager is scanning for a man rather than reading about
+                        one — and in the retro theme it is where the sprites
+                        were most worth seeing and least visible. Thirty
+                        pixels: big enough to recognise, small enough that the
+                        two lines beside it still fit a phone. */}
+                    <Headshot
+                      name={name}
+                      width={30}
+                      height={30}
+                      style={{
+                        borderRadius: "50%",
+                        objectFit: "contain",
+                        border: "1px solid rgb(var(--accent-rgb) / .3)",
+                        background: "rgb(var(--raised-rgb) / .7)",
+                        flex: "0 0 auto",
+                      }}
+                    />
+
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <PlayerName

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import TeamMark from "./TeamMark";
 import Skeleton from "./Skeleton";
 import { player, proj } from "@/lib/roster";
+import { useScoring } from "@/lib/use-me";
 import { balancer, fitScore, pickValue, verdict, type Held } from "@/lib/moves-story";
 
 interface Manager {
@@ -147,6 +148,7 @@ function PickList({
 
 function PlayerChip({ name, onRemove }: { name: string; onRemove?: () => void }) {
   const p = player(name);
+  const scoring = useScoring();
   return (
     <span
       style={{
@@ -164,7 +166,7 @@ function PlayerChip({ name, onRemove }: { name: string; onRemove?: () => void })
       <TeamMark team={p?.t} size={14} opacity={1} />
       {name}
       <PlayerAge name={name} />
-      <span style={{ color: "var(--text-dim)", fontSize: 10 }}>{proj(name).toFixed(1)}</span>
+      <span style={{ color: "var(--text-dim)", fontSize: 10 }}>{proj(name, scoring).toFixed(1)}</span>
       {onRemove ? (
         <button
           onClick={onRemove}
@@ -217,6 +219,8 @@ export default function TradeDesk() {
 }
 
 function Board() {
+  // The league's reception rule, for every projection on the desk.
+  const scoring = useScoring();
   // A player's profile links here with the franchise and the man already
   // named. The desk is the right place to make an offer and the wrong place
   // to have to find somebody again, having just been looking at him.
@@ -399,9 +403,9 @@ function Board() {
   const worth = useCallback(
     (name: string) => {
       const row = totals[name];
-      return row && row.games > 0 ? row.total : proj(name);
+      return row && row.games > 0 ? row.total : proj(name, scoring);
     },
-    [totals],
+    [totals, scoring],
   );
 
   // A pick is worth its round and where the standings currently place it, so
@@ -716,7 +720,7 @@ function Board() {
                     {n}
                     <PlayerAge name={n} />
                     <span style={{ marginLeft: "auto", color: "var(--text-dim)", fontSize: 11 }}>
-                      {proj(n).toFixed(1)}
+                      {proj(n, scoring).toFixed(1)}
                     </span>
                   </button>
                 ))}
@@ -752,7 +756,7 @@ function Board() {
                     {n}
                     <PlayerAge name={n} />
                     <span style={{ marginLeft: "auto", color: "var(--text-dim)", fontSize: 11 }}>
-                      {proj(n).toFixed(1)}
+                      {proj(n, scoring).toFixed(1)}
                     </span>
                   </button>
                 ))}

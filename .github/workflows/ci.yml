@@ -1,0 +1,64 @@
+# The checks a change has to pass before it reaches the league.
+#
+# Nothing ran them before. On September 19 a pull request that did not build
+# was merged, the production deploy failed twice, and it took a second pull
+# request to recover — Vercel kept serving the previous build, so the league
+# never saw it, but only by luck. Everything below already existed and passed
+# on a clean checkout; it just was not asked.
+#
+# Two jobs, so a slow one does not hold up the other's answer:
+#
+#   app       lint, typecheck, the unit tests, and a production build — the
+#             same `next build` Vercel runs, without credentials, so it cannot
+#             reach any database.
+#   database  every migration applied to a throwaway Postgres, alone and as
+#             the all-migrations.sql bundle run twice, then the rule and
+#             forgery tests. scripts/test-db.sh, as run locally.
+#
+# To make them required, protect main in Settings -> Branches and tick both
+# checks under "Require status checks to pass before merging".
+
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # The version production runs on (the Vercel project's Node setting).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # The runner image carries PostgreSQL but does not start it; the script
+      # creates its own cluster in a temporary directory, as the postgres user,
+      # which is why it runs as root.
+      - name: Run the database rule tests
+        run: sudo ./scripts/test-db.sh

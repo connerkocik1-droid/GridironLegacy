@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { LOCKOUT_MINUTES, MAX_ATTEMPTS, derivedPassword, isValidPin, slotEmail } from "@/lib/auth";
 import { isConfigured, serverClient, serviceClient } from "@/lib/supabase";
+import { IP_WINDOW_MINUTES, clientIp, ipLockedOut, recordAttempt } from "@/lib/attempts";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,16 @@ export async function POST(req: Request) {
   if (!slot || !pin) return Response.json({ error: "Franchise and PIN required" }, { status: 400 });
 
   const admin = serviceClient();
+  const ip = clientIp(req);
+
+  // One source trying franchise after franchise is refused before any of them
+  // is looked at. The per-franchise count below still applies on top.
+  if (await ipLockedOut(admin, ip)) {
+    return Response.json(
+      { error: `Too many attempts from here. Try again in ${IP_WINDOW_MINUTES} minutes.` },
+      { status: 429 },
+    );
+  }
 
   // Rate limit before touching the hash, so a locked-out slot costs nothing.
   const { data: failures } = await admin.rpc("recent_pin_failures", {
@@ -40,9 +51,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const record = async (succeeded: boolean) => {
-    await admin.from("pin_attempts").insert({ league_id: leagueId, slot, succeeded });
-  };
+  const record = (succeeded: boolean) => recordAttempt(admin, { leagueId, slot, succeeded, ip });
 
   const { data: manager } = await admin
     .from("managers")

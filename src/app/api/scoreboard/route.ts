@@ -1,11 +1,71 @@
-import { fetchScoreboard, type Game, type SeasonType } from "@/lib/espn";
-import { isConfigured, serverClient } from "@/lib/supabase";
+import { EspnBackoffError, fetchScoreboard, type Game, type SeasonType } from "@/lib/espn";
+import { mirroredSlate } from "@/lib/scoreboard-mirror";
+import { isConfigured, serverClient, serviceClient } from "@/lib/supabase";
 import { currentWeek } from "@/lib/week";
 
 export const dynamic = "force-dynamic";
 
 /** How far back to look for a slate that has been played. */
 const MAX_STEPS_BACK = 5;
+
+/**
+ * How long one answer from ESPN serves everybody who asks for the same slate.
+ *
+ * The ticker and the games page each ask every thirty seconds, from every
+ * phone that has them open, and the league-pinned board is private — no CDN
+ * sits in front of it. So every one of those went to ESPN, a dozen phones on a
+ * Sunday being a dozen requests a poll, and in week 3 ESPN started answering
+ * 403. One request per slate per fifteen seconds, shared by everybody on this
+ * server — and by everybody arriving while it is still in flight — is what the
+ * pages actually need.
+ */
+const FRESH_MS = 15_000;
+const recent = new Map<string, { at: number; games: Game[] }>();
+const pending = new Map<string, Promise<Game[]>>();
+
+async function shared(key: string, load: () => Promise<Game[]>): Promise<Game[]> {
+  const hit = recent.get(key);
+  if (hit && Date.now() - hit.at < FRESH_MS) return hit.games;
+
+  const inFlight = pending.get(key);
+  if (inFlight) return inFlight;
+
+  const request = load()
+    .then((games) => {
+      recent.set(key, { at: Date.now(), games });
+      // A handful of slates are ever asked for; this only stops a stream of
+      // odd ones growing the map without end.
+      if (recent.size > 64) {
+        const oldest = recent.keys().next().value;
+        if (oldest !== undefined) recent.delete(oldest);
+      }
+      return games;
+    })
+    .finally(() => pending.delete(key));
+
+  pending.set(key, request);
+  return request;
+}
+
+/**
+ * The slate from the league's own mirror of it, for when ESPN will not answer.
+ * Null when there is no database to ask or nothing in it for the week.
+ */
+async function fromMirror(want: {
+  season: number | null;
+  week: number | null;
+  seasonType: SeasonType | null;
+}): Promise<{ games: Game[]; asOf: string | null } | null> {
+  if (!isConfigured()) return null;
+  try {
+    // The NFL's schedule and scores, which are nobody's secret: read with the
+    // service key so a signed-out visitor's board falls back as well.
+    return await mirroredSlate(serviceClient(), want);
+  } catch (err) {
+    console.warn("[scoreboard] the mirror could not stand in either", err);
+    return null;
+  }
+}
 
 /** A slate is worth showing when something on it has actually happened. */
 function hasResults(games: Game[]): boolean {
@@ -112,14 +172,24 @@ export async function GET(req: Request) {
   const preferResults =
     url.searchParams.get("prefer") === "results" && seasonType == null && leagueWeek == null;
 
+  const target = {
+    week: week ?? leagueWeek?.week,
+    seasonType: seasonType ?? (leagueWeek ? (2 as SeasonType) : null),
+    year: year ?? leagueWeek?.season,
+  };
+  const key = JSON.stringify([
+    preferResults ? "results" : "slate",
+    target.week ?? null,
+    target.seasonType ?? null,
+    target.year ?? null,
+  ]);
+
   try {
-    const games = preferResults
-      ? await latestPlayed(year)
-      : await fetchScoreboard(
-          week ?? leagueWeek?.week,
-          seasonType ?? (leagueWeek ? 2 : null),
-          year ?? leagueWeek?.season,
-        );
+    const games = await shared(key, () =>
+      preferResults
+        ? latestPlayed(year)
+        : fetchScoreboard(target.week, target.seasonType, target.year),
+    );
 
     return Response.json(
       {
@@ -141,9 +211,35 @@ export async function GET(req: Request) {
       },
     );
   } catch (err) {
-    // ESPN is undocumented and unreliable; a failure degrades to an empty
-    // board rather than breaking every page that reads it.
-    console.error("[scoreboard] ESPN unavailable", err);
+    // A refusal we are already waiting out is expected, and not worth an
+    // error on every poll; anything else is.
+    if (err instanceof EspnBackoffError) console.warn("[scoreboard]", err.message);
+    else console.error("[scoreboard] ESPN unavailable", err);
+
+    // The last scores the league heard, marked as such, rather than a board
+    // that empties in the middle of a Sunday. Never cached anywhere shared: a
+    // stale answer must not be handed out as a fresh one.
+    const fallback = await fromMirror({
+      season: target.year ?? null,
+      week: target.week ?? null,
+      seasonType: target.seasonType ?? null,
+    });
+    if (fallback) {
+      return Response.json(
+        {
+          games: fallback.games,
+          week: fallback.games[0]?.week ?? target.week ?? null,
+          seasonType: fallback.games[0]?.seasonType ?? target.seasonType ?? null,
+          played: hasResults(fallback.games),
+          fetchedAt: fallback.asOf,
+          stale: true,
+        },
+        { headers: { "cache-control": "private, no-store" } },
+      );
+    }
+
+    // ESPN is undocumented and unreliable; with nothing to stand in for it a
+    // failure degrades to an empty board rather than breaking every page.
     return Response.json(
       {
         games: [],

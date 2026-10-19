@@ -125,6 +125,25 @@ for pass in first second; do
   fi
 done
 
+# The claim day (0061) is a real weekday on a real clock. Every league these
+# tests build before that migration existed would otherwise refuse free-agent
+# adds whenever the suite happens to run on the claim day — thirty-seven checks
+# failed on a Tuesday for that reason alone, and passed again on the Wednesday.
+# So a league that says nothing about a claim day gets none; the checks that
+# are about the claim day set one explicitly, relative to today.
+psql -q -v ON_ERROR_STOP=1 <<'SQL'
+create or replace function test_no_claim_day() returns trigger language plpgsql as $$
+begin
+  if not (new.settings ? 'waiverDay') then
+    new.settings := new.settings || '{"waiverDay": -1}'::jsonb;
+  end if;
+  return new;
+end;
+$$;
+create trigger test_no_claim_day before insert on leagues
+  for each row execute function test_no_claim_day();
+SQL
+
 OUTPUT=$(psql -q -f "$ROOT/supabase/tests/rules.sql" 2>&1)
 # The forgery checks run as the authenticated role, which cannot be switched
 # from inside a function, so they are a separate script rather than a section.

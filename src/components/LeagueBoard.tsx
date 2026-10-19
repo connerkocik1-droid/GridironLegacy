@@ -1,18 +1,15 @@
 "use client";
 
+import Headshot from "./Headshot";
 import { useCallback, useEffect, useState } from "react";
 import PresenceDot from "./PresenceDot";
 import TeamMark from "./TeamMark";
 import Skeleton from "./Skeleton";
-import { headshot } from "@/data/league-data";
 import PlayerName from "./PlayerName";
 import { useRefreshable } from "@/lib/use-refresh";
 import { player } from "@/lib/roster";
 import LeagueOverview from "./LeagueOverview";
 import type { Home } from "@/lib/home-types";
-
-const BLANK =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 interface Franchise {
   id: string;
@@ -337,9 +334,8 @@ export default function LeagueBoard() {
                               : (p?.p ?? "—")
                             : "IR"}
                         </span>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={headshot(r.name) || BLANK}
+                        <Headshot
+                          name={r.name}
                           alt=""
                           width={22}
                           height={22}

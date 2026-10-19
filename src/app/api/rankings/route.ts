@@ -1,3 +1,4 @@
+import { everyRow } from "@/lib/every-row";
 import { isConfigured, serverClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -27,11 +28,16 @@ export async function GET() {
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
 
-  const [{ data: scores }, { data: slots }, { data: managers }] = await Promise.all([
-    db
-      .from("player_scores")
-      .select("player_name, points, week, stats")
-      .eq("league_id", me.league_id),
+  const [scores, { data: slots }, { data: managers }] = await Promise.all([
+    everyRow((from, to) =>
+      db
+        .from("player_scores")
+        .select("player_name, points, week, stats")
+        .eq("league_id", me.league_id)
+        .order("week")
+        .order("player_name")
+        .range(from, to),
+    ),
     db.from("roster_slots").select("player_name, manager_id").eq("league_id", me.league_id),
     db.from("managers").select("id, franchise").eq("league_id", me.league_id),
   ]);
@@ -52,7 +58,7 @@ export async function GET() {
   // ran the ball would say he is a receiver who catches nothing.
   const appearances = new Map<string, Record<string, number>>();
 
-  for (const row of scores ?? []) {
+  for (const row of scores) {
     totals.set(row.player_name, (totals.get(row.player_name) ?? 0) + Number(row.points));
     const seen = weeks.get(row.player_name) ?? new Set<number>();
     seen.add(row.week);

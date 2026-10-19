@@ -12,6 +12,8 @@ import {
   type Player,
   type Position,
 } from "@/data/league-data";
+import { SCORING_RULES } from "./scoring";
+import { DEFAULT_SCORING, RECEPTION_POINTS, type ScoringFormat } from "./scoring-format";
 
 export interface LeagueShape {
   starters?: Partial<Record<Position | "FLEX", number>>;
@@ -50,8 +52,16 @@ export function player(name: string): Player | null {
  * Pre-season week one, so this is a season-shape estimate rather than a live
  * number: last year's per-game fantasy scoring where the export has it,
  * otherwise a consensus-ADP curve.
+ *
+ * In the league's own format, and by the scorer's own rules. The arithmetic
+ * used to be written out here a second time with half a point a catch fixed
+ * into it, so when the league went to full PPR the scores followed and every
+ * projection stayed behind — a receiver catching seven a game was projected
+ * three and a half points short, every week, on every screen that projects.
+ * Omitting the format means the league default, which is what the scorer
+ * falls back to as well.
  */
-export function proj(name: string): number {
+export function proj(name: string, format: ScoringFormat = DEFAULT_SCORING): number {
   const p = player(name);
   if (!p) return 0;
 
@@ -64,10 +74,18 @@ export function proj(name: string): number {
   const gp = Math.max(Number(pa?.gp ?? 0), Number(ru?.gp ?? 0), Number(re?.gp ?? 0));
 
   if (gp) {
+    const R = SCORING_RULES;
     let pts = 0;
-    if (pa) pts += Number(pa.yds) / 25 + Number(pa.td) * 4 - Number(pa.int) * 2;
-    if (ru) pts += Number(ru.yds) / 10 + Number(ru.td) * 6;
-    if (re) pts += Number(re.yds) / 10 + Number(re.td) * 6 + Number(re.rec) * 0.5;
+    if (pa) {
+      pts += Number(pa.yds) / R.passYardsPer + Number(pa.td) * R.passTd + Number(pa.int) * R.interception;
+    }
+    if (ru) pts += Number(ru.yds) / R.rushRecYardsPer + Number(ru.td) * R.rushRecTd;
+    if (re) {
+      pts +=
+        Number(re.yds) / R.rushRecYardsPer +
+        Number(re.td) * R.rushRecTd +
+        Number(re.rec) * RECEPTION_POINTS[format];
+    }
     return Math.round((pts / gp) * 10) / 10;
   }
 

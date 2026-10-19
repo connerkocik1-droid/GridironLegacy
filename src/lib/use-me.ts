@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { DEFAULT_SCORING, isScoringFormat, type ScoringFormat } from "./scoring-format";
 
 export interface Me {
   id: string;
@@ -35,6 +36,12 @@ export type MeState = {
    * and the switch.
    */
   duesNote: string | null;
+  /**
+   * The league's reception rule, for the screens that project in the browser.
+   * Null until the server has said; useScoring answers the league default in
+   * the meantime, which is what the scorer assumes too.
+   */
+  scoring: ScoringFormat | null;
 };
 
 /**
@@ -49,7 +56,13 @@ export type MeState = {
  * on this hides on anything but a clear answer, so being unsure must not look
  * like being signed out — still less like being the commissioner.
  */
-const CHECKING: MeState = { status: "checking", manager: null, movesTab: null, duesNote: null };
+const CHECKING: MeState = {
+  status: "checking",
+  manager: null,
+  movesTab: null,
+  duesNote: null,
+  scoring: null,
+};
 
 let state: MeState = CHECKING;
 let started = false;
@@ -89,14 +102,15 @@ async function load(): Promise<void> {
     const data = await res.json();
     const movesTab = typeof data.movesTab === "boolean" ? data.movesTab : null;
     const duesNote = typeof data.duesNote === "string" ? data.duesNote : null;
+    const scoring = isScoringFormat(data.scoring) ? data.scoring : null;
     if (data.configured === false) {
-      return publish({ status: "no-league", manager: null, movesTab, duesNote });
+      return publish({ status: "no-league", manager: null, movesTab, duesNote, scoring });
     }
 
     publish(
       data.manager
-        ? { status: "signed-in", manager: data.manager as Me, movesTab, duesNote }
-        : { status: "signed-out", manager: null, movesTab, duesNote },
+        ? { status: "signed-in", manager: data.manager as Me, movesTab, duesNote, scoring }
+        : { status: "signed-out", manager: null, movesTab, duesNote, scoring },
     );
   } catch {
     // Offline, or the request was abandoned by a navigation. Whatever was
@@ -163,6 +177,17 @@ export function useMe(): MeState {
     () => state,
     () => CHECKING,
   );
+}
+
+/**
+ * The league's reception rule, for projecting in the browser.
+ *
+ * The default until the server answers, which is the same format the scorer
+ * falls back to — so the first frame and the settled one agree for any league
+ * that has not changed it.
+ */
+export function useScoring(): ScoringFormat {
+  return useMe().scoring ?? DEFAULT_SCORING;
 }
 
 export type Office = "checking" | "commissioner" | "manager" | "no-league";

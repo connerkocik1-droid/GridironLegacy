@@ -12,7 +12,7 @@
 -- has the early schema and no record of it; this file recognises that and
 -- writes the record down rather than failing on the tables already there.
 --
--- Built from 62 migrations:
+-- Built from 66 migrations:
 --   0001_schema.sql
 --   0002_trades.sql
 --   0003_draft.sql
@@ -73,8 +73,12 @@
 --   0058_the_commissioner_says_when_the_week_is_over.sql
 --   0059_the_pylon_report.sql
 --   0060_out_counts_for_the_reserve.sql
---   0061_the_pylon_draft_board.sql
---   0062_the_report_gets_crests.sql
+--   0061_waiver_day.sql
+--   0062_a_game_knows_how_long_it_has_left.sql
+--   0063_a_season_is_remembered.sql
+--   0064_a_team_is_claimed_with_a_code.sql
+--   0065_the_pylon_draft_board.sql
+--   0066_the_report_gets_crests.sql
 
 begin;
 
@@ -14741,13 +14745,1056 @@ $__migration__$;
 
 
 -- ======================================================================
--- 0061_the_pylon_draft_board.sql
+-- 0061_waiver_day.sql
 -- ======================================================================
 
 do $__migration__$
 begin
-  if exists (select 1 from schema_migrations where name = '0061_the_pylon_draft_board.sql') then
-    raise notice 'skipping %, already applied', '0061_the_pylon_draft_board.sql';
+  if exists (select 1 from schema_migrations where name = '0061_waiver_day.sql') then
+    raise notice 'skipping %, already applied', '0061_waiver_day.sql';
+  else
+    -- Tuesday belongs to the waiver wire, and the order is last week's table
+    -- upside down.
+    --
+    -- Two things were missing from the league's waivers and one was only half
+    -- there.
+    --
+    -- A player nobody had ever rostered could be added at any hour of any day,
+    -- including the morning after the week ended — so the manager who happened to
+    -- be awake at seven on Tuesday got the week's best free agent, and everybody
+    -- else got a notification about it. Now Tuesday is a claim day: adds are
+    -- refused, claims are taken all day, and they settle together at the end of
+    -- it. Every other day is unchanged, and so is the wire a mid-week drop goes
+    -- on — the two live side by side, which is what makes a Sunday drop still
+    -- unsnipeable.
+    --
+    -- The order those claims settle in was a rolling queue seeded once at the
+    -- start of the league. It is now the immediately preceding week's scores,
+    -- lowest first, reseeded on the first run of each new week. Winning still
+    -- sends a manager to the back for the rest of that run, so one bad week does
+    -- not hand somebody the whole wire.
+    --
+    -- And the third thing was already built: waiver_claims has carried a
+    -- claim_order since 0007 and process_waivers has always honoured it. What it
+    -- never had was a way for anybody to set it. That part is UI, not schema.
+
+    -- ------------------------------------------------------------- the clock ---
+
+    /**
+     * When Tuesday is, for this league.
+     *
+     * A stored zone rather than the server's, because the server's is UTC and a
+     * waiver day that begins at seven in the evening is not Tuesday to anybody.
+     * Eastern by default: it is the league's own clock and the one the NFL
+     * schedule is written in.
+     */
+    create or replace function league_clock(p_league_id uuid)
+    returns text
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      select coalesce(
+        nullif(settings ->> 'timezone', ''),
+        'America/New_York'
+      ) from leagues where id = p_league_id;
+    $$;
+
+    /**
+     * Which day of the week is the claim day. 0 is Sunday, 2 is Tuesday.
+     *
+     * A setting so a league can move it or switch it off — -1 means no claim day
+     * at all, and every day behaves the way every day did before this migration.
+     */
+    create or replace function waiver_dow(p_league_id uuid)
+    returns int
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      select coalesce((settings ->> 'waiverDay')::int, 2)
+        from leagues where id = p_league_id;
+    $$;
+
+    /** Is it the claim day right now, on the league's own clock? */
+    create or replace function waiver_day(p_league_id uuid)
+    returns boolean
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      select case
+        when waiver_dow(p_league_id) < 0 then false
+        else extract(dow from (now() at time zone league_clock(p_league_id)))::int
+             = waiver_dow(p_league_id)
+      end;
+    $$;
+
+    /**
+     * The moment today's claims are judged, or null when today is not a claim day.
+     *
+     * The last second of the claim day on the league's clock. Carried on the claim
+     * itself rather than worked out by the run, for the same reason the wire
+     * carries its own clearing time: how punctual the run is then decides how
+     * quickly a claim is settled, never whether it is settled at the right time.
+     * A run at four in the morning must not judge claims the league still has all
+     * day to place.
+     */
+    create or replace function waiver_window_close(p_league_id uuid)
+    returns timestamptz
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      select case when waiver_day(p_league_id) then
+        (
+          (date_trunc('day', now() at time zone league_clock(p_league_id))
+            + interval '1 day' - interval '1 second')
+          at time zone league_clock(p_league_id)
+        )
+      end;
+    $$;
+
+    grant execute on function league_clock(uuid) to authenticated;
+    grant execute on function waiver_dow(uuid) to authenticated;
+    grant execute on function waiver_day(uuid) to authenticated;
+    grant execute on function waiver_window_close(uuid) to authenticated;
+
+    -- -------------------------------------------------------------- the order ---
+
+    -- Which week the standing order was built from. Null in a league that has
+    -- never run one, which is every league until the first Tuesday.
+    alter table leagues add column if not exists waiver_priority_week int;
+
+    /**
+     * What each manager scored in one week.
+     *
+     * The graded matchup where there is one, and the live lineup where the week
+     * has not been graded yet — the same pair season_points_for works from, for
+     * the same reason: a week still being played has no matchup number, and a
+     * manager with nothing scored is still a row, at nought. Missing from the
+     * answer would mean missing from the order.
+     */
+    create or replace function week_points(p_league_id uuid, p_week int)
+    returns table (manager_id uuid, points numeric)
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      select mg.id,
+             round(coalesce(
+               (select sum(x.points) from (
+                  select m.home_points as points
+                    from matchups m
+                   where m.league_id = p_league_id and m.week = p_week
+                     and m.final and m.home_manager = mg.id
+                  union all
+                  select m.away_points
+                    from matchups m
+                   where m.league_id = p_league_id and m.week = p_week
+                     and m.final and m.away_manager = mg.id
+                ) x),
+               lineup_points(p_league_id, mg.id, p_week),
+               0), 1)
+        from managers mg
+       where mg.league_id = p_league_id;
+    $$;
+
+    grant execute on function week_points(uuid, int) to authenticated;
+
+    /**
+     * Rebuilds the claim order from one week's scores: lowest scorer first.
+     *
+     * Ties break on franchise slot, so the order is total and the same every time
+     * it is computed — two managers on nought in week one must not swap places
+     * between one run and the next.
+     *
+     * Returns how many managers were ordered, which is zero when the week has no
+     * scores to order them by. That is week one, and the league keeps whatever
+     * order it already had rather than being shuffled into a meaningless one.
+     */
+    create or replace function seed_waiver_priority(p_league_id uuid, p_week int)
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_scored int;
+      v_count  int;
+    begin
+      if p_week is null or p_week < 1 then return 0; end if;
+
+      -- A week nobody scored in is not an order. Without this, the first Tuesday
+      -- of a season would sort twelve zeroes by slot and call it the standings.
+      select count(*) into v_scored
+        from week_points(p_league_id, p_week) wp where wp.points > 0;
+      if v_scored = 0 then return 0; end if;
+
+      update managers m
+         set waiver_priority = r.rn
+        from (
+          select wp.manager_id,
+                 row_number() over (order by wp.points asc, mg.slot asc) as rn
+            from week_points(p_league_id, p_week) wp
+            join managers mg on mg.id = wp.manager_id
+        ) r
+       where m.id = r.manager_id;
+      get diagnostics v_count = row_count;
+
+      update leagues set waiver_priority_week = p_week where id = p_league_id;
+      return v_count;
+    end;
+    $$;
+
+    revoke all on function seed_waiver_priority(uuid, int) from public;
+
+    -- ------------------------------------------------------------- the claims ---
+
+    -- When this claim is judged. Null for a claim placed outside a claim day,
+    -- which is judged the moment its player leaves the wire, exactly as before.
+    alter table waiver_claims add column if not exists settles_at timestamptz;
+
+    create index if not exists waiver_claims_settles_idx
+      on waiver_claims (league_id, status, settles_at);
+
+    /**
+     * Stamps a claim with the close of the window it was placed in.
+     *
+     * A trigger rather than a column default, and certainly rather than the
+     * caller: claims are inserted straight through PostgREST by the browser, so
+     * anything the client can set is a thing the client can set to last Tuesday.
+     */
+    create or replace function stamp_claim_window()
+    returns trigger
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    begin
+      new.settles_at := waiver_window_close(new.league_id);
+      return new;
+    end;
+    $$;
+
+    drop trigger if exists waiver_claims_window on waiver_claims;
+    create trigger waiver_claims_window
+      before insert on waiver_claims
+      for each row execute function stamp_claim_window();
+
+    -- ---------------------------------------------------------------- the run ---
+
+    /**
+     * Settles the claims that are ripe and releases the players nobody won.
+     *
+     * Two changes from 0028, which is the version this is built on — not 0024's,
+     * which is the same function without the notices, and copying that one back
+     * over the top would have taken them away again. The order is reseeded from
+     * the previous week's scores on the first run of a new week, and a claim
+     * placed during a claim day is not judged until that day is over.
+     *
+     * Everything else is as it was: best priority first, then the manager's own
+     * ordering, then the order the claims were placed; a win sends that manager to
+     * the back and moves everyone below them up; a claim that cannot be applied is
+     * lost with the reason on it rather than taking the run down.
+     */
+    create or replace function process_waivers(p_league_id uuid)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_claim    waiver_claims;
+      v_won      int := 0;
+      v_lost     int := 0;
+      v_cleared  int := 0;
+      v_held     int := 0;
+      v_max      int;
+      v_guard    int := 0;
+      v_week     int;
+      v_seeded   int := 0;
+      v_last     int;
+    begin
+      -- The order, before anything is judged against it. The week that just ended
+      -- is the one before the one being played, and it is seeded once per week: a
+      -- second run must not undo the demotions the first one applied.
+      v_week := current_week(p_league_id) - 1;
+      select waiver_priority_week into v_last from leagues where id = p_league_id;
+      if v_week >= 1 and v_last is distinct from v_week then
+        v_seeded := seed_waiver_priority(p_league_id, v_week);
+      end if;
+
+      loop
+        select c.* into v_claim
+          from waiver_claims c
+          join managers m on m.id = c.manager_id
+          left join waiver_wire w
+            on w.league_id = c.league_id and w.player_name = c.add_player
+         where c.league_id = p_league_id
+           and c.status = 'pending'
+           and (w.player_name is null or w.clears_at <= now())
+           -- A claim placed on a claim day waits for the day to be over, however
+           -- often the run happens in between.
+           and (c.settles_at is null or c.settles_at <= now())
+         order by m.waiver_priority, c.claim_order, c.created_at
+         limit 1;
+
+        exit when v_claim.id is null;
+
+        v_guard := v_guard + 1;
+        exit when v_guard > 10000;
+
+        begin
+          perform place_player(
+            p_league_id, v_claim.manager_id,
+            v_claim.add_player, v_claim.drop_player, 'waiver'
+          );
+
+          update waiver_claims
+             set status = 'won', settled_at = now()
+           where id = v_claim.id;
+
+          select max(waiver_priority) into v_max
+            from managers where league_id = p_league_id;
+
+          update managers
+             set waiver_priority = waiver_priority - 1
+           where league_id = p_league_id
+             and waiver_priority > (
+               select waiver_priority from managers where id = v_claim.manager_id
+             );
+
+          update managers set waiver_priority = v_max where id = v_claim.manager_id;
+
+          perform notify_manager(p_league_id, v_claim.manager_id, 'waiver',
+            'You won ' || v_claim.add_player || ' on waivers.', '/free-agents');
+
+          v_won := v_won + 1;
+
+        exception when others then
+          update waiver_claims
+             set status = 'lost', reason = sqlerrm, settled_at = now()
+           where id = v_claim.id;
+
+          perform notify_manager(p_league_id, v_claim.manager_id, 'waiver',
+            'Your claim for ' || v_claim.add_player || ' did not go through: ' || sqlerrm,
+            '/free-agents');
+
+          v_lost := v_lost + 1;
+        end;
+      end loop;
+
+      delete from waiver_wire
+       where league_id = p_league_id and clears_at <= now();
+      get diagnostics v_cleared = row_count;
+
+      select count(*) into v_held from waiver_wire where league_id = p_league_id;
+
+      return jsonb_build_object('ok', true, 'won', v_won, 'lost', v_lost,
+                                'cleared', v_cleared, 'stillOnWaivers', v_held,
+                                'reordered', v_seeded, 'orderFromWeek', v_week);
+    end;
+    $$;
+
+    revoke all on function process_waivers(uuid) from public;
+
+    -- ----------------------------------------------------------- the adds ---
+    -- Both routes onto a roster refuse on a claim day. Reproduced whole, because
+    -- a create-or-replace has to carry the entire body — and each from the LAST
+    -- migration that defined it rather than the one that introduced it. 0045 put
+    -- the game-time lock into add_player and 0060 widened add_player_to_ir; taking
+    -- 0024's copies would have quietly undone both. place_player is untouched: the
+    -- run calls it all day, and it is the thing that puts a won claim on a roster.
+
+    create or replace function add_player(
+      p_league_id uuid,
+      p_add text,
+      p_drop text default null
+    )
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me     managers;
+      v_clears timestamptz;
+      v_block  text;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null then
+        raise exception 'Not signed in' using errcode = '28000';
+      end if;
+      if v_me.league_id <> p_league_id then
+        raise exception 'Not your league' using errcode = '42501';
+      end if;
+
+      -- Kickoff closes the roster. Both halves of the move are checked: an add
+      -- that also drops somebody is two moves, and only one of them was named in
+      -- the request.
+      v_block := coalesce(
+        move_block(p_league_id, p_add, 'picked up'),
+        move_block(p_league_id, p_drop, 'dropped'));
+      if v_block is not null then
+        raise exception '%', v_block using errcode = '55000';
+      end if;
+
+      if waiver_day(p_league_id) then
+        raise exception 'It is waiver day in this league — place a claim instead'
+          using errcode = '55000';
+      end if;
+
+      -- And between the window closing and the run settling it, which is however
+      -- long the run takes to come round. Without this the claim day leaks at the
+      -- far end: at one in the morning it is no longer the claim day, so an add is
+      -- allowed, and the player half the league queued for at noon goes to whoever
+      -- was awake — the exact thing the day exists to stop. A claim stops blocking
+      -- the moment it is settled, won or lost.
+      if exists (
+        select 1 from waiver_claims
+         where league_id = p_league_id
+           and add_player = p_add
+           and status = 'pending'
+           and settles_at is not null
+      ) then
+        raise exception '% has claims on him waiting to be settled', p_add
+          using errcode = '55000';
+      end if;
+
+      if waiver_mode(p_league_id) = 'all' then
+        raise exception 'Every pickup in this league goes through waivers — place a claim'
+          using errcode = '55000';
+      end if;
+
+      select clears_at into v_clears
+        from waiver_wire where league_id = p_league_id and player_name = p_add;
+
+      if v_clears is not null then
+        raise exception '% is on waivers — place a claim instead', p_add
+          using errcode = '55000';
+      end if;
+
+      return place_player(p_league_id, v_me.id, p_add, p_drop, 'add');
+    end;
+    $$;
+
+    revoke all on function add_player(uuid, text, text) from public;
+    grant execute on function add_player(uuid, text, text) to authenticated;
+
+    create or replace function add_player_to_ir(p_league_id uuid, p_player text)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me       managers;
+      v_settings jsonb;
+      v_clears   timestamptz;
+      v_block    text;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null then
+        raise exception 'Not signed in' using errcode = '28000';
+      end if;
+      if v_me.league_id <> p_league_id then
+        raise exception 'Not your league' using errcode = '42501';
+      end if;
+
+      if not ir_eligible(p_player) then
+        raise exception 'Only a player out, on IR or suspended can be signed to the reserve'
+          using errcode = '55000';
+      end if;
+
+      v_block := move_block(p_league_id, p_player, 'picked up');
+      if v_block is not null then
+        raise exception '%', v_block using errcode = '55000';
+      end if;
+
+      if waiver_day(p_league_id) then
+        raise exception 'It is waiver day in this league — place a claim instead'
+          using errcode = '55000';
+      end if;
+
+      -- And between the window closing and the run settling it, which is however
+      -- long the run takes to come round. Without this the claim day leaks at the
+      -- far end: at one in the morning it is no longer the claim day, so an add is
+      -- allowed, and the player half the league queued for at noon goes to whoever
+      -- was awake — the exact thing the day exists to stop. A claim stops blocking
+      -- the moment it is settled, won or lost.
+      if exists (
+        select 1 from waiver_claims
+         where league_id = p_league_id
+           and add_player = p_player
+           and status = 'pending'
+           and settles_at is not null
+      ) then
+        raise exception '% has claims on him waiting to be settled', p_player
+          using errcode = '55000';
+      end if;
+
+      if waiver_mode(p_league_id) = 'all' then
+        raise exception 'Every pickup in this league goes through waivers — place a claim'
+          using errcode = '55000';
+      end if;
+
+      select clears_at into v_clears
+        from waiver_wire where league_id = p_league_id and player_name = p_player;
+      if v_clears is not null then
+        raise exception '% is on waivers — place a claim instead', p_player
+          using errcode = '55000';
+      end if;
+
+      if exists (
+        select 1 from roster_slots where league_id = p_league_id and player_name = p_player
+      ) then
+        raise exception 'That player is already rostered' using errcode = '23505';
+      end if;
+
+      select settings into v_settings from leagues where id = p_league_id for update;
+
+      if ir_count(v_me.id) >= ir_capacity(v_settings) then
+        raise exception 'Injured reserve holds %', ir_capacity(v_settings)
+          using errcode = '55000';
+      end if;
+
+      insert into roster_slots (league_id, manager_id, player_name, acquired, lineup_slot)
+      values (p_league_id, v_me.id, p_player, 'add', 'IR');
+
+      delete from waiver_wire where league_id = p_league_id and player_name = p_player;
+
+      insert into transactions (league_id, manager_id, kind, player_name, detail)
+      values (p_league_id, v_me.id, 'add', p_player, jsonb_build_object('ir', true));
+
+      return jsonb_build_object('ok', true, 'added', p_player, 'ir', true);
+    end;
+    $$;
+
+    revoke all on function add_player_to_ir(uuid, text) from public;
+    grant execute on function add_player_to_ir(uuid, text) to authenticated;
+
+    -- -------------------------------------------------------- the manager's own ---
+
+    /**
+     * The order a manager wants their own claims tried in.
+     *
+     * claim_order has been on the table since 0007 and process_waivers has always
+     * honoured it. Nothing has ever set it: every claim was placed at 1, so a
+     * manager with three claims and room for one got whichever the tie-break
+     * happened to reach first. This is the missing half.
+     *
+     * One statement rather than a row at a time, because a reorder that half
+     * applies leaves two claims fighting over the same rank. Ownership is checked
+     * here rather than trusted from the caller — an id belonging to somebody else
+     * simply matches nothing, and the count that comes back says how many of the
+     * ids were really theirs.
+     */
+    create or replace function reorder_claims(p_league_id uuid, p_ids uuid[])
+    returns int
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me managers;
+      v_n  int;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null then
+        raise exception 'Not signed in' using errcode = '28000';
+      end if;
+      if v_me.league_id <> p_league_id then
+        raise exception 'Not your league' using errcode = '42501';
+      end if;
+
+      update waiver_claims c
+         set claim_order = o.ord
+        from unnest(p_ids) with ordinality as o(id, ord)
+       where c.id = o.id
+         and c.manager_id = v_me.id
+         and c.league_id = p_league_id
+         and c.status = 'pending';
+
+      get diagnostics v_n = row_count;
+      return v_n;
+    end;
+    $$;
+
+    revoke all on function reorder_claims(uuid, uuid[]) from public;
+    grant execute on function reorder_claims(uuid, uuid[]) to authenticated;
+
+    insert into schema_migrations (name) values ('0061_waiver_day.sql');
+    raise notice 'applied %', '0061_waiver_day.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0062_a_game_knows_how_long_it_has_left.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0062_a_game_knows_how_long_it_has_left.sql') then
+    raise notice 'skipping %, already applied', '0062_a_game_knows_how_long_it_has_left.sql';
+  else
+    -- A game knows how long it has left.
+    --
+    -- The win probability on the matchup page treated anybody whose game was under
+    -- way as still owing whatever of his projection he had not scored — at the
+    -- start of the first quarter and with two minutes to play alike. A receiver on
+    -- nought late in the fourth was "owed" his whole projection, so a side that
+    -- was plainly beaten read as a coin toss until the final whistle.
+    --
+    -- The scoreboard has always sent the quarter and the clock. The mirror threw
+    -- them away. These two columns keep them, for games in progress only: the
+    -- mirror writes null for a game before kickoff and after the whistle, so a
+    -- finished game does not hold on to the clock it ended on.
+    --
+    -- Nullable and without defaults, so adding them does not rewrite the table,
+    -- and nothing reads them as required: the app falls back to the time since
+    -- kickoff wherever they are null, and the mirror writes around them on a
+    -- database that has not run this yet. Safe to apply mid-season, on any day.
+
+    alter table nfl_games add column if not exists period int;
+    alter table nfl_games add column if not exists clock numeric;
+
+    comment on column nfl_games.period is
+      'The quarter being played, 5 and up for overtime. Null unless the game is in progress.';
+    comment on column nfl_games.clock is
+      'Seconds left in that quarter. Null unless the game is in progress.';
+
+    insert into schema_migrations (name) values ('0062_a_game_knows_how_long_it_has_left.sql');
+    raise notice 'applied %', '0062_a_game_knows_how_long_it_has_left.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0063_a_season_is_remembered.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0063_a_season_is_remembered.sql') then
+    raise notice 'skipping %, already applied', '0063_a_season_is_remembered.sql';
+  else
+    -- A season is remembered.
+    --
+    -- roll_season closed a season by deleting it. Every matchup and every player
+    -- score went, so the record book — computed from matchups — started again
+    -- from nothing each year, head-to-head history reset, and the only thing a
+    -- franchise carried out of a season was a title, if it won one. In a dynasty
+    -- league the seasons are the point; a league named for its legacy was keeping
+    -- none of it.
+    --
+    -- So the season is copied into two history tables on the way out, and
+    -- roll_season deletes only what it has just kept. Nothing about the live
+    -- tables changes: this season is read exactly as before, and last season is
+    -- there to be read for the first time.
+    --
+    -- Additive. Two new tables, one new function, and roll_season exactly as
+    -- 0055 left it with one call added before its deletions. roll_season cannot
+    -- run until a season has a champion, so applying this mid-season changes
+    -- nothing anybody can see until the title is decided.
+
+    -- ------------------------------------------------------------ the tables ---
+
+    /**
+     * Every matchup of every closed season, as it stood when the season ended.
+     *
+     * The franchise names are written down beside the managers, for the same
+     * reason league_champions keeps one: a franchise renamed or handed to
+     * somebody else years later must not rewrite who played whom. The manager
+     * columns carry no foreign key for the same reason — a history that cascades
+     * away when a slot is deleted is not a history.
+     */
+    create table if not exists matchup_history (
+      id             uuid primary key default gen_random_uuid(),
+      league_id      uuid not null references leagues(id) on delete cascade,
+      season         int  not null,
+      week           int  not null,
+      home_manager   uuid,
+      away_manager   uuid,
+      home_franchise text,
+      away_franchise text,
+      home_points    numeric not null default 0,
+      away_points    numeric not null default 0,
+      home_starters  jsonb not null default '[]'::jsonb,
+      away_starters  jsonb not null default '[]'::jsonb,
+      winner         uuid,
+      is_tie         boolean not null default false,
+      final          boolean not null default false,
+      playoff        boolean not null default false,
+      playoff_round  int,
+      divisional     boolean not null default false,
+      graded_at      timestamptz,
+      archived_at    timestamptz not null default now(),
+      -- One row per fixture, so archiving a season twice keeps it once.
+      unique (league_id, season, week, home_manager)
+    );
+
+    create index if not exists matchup_history_season_idx
+      on matchup_history (league_id, season, week);
+
+    /** Every player score of every closed season, with the stat line behind it. */
+    create table if not exists player_score_history (
+      league_id   uuid not null references leagues(id) on delete cascade,
+      season      int  not null,
+      week        int  not null,
+      player_name text not null,
+      points      numeric not null default 0,
+      stat_line   text,
+      stats       jsonb,
+      updated_at  timestamptz,
+      archived_at timestamptz not null default now(),
+      primary key (league_id, season, week, player_name)
+    );
+
+    alter table matchup_history      enable row level security;
+    alter table player_score_history enable row level security;
+
+    -- The league reads its own past, as it reads its present. Nobody else's.
+    drop policy if exists matchup_history_read on matchup_history;
+    create policy matchup_history_read on matchup_history for select to authenticated
+      using (league_id in (select league_id from managers where auth_user_id = auth.uid()));
+
+    drop policy if exists player_score_history_read on player_score_history;
+    create policy player_score_history_read on player_score_history for select to authenticated
+      using (league_id in (select league_id from managers where auth_user_id = auth.uid()));
+
+    -- Written only by archive_season, from inside roll_season. History that a
+    -- browser session could edit would be worth exactly as much as it cost.
+    revoke insert, update, delete on matchup_history      from authenticated, anon;
+    revoke insert, update, delete on player_score_history from authenticated, anon;
+
+    -- ------------------------------------------------------------- the copy ---
+
+    /**
+     * Copies a league's live season into the history tables.
+     *
+     * Idempotent: a fixture or a score already kept for that season is left as it
+     * was, so running it twice keeps each once. Returns what it kept this time.
+     */
+    create or replace function archive_season(p_league_id uuid, p_season int)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_matchups int;
+      v_scores   int;
+    begin
+      insert into matchup_history (
+        league_id, season, week, home_manager, away_manager, home_franchise, away_franchise,
+        home_points, away_points, home_starters, away_starters, winner, is_tie, final,
+        playoff, playoff_round, divisional, graded_at
+      )
+      select m.league_id, p_season, m.week, m.home_manager, m.away_manager,
+             h.franchise, a.franchise,
+             m.home_points, m.away_points, m.home_starters, m.away_starters, m.winner,
+             m.is_tie, m.final, m.playoff, m.playoff_round, m.divisional, m.graded_at
+        from matchups m
+        left join managers h on h.id = m.home_manager
+        left join managers a on a.id = m.away_manager
+       where m.league_id = p_league_id
+      on conflict (league_id, season, week, home_manager) do nothing;
+      get diagnostics v_matchups = row_count;
+
+      insert into player_score_history (
+        league_id, season, week, player_name, points, stat_line, stats, updated_at
+      )
+      select s.league_id, p_season, s.week, s.player_name, s.points, s.stat_line, s.stats, s.updated_at
+        from player_scores s
+       where s.league_id = p_league_id
+      on conflict (league_id, season, week, player_name) do nothing;
+      get diagnostics v_scores = row_count;
+
+      return jsonb_build_object('matchups', v_matchups, 'scores', v_scores);
+    end;
+    $$;
+
+    -- Granted to nobody. roll_season reaches it as the definer it runs as; a
+    -- browser session has no business copying a season on its own schedule.
+    revoke all on function archive_season(uuid, int) from public, anon, authenticated;
+
+    -- ---------------------------------------------------------- the rollover ---
+
+    /**
+     * 0055's roll_season, with the season archived before anything is deleted.
+     *
+     * The one change is the archive_season call and the count it adds to the
+     * admin log and the answer. Everything else is exactly as it was.
+     */
+    create or replace function roll_season(p_league_id uuid, p_season int default null)
+    returns jsonb
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    declare
+      v_me       managers;
+      v_league   leagues;
+      v_next     int;
+      v_kept     int;
+      v_weeks    int;
+      v_saved    int;
+      v_picks    jsonb;
+      v_champ    text;
+      v_archived jsonb;
+    begin
+      select * into v_me from managers where auth_user_id = auth.uid();
+      if v_me.id is null or not v_me.is_commissioner or v_me.league_id <> p_league_id then
+        raise exception 'Only the commissioner can start the next season' using errcode = '42501';
+      end if;
+
+      select * into v_league from leagues where id = p_league_id for update;
+      if v_league.id is null then
+        raise exception 'No such league' using errcode = 'P0002';
+      end if;
+
+      v_next := coalesce(p_season, v_league.season + 1);
+      if v_next <= v_league.season then
+        raise exception 'The next season must come after % ', v_league.season
+          using errcode = '22023';
+      end if;
+
+      -- A season is over when there is a champion. That is a stronger test than
+      -- "every week is graded": it also rules out a league whose regular season
+      -- finished last night and whose bracket has not been played.
+      if not exists (
+        select 1 from league_champions
+         where league_id = p_league_id and season = v_league.season
+      ) then
+        raise exception 'The % season has no champion yet — it is not over', v_league.season
+          using errcode = '55000';
+      end if;
+
+      select franchise into v_champ
+        from league_champions where league_id = p_league_id and season = v_league.season;
+
+      select count(*) into v_kept from roster_slots where league_id = p_league_id;
+      select count(distinct week) into v_weeks from matchups where league_id = p_league_id;
+
+      -- Photographed on the way past, like every other destructive thing in here.
+      -- The rosters survive this, but a rollover run by mistake is still the sort
+      -- of thing somebody wants back.
+      -- Before anything is deleted. award_draft_picks calls set_draft_pick_order,
+      -- which reads the table, the seeds and how far each franchise got in the
+      -- bracket — all three about the season being closed, and in a moment none of
+      -- it will be here. It ran three statements too late, so every input was
+      -- empty and the order fell through to its last tiebreaker, the franchise
+      -- slot: an alphabetical rookie draft, overwriting the reverse standings the
+      -- nightly job had kept all season.
+      v_picks := award_draft_picks(p_league_id, v_next);
+
+      v_saved := snapshot_rosters(p_league_id, 'season_roll');
+
+      -- The season, kept, before the deletions below take it out of the live
+      -- tables. Every fixture and every score, filed against the season they
+      -- belong to, so the record book and the head-to-head history outlive it.
+      v_archived := archive_season(p_league_id, v_league.season);
+
+      -- Everything that was true only of last season. Rosters and the record book
+      -- are deliberately not in this list.
+      delete from matchups      where league_id = p_league_id;
+      delete from player_scores where league_id = p_league_id;
+      delete from waiver_claims where league_id = p_league_id;
+      delete from waiver_wire   where league_id = p_league_id;
+      delete from trade_block   where league_id = p_league_id;
+      delete from draft_queue   where league_id = p_league_id;
+      delete from pickem_picks  where league_id = p_league_id;
+      delete from playoff_seeds where league_id = p_league_id and season = v_league.season;
+      delete from notices       where league_id = p_league_id;
+
+      -- An offer names players against a season that no longer exists, and a pick
+      -- for a draft that has now happened. Declined rather than deleted, so a
+      -- manager's work leaves a trace rather than vanishing.
+      update trades
+         set status = 'declined'
+       where league_id = p_league_id
+         and status in ('open', 'countered', 'agreed');
+
+      -- Everybody keeps their players; nobody keeps their lineup. Last year's
+      -- starters mean nothing against a schedule that does not exist yet, and a
+      -- player on IR in December is not necessarily hurt in September.
+      update roster_slots
+         set lineup_slot = 'BENCH',
+             overall_pick = null
+       where league_id = p_league_id;
+
+      -- Waiver order back to the league's own order. Last season's rolling order
+      -- is a consequence of last season.
+      update managers m
+         set waiver_priority = seq.rn,
+             ready = false,
+             -- A manager who let the machine draft for him one year has not asked
+             -- it to do so forever. Cleared with the rest of last season, beside
+             -- the two flags that always were.
+             autodraft = false
+        from (
+          select id, row_number() over (order by slot) as rn
+            from managers where league_id = p_league_id
+        ) seq
+       where seq.id = m.id;
+
+      update leagues
+         set season = v_next,
+             draft_state = 'pending',
+             current_pick = 1,
+             pick_started_at = null,
+             draft_at = null,
+             -- A lottery is drawn for one draft, and the next order comes from the
+             -- record instead.
+             lottery_order = null
+       where id = p_league_id;
+
+      -- The board for the new draft, from the picks awarded above — so a pick
+      -- traded a year ago lands on it as its new owner's.
+      delete from draft_picks where league_id = p_league_id;
+      perform rebuild_draft_board(p_league_id);
+
+      insert into admin_log (league_id, actor, action, detail)
+      values (p_league_id, v_me.id, 'season_rolled',
+              jsonb_build_object('from', v_league.season, 'to', v_next,
+                                 'champion', v_champ, 'players_kept', v_kept,
+                                 'weeks_removed', v_weeks, 'roster_rows_saved', v_saved,
+                                 'archived', v_archived));
+
+      return jsonb_build_object(
+        'ok', true,
+        'from', v_league.season,
+        'season', v_next,
+        'champion', v_champ,
+        'playersKept', v_kept,
+        'weeksRemoved', v_weeks,
+        'rosterRowsSaved', v_saved,
+        'picks', v_picks,
+        'archived', v_archived
+      );
+    end;
+    $$;
+
+    revoke all on function roll_season(uuid, int) from public;
+    grant execute on function roll_season(uuid, int) to authenticated;
+
+    insert into schema_migrations (name) values ('0063_a_season_is_remembered.sql');
+    raise notice 'applied %', '0063_a_season_is_remembered.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0064_a_team_is_claimed_with_a_code.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0064_a_team_is_claimed_with_a_code.sql') then
+    raise notice 'skipping %, already applied', '0064_a_team_is_claimed_with_a_code.sql';
+  else
+    -- A team is claimed with a code, and a sign-in is counted by where it came from.
+    --
+    -- Two holes in the front door, both in the claim.
+    --
+    -- Claiming a franchise needed nothing but its name. That is fine on the night
+    -- a league is set up and nowhere else: when the commissioner cleared a PIN or
+    -- let a manager go, the franchise — roster, record, picks and all — went to
+    -- whoever reached the sign-in page first, and the repository and the site are
+    -- both public. Now clearing a PIN or letting somebody go issues a one-time
+    -- code, which the office shows to the commissioner and nobody else, and the
+    -- claim needs it. A franchise with no code outstanding is claimed as before,
+    -- which is what setting up a new league still needs.
+    --
+    -- And a sign-in attempt was counted only against the franchise it named, so
+    -- one source could spend five tries on every franchise in turn. Attempts now
+    -- carry where they came from, and the routes refuse a source that has failed
+    -- too often, whichever franchise it names.
+    --
+    -- Additive: a new table nothing else reads, a nullable column, a new function.
+    -- The routes carry on exactly as before on a database that has not run this.
+
+    -- ------------------------------------------------------- the claim codes ---
+
+    /**
+     * The code outstanding for a franchise, if any. One per franchise: issuing a
+     * new one replaces the old, and a successful claim deletes it.
+     *
+     * Only a keyed hash is stored — HMAC under the server's AUTH_SECRET — so the
+     * table is no use to anybody who reads it without the secret, and reading it
+     * is not possible from a browser in the first place: row-level security is on
+     * and there is no policy at all. The service key is the only way in.
+     */
+    create table if not exists franchise_claims (
+      manager_id uuid primary key references managers(id) on delete cascade,
+      league_id  uuid not null references leagues(id) on delete cascade,
+      code_hash  text not null,
+      expires_at timestamptz not null,
+      issued_by  uuid references managers(id) on delete set null,
+      issued_at  timestamptz not null default now()
+    );
+
+    alter table franchise_claims enable row level security;
+    revoke all on franchise_claims from authenticated, anon;
+
+    -- ----------------------------------------------- where an attempt came from ---
+
+    alter table pin_attempts add column if not exists ip text;
+
+    create index if not exists pin_attempts_ip_idx
+      on pin_attempts (ip, attempted_at desc)
+      where ip is not null;
+
+    /**
+     * How many failed attempts one source has made across every franchise within
+     * the window. The per-franchise count in recent_pin_failures still applies;
+     * this stops one source trying five PINs against each franchise in turn.
+     */
+    create or replace function recent_ip_failures(
+      p_ip text,
+      p_window interval default interval '15 minutes'
+    )
+    returns int
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $$
+      select count(*)::int
+        from pin_attempts
+       where ip = p_ip
+         and not succeeded
+         and attempted_at > now() - p_window;
+    $$;
+
+    -- Read by the sign-in routes with the service key, and by nobody else.
+    revoke all on function recent_ip_failures(text, interval) from public, anon, authenticated;
+
+    insert into schema_migrations (name) values ('0064_a_team_is_claimed_with_a_code.sql');
+    raise notice 'applied %', '0064_a_team_is_claimed_with_a_code.sql';
+  end if;
+end
+$__migration__$;
+
+
+-- ======================================================================
+-- 0065_the_pylon_draft_board.sql
+-- ======================================================================
+
+do $__migration__$
+begin
+  if exists (select 1 from schema_migrations where name = '0065_the_pylon_draft_board.sql') then
+    raise notice 'skipping %, already applied', '0065_the_pylon_draft_board.sql';
   else
     -- The Pylon Report's third board: the rookie draft big board.
     --
@@ -14848,21 +15895,21 @@ begin
     revoke all on function unpublish_pylon_draft_board(int) from public;
     grant execute on function unpublish_pylon_draft_board(int) to authenticated;
 
-    insert into schema_migrations (name) values ('0061_the_pylon_draft_board.sql');
-    raise notice 'applied %', '0061_the_pylon_draft_board.sql';
+    insert into schema_migrations (name) values ('0065_the_pylon_draft_board.sql');
+    raise notice 'applied %', '0065_the_pylon_draft_board.sql';
   end if;
 end
 $__migration__$;
 
 
 -- ======================================================================
--- 0062_the_report_gets_crests.sql
+-- 0066_the_report_gets_crests.sql
 -- ======================================================================
 
 do $__migration__$
 begin
-  if exists (select 1 from schema_migrations where name = '0062_the_report_gets_crests.sql') then
-    raise notice 'skipping %, already applied', '0062_the_report_gets_crests.sql';
+  if exists (select 1 from schema_migrations where name = '0066_the_report_gets_crests.sql') then
+    raise notice 'skipping %, already applied', '0066_the_report_gets_crests.sql';
   else
     -- Team and school crests for the Pylon Report, the same way a franchise got
     -- one in 0015: a small image inline as a data URI, not an object-storage
@@ -14911,8 +15958,8 @@ begin
 
     grant select, insert, update, delete on report_logos to authenticated;
 
-    insert into schema_migrations (name) values ('0062_the_report_gets_crests.sql');
-    raise notice 'applied %', '0062_the_report_gets_crests.sql';
+    insert into schema_migrations (name) values ('0066_the_report_gets_crests.sql');
+    raise notice 'applied %', '0066_the_report_gets_crests.sql';
   end if;
 end
 $__migration__$;

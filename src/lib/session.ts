@@ -1,4 +1,5 @@
 import { isConfigured, serverClient } from "@/lib/supabase";
+import { scoringOf, type ScoringFormat } from "@/lib/scoring-format";
 
 export interface SessionManager {
   id: string;
@@ -103,6 +104,28 @@ export async function movesTabOpen(managerLeagueId?: string): Promise<boolean> {
 export async function duesNote(managerLeagueId?: string): Promise<string | null> {
   const note = (await leagueSettings(managerLeagueId))?.duesNote;
   return typeof note === "string" && note.trim() ? note.trim() : null;
+}
+
+/**
+ * Everything the browser's league store carries about the league itself, from
+ * one read of its settings rather than one each.
+ *
+ * The reception rule rides along so that the screens which project in the
+ * browser — the trade desk, the player board — project in the league's own
+ * format rather than assuming one.
+ */
+export async function leagueFacts(managerLeagueId?: string): Promise<{
+  movesTab: boolean;
+  duesNote: string | null;
+  scoring: ScoringFormat;
+}> {
+  const settings = await leagueSettings(managerLeagueId);
+  const note = settings?.duesNote;
+  return {
+    movesTab: settings?.movesTab === true,
+    duesNote: typeof note === "string" && note.trim() ? note.trim() : null,
+    scoring: scoringOf(settings),
+  };
 }
 
 /** The league's settings blob, or null if it cannot be read. */

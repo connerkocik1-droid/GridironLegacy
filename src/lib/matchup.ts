@@ -1,6 +1,7 @@
 import { slotsOf } from "@/data/league-sim";
 import { proj, player, type LeagueShape } from "./roster";
 import { formatStatLine, type StatLine } from "./scoring";
+import { DEFAULT_SCORING, scoringOf, type ScoringFormat } from "./scoring-format";
 import type { TeamGame } from "./nfl-week";
 import type { Position } from "@/data/league-data";
 
@@ -70,8 +71,9 @@ export function bestLineup(
   scores: Map<string, Score>,
   basis: "points" | "projection" = "projection",
 ): { slot: string; entry: SideEntry | null }[] {
+  const format = scoringOf(league);
   const value = (name: string) =>
-    basis === "points" ? (scores.get(name)?.points ?? 0) : pointsFor(name, scores);
+    basis === "points" ? (scores.get(name)?.points ?? 0) : pointsFor(name, scores, format);
 
   const ranked = [...roster].sort((a, b) => value(b) - value(a) || a.localeCompare(b));
   const used = new Set<string>();
@@ -87,7 +89,7 @@ export function bestLineup(
 
     if (!pick) return { slot, entry: null };
     used.add(pick);
-    return { slot, entry: entryFor(pick, scores, basis) };
+    return { slot, entry: entryFor(pick, scores, basis, format) };
   });
 }
 
@@ -100,14 +102,15 @@ function positionOf(name: string, scores: Map<string, Score>): string {
   return player(name)?.p ?? scores.get(name)?.line?.position ?? "";
 }
 
-function pointsFor(name: string, scores: Map<string, Score>): number {
-  return scores.get(name)?.points ?? proj(name);
+function pointsFor(name: string, scores: Map<string, Score>, format: ScoringFormat): number {
+  return scores.get(name)?.points ?? proj(name, format);
 }
 
 function entryFor(
   name: string,
   scores: Map<string, Score>,
   basis: "points" | "projection",
+  format: ScoringFormat,
 ): SideEntry {
   const p = player(name);
   const score = scores.get(name);
@@ -128,8 +131,8 @@ function entryFor(
     // Nought rather than a projection once the week is live: a total that
     // quietly includes points nobody has scored is a total that goes down as
     // the afternoon goes on, which is the one thing a live score must never do.
-    points: score?.points ?? (basis === "points" ? 0 : proj(name)),
-    projected: proj(name),
+    points: score?.points ?? (basis === "points" ? 0 : proj(name, format)),
+    projected: proj(name, format),
     live: score != null,
     statLine: line || score?.statLine || "",
   };
@@ -169,10 +172,11 @@ export function frozenLineup(
     : [];
 
   const remaining = [...rows];
+  const format = scoringOf(league);
   // The points come from the snapshot, not from player_scores: a late stat
   // correction must not change a result that has already been recorded.
   const entry = (row: FrozenStarter) => ({
-    ...entryFor(row.name, scores, "points"),
+    ...entryFor(row.name, scores, "points", format),
     points: row.points,
     live: true,
   });
@@ -253,9 +257,10 @@ export function bubbleGaps(
   bench: string[],
   scores: Map<string, Score>,
   basis: "points" | "projection" = "projection",
+  format: ScoringFormat = DEFAULT_SCORING,
 ): Map<string, number> {
   const value = (name: string) =>
-    basis === "points" ? (scores.get(name)?.points ?? 0) : pointsFor(name, scores);
+    basis === "points" ? (scores.get(name)?.points ?? 0) : pointsFor(name, scores, format);
 
   const gaps = new Map<string, number>();
 

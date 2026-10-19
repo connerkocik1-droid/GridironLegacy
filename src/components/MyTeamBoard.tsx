@@ -14,6 +14,7 @@ import { useMe } from "@/lib/use-me";
 import { useRefreshable } from "@/lib/use-refresh";
 import { optimalLineup } from "@/lib/start-rate";
 import { proj, type LeagueShape } from "@/lib/roster";
+import { scoringOf } from "@/lib/scoring-format";
 
 /**
  * Everything that is yours, on one screen.
@@ -222,7 +223,10 @@ function Board() {
     // the projected eleven, that arithmetic returns nought over a roster that
     // has six points on the board.
     const values = new Map<string, number>(
-      roster.map((name) => [name, live ? (feed?.scores?.[name]?.points ?? 0) : proj(name)]),
+      roster.map((name) => [
+        name,
+        live ? (feed?.scores?.[name]?.points ?? 0) : proj(name, scoringOf(feed?.settings)),
+      ]),
     );
 
     const slots = optimalLineup(roster, feed?.settings ?? null, values);

@@ -7,6 +7,7 @@ import LaunchScreen from "@/components/LaunchScreen";
 import OfflineBar from "@/components/OfflineBar";
 import PullToRefresh from "@/components/PullToRefresh";
 import ServiceWorker from "@/components/ServiceWorker";
+import ThemeMusic from "@/components/ThemeMusic";
 import TabBar from "@/components/TabBar";
 import "./nocturne.css";
 // The palette, before anything that names it.
@@ -206,6 +207,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* Says so when the numbers on screen came out of the worker's cache
             rather than off the wire. Nothing at all when online. */}
         <OfflineBar />
+
+        {/* The retro theme's music, and its switch. Above the router rather
+            than inside a page: every screen in this app is a fresh mount, so
+            an <audio> in a page would restart the theme from the top each time
+            somebody pressed a tab. It renders nothing at all in the other two
+            themes, so nobody else fetches the track. */}
+        <ThemeMusic />
         {/* Installs the offline worker, in production builds only. */}
         <ServiceWorker />
       </body>

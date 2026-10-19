@@ -6,6 +6,7 @@ import LiveNumber from "./LiveNumber";
 import PlayerName from "./PlayerName";
 import Skeleton from "./Skeleton";
 import TeamMark from "./TeamMark";
+import { logo } from "@/data/league-data";
 import { useMe } from "@/lib/use-me";
 import { useRefreshable } from "@/lib/use-refresh";
 import type { BoxTeam, Gamecast, GamecastPlay, OwnedPlayer } from "@/lib/gamecast";
@@ -215,7 +216,21 @@ const EYEBROW: React.CSSProperties = {
 };
 
 /** A team's three letters, in a chip that carries its own colour. */
+/**
+ * The club, in a tile.
+ *
+ * It drew the abbreviation and nothing else, on the one screen in the app that
+ * is meant to look like a broadcast — while the thirty-two club marks sat in
+ * the same repository being drawn beside every player name in the box score
+ * underneath. Three letters where a shield belongs.
+ *
+ * The letters stay as the fallback rather than being replaced. `logo()` has no
+ * mark for a club it does not know, and a gamecast for a game this app has
+ * never heard of should still say who is playing.
+ */
 function TeamChip({ abbrev, accent, size = 38 }: { abbrev: string; accent: boolean; size?: number }) {
+  const marked = Boolean(logo(abbrev));
+
   return (
     <div
       style={{
@@ -232,7 +247,13 @@ function TeamChip({ abbrev, accent, size = 38 }: { abbrev: string; accent: boole
         color: accent ? "var(--accent-text)" : "var(--text-2)",
       }}
     >
-      {abbrev}
+      {marked ? (
+        // Full opacity and most of the tile: this is the club, not the little
+        // shield that qualifies a player's name.
+        <TeamMark team={abbrev} size={Math.round(size * 0.72)} opacity={1} />
+      ) : (
+        abbrev
+      )}
     </div>
   );
 }

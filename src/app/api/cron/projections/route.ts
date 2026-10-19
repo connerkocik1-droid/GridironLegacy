@@ -1,5 +1,6 @@
 import { optimalLineup } from "@/lib/start-rate";
 import { proj } from "@/lib/roster";
+import { scoringOf } from "@/lib/scoring-format";
 import { serviceClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +56,9 @@ export async function GET(req: Request) {
 
   const franchiseOf = new Map((managers ?? []).map((m) => [m.id, m.franchise]));
   const settings = (league?.settings ?? null) as { starters?: Record<string, number> } | null;
+  // The league's own reception rule, which the scorer has always read and the
+  // projections now read too.
+  const format = scoringOf(settings);
 
   /** What a roster is worth at its best arrangement, before a ball is kicked. */
   const projected = (managerId: string | null): number => {
@@ -66,7 +70,7 @@ export async function GET(req: Request) {
       .filter((s) => s.manager_id === managerId && s.lineup_slot !== "IR")
       .map((s) => s.player_name);
 
-    const values = new Map(roster.map((name) => [name, proj(name)]));
+    const values = new Map(roster.map((name) => [name, proj(name, format)]));
     const starters = optimalLineup(roster, settings, values);
 
     let total = 0;

@@ -38,6 +38,11 @@ interface Board {
   played: boolean;
   error?: string;
   fetchedAt: string | null;
+  /**
+   * The scores came from the league's own copy because ESPN would not answer,
+   * so they are as of fetchedAt rather than live.
+   */
+  stale?: boolean;
 }
 
 /** Kickoff, in the reader's own timezone, for a game that has not started. */
@@ -199,6 +204,12 @@ export default function ScoreTicker() {
         >
           {season}
           {week}
+          {board?.stale ? (
+            <span style={{ color: "var(--warn)" }} title="The live feed is not answering; these are the last scores the league heard.">
+              {" "}
+              · DELAYED
+            </span>
+          ) : null}
         </span>
         <span
           style={{ fontSize: 10, letterSpacing: ".12em", color: "var(--text-dim)", whiteSpace: "nowrap" }}

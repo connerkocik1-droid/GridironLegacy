@@ -1,3 +1,4 @@
+import { everyRow } from "@/lib/every-row";
 import { seasonPointsFor } from "@/lib/points-for";
 import { isPresent, readManagers } from "@/lib/presence";
 
@@ -39,7 +40,7 @@ export async function GET() {
     .single();
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
 
-  const [{ data: league }, { data: managers }, { data: slots }, { data: scores }, { data: table }] =
+  const [{ data: league }, { data: managers }, { data: slots }, scores, { data: table }] =
     await Promise.all([
       db.from("leagues").select("name, season, settings").eq("id", me.league_id).single(),
       readManagers<ManagerRow>(
@@ -51,7 +52,15 @@ export async function GET() {
         .from("roster_slots")
         .select("manager_id, player_name, lineup_slot, acquired")
         .eq("league_id", me.league_id),
-      db.from("player_scores").select("player_name, points, week").eq("league_id", me.league_id),
+      everyRow((from, to) =>
+        db
+          .from("player_scores")
+          .select("player_name, points, week")
+          .eq("league_id", me.league_id)
+          .order("week")
+          .order("player_name")
+          .range(from, to),
+      ),
       db.rpc("standings", { p_league_id: me.league_id }),
     ]);
 

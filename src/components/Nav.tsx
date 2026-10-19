@@ -3,6 +3,7 @@ import CommissionerOnly from "./CommissionerOnly";
 import Notices from "./Notices";
 import ProfileMenu from "./ProfileMenu";
 import HeaderMark from "./HeaderMark";
+import MusicToggle from "./MusicToggle";
 
 // Three doors and the draft room, and that is the whole bar.
 //
@@ -125,6 +126,8 @@ export default function Nav({ current, note }: { current: string; note?: string 
         {/* Beside the profile rather than in the tab list: it is not a place
             you go, it is the league getting your attention. */}
         <Notices />
+        {/* Nothing at all off the sixteen-bit theme. */}
+        <MusicToggle />
         <ProfileMenu />
       </div>
     </div>

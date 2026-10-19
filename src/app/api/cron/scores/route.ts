@@ -1,5 +1,7 @@
-import { refreshScores } from "@/lib/live";
+import { maybeRefreshScores, refreshScores, weekState, type RefreshResult } from "@/lib/live";
+import { frequentJobsOff, isFrequentRun } from "@/lib/frequent-jobs";
 import { serviceClient } from "@/lib/supabase";
+import { currentWeek } from "@/lib/week";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -25,14 +27,35 @@ export async function GET(req: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  // The every-few-minutes schedule does nothing until the league turns it on;
+  // the daily run and a run by hand always go ahead. See lib/frequent-jobs.ts.
+  const off = frequentJobsOff(req);
+  if (off) return off;
+
   const leagueId = process.env.LEAGUE_ID;
   if (!leagueId) return Response.json({ error: "LEAGUE_ID is not set" }, { status: 500 });
 
   const db = serviceClient();
 
-  // Forced: the cron is the schedule, so it never asks the throttle whether
-  // this is a good moment.
-  const result = await refreshScores(db, leagueId, { force: true });
+  // The daily run is forced: it is the schedule, so it never asks the throttle
+  // whether this is a good moment. The frequent run asks, like a page view
+  // does — one pull per window across every server, twenty seconds while a
+  // game is on and ten minutes when nothing is — so running every five
+  // minutes all week costs ESPN nothing it was not already asked. It grades
+  // and pushes for the league's week whether or not this run did the pulling:
+  // a page view that refreshed a minute ago has not graded anything.
+  let result: RefreshResult;
+  if (isFrequentRun(req)) {
+    const week = await currentWeek(db, leagueId);
+    const { data: league } = await db.from("leagues").select("season").eq("id", leagueId).single();
+    const pulled =
+      league?.season != null
+        ? await maybeRefreshScores(db, leagueId, await weekState(db, league.season, week), week)
+        : null;
+    result = { ...(pulled ?? { refreshed: false, players: 0, failed: 0, state: null }), week };
+  } else {
+    result = await refreshScores(db, leagueId, { force: true });
+  }
 
   if (result.week == null) {
     return Response.json({ ...result, graded: false, postseason: null });

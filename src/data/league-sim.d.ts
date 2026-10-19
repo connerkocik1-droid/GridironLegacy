@@ -32,7 +32,7 @@ export function targetsOf(settings?: Settings): {
   want: Record<string, number>;
   caps: Record<string, number>;
 };
-export function proj(m: unknown, p: Player): number;
+export function proj(m: unknown, p: Player, settings?: Settings): number;
 export function buildLeague(m: unknown): RosterEntry[][];
 export function startersOf(
   m: unknown,
@@ -40,6 +40,6 @@ export function startersOf(
   settings?: Settings,
 ): { slot: string; x: RosterEntry | null }[];
 export function lineupPoints(m: unknown, roster: RosterEntry[], settings?: Settings): number;
-export function dynastyValue(m: unknown, p: Player): number;
+export function dynastyValue(m: unknown, p: Player, settings?: Settings): number;
 export function pickAssets(team: string, year: number): { id: string; round: number; year: number }[];
 export function pickValue(pick: { round: number; year: number }, year: number): number;

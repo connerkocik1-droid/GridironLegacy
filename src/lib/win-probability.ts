@@ -56,6 +56,13 @@ export interface Playable {
   projected: number;
   /** "pre" before kickoff, "in" while the game runs, "post" once it is over. */
   state?: "pre" | "in" | "post";
+  /**
+   * How much of his game is still to be played, 0 to 1 — read only while he
+   * is on the field. The game clock where the mirror has it, the time since
+   * kickoff where it does not (nfl-week.ts, gameLeft). Absent, the older
+   * estimate stands: whatever of his projection he has not scored yet.
+   */
+  left?: number | null;
 }
 
 /**
@@ -85,8 +92,30 @@ export function outlookOf(entries: (Playable | null)[]): Outlook {
     if (state === "in") {
       inPlay++;
       scored += e.points;
-      // What is left of him, which is less than his projection and never
-      // negative. His remaining minutes carry proportionally less spread.
+
+      if (e.left != null && Number.isFinite(e.left)) {
+        // The clock says how much of his afternoon is left, and his projection
+        // was for the whole of it. What he has banked is banked; what is still
+        // to come is his projection's share of the minutes that remain.
+        //
+        // This is the case the older estimate got wrong. "Projection minus
+        // points" treats a man on nought with two minutes left exactly like a
+        // man on nought at kickoff — the whole projection still to come — so a
+        // side leading late read as a coin toss until the last whistle.
+        const share = Math.min(1, Math.max(0, e.left));
+        const base = Math.max(0, e.projected);
+        remaining += base * share;
+        // A game's scoring arrives in separate pieces, so the uncertainty in
+        // what is left shrinks with the square root of the time remaining
+        // rather than in step with it — at kickoff this is exactly the spread
+        // of a man yet to play, and it drains to nothing at the whistle.
+        variance += (SPREAD * base) ** 2 * share;
+        continue;
+      }
+
+      // No clock to read. What is left of him, which is less than his
+      // projection and never negative. His remaining minutes carry
+      // proportionally less spread.
       const left = Math.max(0, e.projected - e.points);
       remaining += left;
       variance += (SPREAD * left) ** 2;

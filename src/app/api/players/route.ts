@@ -1,3 +1,4 @@
+import { everyRow } from "@/lib/every-row";
 import { POOL } from "@/data/league-data";
 import { teamGames } from "@/lib/nfl-week";
 import { COLUMNS, rank, sortRows, type Group, type Row } from "@/lib/rankings";
@@ -88,10 +89,15 @@ export async function GET(req: Request) {
   // What everybody has actually done this season, worked out by the same code
   // the rankings board uses — so a free agent's numbers here and his numbers
   // on the League tab are the same numbers rather than two attempts at them.
-  const { data: scoreRows } = await db
-    .from("player_scores")
-    .select("player_name, points, week, stats")
-    .eq("league_id", me.league_id);
+  const scoreRows = await everyRow((from, to) =>
+    db
+      .from("player_scores")
+      .select("player_name, points, week, stats")
+      .eq("league_id", me.league_id)
+      .order("week")
+      .order("player_name")
+      .range(from, to),
+  );
 
   const weeksOf = new Map<string, Set<number>>();
   const totalOf = new Map<string, number>();
@@ -211,11 +217,20 @@ export async function GET(req: Request) {
       ? (settings.waiverMode as "open" | "all")
       : "waivers";
 
+  // Whether today is the league's claim day, which the database decides — it
+  // knows the league's clock and it is the thing that will refuse the add.
+  // Asked here so the page offers "Claim" rather than an "Add" button that
+  // comes back with an error a manager did nothing to deserve.
+  const { data: claimDay } = await db.rpc("waiver_day", { p_league_id: me.league_id });
+
   return Response.json({
     me,
     // "waivers": dropped players are claimed, everyone else is an instant add.
     // "open": no wire at all. "all": every pickup is a claim.
     mode,
+    // True for the whole of the claim day. Everything on the board is a claim
+    // while it is, and they all settle together when the day is over.
+    claimDay: claimDay === true,
     waiverDays: Math.max(1, Number(settings.waiverDays ?? 1) || 1),
     capacity,
     held,

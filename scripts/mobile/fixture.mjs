@@ -1038,8 +1038,16 @@ export function routes(page, over = {}) {
     roster: ROSTER.map(([n, s]) => ({
       player_name: n, lineup_slot: s, locked: n === "Jahmyr Gibbs",
     })),
-    claims: [{ id: "c1", add_player: "Ashton Jeanty", drop_player: "Tank Bigsby",
-      claim_order: 1, status: "pending", reason: null }],
+    // Three pending, because one claim cannot show an order and the order is
+    // the point: the run tries them top first and stops when the roster fills.
+    claims: [
+      { id: "c1", add_player: "Ashton Jeanty", drop_player: "Tank Bigsby",
+        claim_order: 1, status: "pending", reason: null, created_at: ago(900) },
+      { id: "c2", add_player: "Jaylen Warren", drop_player: null,
+        claim_order: 2, status: "pending", reason: null, created_at: ago(800) },
+      { id: "c3", add_player: "Rome Odunze", drop_player: null,
+        claim_order: 3, status: "pending", reason: null, created_at: ago(700) },
+    ],
     wire: [
       { name: "Marvin Harrison Jr.", clearsAt: ago(-300), position: "WR", team: "ARI", mine: true },
       { name: "Jayden Reed", clearsAt: ago(-1800), position: "WR", team: "GB", mine: false },

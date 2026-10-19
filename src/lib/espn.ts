@@ -44,6 +44,14 @@ export interface Game {
    * when there is enough here to draw an honest one.
    */
   situation: Situation | null;
+  /**
+   * The quarter being played, 5 and up for overtime. Only while the game is
+   * in progress; null before kickoff, after the whistle, and whenever ESPN
+   * does not say.
+   */
+  period?: number | null;
+  /** Seconds left in that quarter, on the same terms. */
+  clock?: number | null;
 }
 
 /** The state of the current drive, as ESPN reports it. */
@@ -126,13 +134,73 @@ export interface GameDetail {
   teamTotals: Record<string, Record<string, string>>;
 }
 
+/**
+ * ESPN telling this server to go away, per host.
+ *
+ * These endpoints owe us nothing, and in week 3 the scoreboard answered 403
+ * twenty-three times in a week — each one from a request that had been fired
+ * the moment the previous one was refused, by every phone polling a page. A
+ * host that refuses (403) or says slow down (429) is left alone for a while:
+ * thirty seconds, doubling with each refusal in a row up to ten minutes, or
+ * whatever its Retry-After asks for. During that window a call fails at once
+ * without going out, which is what gives the block a chance to lift, and a
+ * success clears the count.
+ *
+ * Kept per host because the play-by-play lives on a different one, and a
+ * scoreboard block is no reason to stop drawing the gamecast. Kept in memory,
+ * per server instance, which is enough: the point is to stop the hammering,
+ * not to coordinate it.
+ */
+const BACKOFF_BASE_MS = 30_000;
+const BACKOFF_MAX_MS = 10 * 60_000;
+const refusals = new Map<string, { until: number; strikes: number }>();
+
+/** A request not made because ESPN refused this host too recently. */
+export class EspnBackoffError extends Error {}
+
+/** When a host may be asked again, or 0 if it may be asked now. For tests. */
+export function espnBlockedUntil(url: string): number {
+  return refusals.get(hostOf(url))?.until ?? 0;
+}
+
+/** Forgets every refusal. For tests. */
+export function resetEspnBackoff(): void {
+  refusals.clear();
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
+
 async function getJson(url: string): Promise<unknown> {
+  const host = hostOf(url);
+  const refused = refusals.get(host);
+  if (refused && Date.now() < refused.until) {
+    throw new EspnBackoffError(
+      `ESPN refused ${host} recently; not asking again until ${new Date(refused.until).toISOString()}`,
+    );
+  }
+
   const res = await fetch(url, {
     headers: { accept: "application/json" },
     // Live scores must not be served from a stale cache.
     cache: "no-store",
   });
+
+  if (res.status === 403 || res.status === 429) {
+    const strikes = Math.min((refused?.strikes ?? 0) + 1, 16);
+    const asked = Number(res.headers.get("retry-after"));
+    const wait =
+      Number.isFinite(asked) && asked > 0 ? asked * 1000 : BACKOFF_BASE_MS * 2 ** (strikes - 1);
+    refusals.set(host, { until: Date.now() + Math.min(BACKOFF_MAX_MS, wait), strikes });
+  }
   if (!res.ok) throw new Error(`ESPN ${res.status} for ${url}`);
+
+  if (refused) refusals.delete(host);
   return res.json();
 }
 
@@ -239,6 +307,14 @@ export async function fetchScoreboard(
 
     const state = type.state === "in" || type.state === "post" ? type.state : "pre";
 
+    // The quarter and what is left of it, which the scoreboard has always sent
+    // and this used to drop. The win probability needs them: without the clock
+    // a man on nought with two minutes left looked exactly like a man on nought
+    // at kickoff. Kept only for a game being played, and only when numeric.
+    const live = state === "in";
+    const period = Number(status.period);
+    const clock = Number(status.clock);
+
     // The event says which part of the season it belongs to. Trusting that
     // rather than the request matters when nothing was requested: asking ESPN
     // for "now" has to come back saying what "now" turned out to be.
@@ -262,6 +338,8 @@ export async function fetchScoreboard(
         // Only while it is being played. A situation left on a finished game
         // would draw a pitch with the ball frozen wherever the last snap died.
         situation: state === "in" ? situationOf(comp.situation) : null,
+        period: live && Number.isFinite(period) && period >= 1 ? period : null,
+        clock: live && status.clock != null && Number.isFinite(clock) && clock >= 0 ? clock : null,
       },
     ];
   });
@@ -726,8 +804,16 @@ export interface Play {
   awayScore: number;
 }
 
-/** How many pages to walk before giving up. A game is about two. */
-const MAX_PAGES = 6;
+/**
+ * How many pages to walk before giving up.
+ *
+ * A game is about two at the limit this asks for, and the loop stops itself on
+ * ESPN's own pageCount long before this — so the only job left is to stop an
+ * undocumented API from paging for ever. Twelve rather than six because the
+ * cost of being wrong is asymmetric: an extra page is one request, and a page
+ * short is the end of the game missing.
+ */
+const MAX_PAGES = 12;
 
 /**
  * Every play of one game, oldest first.
@@ -757,12 +843,41 @@ export async function fetchPlayByPlay(eventId: string, competitionId = eventId):
 
     const pageCount = Number(body.pageCount ?? 1);
     if (!items.length || !Number.isFinite(pageCount) || page >= pageCount) break;
+
+    // The cap is a safety stop, not a budget, and hitting it drops the NEWEST
+    // plays — the pages arrive oldest first. Silently that looks exactly like
+    // a game that stopped, so it says so.
+    if (page === MAX_PAGES) {
+      console.error(
+        `[espn] play feed for ${eventId} truncated at ${MAX_PAGES} pages of ${pageCount}`,
+      );
+    }
   }
 
-  // ESPN's sequence numbers are zero-padded strings, so they sort as numbers
-  // do without being parsed as numbers — which matters, because some of them
-  // are longer than a safe integer.
-  return out.sort((a, b) => a.sequence.localeCompare(b.sequence));
+  return out.sort(bySequence);
+}
+
+/**
+ * Play order, from sequence strings of any width.
+ *
+ * These were believed to be zero-padded to a fixed width, and a plain string
+ * compare is right exactly while that holds. Unpadded, it is not merely
+ * imprecise — it is wrong at the end, which is the end anybody looks at:
+ * "9" sorts above "160", so the last play of the sorted feed becomes play
+ * nine and stays there. A gamecast whose LAST PLAY card stops updating a few
+ * minutes into the first quarter is this line.
+ *
+ * Leading zeros come off and the shorter number is the smaller one, which is
+ * numeric order for non-negative integers however they are written — and it
+ * gets there without parsing, because some of these are longer than a safe
+ * integer. For the padded feed the comparison is unchanged: equal widths fall
+ * straight through to the same string compare as before.
+ */
+export function bySequence(a: { sequence: string }, b: { sequence: string }): number {
+  const x = a.sequence.replace(/^0+(?=.)/, "");
+  const y = b.sequence.replace(/^0+(?=.)/, "");
+  if (x.length !== y.length) return x.length - y.length;
+  return x < y ? -1 : x > y ? 1 : 0;
 }
 
 function readPlay(raw: unknown): Play {

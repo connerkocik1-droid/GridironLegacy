@@ -1,6 +1,7 @@
 import { bestLineup, type Score } from "./matchup";
 import { proj, type LeagueShape } from "./roster";
 import { rngFrom } from "./mock-draft";
+import { scoringOf } from "./scoring-format";
 
 /**
  * How often a player actually starts.
@@ -73,7 +74,7 @@ export function startRates(
   const rates = new Map<string, number>();
   if (!roster.length) return rates;
 
-  const projectionOf = (name: string) => projections?.get(name) ?? proj(name);
+  const projectionOf = (name: string) => projections?.get(name) ?? proj(name, scoringOf(league));
   for (const name of roster) rates.set(name, 0);
 
   // The seed is the roster, so it moves when the roster does and not otherwise.
@@ -109,7 +110,7 @@ export function optimalLineup(
   league: LeagueShape | null,
   projections?: Map<string, number>,
 ): Map<string, string> {
-  const projectionOf = (name: string) => projections?.get(name) ?? proj(name);
+  const projectionOf = (name: string) => projections?.get(name) ?? proj(name, scoringOf(league));
   const scores = new Map<string, Score>(
     roster.map((name) => [name, { points: projectionOf(name), statLine: "" }]),
   );

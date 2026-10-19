@@ -70,9 +70,11 @@ export async function GET() {
         .eq("week", liveWeek),
       // The real football, so a card can say how much of the week each side
       // still has left rather than only what it has so far.
+      // Every column, so the quarter and the clock come along where migration
+      // 0062 has added them; see api/matchup.
       db
         .from("nfl_games")
-        .select("home_team, away_team, starts_at, state")
+        .select("*")
         .eq("season", league?.season ?? 0)
         .eq("week", liveWeek),
     ]);
@@ -110,6 +112,7 @@ export async function GET() {
               points: scores.get(r.entry.name)?.points ?? 0,
               projected: r.entry.projected,
               state: knowTheWeek ? (byTeam[r.entry.team]?.state ?? "post") : ("pre" as const),
+              left: byTeam[r.entry.team]?.left ?? null,
             },
           ),
         ),

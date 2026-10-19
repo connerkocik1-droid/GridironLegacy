@@ -1,4 +1,5 @@
 import { isConfigured, serviceClient } from "@/lib/supabase";
+import { franchisesNeedingCodes } from "@/lib/claim-codes";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,10 @@ export async function GET() {
     return Response.json({ error: "Could not read the league" }, { status: 500 });
   }
 
+  // Which open franchises carry a claim code, so the claim form asks for one
+  // up front rather than after the manager has chosen a PIN.
+  const coded = await franchisesNeedingCodes(db, leagueId);
+
   return Response.json({
     leagueId,
     slots: (data ?? []).map((m) => ({
@@ -58,6 +63,8 @@ export async function GET() {
       // Never send the hash itself, only whether one exists.
       claimed: m.pin_hash != null,
       isCommissioner: m.is_commissioner,
+      // Never the code either — only that this franchise needs one.
+      needsCode: m.pin_hash == null && coded.has(m.id),
     })),
   });
 }

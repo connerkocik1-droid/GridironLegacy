@@ -1,6 +1,8 @@
 import bcrypt from "bcryptjs";
 import { derivedPassword, isValidPin, slotEmail } from "@/lib/auth";
 import { isConfigured, serverClient, serviceClient } from "@/lib/supabase";
+import { IP_WINDOW_MINUTES, clientIp, ipLockedOut, recordAttempt } from "@/lib/attempts";
+import { checkClaim, consumeClaim, readClaim, type Claim } from "@/lib/claim-codes";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +42,7 @@ export async function POST(req: Request) {
   const leagueId = process.env.LEAGUE_ID;
   if (!leagueId) return Response.json({ error: "LEAGUE_ID is not set" }, { status: 500 });
 
-  let body: { slot?: unknown; pin?: unknown; name?: unknown; franchise?: unknown };
+  let body: { slot?: unknown; pin?: unknown; name?: unknown; franchise?: unknown; code?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -63,6 +65,16 @@ export async function POST(req: Request) {
   }
 
   const admin = serviceClient();
+  const ip = clientIp(req);
+
+  // The same count the sign-in route keeps, so a source that has been refused
+  // there cannot carry on here by guessing claim codes instead of PINs.
+  if (await ipLockedOut(admin, ip)) {
+    return Response.json(
+      { error: `Too many attempts from here. Try again in ${IP_WINDOW_MINUTES} minutes.` },
+      { status: 429 },
+    );
+  }
 
   const { data: manager } = await admin
     .from("managers")
@@ -79,6 +91,39 @@ export async function POST(req: Request) {
     return Response.json(
       { error: "That franchise is already claimed. Sign in instead." },
       { status: 409 },
+    );
+  }
+
+  // A franchise the commissioner has opened up again — a cleared PIN, a
+  // manager let go — carries a one-time code, and only the person holding it
+  // may claim it. One with no code outstanding is claimed as it always was,
+  // which is what a league being set up for the first time needs.
+  let claim: Claim;
+  try {
+    claim = await readClaim(admin, manager.id);
+  } catch (err) {
+    console.error("[auth/signup] could not read the claim code", err);
+    return Response.json({ error: "Could not claim that franchise" }, { status: 500 });
+  }
+
+  const verdict = checkClaim(claim, manager.id, body.code);
+  if (verdict === "missing") {
+    return Response.json(
+      { error: "This franchise needs the claim code the commissioner gave you.", needsCode: true },
+      { status: 400 },
+    );
+  }
+  if (verdict === "expired") {
+    return Response.json(
+      { error: "That claim code has expired. Ask the commissioner for a new one.", needsCode: true },
+      { status: 410 },
+    );
+  }
+  if (verdict === "wrong") {
+    await recordAttempt(admin, { leagueId, slot, succeeded: false, ip });
+    return Response.json(
+      { error: "That claim code is not right. Check it with the commissioner.", needsCode: true },
+      { status: 403 },
     );
   }
 
@@ -142,15 +187,32 @@ export async function POST(req: Request) {
         ? manager.franchise
         : `${firstName}'s Team`;
 
-  const { error: updateError } = await admin
+  // Only while it is still unclaimed. The check at the top and this write
+  // were two statements apart, so two people claiming the same franchise in
+  // the same second could both pass the check and the second would overwrite
+  // the first. The condition makes the write itself the check.
+  const { data: claimed, error: updateError } = await admin
     .from("managers")
     .update({ pin_hash: pinHash, auth_user_id: authUserId, franchise, name: firstName })
-    .eq("id", manager.id);
+    .eq("id", manager.id)
+    .is("pin_hash", null)
+    .select("id");
 
   if (updateError) {
     console.error("[auth/signup] could not save the manager", updateError);
     return Response.json({ error: "Could not claim that franchise" }, { status: 500 });
   }
+  if (!claimed?.length) {
+    return Response.json(
+      { error: "Somebody claimed that franchise a moment ago. Sign in instead if it is yours." },
+      { status: 409 },
+    );
+  }
+
+  // A code is good for one claim, and a claim is a successful sign-in: it
+  // clears the franchise's run of failures the way a correct PIN does.
+  if (claim.required) await consumeClaim(admin, manager.id);
+  await recordAttempt(admin, { leagueId, slot, succeeded: true, ip });
 
   // Sign them straight in, so claiming a franchise lands them in the league.
   const db = await serverClient();

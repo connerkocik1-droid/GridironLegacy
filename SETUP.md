@@ -153,23 +153,27 @@ commit it names.
 
 ## 6. Schedule the jobs
 
-`vercel.json` carries two cron jobs, which is the Hobby plan's limit — one
-daily catch-up scoring run and the weekly waiver run.
+Every job is scheduled in `vercel.json`, and Vercel sends each one the
+`CRON_SECRET` from step 4 by itself. Sub-daily schedules need a plan that
+allows them; this project's push job already runs every ten minutes.
 
-Live scoring and the draft clock need to run far more often than once a day, so
-they live in `.github/workflows/cron.yml`. In **GitHub → Settings → Secrets and
-variables → Actions**, add:
+The daily and weekly jobs — the catch-up scoring run that grades a week, the
+waivers, the health check, next season's picks, the Thursday projections —
+always run.
 
-```
-SITE_URL      https://your-app.vercel.app
-CRON_SECRET   the same value you set in Vercel
-```
+The every-few-minutes jobs — live scores, email notices and the draft clock —
+run only once you turn them on. **Project → Settings → Environment
+Variables**, add `FREQUENT_JOBS` = `on` to Production, and redeploy. Before
+you do, know what changes: a week settles minutes after its last game instead
+of at the next morning's run; a matchup's lead changing hands during a game is
+pushed to the phones that asked for pushes; and, if a mail provider is set up,
+notices are emailed within five minutes. Remove the variable to turn them off
+again.
 
-GitHub's scheduler is best-effort and can fire several minutes late. If the
-draft clock matters to you, move those jobs back into `vercel.json` on Vercel
-Pro instead.
-
-You can run any job by hand from the Actions tab — useful for testing.
+You can run any job by hand from **GitHub → Actions → Run a job**. It needs
+one repository secret, `CRON_SECRET`, the same value as in Vercel. `SITE_URL`
+is optional and defaults to the production domain; if you set it, use your
+custom domain, because the `*.vercel.app` addresses sit behind Vercel's login.
 
 ### Live scores do not depend on any of this
 
@@ -186,7 +190,7 @@ twelve people watching the same Sunday cost the same as one.
 What that means in practice:
 
 - Scores move within roughly half a minute of a scoring play, on any day of
-  the week, whether or not the GitHub secrets above were ever set.
+  the week, whether or not the frequent jobs above are on.
 - Nothing is fetched at all when nobody is looking, or between slates.
 - The scheduled jobs above still matter. They are what grades a week, moves
   the playoffs on and keeps a league correct on a Tuesday when nobody has
