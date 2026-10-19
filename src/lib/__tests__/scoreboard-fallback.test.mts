@@ -158,7 +158,9 @@ console.log("\n--- which week the copy is read from ---");
   const weekOnly = await mirroredSlate(db, { week: 4, seasonType: 2 });
   eq("a week named without a season is that week of the latest season", weekOnly?.games.map((g) => g.id), ["c"]);
 
-  const nothing = await mirroredSlate(db, {});
+  // Pinned between week 3 and week 4's kickoffs. Against the real clock this
+  // case broke by itself on 4 October, the day the fixture's week 4 started.
+  const nothing = await mirroredSlate(db, {}, new Date("2026-09-30T12:00:00Z"));
   eq("nothing named is the latest week that has started", nothing?.games.map((g) => g.id), ["b"]);
   eq("and says when the league last heard", nothing?.asOf, "2026-09-28T08:00:00Z");
 
