@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { parsePolls, nflMeta, NFL_TEAMS, RANKED, type BoardReport, type Entry } from "@/lib/pylon-report";
+import { useReportLogos } from "@/lib/use-report-logos";
+import ReportLogoSlot from "./ReportLogoSlot";
 import { DragHandleProps, GripHandle, SortableList } from "./SortableList";
 
 /**
@@ -60,6 +62,7 @@ export default function ReportDesk({
   }, []);
 
   const polls = useMemo(() => parsePolls(pollsGrid), [pollsGrid]);
+  const logos = useReportLogos();
 
   const anything = college.length > 0 || nfl.length > 0;
 
@@ -152,6 +155,8 @@ export default function ReportDesk({
 
       <BoardEditor
         title={`College (${college.length})`}
+        scope="cfb"
+        logos={logos.cfb}
         list={college}
         onReorder={setCollege}
         onFieldChange={(key, field, value) => setField("college", key, field, value)}
@@ -198,6 +203,8 @@ export default function ReportDesk({
       <div style={{ marginTop: 18 }}>
         <BoardEditor
           title={`NFL (${nfl.length})`}
+          scope="nfl"
+          logos={logos.nfl}
           list={nfl}
           onReorder={setNfl}
           onFieldChange={(key, field, value) => setField("nfl", key, field, value)}
@@ -256,12 +263,16 @@ function seedNfl(): Entry[] {
 
 function BoardEditor({
   title,
+  scope,
+  logos,
   list,
   onReorder,
   onFieldChange,
   onRemove,
 }: {
   title: string;
+  scope: "cfb" | "nfl";
+  logos: Record<string, string>;
   list: Entry[];
   onReorder: (next: Entry[]) => void;
   onFieldChange: (key: string, field: "record" | "lastResult", value: string) => void;
@@ -291,6 +302,8 @@ function BoardEditor({
                 entry={entry}
                 index={i}
                 handle={handle}
+                scope={scope}
+                logo={logos[entry.abbr]}
                 onFieldChange={(field, value) => onFieldChange(keyFor(entry), field, value)}
                 onRemove={() => onRemove(keyFor(entry))}
               />
@@ -306,12 +319,16 @@ function Row({
   entry,
   index,
   handle,
+  scope,
+  logo,
   onFieldChange,
   onRemove,
 }: {
   entry: Entry;
   index: number;
   handle: DragHandleProps;
+  scope: "cfb" | "nfl";
+  logo: string | undefined;
   onFieldChange: (field: "record" | "lastResult", value: string) => void;
   onRemove: () => void;
 }) {
@@ -327,6 +344,7 @@ function Row({
       }}
     >
       <GripHandle {...handle} />
+      <ReportLogoSlot scope={scope} abbr={entry.abbr} image={logo} />
       <span
         style={{
           width: 22,

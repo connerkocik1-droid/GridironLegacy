@@ -89,6 +89,8 @@ export default function PylonReportPage({
   bigBoardBefore,
   bigBoardWeek,
   bigBoardHistory,
+  cfbLogos,
+  nflLogos,
 }: {
   week: number | null;
   college: BoardReport;
@@ -102,6 +104,8 @@ export default function PylonReportPage({
   bigBoardBefore: ProspectBoard | null;
   bigBoardWeek: number | null;
   bigBoardHistory: Record<string, (number | null)[]>;
+  cfbLogos: Record<string, string>;
+  nflLogos: Record<string, string>;
 }) {
   const [board, setBoard] = useState<BoardKey>("cfb");
   const [filter, setFilter] = useState("All");
@@ -197,14 +201,15 @@ export default function PylonReportPage({
             Nothing published yet. Check back after the commissioner&apos;s office puts this week&apos;s boards up.
           </p>
         ) : board === "cfb" ? (
-          <CfbBoard college={college} dropped={dropped} moves={collegeMoves} polls={polls} history={collegeHistory} filter={filter} setFilter={setFilter} />
+          <CfbBoard college={college} dropped={dropped} moves={collegeMoves} polls={polls} history={collegeHistory} logos={cfbLogos} filter={filter} setFilter={setFilter} />
         ) : board === "nfl" ? (
-          <NflBoard nfl={nfl} moves={nflMoves} history={nflHistory} filter={filter} setFilter={setFilter} />
+          <NflBoard nfl={nfl} moves={nflMoves} history={nflHistory} logos={nflLogos} filter={filter} setFilter={setFilter} />
         ) : (
           <P50Board
             entries={bigBoardSorted}
             before={bigBoardBefore}
             history={bigBoardHistory}
+            logos={cfbLogos}
             week={bigBoardWeek}
             filter={filter}
             setFilter={setFilter}
@@ -292,7 +297,7 @@ function ChangeChip({ move }: { move: Move | undefined }) {
   return <span style={{ fontSize: 12, fontWeight: 500, color }}>{label}</span>;
 }
 
-function LogoTile({ abbr }: { abbr: string }) {
+function LogoTile({ abbr, src }: { abbr: string; src?: string }) {
   return (
     <div
       style={{
@@ -307,11 +312,11 @@ function LogoTile({ abbr }: { abbr: string }) {
         fontWeight: 600,
         letterSpacing: ".04em",
         color: C.accent200,
-        background: "rgb(var(--accent-rgb) / .14)",
+        background: src ? `url(${src}) center / cover` : "rgb(var(--accent-rgb) / .14)",
         border: "1px solid rgb(var(--accent-rgb) / .22)",
       }}
     >
-      {abbr}
+      {src ? null : abbr}
     </div>
   );
 }
@@ -408,6 +413,7 @@ function CfbBoard({
   moves,
   polls,
   history,
+  logos,
   filter,
   setFilter,
 }: {
@@ -416,6 +422,7 @@ function CfbBoard({
   moves: Map<string, Move>;
   polls: Polls;
   history: Record<string, (number | null)[]>;
+  logos: Record<string, string>;
   filter: string;
   setFilter: (f: string) => void;
 }) {
@@ -496,7 +503,7 @@ function CfbBoard({
             <div style={{ padding: "30px 16px", fontSize: 13, color: C.neutral400 }}>Nothing matches that filter.</div>
           ) : (
             vis.map((e, i) => (
-              <CfbRow key={`${e.rank}-${e.team}`} entry={e} first={i === 0} move={moves.get(keyOf(e.team))} polls={polls} trail={history[keyOf(e.team)] ?? []} />
+              <CfbRow key={`${e.rank}-${e.team}`} entry={e} first={i === 0} move={moves.get(keyOf(e.team))} polls={polls} trail={history[keyOf(e.team)] ?? []} logo={logos[e.abbr]} />
             ))
           )}
         </div>
@@ -537,7 +544,7 @@ function Legend({ color, shape, label }: { color: string; shape: "dot" | "ring" 
 const NR = 26;
 const at = (v: number | null) => `${((Math.min(v ?? NR, NR) - 1) / (NR - 1)) * 100}%`;
 
-function CfbRow({ entry, first, move, polls, trail }: { entry: Entry; first: boolean; move: Move | undefined; polls: Polls; trail: (number | null)[] }) {
+function CfbRow({ entry, first, move, polls, trail, logo }: { entry: Entry; first: boolean; move: Move | undefined; polls: Polls; trail: (number | null)[]; logo: string | undefined }) {
   const ranks = pollRanksFor(entry.team, polls);
   const allRanks = [entry.rank, ranks.ap, ranks.coaches, ...(ranks.cfp != null ? [ranks.cfp] : [])].map((v) => v ?? NR);
   const lo = Math.min(...allRanks);
@@ -569,7 +576,7 @@ function CfbRow({ entry, first, move, polls, trail }: { entry: Entry; first: boo
     >
       <RankNumeral rank={entry.rank} max={25} />
       <ChangeChip move={move} />
-      <LogoTile abbr={entry.abbr} />
+      <LogoTile abbr={entry.abbr} src={logo} />
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 13.5, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{entry.team}</div>
         <div style={{ fontSize: 11, color: C.neutral500, marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -606,10 +613,11 @@ function CfbRow({ entry, first, move, polls, trail }: { entry: Entry; first: boo
 
 // ------------------------------------------------------------------ NFL ---
 
-function NflBoard({ nfl, moves, history, filter, setFilter }: {
+function NflBoard({ nfl, moves, history, logos, filter, setFilter }: {
   nfl: BoardReport;
   moves: Map<string, Move>;
   history: Record<string, (number | null)[]>;
+  logos: Record<string, string>;
   filter: string;
   setFilter: (f: string) => void;
 }) {
@@ -668,7 +676,7 @@ function NflBoard({ nfl, moves, history, filter, setFilter }: {
                 >
                   <RankNumeral rank={e.rank} max={32} />
                   <ChangeChip move={moves.get(keyOf(e.team))} />
-                  <LogoTile abbr={meta.abbr} />
+                  <LogoTile abbr={meta.abbr} src={logos[meta.abbr]} />
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.team}</div>
                     {e.lastResult ? <div style={{ fontSize: 11, color: C.neutral500, marginTop: 3 }}>{e.lastResult}</div> : null}
@@ -688,10 +696,11 @@ function NflBoard({ nfl, moves, history, filter, setFilter }: {
 
 // ------------------------------------------------------------------ P50 ---
 
-function P50Board({ entries, before, history, week, filter, setFilter }: {
+function P50Board({ entries, before, history, logos, week, filter, setFilter }: {
   entries: ProspectEntry[];
   before: ProspectBoard | null;
   history: Record<string, (number | null)[]>;
+  logos: Record<string, string>;
   week: number | null;
   filter: string;
   setFilter: (f: string) => void;
@@ -776,7 +785,7 @@ function P50Board({ entries, before, history, week, filter, setFilter }: {
                   ) : null}
                   <div style={{ display: "grid", gridTemplateColumns: "56px 32px minmax(0,1fr) 50px 80px 80px minmax(0,120px)", gap: 12, alignItems: "center", padding: "10px 16px", ...(showTier || i === 0 ? {} : hairline) }}>
                     <RankNumeral rank={e.rank} max={50} />
-                    <LogoTile abbr={e.schoolAbbr} />
+                    <LogoTile abbr={e.schoolAbbr} src={logos[e.schoolAbbr]} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 13.5, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.player}</div>
                       <div style={{ fontSize: 11, color: C.neutral500, marginTop: 3 }}>

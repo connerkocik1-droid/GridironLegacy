@@ -8,6 +8,7 @@ import {
   type ProspectBoard,
   type ProspectEntry,
 } from "@/lib/pylon-draft-board";
+import { useReportLogos } from "@/lib/use-report-logos";
 import { DragHandleProps, GripHandle, SortableList } from "./SortableList";
 
 /**
@@ -61,6 +62,7 @@ export default function DraftBoardDesk({
   }, []);
 
   const seeded = parseBigBoard(seedGrid);
+  const logos = useReportLogos();
   const anything = list.length > 0;
 
   function seedFromPaste() {
@@ -232,6 +234,7 @@ export default function DraftBoardDesk({
                       entry={entry}
                       index={i}
                       handle={handle}
+                      logo={logos.cfb[entry.schoolAbbr]}
                       onRatingChange={(rating) => setRating(keyFor(entry), rating)}
                       onRemove={() => removeRow(keyFor(entry))}
                     />
@@ -308,12 +311,14 @@ function Row({
   entry,
   index,
   handle,
+  logo,
   onRatingChange,
   onRemove,
 }: {
   entry: ProspectEntry;
   index: number;
   handle: DragHandleProps;
+  logo: string | undefined;
   onRatingChange: (rating: number) => void;
   onRemove: () => void;
 }) {
@@ -329,6 +334,25 @@ function Row({
       }}
     >
       <GripHandle {...handle} />
+      <div
+        title={`${entry.schoolAbbr}'s crest is set from the College board`}
+        style={{
+          width: 24,
+          height: 24,
+          flex: "0 0 auto",
+          borderRadius: 3,
+          border: "1px solid rgb(var(--accent-rgb) / .25)",
+          background: logo ? `url(${logo}) center / cover` : "rgb(var(--accent-rgb) / .12)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 8,
+          fontWeight: 600,
+          color: "var(--accent-text)",
+        }}
+      >
+        {logo ? null : entry.schoolAbbr}
+      </div>
       <span
         style={{
           width: 22,

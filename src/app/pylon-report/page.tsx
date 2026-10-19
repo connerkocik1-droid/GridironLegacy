@@ -26,6 +26,7 @@ interface DraftBoardRow {
 const EMPTY_BOARD: BoardReport = { ranked: [], honorable: [] };
 const EMPTY_POLLS: Polls = { ap: [], coaches: [], cfp: [] };
 const EMPTY_PROSPECTS: ProspectBoard = { ranked: [], honorable: [] };
+const EMPTY_LOGOS: Record<string, string> = {};
 
 /**
  * The public Pylon Report, no sign-in needed — the same way the sign-in page
@@ -57,6 +58,11 @@ async function load() {
       .order("week", { ascending: false })
       .limit(4);
 
+    const { data: logoData } = await db
+      .from("report_logos")
+      .select("scope, abbr, image")
+      .eq("league_id", process.env.LEAGUE_ID);
+
     const rows = (data ?? []) as ReportRow[];
     const now = rows[0] ?? null;
     const before = rows[1] ?? null;
@@ -66,6 +72,13 @@ async function load() {
     const nowBoard = boardRows[0] ?? null;
     const beforeBoard = boardRows[1] ?? null;
     const boardOldestFirst = boardRows.slice().reverse();
+
+    const cfbLogos: Record<string, string> = {};
+    const nflLogos: Record<string, string> = {};
+    for (const row of logoData ?? []) {
+      if (row.scope === "cfb") cfbLogos[row.abbr] = row.image;
+      else if (row.scope === "nfl") nflLogos[row.abbr] = row.image;
+    }
 
     return {
       week: now?.week ?? null,
@@ -93,6 +106,8 @@ async function load() {
         (e: ProspectEntry) => keyOf(e.player),
         (e: ProspectEntry) => e.rating,
       ),
+      cfbLogos,
+      nflLogos,
     };
   } catch {
     return null;
@@ -116,6 +131,8 @@ export default async function PylonReportRoute() {
       bigBoardBefore={data?.bigBoardBefore ?? null}
       bigBoardWeek={data?.bigBoardWeek ?? null}
       bigBoardHistory={data?.bigBoardHistory ?? {}}
+      cfbLogos={data?.cfbLogos ?? EMPTY_LOGOS}
+      nflLogos={data?.nflLogos ?? EMPTY_LOGOS}
     />
   );
 }
