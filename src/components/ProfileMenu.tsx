@@ -141,10 +141,17 @@ export default function ProfileMenu() {
               maxHeight: "min(78vh, 560px)",
               overflowY: "auto",
               zIndex: 60,
-              border: "1px solid rgb(var(--accent-rgb) / .3)",
+              border: "1px solid rgb(var(--accent-rgb) / .22)",
               borderRadius: "var(--radius-lg)",
-              background: "var(--board-solid)",
-              boxShadow: "0 18px 44px rgb(var(--scrim-rgb) / .6)",
+              // Liquid glass, matching the redesign's dropdown panels: an
+              // accent tint layered over the solid panel colour, blurred
+              // against whatever is behind it.
+              background:
+                "linear-gradient(180deg,rgb(var(--accent-rgb) / .12),transparent 60%),var(--board-solid)",
+              backdropFilter: "blur(26px) saturate(160%)",
+              WebkitBackdropFilter: "blur(26px) saturate(160%)",
+              boxShadow:
+                "inset 0 1px 0 rgb(var(--accent-rgb) / .14), 0 18px 44px rgb(var(--scrim-rgb) / .6)",
               textAlign: "left",
               animation: "gl-fade 140ms ease",
             }}
