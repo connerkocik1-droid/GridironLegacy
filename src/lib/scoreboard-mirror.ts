@@ -97,6 +97,9 @@ export function gameFromMirror(row: MirrorRow): Game {
 export async function mirroredSlate(
   db: Db,
   want: { season?: number | null; week?: number | null; seasonType?: SeasonType | null },
+  /** What "has started" is measured against. Passed by tests, so a fixture
+   *  week does not start on its own once the calendar passes it. */
+  now: Date = new Date(),
 ): Promise<{ games: Game[]; asOf: string | null } | null> {
   let season = want.season ?? null;
   let week = want.week ?? null;
@@ -107,7 +110,7 @@ export async function mirroredSlate(
     const { data: latest } = await db
       .from("nfl_games")
       .select("season, week, season_type")
-      .lte("starts_at", new Date().toISOString())
+      .lte("starts_at", now.toISOString())
       .order("starts_at", { ascending: false })
       .limit(1)
       .maybeSingle();
