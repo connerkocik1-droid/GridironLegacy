@@ -1,15 +1,13 @@
 import Nav from "@/components/Nav";
-import PlayerRankings from "@/components/PlayerRankings";
+import PlayersView from "@/components/PlayersView";
 
-export const metadata = { title: "Player rankings · Pylon Fantasy" };
+export const metadata = { title: "Players · Pylon Fantasy" };
 
 export default function RankingsPage() {
   return (
-    <div
-      style={{ minHeight: "var(--screen)" }}
-    >
+    <div style={{ minHeight: "var(--screen)" }}>
       <Nav current="/rankings" />
-      <PlayerRankings />
+      <PlayersView />
     </div>
   );
 }

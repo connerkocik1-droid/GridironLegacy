@@ -1403,6 +1403,20 @@ button[disabled]:active {
 @keyframes ap-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes ap-drop { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
 
+/* One screen, two editions: the app's on a phone, the web's on anything
+   wider. Same breakpoint as the tab bar. */
+.gl-only-phone {
+  display: none;
+}
+@media (max-width: 720px) {
+  .gl-only-phone {
+    display: block;
+  }
+  .gl-only-wide {
+    display: none;
+  }
+}
+
 /* Rows lift on hover and press in, chips and buttons shrink a touch. */
 .gl-row {
   transition: background-color .15s ease, transform .12s ease;
