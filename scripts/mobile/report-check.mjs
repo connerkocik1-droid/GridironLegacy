@@ -25,14 +25,14 @@ const browser = await chromium.launch(
 const STUB = process.env.AUDIT_STUB ?? "http://127.0.0.1:54321";
 const stub = (state) => fetch(`${STUB}/__state`, { method: "POST", body: JSON.stringify(state) });
 
-async function open(width = 402) {
+async function open(width = 402, { signedIn = true, query = "" } = {}) {
   const ctx = await browser.newContext({
     viewport: { width, height: 900 }, isMobile: width < 720, hasTouch: width < 720,
   });
-  await ctx.addCookies([sessionCookie()]);
+  if (signedIn) await ctx.addCookies([sessionCookie()]);
   const page = await ctx.newPage();
   await routes(page);
-  await page.goto(`${BASE}/pylon-report`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/pylon-report${query}`, { waitUntil: "networkidle" });
   await page.waitForFunction(() => /PYLON ORDER|Nothing published/.test(document.body.innerText),
     undefined, { timeout: 20000 }).catch(() => {});
   return { page, ctx };
@@ -102,6 +102,40 @@ console.log("\n--- on the narrowest phone ---");
   });
   ok(`it stays inside 320px (${over}px over)`, over <= 0);
   await small.ctx.close();
+}
+
+console.log("\n--- the standalone page, on a phone ---");
+{
+  // A visitor following a shared link is not signed in and has no app to be
+  // inside, so the web edition is what they get, at every width.
+  for (const width of [402, 320]) {
+    const out = await open(width, { signedIn: false });
+    const shown = await out.page.evaluate(() => ({
+      over: document.documentElement.scrollWidth - innerWidth,
+      app: !!document.querySelector(".gl-only-phone"),
+      table: document.querySelector(".pr-table")?.scrollWidth ?? 0,
+      text: document.body.innerText,
+    }));
+    ok(`signed out at ${width}px gets the standalone page`, !shown.app && /College football Top 25/.test(shown.text));
+    ok(`nothing runs off the side at ${width}px (${shown.over}px)`, shown.over <= 0);
+    ok(`the board fits the screen rather than scrolling sideways (${shown.table}px)`, shown.table <= width);
+    ok("and each row still carries its record", /Georgia[\s\S]{0,40}2-0/.test(shown.text));
+    // The three board tabs never run into one another.
+    const tabs = await out.page.locator(".pr-boards button").evaluateAll((els) =>
+      els.map((el) => [el.getBoundingClientRect().left, el.getBoundingClientRect().right, el.scrollWidth <= el.clientWidth + 1]));
+    ok(`the board tabs keep inside their own boxes at ${width}px`, tabs.length === 3 && tabs.every(([, , fits]) => fits));
+    if (SHOTS && width === 402) await out.page.screenshot({ path: `${SHOTS}/pylon-report-standalone.png`, fullPage: true });
+    await out.ctx.close();
+  }
+
+  // A manager on a phone stays in the app, with the way through to it.
+  const inApp = await open(402);
+  ok("signed in on a phone stays in the app's edition", (await inApp.page.locator(".gl-only-phone").isVisible()));
+  ok("which links to the full report", (await inApp.page.locator('.gl-only-phone a[href="/pylon-report?view=web"]').count()) === 1);
+  await inApp.ctx.close();
+  const web = await open(402, { query: "?view=web" });
+  ok("and the link opens it", (await web.page.locator(".gl-only-phone").count()) === 0 && /College football Top 25/.test(await web.page.locator("body").innerText()));
+  await web.ctx.close();
 }
 
 console.log("\n--- on a desktop ---");

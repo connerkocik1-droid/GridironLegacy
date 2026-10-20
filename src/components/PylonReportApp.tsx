@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { keyOf, movement, nflMeta, pollRanksFor, type BoardReport, type Move, type Polls } from "@/lib/pylon-report";
 import { byRating, prospectMovement, TIERS, tierOf, type ProspectBoard } from "@/lib/pylon-draft-board";
 import { rankTrail, ratingTrail } from "@/lib/pylon-report-view";
@@ -144,6 +145,11 @@ export default function PylonReportApp(p: Props) {
     <AppView>
       <Chips options={["CFB Top 25", "NFL Power 32", "Pylon 50"] as Board[]} value={board} onChange={setBoard} label="Board" />
       {body}
+      <Foot>
+        <Link href="/pylon-report?view=web" style={{ color: "var(--ap-a300)" }}>
+          Full report, with the polls and the week&apos;s takeaways →
+        </Link>
+      </Foot>
     </AppView>
   );
 }

@@ -16,6 +16,7 @@ import {
 import { byRating, tierOf, type ProspectBoard, type ProspectEntry } from "@/lib/pylon-draft-board";
 import { rankTrail, ratingTrail, sparkFields, type SparkFields } from "@/lib/pylon-report-view";
 import { barMark, panelMark } from "@/lib/liquid-glass";
+import { logo as nflLogo } from "@/data/league-data";
 
 /**
  * The Pylon Report, in full — ported from the "Pylon Report Web" design
@@ -140,20 +141,20 @@ export default function PylonReportPage({
       </div>
 
       <div style={{ position: "sticky", top: 0, zIndex: 20, padding: "14px 20px 0" }}>
-        <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", alignItems: "center", gap: 14, padding: "10px 16px", ...glass("nav") }}>
+        <div className="pr-nav" style={{ maxWidth: 1120, margin: "0 auto", display: "flex", alignItems: "center", gap: 14, padding: "10px 16px", ...glass("nav") }}>
           <PylonMark />
           <span style={{ display: "flex", alignItems: "baseline", gap: 7, flex: "0 0 auto", whiteSpace: "nowrap", fontSize: 12, letterSpacing: ".2em", textTransform: "uppercase", fontStyle: "italic" }}>
             <span style={{ fontWeight: 600 }}>Pylon</span>
-            <span style={{ fontWeight: 400, color: C.accent300 }}>Fantasy</span>
+            <span className="pr-fantasy" style={{ fontWeight: 400, color: C.accent300 }}>Fantasy</span>
           </span>
-          <div style={{ marginLeft: "auto", display: "flex", gap: 24, fontSize: 13 }}>
+          <div className="pr-nav-links" style={{ marginLeft: "auto", display: "flex", gap: 24, fontSize: 13 }}>
             <Link href="/" style={{ color: C.neutral400 }}>Home</Link>
             <span style={{ color: C.text }}>The Pylon Report</span>
           </div>
         </div>
       </div>
 
-      <div style={{ position: "relative", maxWidth: 1120, margin: "0 auto", padding: "48px 20px 80px" }}>
+      <div className="pr-body" style={{ position: "relative", maxWidth: 1120, margin: "0 auto", padding: "48px 20px 80px" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ width: 22, height: 1, background: C.accent }} />
@@ -164,7 +165,7 @@ export default function PylonReportPage({
           </h1>
         </div>
 
-        <div style={{ marginTop: 36, display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", overflow: "hidden", ...glass("panel") }}>
+        <div className="pr-boards" style={{ marginTop: 36, display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", overflow: "hidden", ...glass("panel") }}>
           {(["cfb", "nfl", "p50"] as BoardKey[]).map((k, i) => {
             const on = board === k;
             return (
@@ -183,15 +184,15 @@ export default function PylonReportPage({
                   borderRadius: 0,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                  <span style={{ fontSize: 15, fontWeight: 500, fontStyle: "italic", letterSpacing: "-.01em", color: on ? C.text : C.neutral300 }}>
+                <div className="pr-board-head" style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                  <span className="pr-board-title" style={{ fontSize: 15, fontWeight: 500, fontStyle: "italic", letterSpacing: "-.01em", color: on ? C.text : C.neutral300 }}>
                     {META[k].title}
                   </span>
-                  <span style={{ marginLeft: "auto", fontSize: 20, fontWeight: 500, letterSpacing: "-.03em", color: C.neutral600 }}>
+                  <span className="pr-board-count" style={{ marginLeft: "auto", fontSize: 20, fontWeight: 500, letterSpacing: "-.03em", color: C.neutral600 }}>
                     {counts[k]}
                   </span>
                 </div>
-                <div style={{ fontSize: 11, color: C.neutral400, marginTop: 4 }}>{META[k].sub}</div>
+                <div className="pr-board-sub" style={{ fontSize: 11, color: C.neutral400, marginTop: 4 }}>{META[k].sub}</div>
                 <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 2, background: `linear-gradient(90deg,transparent,${C.accent},transparent)`, opacity: on ? 1 : 0 }} />
               </button>
             );
@@ -254,6 +255,7 @@ function RankNumeral({ rank, max }: { rank: number; max: number }) {
   const lit = rank <= 5;
   return (
     <span
+      className="pr-rank"
       style={{
         fontSize: 30,
         fontWeight: 300,
@@ -310,11 +312,11 @@ function LogoTile({ abbr, src }: { abbr: string; src?: string }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: 9,
+        fontSize: 10,
         fontWeight: 600,
-        letterSpacing: ".04em",
+        letterSpacing: ".02em",
         color: C.accent200,
-        background: src ? `url(${src}) center / cover` : "rgb(var(--accent-rgb) / .14)",
+        background: src ? `url(${src}) center / contain no-repeat, rgb(var(--accent-rgb) / .06)` : "rgb(var(--accent-rgb) / .14)",
         border: "1px solid rgb(var(--accent-rgb) / .22)",
       }}
     >
@@ -349,7 +351,7 @@ function FilterChips({ options, filter, setFilter, showing, total }: {
   total: number;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "flex-end", gap: 18, flexWrap: "wrap", marginTop: 44, paddingBottom: 2, ...hairline }}>
+    <div className="pr-chips" style={{ display: "flex", alignItems: "flex-end", gap: 18, flexWrap: "wrap", marginTop: 44, paddingBottom: 2, ...hairline }}>
       {options.map((f) => (
         <button
           key={f.label}
@@ -377,12 +379,12 @@ function FilterChips({ options, filter, setFilter, showing, total }: {
 
 function Insights({ items }: { items: { label: string; value: string; aside: string; note: string }[] }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", marginTop: 32 }}>
+    <div className="pr-insights" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", marginTop: 32 }}>
       {items.map((s) => (
-        <div key={s.label} style={{ padding: "2px 20px 2px 0", marginRight: 20, borderRight: "1px solid rgb(var(--accent-rgb) / .08)" }}>
+        <div key={s.label} className="pr-insight" style={{ padding: "2px 20px 2px 0", marginRight: 20, borderRight: "1px solid rgb(var(--accent-rgb) / .08)" }}>
           <div style={{ fontSize: 10, letterSpacing: ".2em", color: C.neutral500 }}>{s.label}</div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 8 }}>
-            <span style={{ fontSize: 18, fontWeight: 500, fontStyle: "italic", letterSpacing: "-.025em", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: 18, fontWeight: 500, fontStyle: "italic", letterSpacing: "-.025em", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 4 }}>
               {s.value}
             </span>
             <span style={{ marginLeft: "auto", fontSize: 12, color: C.accent300, flex: "0 0 auto" }}>{s.aside}</span>
@@ -486,15 +488,18 @@ function CfbBoard({
         total={all.length}
       />
       <div style={{ marginTop: 16, overflowX: "auto", ...glass("sheet") }}>
-        <div style={{ minWidth: 760 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "56px 42px 32px minmax(0,1fr) 46px 80px minmax(160px,220px)", gap: 12, alignItems: "center", padding: "11px 16px", fontSize: 10, letterSpacing: ".16em", color: C.neutral500, ...hairline }}>
-            <span style={{ color: C.accent300 }}>PYLON</span>
+        <div className="pr-table">
+          <div className="pr-row pr-cfb" style={{ padding: "11px 16px", fontSize: 10, letterSpacing: ".16em", color: C.neutral500, ...hairline }}>
+            <span style={{ color: C.accent300 }}>
+              <span className="pr-wide">PYLON</span>
+              <span className="pr-phone">#</span>
+            </span>
             <span>CHG</span>
             <span />
             <span>TEAM</span>
             <span style={{ textAlign: "right" }}>REC</span>
-            <span>4-WK</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 8, letterSpacing: ".1em" }}>
+            <span className="pr-wide">4-WK</span>
+            <span className="pr-legend" style={{ display: "flex", alignItems: "center", gap: 8, letterSpacing: ".1em" }}>
               <Legend color={C.accent} shape="dot" label="PYLON" />
               <Legend color={C.neutral200} shape="ring" label="AP" />
               <Legend color={C.neutral400} shape="diamond" label="COACHES" />
@@ -566,16 +571,7 @@ function CfbRow({ entry, first, move, polls, trail, logo }: { entry: Entry; firs
   }
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "56px 42px 32px minmax(0,1fr) 46px 80px minmax(160px,220px)",
-        gap: 12,
-        alignItems: "center",
-        padding: "10px 16px",
-        ...(first ? {} : hairline),
-      }}
-    >
+    <div className="pr-row pr-cfb" style={{ padding: "10px 16px", ...(first ? {} : hairline) }}>
       <RankNumeral rank={entry.rank} max={25} />
       <ChangeChip move={move} />
       <LogoTile abbr={entry.abbr} src={logo} />
@@ -586,8 +582,10 @@ function CfbRow({ entry, first, move, polls, trail, logo }: { entry: Entry; firs
         </div>
       </div>
       <span style={{ fontSize: 13, textAlign: "right" }}>{entry.record}</span>
-      <Sparkline fields={fields} />
-      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+      <span className="pr-wide">
+        <Sparkline fields={fields} />
+      </span>
+      <div className="pr-cons" style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
         <div style={{ position: "relative", height: 20, flex: 1, minWidth: 0 }}>
           <div style={{ position: "absolute", left: 0, right: 0, top: 9, height: 2, borderRadius: 1, background: "rgb(var(--accent-rgb) / .14)" }} />
           <div
@@ -654,15 +652,15 @@ function NflBoard({ nfl, moves, history, logos, filter, setFilter }: {
         total={all.length}
       />
       <div style={{ marginTop: 16, overflowX: "auto", ...glass("sheet") }}>
-        <div style={{ minWidth: 760 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "56px 42px 32px minmax(0,1fr) minmax(0,110px) 46px 80px", gap: 12, alignItems: "center", padding: "11px 16px", fontSize: 10, letterSpacing: ".16em", color: C.neutral500, ...hairline }}>
+        <div className="pr-table">
+          <div className="pr-row pr-nfl" style={{ padding: "11px 16px", fontSize: 10, letterSpacing: ".16em", color: C.neutral500, ...hairline }}>
             <span style={{ color: C.accent300 }}>RK</span>
             <span>CHG</span>
             <span />
             <span>TEAM</span>
-            <span>DIVISION</span>
+            <span className="pr-wide">DIVISION</span>
             <span style={{ textAlign: "right" }}>REC</span>
-            <span>4-WK</span>
+            <span className="pr-wide">4-WK</span>
           </div>
           {vis.length === 0 ? (
             <div style={{ padding: "30px 16px", fontSize: 13, color: C.neutral400 }}>Nothing matches that filter.</div>
@@ -674,18 +672,25 @@ function NflBoard({ nfl, moves, history, logos, filter, setFilter }: {
               return (
                 <div
                   key={`${e.rank}-${e.team}`}
-                  style={{ display: "grid", gridTemplateColumns: "56px 42px 32px minmax(0,1fr) minmax(0,110px) 46px 80px", gap: 12, alignItems: "center", padding: "10px 16px", ...(i === 0 ? {} : hairline) }}
+                  className="pr-row pr-nfl"
+                  style={{ padding: "10px 16px", ...(i === 0 ? {} : hairline) }}
                 >
                   <RankNumeral rank={e.rank} max={32} />
                   <ChangeChip move={moves.get(keyOf(e.team))} />
-                  <LogoTile abbr={meta.abbr} src={logos[meta.abbr]} />
+                  <LogoTile abbr={meta.abbr} src={logos[meta.abbr] || nflLogo(meta.abbr)} />
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.team}</div>
-                    {e.lastResult ? <div style={{ fontSize: 11, color: C.neutral500, marginTop: 3 }}>{e.lastResult}</div> : null}
+                    {/* On a phone the division column folds in here. */}
+                    <div style={{ fontSize: 11, color: C.neutral500, marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <span className="pr-phone">{meta.division}{e.lastResult ? " · " : ""}</span>
+                      {e.lastResult}
+                    </div>
                   </div>
-                  <span style={{ fontSize: 12, color: C.neutral400, whiteSpace: "nowrap" }}>{meta.division}</span>
+                  <span className="pr-wide" style={{ fontSize: 12, color: C.neutral400, whiteSpace: "nowrap" }}>{meta.division}</span>
                   <span style={{ fontSize: 13, textAlign: "right" }}>{e.record}</span>
-                  <Sparkline fields={fields} />
+                  <span className="pr-wide">
+                    <Sparkline fields={fields} />
+                  </span>
                 </div>
               );
             })
@@ -756,15 +761,17 @@ function P50Board({ entries, before, history, logos, week, filter, setFilter }: 
         total={entries.length}
       />
       <div style={{ marginTop: 16, overflowX: "auto", ...glass("sheet") }}>
-        <div style={{ minWidth: 760 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "56px 32px minmax(0,1fr) 50px 80px 80px minmax(0,120px)", gap: 12, alignItems: "center", padding: "11px 16px", fontSize: 10, letterSpacing: ".16em", color: C.neutral500, ...hairline }}>
+        <div className="pr-table">
+          <div className="pr-row pr-p50" style={{ padding: "11px 16px", fontSize: 10, letterSpacing: ".16em", color: C.neutral500, ...hairline }}>
             <span style={{ color: C.accent300 }}>RK</span>
             <span />
             <span>PLAYER</span>
-            <span>POS</span>
-            <span>SCHOOL</span>
-            <span>TREND</span>
-            <span style={{ textAlign: "right" }}>PYLON RATING</span>
+            <span className="pr-wide">POS</span>
+            <span className="pr-wide">SCHOOL</span>
+            <span className="pr-wide">TREND</span>
+            <span style={{ textAlign: "right" }}>
+              <span className="pr-wide">PYLON </span>RATING
+            </span>
           </div>
           {vis.length === 0 ? (
             <div style={{ padding: "30px 16px", fontSize: 13, color: C.neutral400 }}>Nothing matches that filter.</div>
@@ -785,22 +792,28 @@ function P50Board({ entries, before, history, logos, week, filter, setFilter }: 
                       <span style={{ fontSize: 11, color: C.neutral500, flex: "0 0 auto" }}>{tier.range}</span>
                     </div>
                   ) : null}
-                  <div style={{ display: "grid", gridTemplateColumns: "56px 32px minmax(0,1fr) 50px 80px 80px minmax(0,120px)", gap: 12, alignItems: "center", padding: "10px 16px", ...(showTier || i === 0 ? {} : hairline) }}>
+                  <div className="pr-row pr-p50" style={{ padding: "10px 16px", ...(showTier || i === 0 ? {} : hairline) }}>
                     <RankNumeral rank={e.rank} max={50} />
                     <LogoTile abbr={e.schoolAbbr} src={logos[e.schoolAbbr]} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 13.5, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.player}</div>
-                      <div style={{ fontSize: 11, color: C.neutral500, marginTop: 3 }}>
+                      <div style={{ fontSize: 11, color: C.neutral500, marginTop: 3, display: "flex", alignItems: "center", gap: 8 }}>
                         <ChangeChip move={moves.get(keyOf(e.player))} />
+                        {/* On a phone the position and school columns fold in here. */}
+                        <span className="pr-phone">
+                          {e.position} · {e.schoolAbbr}
+                        </span>
                       </div>
                     </div>
-                    <span style={{ justifySelf: "start", fontSize: 11, letterSpacing: ".08em", padding: "2px 6px", borderRadius: 2, color: C.accent200, background: "rgb(var(--accent-rgb) / .14)" }}>
+                    <span className="pr-wide" style={{ justifySelf: "start", fontSize: 11, letterSpacing: ".08em", padding: "2px 6px", borderRadius: 2, color: C.accent200, background: "rgb(var(--accent-rgb) / .14)" }}>
                       {e.position}
                     </span>
-                    <span style={{ fontSize: 12, color: C.neutral400 }}>{e.schoolAbbr}</span>
-                    <Sparkline fields={fields} />
+                    <span className="pr-wide" style={{ fontSize: 12, color: C.neutral400 }}>{e.schoolAbbr}</span>
+                    <span className="pr-wide">
+                      <Sparkline fields={fields} />
+                    </span>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "flex-end" }}>
-                      <div style={{ flex: 1, maxWidth: 60, height: 3, borderRadius: 1, background: "rgb(var(--accent-rgb) / .08)", overflow: "hidden" }}>
+                      <div className="pr-wide" style={{ flex: 1, maxWidth: 60, height: 3, borderRadius: 1, background: "rgb(var(--accent-rgb) / .08)", overflow: "hidden" }}>
                         <div style={{ height: "100%", background: C.accent, width: `${Math.max(4, ((e.rating - 75) / 25) * 100)}%` }} />
                       </div>
                       <span style={{ fontSize: 18, fontWeight: 300, fontStyle: "italic", letterSpacing: "-.03em", color: C.accent200, width: 46, textAlign: "right" }}>

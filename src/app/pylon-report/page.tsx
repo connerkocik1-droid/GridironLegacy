@@ -5,6 +5,7 @@ import { keyOf, type BoardReport, type Polls } from "@/lib/pylon-report";
 import { weeklyValues } from "@/lib/pylon-report-view";
 import type { ProspectBoard, ProspectEntry } from "@/lib/pylon-draft-board";
 import { isConfigured, serviceClient } from "@/lib/supabase";
+import { currentManager } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -116,8 +117,12 @@ async function load() {
   }
 }
 
-export default async function PylonReportRoute() {
-  const data = await load();
+export default async function PylonReportRoute({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [data, manager, params] = await Promise.all([load(), currentManager(), searchParams]);
   const props = {
     week: data?.week ?? null,
     college: data?.college ?? EMPTY_BOARD,
@@ -135,9 +140,14 @@ export default async function PylonReportRoute() {
     nflLogos: data?.nflLogos ?? EMPTY_LOGOS,
   };
 
-  // Two editions of the same boards: inside the app on a phone (Rankings →
-  // Pylon Report), and the full web edition everywhere wider. The stylesheet
-  // shows one; see gl-only-phone.
+  // The full web edition, at every width, for a visitor who is not signed in
+  // (somebody following a shared link has no app to be inside) and for a
+  // manager who asked for it from the app's own board.
+  if (!manager || params.view === "web") return <PylonReportPage {...props} />;
+
+  // Signed in, two editions of the same boards: inside the app on a phone
+  // (Rankings → Pylon Report), and the full web edition everywhere wider.
+  // The stylesheet shows one; see gl-only-phone.
   return (
     <>
       <div className="gl-only-phone" style={{ minHeight: "var(--screen)" }}>
