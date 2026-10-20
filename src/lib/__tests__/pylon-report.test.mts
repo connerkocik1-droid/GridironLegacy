@@ -1,4 +1,5 @@
 import { keyOf, moveLabel, movement, parsePolls, type BoardReport } from "../pylon-report";
+import { TIERS, tierOf } from "../pylon-draft-board";
 
 let failed = 0;
 const ok = (label: string, cond: boolean) => {
@@ -94,6 +95,18 @@ console.log("\n--- the national polls ---");
 
   const junk = parsePolls("Rankings going into week 8\n\n26\tTeam that doesn't count");
   eq("a rank past 25 and a title are both unread", junk.ignored.length, 2);
+}
+
+console.log("\n--- the Pylon 50's tiers ---");
+{
+  // Three tiers: 97 and up, 94 to 96.9, and everything under 94.
+  eq("three tiers", TIERS.length, 3);
+  eq("97.0 is tier 1", tierOf(97).name, TIERS[0].name);
+  eq("99.4 is tier 1", tierOf(99.4).name, TIERS[0].name);
+  eq("96.9 is tier 2", tierOf(96.9).name, TIERS[1].name);
+  eq("94.0 is tier 2", tierOf(94).name, TIERS[1].name);
+  eq("93.9 is tier 3", tierOf(93.9).name, TIERS[2].name);
+  eq("a low rating is still tier 3", tierOf(70).name, TIERS[2].name);
 }
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");

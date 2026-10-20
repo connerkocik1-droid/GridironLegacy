@@ -117,10 +117,9 @@ export function prospectMovement(now: ProspectBoard, before: ProspectBoard | nul
 
 /** Rating cutoffs for the tier headers. Derived display only, never stored. */
 export const TIERS = [
-  { name: "TIER 1 · BLUE CHIP", min: 95, range: "95.0 and up" },
-  { name: "TIER 2 · FIRST ROUND", min: 90, range: "90.0 – 94.9" },
-  { name: "TIER 3 · DAY ONE / TWO", min: 85, range: "85.0 – 89.9" },
-  { name: "TIER 4 · DAY TWO", min: -1, range: "Below 85.0" },
+  { name: "TIER 1 · BLUE CHIP", min: 97, range: "97.0 and up" },
+  { name: "TIER 2 · FIRST ROUND", min: 94, range: "94.0 – 96.9" },
+  { name: "TIER 3 · DAY TWO", min: -1, range: "Below 94.0" },
 ] as const;
 
 export function tierOf(rating: number): (typeof TIERS)[number] {
