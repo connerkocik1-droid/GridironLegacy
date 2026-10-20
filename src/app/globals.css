@@ -1818,3 +1818,60 @@ a.gl-row:active {
     animation: none;
   }
 }
+
+/* ------------------------------------------------------- pylon report ---
+   The standalone Pylon Report (PylonReportPage). The design's wide tables
+   are 760px across; on a phone they become compact rows that keep what a
+   reader came for — rank, movement, team, record — and drop the trend
+   columns, with the CFB poll strip moved under each team rather than off
+   the side of the screen. */
+
+.pr-row {
+  display: grid;
+  gap: 12px;
+  align-items: center;
+}
+.pr-cfb { grid-template-columns: 56px 42px 32px minmax(0, 1fr) 46px 80px minmax(160px, 220px); }
+.pr-nfl { grid-template-columns: 56px 42px 32px minmax(0, 1fr) minmax(0, 110px) 46px 80px; }
+.pr-p50 { grid-template-columns: 56px 32px minmax(0, 1fr) 50px 80px 80px minmax(0, 120px); }
+.pr-table { min-width: 760px; }
+.pr-phone { display: none; }
+
+@media (max-width: 720px) {
+  .pr-nav { gap: 10px !important; padding: 10px 12px !important; }
+  .pr-nav-links { gap: 14px !important; font-size: 12px !important; white-space: nowrap; }
+  .pr-body { padding: 28px 14px 60px !important; }
+
+  .pr-boards button { padding: 12px 10px !important; }
+  .pr-board-title { font-size: 13px !important; white-space: nowrap; }
+  .pr-board-head { flex-direction: column; align-items: flex-start !important; gap: 2px !important; }
+  .pr-board-count { font-size: 12px !important; margin-left: 0 !important; }
+  .pr-board-sub { display: none; }
+
+  .pr-insights { grid-template-columns: minmax(0, 1fr) !important; margin-top: 22px !important; }
+  .pr-insight {
+    margin-right: 0 !important;
+    padding: 10px 0 !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgb(var(--accent-rgb) / 0.08);
+  }
+
+  .pr-chips { gap: 14px !important; margin-top: 26px !important; overflow-x: auto; flex-wrap: nowrap !important; scrollbar-width: none; }
+  .pr-chips button { flex: 0 0 auto; white-space: nowrap; min-height: 32px; }
+
+  .pr-table { min-width: 0; }
+  .pr-row { gap: 8px; padding-left: 12px !important; padding-right: 12px !important; }
+  .pr-cfb, .pr-nfl { grid-template-columns: 30px 32px 28px minmax(0, 1fr) auto; }
+  .pr-p50 { grid-template-columns: 30px 28px minmax(0, 1fr) auto; }
+  .pr-wide { display: none !important; }
+  .pr-phone { display: initial; }
+  /* The CFB poll strip, under the team rather than in a column of its own. */
+  .pr-cons { grid-column: 3 / -1; }
+  .pr-legend { grid-column: 1 / -1; flex-wrap: wrap; }
+  .pr-rank { font-size: 22px !important; }
+}
+
+@media (max-width: 380px) {
+  .pr-fantasy { display: none; }
+  .pr-board-title { white-space: normal; line-height: 1.2; }
+}
