@@ -998,29 +998,49 @@ button[disabled]:active {
   }
 }
 
+/* The loading screen's own motion, from the "Pylon Loading" design handoff.
+   Pure CSS, so it plays while the JavaScript is still parsing. */
+@keyframes pl-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes pl-fill { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pl-line { from { transform: scaleX(0); opacity: 0; } to { transform: scaleX(1); opacity: 1; } }
+@keyframes pl-edge { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes pl-scan {
+  0% { transform: translateY(-6px); opacity: 0; }
+  15% { opacity: 0.9; }
+  85% { opacity: 0.9; }
+  100% { transform: translateY(104px); opacity: 0; }
+}
+@keyframes pl-word {
+  from { opacity: 0; transform: translateY(6px); letter-spacing: 0.42em; }
+  to { opacity: 1; transform: none; letter-spacing: 0.2em; }
+}
+@keyframes pl-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pl-bar { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+@keyframes pl-status {
+  0% { opacity: 0; transform: translateY(4px); }
+  4%, 29% { opacity: 1; transform: none; }
+  33%, 100% { opacity: 0; transform: translateY(-4px); }
+}
+@keyframes pl-glow { 0%, 100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 0.85; transform: scale(1.08); } }
+
 @media (display-mode: standalone) {
   #gl-launch {
-    display: flex;
+    display: block;
     position: fixed;
     inset: 0;
     z-index: 100;
-    align-items: center;
-    justify-content: center;
-    /* The same ground as the launch image and as the app, so the three of
-       them are one picture rather than three. */
-    background:
-      radial-gradient(120% 80% at 50% -10%, rgb(var(--glow-rgb) / 0.4), transparent 60%),
-      var(--bg);
-    /* Slightly above centre, where the launch image puts it. */
-    padding-bottom: 12vh;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
 
     /* Fails safe. If the script never runs — an old build, a chunk that did
        not load, JavaScript off — this still clears the screen rather than
-       leaving the app behind a pylon forever. */
-    animation: gl-launch-timeout 320ms ease 4s forwards;
+       leaving the app behind a pylon forever. LaunchScreen dismisses it long
+       before this in any working build. */
+    animation: gl-launch-timeout 300ms ease 10s forwards;
   }
 
-  /* The app said it is ready. */
+  /* The app said it is ready: a 300ms fade of the whole screen. */
   html[data-launched] #gl-launch {
     opacity: 0;
     visibility: hidden;
@@ -1028,12 +1048,31 @@ button[disabled]:active {
        when it finishes. */
     pointer-events: none;
     transition:
-      opacity 320ms ease,
-      visibility 0s linear 320ms;
+      opacity 300ms ease,
+      visibility 0s linear 300ms;
+  }
+  /* Ready almost at once: no loading screen worth showing, so it goes
+     without a fade rather than flashing. */
+  html[data-launched="skip"] #gl-launch {
+    transition: none;
   }
 }
 
+/* Reduced motion: the finished drawing, standing still, and a static bar. */
 @media (prefers-reduced-motion: reduce) {
+  #gl-launch * {
+    animation: none !important;
+  }
+  #gl-launch .pl-scanline,
+  #gl-launch .pl-status-line:not(:first-child) {
+    display: none;
+  }
+  #gl-launch .pl-sweep {
+    transform: translateX(75%);
+  }
+  #gl-launch .pl-status-line:first-child {
+    opacity: 1 !important;
+  }
   html[data-launched] #gl-launch {
     transition: none;
   }
