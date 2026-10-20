@@ -316,6 +316,11 @@ export function Row({ row, first }: { row: RowSpec; first?: boolean }) {
   // screen reader all treat it as one. Not when it carries buttons, which
   // cannot sit inside a link.
   const link = !!row.href && !row.onClick && !row.actions?.length;
+  // A row that opens and also carries its own buttons cannot itself be a
+  // button — buttons cannot nest. A tap anywhere still opens it; the ▾ is the
+  // control a keyboard or a screen reader uses, and shows that it opens.
+  const nested = expandable && !row.onClick && !row.href && !!row.actions?.length;
+  const asButton = clickable && !nested;
   const rowBox: CSSProperties = {
     display: "flex",
     alignItems: "center",
@@ -416,6 +421,21 @@ export function Row({ row, first }: { row: RowSpec; first?: boolean }) {
             ) : null}
           </div>
         ) : null}
+        {nested ? (
+          <button
+            type="button"
+            className="gl-press"
+            aria-expanded={open}
+            aria-label={open ? "Hide details" : "Show details"}
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen((v) => !v);
+            }}
+            style={{ ...btnStyle(open, "quiet"), transition: "transform .2s ease", transform: open ? "rotate(180deg)" : undefined }}
+          >
+            ▾
+          </button>
+        ) : null}
         {row.actions?.map((a, i) => (
           <button
             key={i}
@@ -452,7 +472,7 @@ export function Row({ row, first }: { row: RowSpec; first?: boolean }) {
           className="gl-row"
           onClick={clickable ? activate : undefined}
           onKeyDown={
-            clickable
+            asButton
               ? (e) => {
                   if (e.target !== e.currentTarget) return;
                   if (e.key === "Enter" || e.key === " ") {
@@ -462,9 +482,10 @@ export function Row({ row, first }: { row: RowSpec; first?: boolean }) {
                 }
               : undefined
           }
-          role={clickable ? "button" : undefined}
-          tabIndex={clickable ? 0 : undefined}
-          aria-expanded={expandable ? open : undefined}
+          role={asButton ? "button" : undefined}
+          tabIndex={asButton ? 0 : undefined}
+          aria-expanded={expandable && !nested ? open : undefined}
+          data-open={expandable ? open : undefined}
           style={{ ...rowBox, cursor: clickable ? "pointer" : undefined }}
         >
           {inner}
