@@ -217,20 +217,25 @@ export async function GET(req: Request) {
       ? (settings.waiverMode as "open" | "all")
       : "waivers";
 
-  // Whether today is the league's claim day, which the database decides — it
-  // knows the league's clock and it is the thing that will refuse the add.
-  // Asked here so the page offers "Claim" rather than an "Add" button that
-  // comes back with an error a manager did nothing to deserve.
-  const { data: claimDay } = await db.rpc("waiver_day", { p_league_id: me.league_id });
+  // Whether the claim window is open — the 24 hours after a week is locked —
+  // which the database decides, since it is the thing that will refuse the
+  // add. Asked here so the page offers "Claim" rather than an "Add" button that
+  // comes back with an error a manager did nothing to deserve, and says when
+  // the window closes.
+  const [{ data: claimDay }, { data: claimClosesAt }] = await Promise.all([
+    db.rpc("waiver_day", { p_league_id: me.league_id }),
+    db.rpc("waiver_window_close", { p_league_id: me.league_id }),
+  ]);
 
   return Response.json({
     me,
     // "waivers": dropped players are claimed, everyone else is an instant add.
     // "open": no wire at all. "all": every pickup is a claim.
     mode,
-    // True for the whole of the claim day. Everything on the board is a claim
-    // while it is, and they all settle together when the day is over.
+    // True while the claim window is open. Everything on the board is a claim
+    // while it is, and they all settle together when it closes.
     claimDay: claimDay === true,
+    claimClosesAt: claimDay === true ? ((claimClosesAt as string | null) ?? null) : null,
     waiverDays: Math.max(1, Number(settings.waiverDays ?? 1) || 1),
     capacity,
     held,

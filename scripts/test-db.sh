@@ -125,7 +125,8 @@ for pass in first second; do
   fi
 done
 
-# The claim day (0061) is a real weekday on a real clock. Every league these
+# The claim window (0061's weekday; since 0068, the 24 hours after a week is
+# locked) is real time on a real clock. Every league these
 # tests build before that migration existed would otherwise refuse free-agent
 # adds whenever the suite happens to run on the claim day — thirty-seven checks
 # failed on a Tuesday for that reason alone, and passed again on the Wednesday.
