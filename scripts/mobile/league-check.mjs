@@ -1,7 +1,7 @@
 /**
- * Does Around League show the whole week, and are the league's stories real?
+ * Does Around the League show the whole week, and are the league's stories real?
  *
- * Around League is the week's games, yours first, each one opening onto its
+ * Around the League is the week's games, yours first, each one opening onto its
  * head to head. The stories the old Overview wrote (best value and MVP) ride
  * the General Manager tab's ticker now, and the premise is unchanged: the
  * prose is computed from the table, so the numbers in it are checked rather
@@ -67,7 +67,7 @@ console.log("\n--- and the rest of the league is still reachable ---");
   await page.waitForURL("**/chat", { timeout: 15000 }).catch(() => {});
   ok(`the chat opens (${new URL(page.url()).pathname})`, new URL(page.url()).pathname === "/chat");
   ok("under The League's own tab",
-    (await page.locator('[role="tab"][aria-selected="true"]', { hasText: /Around League/ }).count()) > 0);
+    (await page.locator('[role="tab"][aria-selected="true"]', { hasText: /Around the League/ }).count()) > 0);
 }
 
 console.log("\n--- the stories write themselves ---");

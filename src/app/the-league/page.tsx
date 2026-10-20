@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 import AroundLeagueView from "@/components/AroundLeagueView";
 
-export const metadata = { title: "Around League · Pylon Fantasy" };
+export const metadata = { title: "Around the League · Pylon Fantasy" };
 
 export default function AroundLeaguePage() {
   return (

@@ -48,7 +48,7 @@ const FLASH_MS = 2_400;
  * the Matchup view in prototype/Pylon App.dc.html.
  *
  * ?home=, ?week= and ?opponent= still name any other pairing, as the old board
- * did — Around League opens other games here.
+ * did — Around the League opens other games here.
  */
 export default function MatchupView() {
   return (
