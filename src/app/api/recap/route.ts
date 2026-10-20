@@ -40,8 +40,8 @@ export async function GET() {
   if (!me) return Response.json({ error: "No manager for this account" }, { status: 403 });
 
   const [{ data: league }, { data: managers }, { data: fixtures }] = await Promise.all([
-    db.from("leagues").select("season").eq("id", me.league_id).single(),
-    db.from("managers").select("id, name, franchise").eq("league_id", me.league_id).order("slot"),
+    db.from("leagues").select("season, settings").eq("id", me.league_id).single(),
+    db.from("managers").select("id, name, franchise, slot, division").eq("league_id", me.league_id).order("slot"),
     db
       .from("matchups")
       .select(
@@ -112,7 +112,13 @@ export async function GET() {
     recap: {
       week,
       meId: me.id,
-      teams: (managers ?? []).map((m) => ({ id: m.id, franchise: m.franchise, owner: m.name })),
+      teams: (managers ?? []).map((m) => ({
+        id: m.id,
+        franchise: m.franchise,
+        owner: m.name,
+        slot: m.slot,
+        division: m.division ?? null,
+      })),
       games,
       myWeek,
       next: nextFixture
@@ -125,6 +131,17 @@ export async function GET() {
             kickoff,
           }
         : null,
+      // The playoff picture's two numbers, the way the database works them out:
+      // playoff_field (the setting, default six, never more than the league)
+      // and regular_season_weeks (the last non-playoff week on the schedule).
+      playoffTeams: Math.max(
+        2,
+        Math.min(
+          Number((league?.settings as { playoffTeams?: number } | null)?.playoffTeams ?? 6),
+          (managers ?? []).length || 2,
+        ),
+      ),
+      regularWeeks: all.filter((f) => !f.playoff).reduce((max, f) => Math.max(max, f.week), 0),
     },
   });
 }

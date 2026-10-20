@@ -145,9 +145,9 @@ console.log("\n--- the recap is triggered by the lock, not by a clock ---");
       ? r.fulfill({ json: { ...RECAP, seenWeek: null, opensAt: Date.now() - 1000 } })
       : r.fulfill({ json: { seenWeek: 3, stored: true } }));
   await locked.page.goto(`${BASE}/`, { waitUntil: "networkidle" });
-  await locked.page.waitForTimeout(600);
+  await locked.page.waitForSelector('[role="dialog"][aria-label$=" recap"]', { timeout: 15000 }).catch(() => {});
   ok("a week just locked plays its recap",
-    (await locked.page.locator(".gl-recap").count()) === 1);
+    (await locked.page.locator('[role="dialog"][aria-label$=" recap"]').count()) === 1);
   await locked.ctx.close();
 
   const soon = await open();
@@ -158,7 +158,7 @@ console.log("\n--- the recap is triggered by the lock, not by a clock ---");
   await soon.page.goto(`${BASE}/`, { waitUntil: "networkidle" });
   await soon.page.waitForTimeout(600);
   ok("and a week not yet locked does not",
-    (await soon.page.locator(".gl-recap").count()) === 0);
+    (await soon.page.locator('[role="dialog"][aria-label$=" recap"]').count()) === 0);
   await soon.ctx.close();
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import RecapStage from "./RecapStage";
+import RecapBroadcast from "./RecapBroadcast";
 import { recapIsDue, type RecapData } from "@/lib/recap";
 
 interface Answer {
@@ -68,5 +68,5 @@ export default function WeekRecap() {
   });
   if (!due) return null;
 
-  return <RecapStage data={answer.recap} onDismiss={dismiss} />;
+  return <RecapBroadcast data={answer.recap} onDismiss={dismiss} />;
 }

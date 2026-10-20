@@ -111,7 +111,10 @@ export const RECAP = {
   recap: {
     week: 3,
     meId: "m0",
-    teams: MANAGERS.map((m) => ({ id: m.id, franchise: m.franchise, owner: m.name })),
+    teams: MANAGERS.map((m) => ({ id: m.id, franchise: m.franchise, owner: m.name, slot: m.slot, division: m.division })),
+    // Six of twelve make it, over a thirteen-week regular season.
+    playoffTeams: 6,
+    regularWeeks: 13,
     games: RECAP_GAMES,
     // The frozen best-ball lineup, out of points order the way the snapshot
     // arrives — the MVP has to be derived, not taken off the top.
