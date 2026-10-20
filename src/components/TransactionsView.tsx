@@ -32,13 +32,6 @@ const TONE: Record<string, string> = {
   DROP: "var(--ap-bad-text)",
 };
 
-function age(iso: string) {
-  const h = (Date.now() - new Date(iso).getTime()) / 3_600_000;
-  if (h < 1) return `${Math.max(1, Math.round(h * 60))}M`;
-  if (h < 24) return `${Math.round(h)}H`;
-  return `${Math.round(h / 24)}D`;
-}
-
 function day(iso: string) {
   const at = new Date(iso);
   const today = new Date();
@@ -124,8 +117,6 @@ export default function TransactionsView() {
         titleColor: TONE[k],
         tags: [{ label: e.isPick ? "PICK" : k, tone: "flat" }],
         sub: `${verb(e, k)}${pts != null ? ` · ${pts.toFixed(1)} pts` : ""}`,
-        val: age(e.at),
-        valColor: "var(--ap-n500)",
         hi: e.mine,
         onClick: e.isPick ? undefined : () => openPlayer(e.player),
       },

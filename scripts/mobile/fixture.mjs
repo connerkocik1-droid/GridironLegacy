@@ -48,7 +48,7 @@ const ROSTER = [
 
 const SETTINGS = {
   starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, "D/ST": 1, K: 1 },
-  bench: 8, ir: 2, rounds: 18, cinematicRounds: 3,
+  bench: 9, ir: 2, rounds: 19, cinematicRounds: 3,
   // The clock is a ladder now. pickSeconds is kept beside it because a league
   // that has not been migrated still has only that, and the office has to lay
   // out either one without falling over.
@@ -1128,7 +1128,20 @@ export function routes(page, over = {}) {
   });
 
   page.route("**/api/trades", json({
-    me: ME, managers: MANAGERS, block: [], picks: [], inauguralSeason: 2026,
+    // The commissioner, so the league's own deals offer Force as well as a vote.
+    me: { ...ME, is_commissioner: true }, managers: MANAGERS, block: [], picks: [], inauguralSeason: 2026,
+    // Two other franchises' deals: one out for the league's vote that this
+    // manager has not voted on, and one agreed and waiting on approval.
+    league: [
+      { id: "l1", from_manager: "m4", to_manager: "m9",
+        offer: { give: ["Brock Bowers"], get: ["Puka Nacua"], givePicks: [], getPicks: [] },
+        status: "voting", created_at: ago(300), vetoes: 1, approvals: 2, voteBar: 4,
+        closesAt: new Date(Date.now() + 14 * 3_600_000).toISOString(), myVote: null },
+      { id: "l2", from_manager: "m2", to_manager: "m5",
+        offer: { give: ["Rome Odunze"], get: ["Tank Bigsby"], givePicks: [], getPicks: [] },
+        status: "agreed", created_at: ago(90), vetoes: 0, approvals: 0, voteBar: 4,
+        closesAt: null, myVote: null },
+    ],
     trades: [
       { id: "t1", from_manager: "m0", to_manager: "m3",
         offer: { give: ["Bijan Robinson"], get: ["Marvin Harrison Jr."], givePicks: [], getPicks: [] },

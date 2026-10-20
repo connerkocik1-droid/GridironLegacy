@@ -35,13 +35,13 @@ const SEED_FRANCHISES = [
 ];
 
 const DEFAULT_SETTINGS = {
-  rounds: 18,
+  rounds: 19,
   pickSeconds: 90,
   cinematicRounds: 3,
   lottery: true,
   scoring: "ppr",
   starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, "D/ST": 1, K: 1 },
-  bench: 8,
+  bench: 9,
   ir: 2,
   regularWeeks: 13,
   playoffWeeks: 4,
