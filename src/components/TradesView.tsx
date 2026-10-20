@@ -7,6 +7,7 @@ import { useScoring } from "@/lib/use-me";
 import { balancer, fitScore, pickValue, verdict, type Held } from "@/lib/moves-story";
 import { useLogos } from "@/lib/use-logos";
 import { useRefreshable } from "@/lib/use-refresh";
+import { openPlayer } from "@/lib/player-sheet";
 import TeamCrest from "./TeamCrest";
 import { AppView, Chips, GroupSkeleton, Note, RowGroup, heroPanel, ink, optStyle, wideBtnStyle, type RowSpec } from "./RowList";
 
@@ -343,18 +344,21 @@ function Desk_() {
     .filter((t) => LIVE.includes(t.status))
     .map((t) => {
       const other = t.incoming ? t.from_manager : t.to_manager;
-      const mine = [...(t.incoming ? t.offer.get : t.offer.give), ...namePicks(t.incoming ? t.offer.getPicks : t.offer.givePicks)];
-      const theirs = [...(t.incoming ? t.offer.give : t.offer.get), ...namePicks(t.incoming ? t.offer.givePicks : t.offer.getPicks)];
-      const gv = (t.incoming ? t.offer.give : t.offer.get).reduce((s, n) => s + worth(n), 0);
-      const sv = (t.incoming ? t.offer.get : t.offer.give).reduce((s, n) => s + worth(n), 0);
+      const them = franchiseOf(other) || "them";
+      // Their side and yours, from where the reader sits.
+      const getNames = t.incoming ? t.offer.give : t.offer.get;
+      const giveNames = t.incoming ? t.offer.get : t.offer.give;
+      const getPickIds = (t.incoming ? t.offer.givePicks : t.offer.getPicks) ?? [];
+      const givePickIds = (t.incoming ? t.offer.getPicks : t.offer.givePicks) ?? [];
+      const mine = [...giveNames, ...namePicks(givePickIds)];
+      const theirs = [...getNames, ...namePicks(getPickIds)];
+      const gv = getNames.reduce((s, n) => s + worth(n), 0) + getPickIds.reduce((s, id) => s + pickWorth(id), 0);
+      const sv = giveNames.reduce((s, n) => s + worth(n), 0) + givePickIds.reduce((s, id) => s + pickWorth(id), 0);
       const d = gv - sv;
       const open = t.awaitingMe && LIVE.includes(t.status) && t.status !== "voting";
       const actions = open
-        ? [
-            { label: "ACCEPT", disabled: busy, onClick: () => void respond(t, "accept") },
-            { label: "↺", tone: "quiet" as const, disabled: busy, ariaLabel: "Counter", onClick: () => startCounter(t) },
-            { label: "×", tone: "quiet" as const, disabled: busy, ariaLabel: "Decline", onClick: () => void respond(t, "decline") },
-          ]
+        ? // Counter and decline are spelled out once the offer is opened.
+          [{ label: "ACCEPT", disabled: busy, onClick: () => void respond(t, "accept") }]
         : t.canRescind
           ? [{ label: "WITHDRAW", tone: "quiet" as const, disabled: busy, onClick: () => void respond(t, "rescind") }]
           : desk.me.is_commissioner && (t.status === "voting" || t.status === "agreed")
@@ -368,13 +372,107 @@ function Desk_() {
             : t.awaitingMe
               ? "waiting on you"
               : "waiting on them";
+
+      // Opened, the whole deal: every player and pick with what each is
+      // worth, the totals and the verdict, where it stands, and the same
+      // moves as the row's buttons spelled out in words.
+      const side = (label: string, names: string[], pickIds: string[], total: number) => (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, letterSpacing: ".14em", color: "var(--ap-n500)", marginBottom: 2 }}>
+            <span>{label}</span>
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>{total.toFixed(1)}</span>
+          </div>
+          {names.length + pickIds.length === 0 ? (
+            <div style={{ fontSize: 11, color: "var(--ap-n500)", padding: "4px 0" }}>Nothing</div>
+          ) : null}
+          {names.map((n) => {
+            const p = player(n);
+            return (
+              <button
+                key={n}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openPlayer(n);
+                }}
+                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", border: 0, borderTop: `1px solid ${ink(6)}`, background: "transparent", padding: "4px 0", font: "inherit", color: "inherit", cursor: "pointer" }}
+              >
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n}</span>
+                  <span style={{ display: "block", fontSize: 10, color: "var(--ap-n500)" }}>{[p?.p, p?.t].filter(Boolean).join(" · ") || "—"}</span>
+                </span>
+                <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", color: "var(--ap-n300)" }}>{worth(n).toFixed(1)}</span>
+              </button>
+            );
+          })}
+          {pickIds.map((id) => {
+            const pk = desk.picks.find((x) => x.id === id);
+            return (
+              <div key={id} style={{ display: "flex", alignItems: "center", gap: 8, borderTop: `1px solid ${ink(6)}`, padding: "6px 0", minHeight: 40, boxSizing: "border-box" }}>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 12 }}>{pk ? pickLabel(pk) : "A draft pick"}</span>
+                  <span style={{ display: "block", fontSize: 10, color: "var(--ap-n500)" }}>Draft pick</span>
+                </span>
+                <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", color: "var(--ap-n300)" }}>{pickWorth(id).toFixed(1)}</span>
+              </div>
+            );
+          })}
+        </div>
+      );
+      const when = new Date(t.created_at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+      const closes = t.closesAt
+        ? new Date(t.closesAt).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" })
+        : null;
+      const moves = open
+        ? [
+            { label: "ACCEPT", onClick: () => void respond(t, "accept") },
+            { label: "COUNTER", tone: "quiet" as const, onClick: () => startCounter(t) },
+            { label: "DECLINE", tone: "danger" as const, onClick: () => void respond(t, "decline") },
+          ]
+        : actions.map((a) => ({ label: a.label, tone: "tone" in a ? a.tone : undefined, onClick: a.onClick }));
+      const extra = (
+        <div style={{ padding: "0 12px 12px 46px" }} data-offer-detail>
+          {side("YOU GET", getNames, getPickIds, gv)}
+          {side("YOU GIVE", giveNames, givePickIds, sv)}
+          <div style={{ fontSize: 11, lineHeight: 1.5, color: "var(--ap-n300)", marginTop: 10 }}>{verdict(d, true, them)}</div>
+          <div style={{ fontSize: 10, lineHeight: 1.5, color: "var(--ap-n500)", marginTop: 6 }}>
+            {t.incoming ? `Sent to you by ${them}` : `You sent this to ${them}`} · {when}
+            {t.status === "voting"
+              ? ` · League vote: ${t.vetoes} of ${t.voteBar} vetoes, ${t.approvals} of ${t.voteBar} approvals${closes ? ` · closes ${closes}` : ""}`
+              : t.status === "agreed"
+                ? " · Both sides agreed; waiting on approval"
+                : ""}
+          </div>
+          {moves.length ? (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+              {moves.map((m) => (
+                <button
+                  key={m.label}
+                  type="button"
+                  className="gl-press"
+                  disabled={busy}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    m.onClick();
+                  }}
+                  style={optStyle(m.tone)}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      );
+
       return {
         key: t.id,
-        logo: <TeamCrest franchise={franchiseOf(other)} logo={logos[other] ?? null} size={26} shape="box" />,
+        logo: <TeamCrest franchise={them} logo={logos[other] ?? null} size={26} shape="box" />,
         title: `Get ${theirs.length ? theirs.join(", ") : "nothing"}`,
-        sub: `Give ${mine.length ? mine.join(", ") : "nothing"} · ${franchiseOf(other)} · ${status} · ${ago(t.created_at)}`,
+        sub: `Give ${mine.length ? mine.join(", ") : "nothing"} · ${them} · ${status} · ${ago(t.created_at)}`,
         tags: [{ label: `${d >= 0 ? "+" : ""}${d.toFixed(1)}`, tone: d >= 0 ? ("slot" as const) : ("flat" as const) }],
         actions,
+        extra,
       };
     });
 
@@ -481,7 +579,7 @@ function Desk_() {
 
       <RowGroup
         label="CURRENT OFFERS"
-        note={`${offers.length} open`}
+        note={offers.length ? `${offers.length} open · tap one for the details` : "0 open"}
         rows={offers}
         empty={{ title: "No open offers", sub: "Accepted and declined offers move to Transactions." }}
       />

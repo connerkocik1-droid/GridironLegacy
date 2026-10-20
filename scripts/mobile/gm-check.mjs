@@ -140,12 +140,31 @@ console.log("\n--- the trade builder ---");
   ok("an empty offer explains what to do rather than calling it even",
     !/As even as trades get/.test(await body()));
 
+  // An offer opens in place onto the whole deal, not just the summary line.
+  const offer = page.locator(".gl-row[data-open]", { hasText: /waiting on you/ }).first();
+  const toggle = offer.getByRole("button", { name: "Show details" });
+  ok("an offer says it can be opened", (await toggle.count()) === 1);
+  await offer.click();
+  await page.waitForTimeout(300);
+  const deal = (await page.locator("[data-offer-detail]").first().innerText().catch(() => "")) ?? "";
+  ok("it shows both sides of the deal", /YOU GET/.test(deal) && /YOU GIVE/.test(deal));
+  ok(`with every player in it (${deal.split("\n").length} lines)`,
+    /Trey McBride/.test(deal) && /Ja'Marr Chase/.test(deal) && /Tank Bigsby/.test(deal));
+  ok("a verdict on it", /points|As even as trades get/.test(deal));
+  ok("who sent it and when", /Sent to you by|You sent this to/.test(deal));
+  ok("and the moves spelled out", /ACCEPT/.test(deal) && /COUNTER/.test(deal) && /DECLINE/.test(deal));
+  await offer.getByRole("button", { name: "Hide details" }).click();
+  await page.waitForTimeout(200);
+  ok("and it closes again", (await page.locator("[data-offer-detail]").count()) === 0);
+  await offer.click();
+  await page.waitForTimeout(300);
+
   // Between yes and no, which is where most trades in a league of twelve
   // actually live. The fixture's received offer is two players out, one in.
-  const counter = page.getByRole("button", { name: "Counter" });
+  const counter = page.getByRole("button", { name: "COUNTER", exact: true });
   ok(`a received offer can be countered (${await counter.count()})`, (await counter.count()) === 1);
-  ok("and only the received one can be accepted",
-    (await page.getByRole("button", { name: "ACCEPT" }).count()) === 1);
+  ok("and only the received one can be accepted (on its row and in its details)",
+    (await page.getByRole("button", { name: "ACCEPT", exact: true }).count()) === 2);
   const box = await counter.first().boundingBox();
   ok(`a thumb can hit it (${Math.round(box?.height ?? 0)}px)`, (box?.height ?? 0) >= 32);
 
