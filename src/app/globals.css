@@ -1058,6 +1058,13 @@ button[disabled]:active {
   }
 }
 
+/* Held on its first frame until the page has loaded (LaunchScreen's START):
+   on iOS the system's own launch image covers the page until then, and an
+   intro that ran underneath it was over before anybody could see it. */
+#gl-launch:not(.pl-go) * {
+  animation-play-state: paused !important;
+}
+
 /* Reduced motion: the finished drawing, standing still, and a static bar. */
 @media (prefers-reduced-motion: reduce) {
   #gl-launch * {

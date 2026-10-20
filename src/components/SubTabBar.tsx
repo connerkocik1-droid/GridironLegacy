@@ -7,7 +7,7 @@ import { subTabFor } from "@/lib/app-tabs";
 import { blip } from "@/lib/retro";
 
 /**
- * The strip of destinations under a tab — Roster, Matchup, Around League,
+ * The strip of destinations under a tab — Roster, Matchup, Around the League,
  * Standings, GameCast for The League, and so on. One component rather than
  * three, so the sub-tabs for a tab never drift from `APP_TABS`.
  */

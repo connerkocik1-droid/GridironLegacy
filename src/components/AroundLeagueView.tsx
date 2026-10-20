@@ -25,7 +25,7 @@ interface Schedule {
 }
 
 /**
- * The League → Around League: every game this week as one even card — logo
+ * The League → Around the League: every game this week as one even card — logo
  * and name, points, VS, points, name and logo — with a bar of each side's
  * share of the points. Your game is pinned first and tinted. Sized so a
  * ten-team week fits one phone screen. Tapping a card opens it on Matchup.
