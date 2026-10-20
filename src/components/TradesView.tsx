@@ -44,12 +44,28 @@ interface Trade {
   closesAt: string | null;
 }
 
+/** A deal between two other managers that the league has a say on. */
+interface LeagueTrade {
+  id: string;
+  from_manager: string;
+  to_manager: string;
+  offer: Trade["offer"];
+  status: "voting" | "agreed";
+  created_at: string;
+  vetoes: number;
+  approvals: number;
+  voteBar: number;
+  closesAt: string | null;
+  myVote: "veto" | "approve" | null;
+}
+
 interface Desk {
   starters?: Record<string, number>;
   me: Manager & { league_id: string; is_commissioner?: boolean };
   managers: Manager[];
   picks: Pick[];
   trades: Trade[];
+  league?: LeagueTrade[];
 }
 
 const ORD = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
@@ -65,6 +81,15 @@ async function fetchRoster(managerId: string): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+/** "closes in 14h", for a deal out for the league's vote. */
+function closes(iso: string | null) {
+  if (!iso) return "";
+  const h = (Date.parse(iso) - Date.now()) / 3_600_000;
+  if (!Number.isFinite(h)) return "";
+  if (h <= 0) return "closing now";
+  return h >= 24 ? `closes in ${Math.round(h / 24)}d` : h >= 1 ? `closes in ${Math.floor(h)}h` : "closes within the hour";
 }
 
 function ago(iso: string) {
@@ -119,6 +144,10 @@ function Desk_() {
   const [myRoster, setMyRoster] = useState<string[]>([]);
   const [theirRoster, setTheirRoster] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  // What the last move on a trade did, shown beside that trade.
+  const [said, setSaid] = useState<{ id: string; text: string } | null>(null);
+  // Forcing a trade cannot be undone, so it takes two presses.
+  const [armed, setArmed] = useState<string | null>(null);
   const [countering, setCountering] = useState<{ id: string; franchise: string } | null>(null);
   const [totals, setTotals] = useState<Record<string, { total: number; games: number }>>({});
   const [rostered, setRostered] = useState<Record<string, string>>({});
@@ -314,7 +343,7 @@ function Desk_() {
     }
   }
 
-  async function respond(t: Trade, action: "accept" | "decline" | "rescind" | "force") {
+  async function respond(t: { id: string }, action: "accept" | "decline" | "rescind" | "force") {
     setBusy(true);
     try {
       const res = await fetch(`/api/trades/${t.id}`, {
@@ -323,7 +352,27 @@ function Desk_() {
         body: JSON.stringify({ action }),
       });
       const body = await res.json().catch(() => ({}));
-      setError(res.ok ? null : (body.error ?? "That did not go through."));
+      const text = res.ok ? null : (body.error ?? "That did not go through.");
+      setError(text);
+      // Said beside the trade too: the page's own note is a screen away.
+      setSaid(text ? { id: t.id, text } : action === "force" ? { id: t.id, text: "Forced through. The trade is done." } : null);
+      setArmed(null);
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function vote(t: LeagueTrade, how: "veto" | "approve") {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/trades/${t.id}/vote`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ vote: how }),
+      });
+      const body = await res.json().catch(() => ({}));
+      setSaid({ id: t.id, text: res.ok ? (how === "veto" ? "You voted to veto." : "You voted to approve.") : (body.error ?? "Your vote did not go through.") });
       await load();
     } finally {
       setBusy(false);
@@ -341,6 +390,50 @@ function Desk_() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  // One side of a deal, opened: every player and pick with what each is worth.
+  const side = (label: string, names: string[], pickIds: string[], total: number) => (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, letterSpacing: ".14em", color: "var(--ap-n500)", marginBottom: 2 }}>
+        <span>{label}</span>
+        <span style={{ fontVariantNumeric: "tabular-nums" }}>{total.toFixed(1)}</span>
+      </div>
+      {names.length + pickIds.length === 0 ? (
+        <div style={{ fontSize: 11, color: "var(--ap-n500)", padding: "4px 0" }}>Nothing</div>
+      ) : null}
+      {names.map((n) => {
+        const p = player(n);
+        return (
+          <button
+            key={n}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              openPlayer(n);
+            }}
+            style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", border: 0, borderTop: `1px solid ${ink(6)}`, background: "transparent", padding: "4px 0", font: "inherit", color: "inherit", cursor: "pointer" }}
+          >
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n}</span>
+              <span style={{ display: "block", fontSize: 10, color: "var(--ap-n500)" }}>{[p?.p, p?.t].filter(Boolean).join(" · ") || "—"}</span>
+            </span>
+            <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", color: "var(--ap-n300)" }}>{worth(n).toFixed(1)}</span>
+          </button>
+        );
+      })}
+      {pickIds.map((id) => {
+        const pk = desk.picks.find((x) => x.id === id);
+        return (
+          <div key={id} style={{ display: "flex", alignItems: "center", gap: 8, borderTop: `1px solid ${ink(6)}`, padding: "6px 0", minHeight: 40, boxSizing: "border-box" }}>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontSize: 12 }}>{pk ? pickLabel(pk) : "A draft pick"}</span>
+              <span style={{ display: "block", fontSize: 10, color: "var(--ap-n500)" }}>Draft pick</span>
+            </span>
+            <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", color: "var(--ap-n300)" }}>{pickWorth(id).toFixed(1)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
   const offers: RowSpec[] = desk.trades
     .filter((t) => LIVE.includes(t.status))
     .map((t) => {
@@ -362,9 +455,7 @@ function Desk_() {
           [{ label: "ACCEPT", disabled: busy, onClick: () => void respond(t, "accept") }]
         : t.canRescind
           ? [{ label: "WITHDRAW", tone: "quiet" as const, disabled: busy, onClick: () => void respond(t, "rescind") }]
-          : desk.me.is_commissioner && (t.status === "voting" || t.status === "agreed")
-            ? [{ label: "FORCE", disabled: busy, onClick: () => void respond(t, "force") }]
-            : [];
+          : [];
       const status =
         t.status === "voting"
           ? `with the league · ${t.vetoes}/${t.voteBar} veto · ${t.approvals}/${t.voteBar} approve`
@@ -377,49 +468,6 @@ function Desk_() {
       // Opened, the whole deal: every player and pick with what each is
       // worth, the totals and the verdict, where it stands, and the same
       // moves as the row's buttons spelled out in words.
-      const side = (label: string, names: string[], pickIds: string[], total: number) => (
-        <div style={{ marginTop: 8 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, letterSpacing: ".14em", color: "var(--ap-n500)", marginBottom: 2 }}>
-            <span>{label}</span>
-            <span style={{ fontVariantNumeric: "tabular-nums" }}>{total.toFixed(1)}</span>
-          </div>
-          {names.length + pickIds.length === 0 ? (
-            <div style={{ fontSize: 11, color: "var(--ap-n500)", padding: "4px 0" }}>Nothing</div>
-          ) : null}
-          {names.map((n) => {
-            const p = player(n);
-            return (
-              <button
-                key={n}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openPlayer(n);
-                }}
-                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", border: 0, borderTop: `1px solid ${ink(6)}`, background: "transparent", padding: "4px 0", font: "inherit", color: "inherit", cursor: "pointer" }}
-              >
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: "block", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n}</span>
-                  <span style={{ display: "block", fontSize: 10, color: "var(--ap-n500)" }}>{[p?.p, p?.t].filter(Boolean).join(" · ") || "—"}</span>
-                </span>
-                <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", color: "var(--ap-n300)" }}>{worth(n).toFixed(1)}</span>
-              </button>
-            );
-          })}
-          {pickIds.map((id) => {
-            const pk = desk.picks.find((x) => x.id === id);
-            return (
-              <div key={id} style={{ display: "flex", alignItems: "center", gap: 8, borderTop: `1px solid ${ink(6)}`, padding: "6px 0", minHeight: 40, boxSizing: "border-box" }}>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: "block", fontSize: 12 }}>{pk ? pickLabel(pk) : "A draft pick"}</span>
-                  <span style={{ display: "block", fontSize: 10, color: "var(--ap-n500)" }}>Draft pick</span>
-                </span>
-                <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", color: "var(--ap-n300)" }}>{pickWorth(id).toFixed(1)}</span>
-              </div>
-            );
-          })}
-        </div>
-      );
       const when = new Date(t.created_at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
       const closes = t.closesAt
         ? new Date(t.closesAt).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" })
@@ -476,6 +524,73 @@ function Desk_() {
         extra,
       };
     });
+
+  const leagueRows: RowSpec[] = (desk.league ?? []).map((t) => {
+    const from = franchiseOf(t.from_manager) || "One side";
+    const to = franchiseOf(t.to_manager) || "the other";
+    const fromGives = t.offer.give ?? [];
+    const toGives = t.offer.get ?? [];
+    const fromPicks = t.offer.givePicks ?? [];
+    const toPicks = t.offer.getPicks ?? [];
+    const fv = fromGives.reduce((s, n) => s + worth(n), 0) + fromPicks.reduce((s, id) => s + pickWorth(id), 0);
+    const tv = toGives.reduce((s, n) => s + worth(n), 0) + toPicks.reduce((s, id) => s + pickWorth(id), 0);
+    const voting = t.status === "voting";
+    const status = voting
+      ? [`${t.vetoes}/${t.voteBar} veto`, `${t.approvals}/${t.voteBar} approve`, closes(t.closesAt)].filter(Boolean).join(" · ")
+      : "agreed · waiting on approval";
+    const canVote = voting && !t.myVote;
+    const moves: { label: string; tone?: "danger" | "warn" | "quiet"; onClick: () => void }[] = [];
+    if (canVote) {
+      moves.push({ label: "APPROVE", onClick: () => void vote(t, "approve") });
+      moves.push({ label: "VETO", tone: "danger", onClick: () => void vote(t, "veto") });
+    }
+    if (desk.me.is_commissioner) {
+      moves.push(
+        armed === t.id
+          ? { label: "CONFIRM FORCE", tone: "warn", onClick: () => void respond(t, "force") }
+          : { label: "FORCE THROUGH", tone: "quiet", onClick: () => setArmed(t.id) },
+      );
+    }
+    return {
+      key: `league:${t.id}`,
+      logo: <TeamCrest franchise={from} logo={logos[t.from_manager] ?? null} size={26} shape="box" />,
+      title: `${from} ⇄ ${to}`,
+      tags: t.myVote ? [{ label: t.myVote === "veto" ? "YOU VETOED" : "YOU APPROVED", tone: "flat" as const }] : canVote ? [{ label: "YOUR VOTE", tone: "warn" as const }] : [],
+      sub: status,
+      extra: (
+        <div style={{ padding: "0 12px 12px 46px" }} data-league-trade>
+          {side(`${from.toUpperCase()} SENDS`, fromGives, fromPicks, fv)}
+          {side(`${to.toUpperCase()} SENDS`, toGives, toPicks, tv)}
+          <div style={{ fontSize: 10, lineHeight: 1.5, color: "var(--ap-n500)", marginTop: 8 }}>
+            {voting
+              ? `Out for the league's vote: ${t.voteBar} vetoes stop it, and it goes through when the window closes without them.`
+              : "Both sides have agreed; it is waiting on approval."}
+            {armed === t.id ? " Forcing it through skips the vote and cannot be undone." : ""}
+          </div>
+          {said?.id === t.id ? <div role="status" style={{ fontSize: 11, color: "var(--ap-n300)", marginTop: 8 }}>{said.text}</div> : null}
+          {moves.length ? (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+              {moves.map((m) => (
+                <button
+                  key={m.label}
+                  type="button"
+                  className="gl-press"
+                  disabled={busy}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    m.onClick();
+                  }}
+                  style={optStyle(m.tone)}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ),
+    };
+  });
 
   const pick = (key: "send" | "get") => (name: string): RowSpec => {
     const list = key === "send" ? give : want;
@@ -579,6 +694,13 @@ function Desk_() {
         </button>
       </div>
 
+      {leagueRows.length ? (
+        <RowGroup
+          label="LEAGUE VOTES"
+          note={`${leagueRows.length} open · tap one for the details`}
+          rows={leagueRows}
+        />
+      ) : null}
       <RowGroup
         label="CURRENT OFFERS"
         note={offers.length ? `${offers.length} open · tap one for the details` : "0 open"}

@@ -191,6 +191,54 @@ console.log("\n--- the trade builder ---");
   ok(`and empties the deal (${after.match(/YOU SEND\n[\d.]+/)?.[0]?.replace("\n", " ")})`, /YOU SEND\n0\.0/.test(after));
 }
 
+console.log("\n--- the league's own deals ---");
+{
+  // Other franchises' trades used to live on the home page, which is gone:
+  // the vote and the commissioner's Force were nowhere to be found.
+  await go("/trade-builder", /LEAGUE VOTES/, "league-votes");
+  const t = await body();
+  ok("the league's open deals are on the desk", /LEAGUE VOTES/.test(t));
+  ok("one awaiting this manager's vote says so", /YOUR VOTE/.test(t));
+
+  const deal = page.locator(".gl-row[data-open]", { hasText: /Thunderbolts/ }).first();
+  await deal.click();
+  await page.waitForTimeout(300);
+  const open = (await page.locator("[data-league-trade]").first().innerText().catch(() => "")) ?? "";
+  ok("it opens onto both sides", /Brock Bowers/.test(open) && /Puka Nacua/.test(open));
+  ok("with a vote to cast", /APPROVE/.test(open) && /VETO/.test(open));
+
+  let voted = null;
+  await page.route("**/api/trades/l1/vote", async (r) => {
+    voted = JSON.parse(r.request().postData() ?? "{}");
+    return r.fulfill({ json: { ok: true } });
+  });
+  await page.getByRole("button", { name: "VETO", exact: true }).click();
+  await page.waitForTimeout(400);
+  ok(`a vote is cast (${JSON.stringify(voted)})`, voted?.vote === "veto");
+
+  // Force, for the commissioner, takes two presses and then reaches the server.
+  let forced = null;
+  await page.route("**/api/trades/l1", async (r) => {
+    if (r.request().method() === "PATCH") {
+      forced = JSON.parse(r.request().postData() ?? "{}");
+      return r.fulfill({ json: { ok: true, status: "executed" } });
+    }
+    return r.fallback();
+  });
+  await page.getByRole("button", { name: "FORCE THROUGH", exact: true }).click();
+  await page.waitForTimeout(200);
+  ok("the first press only asks", forced === null && (await page.getByRole("button", { name: "CONFIRM FORCE" }).count()) === 1);
+  await page.getByRole("button", { name: "CONFIRM FORCE" }).click();
+  await page.waitForTimeout(400);
+  ok(`the second forces it (${JSON.stringify(forced)})`, forced?.action === "force");
+  ok("and says it is done", /Forced through/.test(await body()));
+
+  // The commissioner cannot force a deal they are in — the server refuses —
+  // so their own offers never offer it.
+  ok("no Force on the commissioner's own offers",
+    (await page.locator(".gl-row[data-open]", { hasText: /waiting on (you|them)/ }).getByRole("button", { name: /FORCE/ }).count()) === 0);
+}
+
 console.log("\n--- the record ---");
 {
   await go("/activity", /ADD|DROP|TRADE|CLAIM|nothing/, "activity");

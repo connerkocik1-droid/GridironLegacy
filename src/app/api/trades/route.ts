@@ -49,6 +49,10 @@ export async function GET() {
   // there fails the whole select, and a failed select here is a trade desk
   // that says there is nothing on the table — so the read falls back to the
   // columns that have always existed rather than hiding somebody's offers.
+  // Settle any vote whose window has closed before reading, so a deal that
+  // came due overnight is not still shown as open.
+  await db.rpc("settle_trade_votes", { p_league_id: me.league_id });
+
   const columns =
     "id, from_manager, to_manager, offer, status, from_accepted, to_accepted, thread, created_at, executed_at";
   const mine = `from_manager.eq.${me.id},to_manager.eq.${me.id}`;
@@ -75,10 +79,28 @@ export async function GET() {
   // does not offer a vote — the two managers in a deal do not get one — but a
   // manager watching their own trade sit there deserves to know whether it is
   // being argued over or simply ignored.
-  const outForVote = (trades ?? []).filter((t) => t.status === "voting").map((t) => t.id as string);
+  // And the deals between two other managers that the league has a say on —
+  // out for its vote, or agreed and waiting on approval. This manager votes on
+  // the first kind; the commissioner can force either through. The old home
+  // page carried these, and with it gone they belong with the trades.
+  const { data: others } = await db
+    .from("trades")
+    .select("id, from_manager, to_manager, offer, status, created_at, voting_opened_at")
+    .eq("league_id", me.league_id)
+    .in("status", ["voting", "agreed"])
+    .not("from_manager", "eq", me.id)
+    .not("to_manager", "eq", me.id)
+    .order("created_at", { ascending: false });
+
+  const outForVote = [...(trades ?? []), ...(others ?? [])]
+    .filter((t) => t.status === "voting")
+    .map((t) => t.id as string);
   const { data: castVotes } = outForVote.length
-    ? await db.from("trade_votes").select("trade_id, vote").in("trade_id", outForVote)
+    ? await db.from("trade_votes").select("trade_id, vote, manager_id").in("trade_id", outForVote)
     : { data: [] };
+  const myVote = new Map(
+    (castVotes ?? []).filter((v) => v.manager_id === me.id).map((v) => [v.trade_id as string, v.vote as string]),
+  );
 
   const ballot = new Map<string, { vetoes: number; approvals: number }>();
   for (const v of castVotes ?? []) {
@@ -157,6 +179,26 @@ export async function GET() {
           mineStands &&
           !theirsStands &&
           !["executed", "declined", "rescinded"].includes(t.status),
+      };
+    }),
+    league: (others ?? []).map((t) => {
+      const counts = ballot.get(t.id as string) ?? { vetoes: 0, approvals: 0 };
+      const opened = t.voting_opened_at as string | null;
+      return {
+        id: t.id,
+        from_manager: t.from_manager,
+        to_manager: t.to_manager,
+        offer: t.offer,
+        status: t.status,
+        created_at: t.created_at,
+        vetoes: counts.vetoes,
+        approvals: counts.approvals,
+        voteBar: bar,
+        closesAt:
+          t.status === "voting" && opened
+            ? new Date(Date.parse(opened) + voteHours * 3600_000).toISOString()
+            : null,
+        myVote: myVote.get(t.id as string) ?? null,
       };
     }),
   });
