@@ -9,6 +9,7 @@ import { useLogos } from "@/lib/use-logos";
 import { useRefreshable } from "@/lib/use-refresh";
 import { openPlayer } from "@/lib/player-sheet";
 import TeamCrest from "./TeamCrest";
+import PlayerFace from "./PlayerFace";
 import { AppView, Chips, GroupSkeleton, Note, RowGroup, heroPanel, ink, optStyle, wideBtnStyle, type RowSpec } from "./RowList";
 
 interface Manager {
@@ -482,6 +483,7 @@ function Desk_() {
     const p = player(name);
     return {
       key: `${key}:${name}`,
+      logo: <PlayerFace name={name} size={26} />,
       check: list.includes(name),
       title: name,
       sub: [p?.p, p?.t].filter(Boolean).join(" · "),

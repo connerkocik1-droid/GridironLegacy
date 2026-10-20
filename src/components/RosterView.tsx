@@ -9,6 +9,9 @@ import { openPlayer } from "@/lib/player-sheet";
 import { gameFor, gameLabel, useNflGames } from "@/lib/use-nfl-games";
 import { useHealthReport, healthOf } from "@/lib/use-player-health";
 import { HEALTH_SHORT, type Health } from "@/lib/health";
+import { usePositionRanks } from "@/lib/use-position-ranks";
+import { ageOf } from "@/data/league-data";
+import PlayerFace from "./PlayerFace";
 import { AppView, GroupSkeleton, Note, RowGroup, type RowSpec, type RowTag } from "./RowList";
 
 interface Feed {
@@ -39,6 +42,7 @@ export default function RosterView() {
   const [error, setError] = useState<string | null>(null);
   const { games } = useNflGames();
   const report = useHealthReport();
+  const ranks = usePositionRanks();
 
   const load = useCallback(async () => {
     try {
@@ -105,7 +109,12 @@ export default function RosterView() {
     const g = gameFor(games, p?.t);
     const status = g ? gameLabel(g) : p?.t ? "BYE" : "";
     const health = healthOf(report, name);
+    const age = pos === "D/ST" ? null : ageOf({ n: name });
     const tags: RowTag[] = [];
+    const rank = ranks.get(name);
+    // The group already says who is counting; a flex is the one slot his
+    // position does not tell you.
+    if (slot && /^FLEX/.test(slot)) tags.push({ label: "FLEX", tone: "slot" });
     if (health) tags.push({ label: HEALTH_SHORT[health.status as Health], tone: "warn" });
     if (g?.state === "in") tags.push({ label: "LIVE", tone: "live" });
     const scored = feed.scores?.[name];
@@ -114,11 +123,21 @@ export default function RosterView() {
     return {
       key: `${slot ?? (onIr ? "ir" : "b")}:${name}`,
       hi: !!slot,
-      tile: onIr ? "IR" : slot ? slot.replace("DST", "D/ST").replace(/^FLEX\d$/, "FLEX") : pos === "D/ST" ? "DEF" : pos,
-      tileTone: slot ? "me" : undefined,
-      title: name,
+      logo: <PlayerFace name={name} size={32} />,
+      title: age != null ? (
+        <>
+          <span>{name}</span>{" "}
+          <span title={`Age ${age}`} style={{ fontWeight: 400, color: "var(--ap-n500)" }}>
+            {age}
+          </span>
+        </>
+      ) : (
+        name
+      ),
       tags,
-      sub: [p?.t, status].filter(Boolean).join(" · "),
+      // Position, club, his game, and where he ranks at his position across
+      // the league this season.
+      sub: [pos, p?.t, status, rank].filter(Boolean).join(" · "),
       val: now != null ? now.toFixed(1) : projection.toFixed(1),
       valSub: now != null ? `PROJ ${projection.toFixed(1)}` : "PROJ",
       valColor: slot ? "var(--ap-a200)" : "var(--ap-n300)",

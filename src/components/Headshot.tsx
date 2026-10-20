@@ -26,7 +26,7 @@ type Props = Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> & {
   name: string;
 };
 
-export default function Headshot({ name, alt = "", className, ...rest }: Props) {
+export default function Headshot({ name, alt = "", className, onError, ...rest }: Props) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -34,6 +34,12 @@ export default function Headshot({ name, alt = "", className, ...rest }: Props) 
       className={className ? `gl-face ${className}` : "gl-face"}
       src={headshot(name) || BLANK}
       alt={alt}
+      // A picture that will not load is hidden rather than drawn as a broken
+      // icon, so whatever sits behind it (a position tile) shows instead.
+      onError={(e) => {
+        e.currentTarget.style.visibility = "hidden";
+        onError?.(e);
+      }}
       {...rest}
     />
   );
