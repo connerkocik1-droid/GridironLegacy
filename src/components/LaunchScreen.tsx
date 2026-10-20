@@ -15,13 +15,14 @@ import { useEffect } from "react";
  * handoff. The hologram pylon draws itself in over about 1.4s, then loops
  * quietly — an edge pulse, a scan line, a breathing glow and a sweeping bar —
  * until the screen behind it has its first data. Every animation is CSS (the
- * keyframes are in globals.css), so it plays while the JavaScript is still
- * parsing; the script only decides when it goes.
+ * keyframes are in globals.css), started by a few lines of inline script
+ * when the page has loaded (see START), so it plays while the JavaScript
+ * bundle is still parsing; the bundle only decides when it goes.
  *
  * It goes when the app is ready: hydrated, and no screen still showing its
  * loading skeleton (every board's GroupSkeleton is aria-busy). Never before
- * 1.4s, so the intro always completes; and not at all, with no fade, if the
- * app was ready inside 250ms, because a flash of it reads as a fault.
+ * MINIMUM_MS after it started, so the intro is always seen in full, however
+ * quickly the data comes back.
  *
  * Only in standalone. In a browser tab you can watch a page load — that is
  * what a browser looks like — and covering it would be a splash screen on a
@@ -32,15 +33,36 @@ import { useEffect } from "react";
  * build where this component never runs at all still ends up at the app.
  */
 
-/** The intro's own length: the drawing completes before it can leave. */
-const MINIMUM_MS = 1400;
-/** Ready this soon after the tap, and there is nothing to show. */
-const SKIP_MS = 250;
+/**
+ * How long the screen is seen for, at least, once it is actually on screen:
+ * the drawing, the wordmark settling and the bar arriving all complete.
+ */
+const MINIMUM_MS = 1800;
 /** However long the first data takes, the app is not hidden past this. */
 const MAXIMUM_MS = 6000;
 
+/**
+ * Starts the animation once the page has loaded, run inline as the markup
+ * arrives so it needs no JavaScript bundle.
+ *
+ * A home-screen launch on iOS keeps its own static launch image over the page
+ * until the page has loaded. Anything that started at first paint — which is
+ * what a CSS animation does — played out behind that image, and by the time
+ * the image went the intro was over and the app was ready: the screen seemed
+ * to skip straight to the fade. So the stylesheet holds every animation on
+ * its first frame until this marks the screen as started, and the minimum
+ * time above is counted from the same moment. Never later than START_CAP_MS,
+ * in case a slow asset holds the load event up.
+ */
+const START_CAP_MS = 2500;
+const START = `(function(){var el=document.getElementById("gl-launch");if(!el)return;function go(){if(el.classList.contains("pl-go"))return;window.__plStart=performance.now();el.classList.add("pl-go");document.dispatchEvent(new Event("pl-go"))}if(document.readyState==="complete")go();else{addEventListener("load",go,{once:true});setTimeout(go,${START_CAP_MS})}})();`;
+
 function busy(): boolean {
   return document.querySelector('[aria-busy="true"]') != null;
+}
+
+function startedAt(): number | null {
+  return (window as Window & { __plStart?: number }).__plStart ?? null;
 }
 
 export default function LaunchScreen() {
@@ -49,30 +71,41 @@ export default function LaunchScreen() {
     if (root.dataset.launched) return;
 
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let cap: ReturnType<typeof setTimeout> | undefined;
     let observer: MutationObserver | undefined;
     let settled = false;
 
-    const finish = (how: "1" | "skip") => {
+    const finish = () => {
       if (settled) return;
       settled = true;
       observer?.disconnect();
       if (timer) clearTimeout(timer);
-      root.dataset.launched = how;
+      if (cap) clearTimeout(cap);
+      document.removeEventListener("pl-go", onStart);
+      root.dataset.launched = "1";
     };
 
-    // Ready: wait out the intro if it has not finished, else go now.
-    const ready = () => {
-      if (settled) return;
-      const now = performance.now();
-      if (now < SKIP_MS) return finish("skip");
-      if (now >= MINIMUM_MS) return finish("1");
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => finish("1"), MINIMUM_MS - now);
-    };
-
+    // Ready and on screen long enough: go. Ready but not yet, or not yet
+    // started at all: wait for whichever is still to come.
     const check = () => {
-      if (!busy()) ready();
+      if (settled || busy()) return;
+      const start = startedAt();
+      if (start == null) return;
+      const left = start + MINIMUM_MS - performance.now();
+      if (left <= 0) return finish();
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(finish, left);
     };
+
+    // Once it has started, the cap runs from then, and readiness is asked again.
+    function onStart() {
+      const start = startedAt() ?? performance.now();
+      if (cap) clearTimeout(cap);
+      cap = setTimeout(finish, Math.max(0, start + MAXIMUM_MS - performance.now()));
+      check();
+    }
+    if (startedAt() != null) onStart();
+    else document.addEventListener("pl-go", onStart);
 
     // A frame first, so the screen behind has rendered its first pass.
     const frame = requestAnimationFrame(() => {
@@ -81,13 +114,13 @@ export default function LaunchScreen() {
       observer = new MutationObserver(check);
       observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-busy"] });
     });
-    const cap = setTimeout(() => finish("1"), Math.max(0, MAXIMUM_MS - performance.now()));
 
     return () => {
       cancelAnimationFrame(frame);
-      clearTimeout(cap);
+      if (cap) clearTimeout(cap);
       if (timer) clearTimeout(timer);
       observer?.disconnect();
+      document.removeEventListener("pl-go", onStart);
     };
   }, []);
 
@@ -172,6 +205,8 @@ export default function LaunchScreen() {
           <span className="pl-status-line" style={{ position: "absolute", inset: 0, opacity: 0, animation: "pl-status 3.6s ease 3.8s infinite" }}>GRADING BEST BALL</span>
         </div>
       </div>
+      {/* Inline, so it runs as the markup arrives, before hydration. */}
+      <script dangerouslySetInnerHTML={{ __html: START }} />
     </div>
   );
 }
