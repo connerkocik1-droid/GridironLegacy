@@ -306,15 +306,16 @@ export default function LeagueRules({ embedded = false }: { embedded?: boolean }
       <div id="rule-waivers" style={card}>
         <div style={eyebrow}>WAIVERS AND FREE AGENTS</div>
         <p style={body}>
-          A dropped player sits on the wire for {plural(waiverDays, "day")} before
-          anybody can take him. While he is there, claims are collected rather
-          than raced for — put one in and the order decides it, so there is no
-          advantage in being awake at three in the morning. Anybody not on the
-          wire is a free agent and yours immediately.
+          When the week is closed, every free agent goes on waivers for 24
+          hours: claims are collected rather than raced for, and they all settle
+          together when the window closes, so there is no advantage in being
+          awake at three in the morning. After that, a dropped player sits on
+          the wire for {plural(waiverDays, "day")} before anybody can take him,
+          and anybody not on the wire is a free agent and yours immediately.
         </p>
         <p style={{ ...body, margin: 0 }}>
-          Claim order runs worst record first, and drops to the back of the
-          queue once a claim of yours goes through.
+          Claim order is the week just closed, lowest score first, and a claim
+          of yours going through sends you to the back of the queue.
         </p>
       </div>
 

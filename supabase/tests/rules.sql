@@ -380,10 +380,10 @@ select expect('every move is logged',
 \echo ''
 \echo '--- the claim day, and the order it settles in ---'
 
--- Tuesday in the league's own clock, the order taken from the week that just
--- ended, and a claim that waits for the day to be over. All three are new and
--- none of them can be tested against a real Tuesday, so the claim day is moved
--- to whatever today is and then moved off it again.
+-- The claim window opens when a week is locked and stays open 24 hours (0068;
+-- it was a calendar Tuesday in 0061), the order is taken from the week that
+-- just ended, and a claim waits for the window to close. The window is opened
+-- and closed here by moving when week 1 was locked.
 
 \o /dev/null
 \set D '99999999-0000-0000-0000-000000000031'
@@ -452,18 +452,19 @@ select expect('so the order it had is the order it keeps',
   (select string_agg(slot, ',' order by waiver_priority) from managers where league_id = :'D'),
   'AAA,BBB,CCC');
 
--- ---- the claim day itself ----
+-- ---- the claim window itself ----
 
--- Today, whatever today is, on the league's clock.
+-- Week 1 was locked an hour ago, so the window is open. (The harness gives
+-- every test league no window unless it asks for one; this one asks.)
 \o /dev/null
-update leagues
-   set settings = settings || jsonb_build_object(
-     'waiverDay', extract(dow from (now() at time zone 'America/New_York'))::int)
- where id = :'D';
+update leagues set settings = settings || '{"waiverDay": 2}'::jsonb where id = :'D';
+update matchups set graded_at = now() - interval '1 hour' where league_id = :'D' and final;
 select signin(:'D1');
 \o
 
-select expect('it is a claim day now', waiver_day(:'D'), true);
+select expect('the window opens when the week is locked', waiver_day(:'D'), true);
+select expect('and closes 24 hours after it',
+  waiver_window_close(:'D') = week_closed_at(:'D') + interval '24 hours', true);
 
 select expect('so an add is refused',
   refuses(format('select add_player(%L, %L)', :'D', 'Wire Target')) like '%claim%', true);
@@ -481,7 +482,7 @@ insert into waiver_claims (league_id, manager_id, add_player) values
   (:'D', (select id from managers where league_id = :'D' and slot = 'CCC'), 'Wire Target');
 \o
 
-select expect('a claim placed today settles at the end of today',
+select expect('a claim placed in the window settles when it closes',
   (select settles_at > now() and settles_at < now() + interval '1 day'
      from waiver_claims where league_id = :'D' and add_player = 'Wire Target'), true);
 
@@ -508,15 +509,12 @@ select expect('the player is on the claiming roster',
   (select m.slot from roster_slots r join managers m on m.id = r.manager_id
     where r.league_id = :'D' and r.player_name = 'Wire Target'), 'CCC');
 
--- Off the claim day, the league behaves exactly as it did before any of this.
+-- Outside the window, the league behaves exactly as it did before any of this.
 \o /dev/null
-update leagues
-   set settings = settings || jsonb_build_object(
-     'waiverDay', ((extract(dow from (now() at time zone 'America/New_York'))::int + 3) % 7))
- where id = :'D';
+update matchups set graded_at = now() - interval '25 hours' where league_id = :'D' and final;
 \o
 
-select expect('tomorrow is not a claim day', waiver_day(:'D'), false);
+select expect('a day after the lock, the window has closed', waiver_day(:'D'), false);
 
 select expect('so an add lands on the spot again',
   (select (add_player(:'D', 'Ordinary Signing', null) ->> 'ok')::boolean), true);
@@ -529,7 +527,7 @@ insert into waiver_claims (league_id, manager_id, add_player) values
   (:'D', (select id from managers where league_id = :'D' and slot = 'BBB'), 'Later Target');
 \o
 
-select expect('a claim placed off the day has no window to wait for',
+select expect('a claim placed outside the window has none to wait for',
   (select settles_at is null from waiver_claims
     where league_id = :'D' and add_player = 'Later Target'), true);
 
@@ -555,10 +553,8 @@ select expect('a league with no claim day never has one', waiver_day(:'D'), fals
 -- leaks at the far end and the player half the league queued for goes to
 -- whoever is awake at one in the morning.
 \o /dev/null
-update leagues
-   set settings = settings || jsonb_build_object(
-     'waiverDay', extract(dow from (now() at time zone 'America/New_York'))::int)
- where id = :'D';
+update leagues set settings = settings || '{"waiverDay": 2}'::jsonb where id = :'D';
+update matchups set graded_at = now() - interval '1 hour' where league_id = :'D' and final;
 insert into waiver_claims (league_id, manager_id, add_player) values
   (:'D', (select id from managers where league_id = :'D' and slot = 'BBB'), 'Spoken For');
 -- The day ends, but nothing has run yet.
@@ -6145,6 +6141,20 @@ select expect('and when it was closed',
 -- locked, not a calendar Tuesday after it.
 select expect('the week after it is untouched',
   (select final from matchups where league_id = :'AW' and week = 2), false);
+
+-- And the waiver wire opens with it: every free agent on waivers for 24 hours,
+-- in the order of the week just closed, lowest score first.
+\o /dev/null
+update leagues set settings = settings || '{"waiverDay": 2}'::jsonb where id = :'AW';
+\o
+select expect('advancing opens the claim window', waiver_day(:'AW'), true);
+select expect('for 24 hours',
+  waiver_window_close(:'AW') between now() + interval '23 hours 59 minutes' and now() + interval '24 hours', true);
+select expect('the order is the week just closed, worst first',
+  (select string_agg(slot, ',' order by waiver_priority) from managers where league_id = :'AW'),
+  'BBB,AAA');
+select expect('and it is set now, not on the next run',
+  (select waiver_priority_week from leagues where id = :'AW'), 1);
 
 \echo ''
 \echo '--- and what it refuses ---'

@@ -26,6 +26,8 @@ interface FreeAgent {
 
 interface Feed {
   claimDay?: boolean;
+  /** When the open claim window closes and its claims settle. */
+  claimClosesAt?: string | null;
   me: { id: string; franchise: string; waiver_priority: number };
   mode: "waivers" | "open" | "all";
   capacity: number;
@@ -66,6 +68,12 @@ function hoursLeft(iso: string) {
  * Add — or Claim, while he is on waivers. A full roster asks who leaves first.
  * From the Free Agency view in prototype/Pylon App.dc.html.
  */
+/** "Tue 7:42 PM": when the claim window closes, on the reader's clock. */
+function closesAt(iso: string): string {
+  const at = new Date(iso);
+  return Number.isNaN(at.getTime()) ? "" : at.toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" });
+}
+
 export default function FreeAgencyView() {
   const watching = useWatchlist();
   const [feed, setFeed] = useState<Feed | null>(null);
@@ -262,6 +270,13 @@ export default function FreeAgencyView() {
         }}
         label="Position"
       />
+      {feed.claimDay ? (
+        <Note tag="WAIVERS">
+          The week just closed, so every free agent is on waivers
+          {feed.claimClosesAt ? ` until ${closesAt(feed.claimClosesAt)}` : ""}. Claims settle together then, lowest score
+          last week first.
+        </Note>
+      ) : null}
       {need ? <Note tag={needTag}>{need.text}</Note> : null}
       {notice ? <Note tag="DONE">{notice}</Note> : null}
       {error ? <Note tag="ERROR" tone="warn">{error}</Note> : null}

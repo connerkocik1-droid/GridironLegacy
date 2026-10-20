@@ -239,6 +239,27 @@ console.log("\n--- the league's own deals ---");
     (await page.locator(".gl-row[data-open]", { hasText: /waiting on (you|them)/ }).getByRole("button", { name: /FORCE/ }).count()) === 0);
 }
 
+console.log("\n--- the claim window after a week closes ---");
+{
+  // For 24 hours after the week is locked every free agent is a claim, and
+  // the page says so and says until when.
+  const closes = new Date(Date.now() + 20 * 3_600_000).toISOString();
+  await page.route("**/api/players**", async (r) => {
+    const res = await r.fetch().catch(() => null);
+    const body = res ? await res.json().catch(() => null) : null;
+    if (!body) return r.fallback();
+    return r.fulfill({ json: { ...body, claimDay: true, claimClosesAt: closes } });
+  });
+  await go("/free-agents", /WAIVERS/, "claim-window");
+  const t = await body();
+  ok("it says every free agent is on waivers", /every free agent is on waivers until/.test(t));
+  ok("and the order it settles in", /lowest score\s+last week first/.test(t));
+  ok("every free agent is a claim, not an add",
+    (await page.getByRole("button", { name: "ADD", exact: true }).count()) === 0 &&
+    (await page.getByRole("button", { name: "CLAIM", exact: true }).count()) > 0);
+  await page.unroute("**/api/players**");
+}
+
 console.log("\n--- the record ---");
 {
   await go("/activity", /ADD|DROP|TRADE|CLAIM|nothing/, "activity");
