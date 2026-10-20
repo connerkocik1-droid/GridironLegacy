@@ -46,16 +46,18 @@ console.log("--- the lineup ---");
   ok("and says it is best ball", /pts · best ball|proj · best ball/.test(t));
   ok("the bench is its own group", /\bBENCH\b/.test(t));
 
-  // The slot tiles, read off the rows rather than the page: "QB" is also a
-  // position written beside every quarterback's name.
-  const tiles = await page.evaluate(() =>
-    [...document.querySelectorAll(".gl-row [data-slot]")].map((el) => el.textContent?.trim() ?? ""));
-  const want = ["QB", "RB1", "RB2", "WR1", "WR2", "TE", "K", "D/ST"];
-  const missing = want.filter((slot) => !tiles.includes(slot));
-  ok(`every slot the league fields is filled (${missing.join(", ") || "all"})`, missing.length === 0);
-  ok(`with two flexes (${tiles.filter((s) => s === "FLEX").length})`, tiles.filter((s) => s === "FLEX").length === 2);
-  // A league fielding two backs must tile two, not three.
-  ok("and no slot the league does not field", !tiles.includes("RB3"));
+  // The counting group's rows, read off their subheaders: the position
+  // leads each one. A league fielding one QB, two RB, two WR, a TE, two
+  // flexes, a K and a D/ST counts ten, and never a third back outside a flex.
+  const counting = await page.evaluate(() => {
+    const label = [...document.querySelectorAll("*")].find((el) => el.children.length === 0 && el.textContent?.trim() === "COUNTING NOW");
+    let group = label?.parentElement;
+    while (group && !group.querySelector(".gl-row")) group = group.nextElementSibling ?? group.parentElement?.nextElementSibling ?? null;
+    return [...(group?.querySelectorAll(".gl-row") ?? [])].map((row) => row.textContent ?? "");
+  });
+  ok(`ten men are counting (${counting.length})`, counting.length === 10);
+  const flex = counting.filter((r) => /FLEX/.test(r)).length;
+  ok(`two of them in the flexes (${flex})`, flex === 2);
   ok("a row says what it projects", /PROJ/.test(t));
 }
 
@@ -66,13 +68,11 @@ console.log("\n--- who each man is ---");
   const gibbs = page.locator(".gl-row", { hasText: "Jahmyr Gibbs" }).first();
   const text = (await gibbs.innerText()).replace(/\n/g, " ");
   ok(`his age is beside his name (${text.slice(0, 40)})`, /Jahmyr Gibbs \d{2}\b/.test(text));
-  // The top-scoring back in the fixture's pool.
-  // Read off the tags, not the row: the slot tile beside him says RB1 too.
-  const tags = await gibbs.evaluate((row) =>
-    [...row.querySelectorAll("span")]
-      .filter((el) => !el.closest("[data-slot]") && !el.children.length && /^[A-Z/]+\d+$/.test(el.textContent?.trim() ?? ""))
-      .map((el) => el.textContent?.trim()));
-  ok(`and his rank at his position across the league (${tags.join(", ")})`, tags.includes("RB1"));
+  // The subheader: position, club, his game, then his rank at his position
+  // across the league — the top-scoring back in the fixture's pool.
+  const sub = text.match(/RB · DET · [^·]+ · RB\d+/)?.[0];
+  ok(`and position, club, game and league rank under it (${sub})`, /RB · DET · .+ · RB1$/.test(sub ?? ""));
+  ok("the headshot sits where the position tile was", (await gibbs.locator("[data-slot]").count()) === 0);
   ok("his headshot is there", (await gibbs.locator("img.gl-face").count()) === 1);
   const mark = await gibbs.locator('img[src*="logos"]').first().getAttribute("src").catch(() => null);
   ok(`and his club's logo (${mark})`, /det/.test(mark ?? ""));

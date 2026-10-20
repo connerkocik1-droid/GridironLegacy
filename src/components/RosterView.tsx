@@ -12,7 +12,7 @@ import { HEALTH_SHORT, type Health } from "@/lib/health";
 import { usePositionRanks } from "@/lib/use-position-ranks";
 import { ageOf } from "@/data/league-data";
 import PlayerFace from "./PlayerFace";
-import { AppView, GroupSkeleton, Note, RowGroup, tileStyle, type RowSpec, type RowTag } from "./RowList";
+import { AppView, GroupSkeleton, Note, RowGroup, type RowSpec, type RowTag } from "./RowList";
 
 interface Feed {
   settings: LeagueShape | null;
@@ -112,7 +112,9 @@ export default function RosterView() {
     const age = pos === "D/ST" ? null : ageOf({ n: name });
     const tags: RowTag[] = [];
     const rank = ranks.get(name);
-    if (rank) tags.push({ label: rank, tone: "flat" });
+    // The group already says who is counting; a flex is the one slot his
+    // position does not tell you.
+    if (slot && /^FLEX/.test(slot)) tags.push({ label: "FLEX", tone: "slot" });
     if (health) tags.push({ label: HEALTH_SHORT[health.status as Health], tone: "warn" });
     if (g?.state === "in") tags.push({ label: "LIVE", tone: "live" });
     const scored = feed.scores?.[name];
@@ -121,15 +123,7 @@ export default function RosterView() {
     return {
       key: `${slot ?? (onIr ? "ir" : "b")}:${name}`,
       hi: !!slot,
-      // The slot it fills, then his face.
-      logo: (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
-          <span data-slot style={tileStyle(!!slot, 30)}>
-            {onIr ? "IR" : slot ? slot.replace("DST", "D/ST").replace(/^FLEX\d$/, "FLEX") : pos === "D/ST" ? "DEF" : pos}
-          </span>
-          <PlayerFace name={name} />
-        </span>
-      ),
+      logo: <PlayerFace name={name} size={32} />,
       title: age != null ? (
         <>
           <span>{name}</span>{" "}
@@ -141,7 +135,9 @@ export default function RosterView() {
         name
       ),
       tags,
-      sub: [p?.t, status].filter(Boolean).join(" · "),
+      // Position, club, his game, and where he ranks at his position across
+      // the league this season.
+      sub: [pos, p?.t, status, rank].filter(Boolean).join(" · "),
       val: now != null ? now.toFixed(1) : projection.toFixed(1),
       valSub: now != null ? `PROJ ${projection.toFixed(1)}` : "PROJ",
       valColor: slot ? "var(--ap-a200)" : "var(--ap-n300)",
