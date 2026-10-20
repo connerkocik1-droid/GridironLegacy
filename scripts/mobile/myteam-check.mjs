@@ -49,7 +49,7 @@ console.log("--- the lineup ---");
   // The slot tiles, read off the rows rather than the page: "QB" is also a
   // position written beside every quarterback's name.
   const tiles = await page.evaluate(() =>
-    [...document.querySelectorAll(".gl-row")].map((row) => row.firstElementChild?.textContent?.trim() ?? ""));
+    [...document.querySelectorAll(".gl-row [data-slot]")].map((el) => el.textContent?.trim() ?? ""));
   const want = ["QB", "RB1", "RB2", "WR1", "WR2", "TE", "K", "D/ST"];
   const missing = want.filter((slot) => !tiles.includes(slot));
   ok(`every slot the league fields is filled (${missing.join(", ") || "all"})`, missing.length === 0);
@@ -57,6 +57,25 @@ console.log("--- the lineup ---");
   // A league fielding two backs must tile two, not three.
   ok("and no slot the league does not field", !tiles.includes("RB3"));
   ok("a row says what it projects", /PROJ/.test(t));
+}
+
+console.log("\n--- who each man is ---");
+{
+  // Read off Jahmyr Gibbs's own row: his age beside his name, where he ranks
+  // at his position across the league, and his face with his club's mark.
+  const gibbs = page.locator(".gl-row", { hasText: "Jahmyr Gibbs" }).first();
+  const text = (await gibbs.innerText()).replace(/\n/g, " ");
+  ok(`his age is beside his name (${text.slice(0, 40)})`, /Jahmyr Gibbs \d{2}\b/.test(text));
+  // The top-scoring back in the fixture's pool.
+  // Read off the tags, not the row: the slot tile beside him says RB1 too.
+  const tags = await gibbs.evaluate((row) =>
+    [...row.querySelectorAll("span")]
+      .filter((el) => !el.closest("[data-slot]") && !el.children.length && /^[A-Z/]+\d+$/.test(el.textContent?.trim() ?? ""))
+      .map((el) => el.textContent?.trim()));
+  ok(`and his rank at his position across the league (${tags.join(", ")})`, tags.includes("RB1"));
+  ok("his headshot is there", (await gibbs.locator("img.gl-face").count()) === 1);
+  const mark = await gibbs.locator('img[src*="logos"]').first().getAttribute("src").catch(() => null);
+  ok(`and his club's logo (${mark})`, /det/.test(mark ?? ""));
 }
 
 console.log("\n--- the reserve ---");
@@ -83,6 +102,9 @@ console.log("\n--- a row opens the player ---");
   ok("and offers a trade", (await sheet.getByRole("button", { name: /TRADE/ }).count()) > 0
     || (await sheet.getByRole("link", { name: /TRADE/ }).count()) > 0);
   ok("and a drop", (await sheet.getByRole("button", { name: /^DROP/ }).count()) > 0);
+  const st = await sheet.innerText();
+  ok(`the sheet gives his rank at his position (${st.match(/RB\d+\nPOS RANK/)?.[0]?.replace("\n", " ")})`, /RB1\nPOS RANK/.test(st));
+  ok(`and his age (${st.match(/\d+\nAGE/)?.[0]?.replace("\n", " ")})`, /\b\d{2}\nAGE/.test(st));
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/my-team-sheet.png` });
 }
 

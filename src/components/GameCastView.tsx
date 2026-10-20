@@ -6,6 +6,7 @@ import { useRefreshable } from "@/lib/use-refresh";
 import { gameLabel, useNflGames } from "@/lib/use-nfl-games";
 import { useRetro } from "@/lib/retro";
 import { spriteFor } from "@/lib/team-logo";
+import TeamMark from "./TeamMark";
 import { AppView, Foot, GroupSkeleton, RowGroup, type RowSpec } from "./RowList";
 
 /**
@@ -73,8 +74,13 @@ export default function GameCastView() {
       hi: yours.length > 0,
       logo: retro ? (
         <span aria-hidden className="gl-px-sprite" style={{ backgroundImage: spriteFor(leader ?? away.abbrev) }} />
-      ) : undefined,
-      tile: retro ? undefined : away.abbrev,
+      ) : (
+        // Both clubs, away over home, as the title reads.
+        <span aria-hidden style={{ display: "inline-flex", alignItems: "center", gap: 2, minWidth: 46 }}>
+          <TeamMark team={away.abbrev} size={22} opacity={1} />
+          <TeamMark team={home.abbrev} size={22} opacity={1} />
+        </span>
+      ),
       title: started ? `${away.abbrev} ${away.score} · ${home.abbrev} ${home.score}` : `${away.abbrev} at ${home.abbrev}`,
       tags: g.state === "in" ? [{ label: "LIVE", tone: "live" }] : g.state === "post" ? [{ label: "FINAL", tone: "flat" }] : [],
       sub: `${gameLabel(g)}${yours.length ? ` · yours: ${yours.join(", ")}` : ""}`,

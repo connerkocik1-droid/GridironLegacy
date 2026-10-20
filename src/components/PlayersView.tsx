@@ -5,6 +5,7 @@ import { seasonPlayers } from "@/lib/league-story";
 import { useMe } from "@/lib/use-me";
 import { useRefreshable } from "@/lib/use-refresh";
 import { openPlayer } from "@/lib/player-sheet";
+import PlayerFace from "./PlayerFace";
 import { AppView, Chips, Foot, GroupSkeleton, Note, RowGroup } from "./RowList";
 
 const POSITIONS = ["QB", "RB", "WR", "TE", "K", "D/ST"] as const;
@@ -71,10 +72,9 @@ export default function PlayersView() {
               num: i + 1,
               lit: i < 3,
               hi: yours,
-              tile: p.team || p.pos,
-              tileTone: yours ? "me" : undefined,
+              logo: <PlayerFace name={p.name} />,
               title: p.name,
-              sub: [p.franchise ?? "Free agent", p.preRank ? `drafted ${p.pos}${p.preRank}` : null].filter(Boolean).join(" · "),
+              sub: [p.team, p.franchise ?? "Free agent", p.preRank ? `drafted ${p.pos}${p.preRank}` : null].filter(Boolean).join(" · "),
               val: p.points.toFixed(1),
               valSub: p.games ? `${(p.points / p.games).toFixed(1)} PG` : undefined,
               bigVal: true,

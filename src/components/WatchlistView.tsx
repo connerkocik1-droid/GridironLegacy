@@ -6,6 +6,7 @@ import { player } from "@/lib/roster";
 import { useRefreshable } from "@/lib/use-refresh";
 import { openPlayer } from "@/lib/player-sheet";
 import { reloadWatchlist, toggleWatch, useWatchlist } from "@/lib/use-watchlist";
+import PlayerFace from "./PlayerFace";
 import { AppView, GroupSkeleton, Note, RowGroup, type RowSpec } from "./RowList";
 
 interface Watched {
@@ -78,10 +79,10 @@ export default function WatchlistView() {
     const pts = totals[w.name]?.total;
     return {
       key: w.name,
-      tile: p?.t || p?.p || "—",
+      logo: <PlayerFace name={w.name} />,
       title: w.name,
       tags: w.clearsAt ? [{ label: "WAIVERS", tone: "warn" }] : [],
-      sub: [p?.p, w.owner ? (w.owner.mine ? "Yours" : w.owner.franchise) : "Free agent", pts != null ? `${pts.toFixed(1)} pts` : null]
+      sub: [p?.p, p?.t, w.owner ? (w.owner.mine ? "Yours" : w.owner.franchise) : "Free agent", pts != null ? `${pts.toFixed(1)} pts` : null]
         .filter(Boolean)
         .join(" · "),
       actions: [{ label: "★", on: true, tone: "quiet", ariaLabel: `Stop watching ${w.name}`, onClick: () => {

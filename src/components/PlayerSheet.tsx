@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { closePlayer, useOpenPlayer } from "@/lib/player-sheet";
 import { toggleWatch, useWatchlist } from "@/lib/use-watchlist";
 import { refreshAll } from "@/lib/use-refresh";
+import { usePositionRanks } from "@/lib/use-position-ranks";
+import { ageOf } from "@/data/league-data";
 import { playerHref, HealthBadge } from "./PlayerName";
 import Headshot from "./Headshot";
 import TeamMark from "./TeamMark";
@@ -43,6 +45,7 @@ type Move = "add" | "drop" | "stash" | "recall" | "reserve";
 export default function PlayerSheet() {
   const name = useOpenPlayer();
   const watching = useWatchlist();
+  const ranks = usePositionRanks();
   const [data, setData] = useState<Payload | null>(null);
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<{ ok: boolean; text: string } | null>(null);
@@ -140,11 +143,15 @@ export default function PlayerSheet() {
     opts.push({ label: watched ? "★ WATCHING" : "☆ WATCH", tone: "quiet", onClick: () => void toggleWatch(name) });
   }
 
+  const age = p?.position === "D/ST" ? null : ageOf({ n: name });
   const stats = [
     { k: "SEASON", v: total ? total.toFixed(1) : "—" },
     { k: "PER GAME", v: weeks.length ? (total / weeks.length).toFixed(1) : "—" },
     { k: latest ? `WEEK ${latest.week}` : "THIS WEEK", v: latest ? latest.points.toFixed(1) : "—" },
+    // Where he stands at his position now, beside where he was drafted.
+    { k: "POS RANK", v: ranks.get(name) ?? "—" },
     { k: "DRAFTED", v: p?.posRank ?? "—" },
+    { k: "AGE", v: age != null ? String(age) : "—" },
   ];
 
   return (
@@ -238,7 +245,7 @@ export default function PlayerSheet() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginTop: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, rowGap: 12, marginTop: 16 }}>
           {stats.map((x) => (
             <div key={x.k}>
               <div style={{ fontSize: 18, fontWeight: 300, fontStyle: "italic", letterSpacing: "-.04em", color: "var(--ap-a100)" }}>{x.v}</div>

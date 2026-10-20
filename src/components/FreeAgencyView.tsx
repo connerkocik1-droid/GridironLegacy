@@ -7,6 +7,7 @@ import { useRefreshable } from "@/lib/use-refresh";
 import { openPlayer } from "@/lib/player-sheet";
 import { toggleWatch, useWatchlist } from "@/lib/use-watchlist";
 import { fieldStyle } from "./menu-style";
+import PlayerFace from "./PlayerFace";
 import { AppView, Chips, GroupSkeleton, Note, RowGroup, type RowAction, type RowSpec, type RowTag } from "./RowList";
 
 const POSITIONS = ["All", "QB", "RB", "WR", "TE", "K", "D/ST"] as const;
@@ -237,7 +238,7 @@ export default function FreeAgencyView() {
     actions.push(addAction(p.name, !!p.clearsAt, p.locked));
     return {
       key: p.name,
-      tile: p.team || p.position,
+      logo: <PlayerFace name={p.name} />,
       title: p.name,
       tags,
       sub: [p.position, p.team, p.posRank ? `drafted ${p.posRank}` : null, p.locked ? "playing now, locked until next week" : null].filter(Boolean).join(" · "),
@@ -274,7 +275,7 @@ export default function FreeAgencyView() {
               .filter((r) => r.lineup_slot !== "IR")
               .map((r) => ({
                 key: r.player_name,
-                tile: player(r.player_name)?.p === "D/ST" ? "DEF" : (player(r.player_name)?.p ?? "—"),
+                logo: <PlayerFace name={r.player_name} />,
                 title: r.player_name,
                 sub: r.locked ? "Playing — locked until next week" : (player(r.player_name)?.t ?? ""),
                 actions: [{ label: r.locked ? "LOCKED" : "DROP", disabled: busy || !!r.locked, onClick: () => void add(pendingAdd, r.player_name) }],
@@ -290,7 +291,7 @@ export default function FreeAgencyView() {
           note={`${feed.wire.length} recently dropped`}
           rows={feed.wire.map((w) => ({
             key: `w:${w.name}`,
-            tile: w.team || w.position,
+            logo: <PlayerFace name={w.name} />,
             title: w.name,
             tags: [{ label: `WAIVERS ${hoursLeft(w.clearsAt)}H`, tone: "warn" as const }],
             sub: [w.position, clears(w.clearsAt), w.mine ? "you dropped him" : null].filter(Boolean).join(" · "),
