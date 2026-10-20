@@ -32,7 +32,7 @@ const eq = (label: string, got: unknown, want: unknown) => {
 const { DEFAULTS } = await import("@/data/league-settings.js");
 const { rosterSize } = await import("@/data/league-settings.js");
 
-const CAP = 18;
+const CAP = 19;
 const SCORING = "ppr";
 
 console.log("--- the league's own defaults ---");
@@ -41,8 +41,8 @@ const starters = Object.values(DEFAULTS.starters as Record<string, number>)
   .reduce((n, v) => n + v, 0);
 
 eq("ten start", starters, 10);
-eq("eight sit behind them", DEFAULTS.bench, CAP - starters);
-eq("which is a roster of eighteen", rosterSize(DEFAULTS), CAP);
+eq("nine sit behind them", DEFAULTS.bench, CAP - starters);
+eq("which is a roster of nineteen", rosterSize(DEFAULTS), CAP);
 eq("and the draft fills it exactly", DEFAULTS.rounds, CAP);
 
 eq("and it is a full-PPR league", DEFAULTS.scoring, SCORING);
@@ -71,8 +71,8 @@ for (const [what, file] of [
   ["the audit fixture", "scripts/mobile/fixture.mjs"],
 ] as const) {
   const source = readFileSync(file, "utf8");
-  eq(`${what} benches eight`, numberIn(source, "bench"), CAP - starters);
-  eq(`${what} drafts eighteen rounds`, numberIn(source, "rounds"), CAP);
+  eq(`${what} benches nine`, numberIn(source, "bench"), CAP - starters);
+  eq(`${what} drafts nineteen rounds`, numberIn(source, "rounds"), CAP);
   // The audit fixture states the format on its preseason payload rather than
   // in its settings block, because that payload is what the commissioner's
   // preseason screen is measured against.
@@ -113,9 +113,12 @@ console.log("\n--- and the migration that moved an existing league ---");
 
 // A league already in the database does not read any of the above; it carries
 // its own settings, and only a migration changes them.
-const migration = readFileSync("supabase/migrations/0037_roster_cap.sql", "utf8");
+// The latest one to move the roster: 0067, nineteen. It leaves the rounds
+// alone on purpose — that season's draft was already done — so only the bench
+// is held to the cap here.
+const migration = readFileSync("supabase/migrations/0067_nineteen_on_the_roster.sql", "utf8");
 eq("sets the same bench", numberIn(migration, "bench"), CAP - starters);
-eq("and the same rounds", numberIn(migration, "rounds"), CAP);
+eq("and leaves a drafted season's rounds alone", numberIn(migration, "rounds"), null);
 
 const scoringMigration = readFileSync("supabase/migrations/0038_full_ppr.sql", "utf8");
 eq("and the one that moved its scoring", /"scoring":\s*"ppr"/.test(scoringMigration), true);
