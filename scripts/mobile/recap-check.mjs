@@ -1,22 +1,23 @@
 /**
- * Does the week recap play, say true things, and get out of the way?
+ * Does the week recap — v2, the broadcast cut — play, say true things, and get
+ * out of the way?
  *
- * Four things are worth catching here and none of them shows up in the markup:
+ * The failures worth catching do not show in the markup:
  *
- * A keyframe written into a re-applied style attribute never leaves its first
+ * A keyframe written into a style the clock re-applies never leaves its first
  * frame, and most of these start at zero opacity — so the failure is a recap
- * that is perfectly correct in the DOM and invisible on the screen. Every
- * animation assertion below reads the computed animation name and the painted
- * opacity, not the class list.
+ * that is correct in the DOM and invisible on screen. Animation assertions read
+ * the computed animation name and the painted opacity.
  *
- * Win and loss have to be different motion, not one animation in two colours.
+ * Win and loss are different motion, not one animation in two colours.
  *
- * A recap that plays every launch is a door in the way of the app, so the
- * seen marker is checked both ways round.
+ * A recap that plays every launch is a door in the way of the app, so the seen
+ * marker is checked both ways round.
  *
- * And every sentence branches. The fixture's table is built so the branches
- * that fire are known ones: a win by 13.2, somebody else's crown, an MVP who
- * is not first in the list, and a rematch next week.
+ * And every sentence branches. The fixture is built so the ones that fire are
+ * known: a win by 13.2, somebody else's high score, an MVP who is not first in
+ * the list and carried more than a quarter of the week, a climb from 7th to
+ * 6th, and a rematch next week.
  */
 import { chromium } from "playwright";
 import { RECAP, routes } from "./fixture.mjs";
@@ -30,35 +31,23 @@ const browser = await chromium.launch(
   process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
 
 /** A phone with the recap waiting, or already seen. */
-async function open({ unseen = true, reducedMotion = "no-preference", width = 402 } = {}) {
-  const ctx = await browser.newContext({
-    viewport: { width, height: 900 }, isMobile: true, hasTouch: true, reducedMotion,
-  });
+async function open({ unseen = true, reducedMotion = "no-preference", width = 402, height = 874, recap = null } = {}) {
+  const ctx = await browser.newContext({ viewport: { width, height }, isMobile: true, hasTouch: true, reducedMotion });
   await ctx.addCookies([sessionCookie()]);
   const page = await ctx.newPage();
   await routes(page, { recapUnseen: unseen });
-  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
-  await page.waitForTimeout(500);
+  if (recap) {
+    await page.route("**/api/recap", (r) =>
+      r.request().method() === "GET" ? r.fulfill({ json: recap }) : r.fulfill({ json: { seenWeek: 3, stored: true } }));
+  }
+  await page.goto(`${BASE}/lineup`, { waitUntil: "networkidle" });
+  if (unseen) await page.waitForSelector('[role="dialog"][aria-label="Week 3 recap"]', { timeout: 20000 }).catch(() => {});
   return { page, ctx };
 }
 
-const stage = (page) => page.locator(".gl-recap");
-
-/**
- * Put the recap on a beat and hold the assertions inside that beat's window.
- *
- * The clock keeps running after a jump, which is the point of the feature and
- * a hazard for a check: an assertion made four seconds later is an assertion
- * about whichever beat happens to be up. Every block below jumps first and
- * reads inside the beat it asked for.
- */
-const toBeat = async (page, n) => {
-  await page.getByLabel(`Beat ${n + 1} of 4`).click();
-  await page.waitForTimeout(120);
-};
-const text = (page) => stage(page).innerText();
-
-/** What is actually painted on a node: the animation running and its opacity. */
+const stage = (page) => page.locator('[role="dialog"][aria-label="Week 3 recap"]');
+const beat = (page, n) => page.locator(`[data-beat="${n}"]`);
+/** What is painted on a node: the animation running and its opacity. */
 const paint = (page, selector) =>
   page.evaluate((sel) => {
     const el = document.querySelector(sel);
@@ -66,116 +55,83 @@ const paint = (page, selector) =>
     const s = getComputedStyle(el);
     return { animation: s.animationName, opacity: Number(s.opacity) };
   }, selector);
+/** Tap the stage in an empty spot (not on a button). */
+const tap = (page) => page.mouse.click(200, 820);
 
 console.log("--- it plays, once ---");
 let page, ctx;
 {
-  ({ page, ctx } = await open());
-  ok("the recap takes the screen on the first open after the week", await stage(page).count() === 1);
-  ok("and says which week it is recapping", /WEEK 3 · FINAL/.test(await text(page)));
-
+  // The seen case first: the recap's clock runs from the moment it opens, so
+  // the playing one is opened last, just before its beats are read.
   const seen = await open({ unseen: false });
-  ok("a manager who has seen it gets the app", await seen.page.locator(".gl-recap").count() === 0);
-  ok("and the matchup is really there behind it", /WIN PROB/.test(await seen.page.locator("body").innerText()));
+  await seen.page.waitForTimeout(1500);
+  ok("a manager who has seen it gets the app", (await stage(seen.page).count()) === 0);
+  ok("and the matchup is really there", /WIN PROB/.test(await seen.page.locator("body").innerText()));
   await seen.ctx.close();
+
+  ({ page, ctx } = await open());
+  ok("the recap takes the screen on the first open after the week", (await stage(page).count()) === 1);
+  ok("and says which week it is recapping", /WEEK 3/.test(await stage(page).innerText()));
+  // Over everything, the tab bar included.
+  const onTop = await page.evaluate(() => {
+    const el = document.elementFromPoint(200, 850);
+    return !!el?.closest('[role="dialog"]');
+  });
+  ok("on top of the tab bar", onTop);
 }
 
 console.log("\n--- beat one: the result ---");
 {
-  await toBeat(page, 0);
-  const t = await text(page);
-  ok("it says you won", /\bWON\b/.test(t) && !/\bLOST\b/.test(t));
-
-  // The stamp is the win's own keyframe. Reading the class would pass on a
-  // recap that never painted; reading the computed animation would not.
-  const stamp = await paint(page, ".gl-recap .rc-stamp");
-  ok(`the verdict is stamped, not faded (${stamp?.animation})`, stamp?.animation === "rc-stamp");
-  ok("and it is actually visible", (stamp?.opacity ?? 0) > 0.9);
-  ok("a win has no falling verdict", (await page.locator(".gl-recap .rc-drop").count()) === 0);
-
-  // Energy from below: rays and embers exist on a win and nowhere else.
-  const rays = await paint(page, ".gl-recap .rc-rays");
-  ok(`a win fires the rays (${rays?.animation})`, rays?.animation === "rc-rays");
-  ok("and the embers", (await page.locator(".gl-recap .rc-spark").count()) === 8);
-  ok("with no amber band over it", (await page.locator(".gl-recap .rc-shade").count()) === 0);
-
-  // The scores count up rather than appearing. Two reads, a moment apart, both
-  // inside this beat's four seconds.
-  const scoreNow = async () => Number((await text(page)).match(/(\d+\.\d)\s*\n\s*VS/)?.[1] ?? 0);
-  await page.waitForTimeout(1000);
-  const first = await scoreNow();
-  await page.waitForTimeout(600);
-  const second = await scoreNow();
-  ok(`the score counts up (${first} then ${second})`, second > first && first > 0);
-
-  await page.waitForTimeout(1100);
-  const settled = await text(page);
-  ok("and lands on what was actually scored", /131\.6/.test(settled));
-  ok("by the real margin", /Won by 13\.2/.test(settled));
-  ok("the streak strip reads the season", /Back in the win column · 2-1 on the season/.test(settled));
+  await page.waitForTimeout(1600);
+  const t = await beat(page, 1).innerText();
+  ok("both franchises", /Steel Cartel/.test(t) && /Bay Area Brawlers/.test(t));
+  ok("the scores, counted all the way up", /131\.6/.test(t) && /118\.4/.test(t));
+  ok(`the verdict line (${t.match(/Won by[^\n]*/)?.[0]})`, /Won by 13\.2 · now 2-1 · W1/.test(t));
+  const win = await paint(page, '[data-verdict="win"]');
+  ok(`WIN slams in (${win?.animation})`, win?.animation === "r2-slam");
+  ok("and is visible", (win?.opacity ?? 0) > 0.9);
+  ok("with light streaks across it", (await page.locator("[data-streak]").count()) === 1);
+  ok("and no loss band", (await page.locator('[data-verdict="loss"], [data-shade]').count()) === 0);
+  // Somebody else's high score, and where yours sat.
+  ok("the week's high score is somebody else's", /HIGH SCORE OF THE WEEK\n/.test(t) && /152\.9/.test(t));
+  ok("and says where yours came", /Your 131\.6 was \d+(st|nd|rd|th) of 12/.test(t));
 }
 
-console.log("\n--- and it advances on its own ---");
+console.log("\n--- a tap cuts to the next beat, behind the stinger ---");
 {
-  // The clock is an interval rather than requestAnimationFrame, because rAF is
-  // throttled to nothing in a hidden document and this fires on app open. What
-  // that buys is exactly this: the recap moves without being touched.
-  const before = await text(page);
-  await page.waitForTimeout(1800);
-  const after = await text(page);
-  ok("the next beat arrives without a tap",
-    before !== after && /HIGHEST SCORE OF THE WEEK/.test(after));
+  await tap(page);
+  await page.waitForTimeout(150);
+  ok("the stinger covers the cut", (await page.locator("[data-sting]").count()) === 1);
+  const sting = await paint(page, "[data-sting] > div");
+  ok(`and it is the wipe (${sting?.animation})`, sting?.animation === "r2-sting");
+  // Past the points count-up, which ends 1.35s into the beat.
+  await page.waitForTimeout(1900);
+  ok("then beat two is up", (await beat(page, 2).count()) === 1);
 }
 
-console.log("\n--- beat two: the week's best ---");
+console.log("\n--- beat two: your MVP ---");
 {
-  await toBeat(page, 1);
-  const t = await text(page);
-  ok("it names the franchise that posted it", /Kim's Very Long Franchise Name/.test(t));
-  ok("and does not pretend it was you", !/THAT WAS YOU/.test(t));
-  ok("it places you against it", /came in 4th of 12/.test(t));
-  ok("with the gap to second", /17\.2 clear of second/.test(t));
-
-  const crown = await paint(page, ".gl-recap .rc-crown");
-  ok(`the crown lands (${crown?.animation})`, crown?.animation === "rc-crown");
-  ok("and is visible when it has", (crown?.opacity ?? 0) > 0.9);
-  ok("the scoreboard is under it", /WEEK 3 SCOREBOARD/.test(t));
-
-  await page.waitForTimeout(2200);
-  ok("and the top score settles on the real number", /152\.9/.test(await text(page)));
+  const t = await beat(page, 2).innerText();
+  // Jayden Daniels, 34.7 — not Bijan, who is first in the list.
+  ok("the MVP is whoever scored most, not the first listed", /DANIELS/.test(t) && /34\.7/.test(t));
+  ok("his share of the week", /PTS · 26% OF YOUR WEEK/.test(t));
+  ok("and the note branches on it", /Carried the week almost alone\. Next best: Ja'Marr Chase, 27\.8\./.test(t));
+  ok("with the next three behind him", /Chase/.test(t) && /Robinson/.test(t) && /Gibbs/.test(t));
 }
 
-console.log("\n--- beat three: your MVP ---");
+console.log("\n--- beat three: the playoff picture ---");
 {
-  await toBeat(page, 2);
-  const t = await text(page);
-  // The fixture lists Bijan first and Daniels third. An MVP taken off the top
-  // of the list rather than off the top of the scoring would be Bijan.
-  ok("the MVP is the top scorer, not the first man listed",
-    /Jayden Daniels/.test(t) && /YOUR WEEK 3 MVP/.test(t));
-  ok("with his share of the week", /26% OF YOUR POINTS/.test(t));
-  ok("and a note that reads the share",
-    /Carried the week almost alone — no other player of yours cleared 27\.8/.test(t));
-  ok("the contribution list is there", /WHO CARRIED IT/.test(t));
-
-  const card = await paint(page, ".gl-recap .rc-pop");
-  ok(`the card pops in (${card?.animation})`, card?.animation === "rc-pop");
+  await tap(page);
+  await page.waitForTimeout(2000);
+  const t = await beat(page, 3).innerText();
+  ok("the seed after the week", /\b6\b/.test(t));
+  ok(`the move (${t.match(/▲ \d|▼ \d|HELD/)?.[0]})`, /▲ 1/.test(t) && /Up from 7th/.test(t));
+  ok("and the division", /in the North/.test(t));
+  ok("the magic number", /MAGIC NUMBER/.test(t) && /Any combination of \d+ of your wins/.test(t));
+  ok("a rail of all twelve seeds", (await beat(page, 3).locator("text=/^12$/").count()) === 1);
 }
 
-console.log("\n--- beat four: where it leaves you ---");
-{
-  await toBeat(page, 3);
-  const t = await text(page);
-  ok("it shows the move, both ends of it", /#7/.test(t) && /#6/.test(t));
-  ok("and which way that is", /UP 1/.test(t));
-  ok("with a note that reads the direction", /Climbed to 6 of 12/.test(t));
-  ok("next week's opponent is named", /Bay Area Brawlers/.test(t));
-  ok("with their record", /1-2/.test(t));
-  ok("and a read that knows you have met", /already seen them once/.test(t));
-  ok("and how they score against you", /22\.7 more points scored than you/.test(t));
-}
-
-console.log("\n--- and it gets out of the way ---");
+console.log("\n--- beat four: the share card, and out ---");
 {
   let marked = null;
   await page.route("**/api/recap", async (r) => {
@@ -185,107 +141,77 @@ console.log("\n--- and it gets out of the way ---");
     }
     return r.fallback();
   });
+  await tap(page);
+  await page.waitForTimeout(1500);
+  const t = await beat(page, 4).innerText();
+  ok("the result on the card", /WIN/.test(t) && /131\.6 – 118\.4/.test(t));
+  ok("next week's opponent and the rematch", /NEXT · WEEK 4/.test(t) && /Rematch: you won the first meeting/.test(t));
+  ok("share and done", (await page.getByRole("button", { name: "SHARE" }).count()) === 1 && (await page.getByRole("button", { name: "DONE" }).count()) === 1);
 
-  await toBeat(page, 3);
-  // The card it sits in slides in; a click on a moving target never resolves.
-  await page.waitForTimeout(800);
-  await page.getByRole("button", { name: "TAKE ME HOME" }).click();
-  await page.waitForTimeout(1400);
-  ok("the recap leaves", (await stage(page).count()) === 0);
+  await page.getByRole("button", { name: "DONE" }).click();
+  await page.waitForTimeout(1000);
+  ok("done closes it", (await stage(page).count()) === 0);
   ok("the matchup is underneath it", /WIN PROB/.test(await page.locator("body").innerText()));
   ok(`and the week is marked seen (${JSON.stringify(marked)})`, marked?.week === 3);
-
-  // Nothing is left holding the page still.
-  const locked = await page.evaluate(() => getComputedStyle(document.body).overflow);
-  ok(`the page scrolls again (${locked})`, locked !== "hidden");
   await ctx.close();
 }
 
 console.log("\n--- a loss is not a win in amber ---");
 {
-  // The same week turned round. Built here rather than fetched through the
-  // fixture, because a route that re-fetches goes to the real server and gets
-  // a real answer, which is not the one under test.
   const lost = JSON.parse(JSON.stringify(RECAP));
   lost.seenWeek = null;
   for (const g of lost.recap.games) {
-    if (g.week === 3 && g.home === "m0") {
-      const swap = g.homePoints;
-      g.homePoints = g.awayPoints;
-      g.awayPoints = swap;
-    }
+    if (g.week === 3 && g.home === "m0") [g.homePoints, g.awayPoints] = [g.awayPoints, g.homePoints];
   }
-
-  const loss = await open();
-  await loss.page.route("**/api/recap", (r) =>
-    r.request().method() === "GET"
-      ? r.fulfill({ json: lost })
-      : r.fulfill({ json: { seenWeek: 3, stored: true } }));
-  await loss.page.reload({ waitUntil: "networkidle" });
-  await loss.page.waitForTimeout(600);
-
-  const t = await loss.page.locator(".gl-recap").innerText();
-  ok("it says you lost", /\bLOST\b/.test(t) && !/\bWON\b/.test(t));
-
-  const drop = await paint(loss.page, ".gl-recap .rc-drop");
-  ok(`the verdict falls in rather than stamping (${drop?.animation})`, drop?.animation === "rc-drop");
-  ok("and it is visible", (drop?.opacity ?? 0) > 0.9);
-  ok("there is no stamp on a loss", (await loss.page.locator(".gl-recap .rc-stamp").count()) === 0);
-
-  // The absence is the contrast: no rays, no embers, and an amber band instead.
-  ok("no rays", (await loss.page.locator(".gl-recap .rc-rays").count()) === 0);
-  ok("no embers", (await loss.page.locator(".gl-recap .rc-spark").count()) === 0);
-  const shade = await paint(loss.page, ".gl-recap .rc-shade");
-  ok(`an amber band descends instead (${shade?.animation})`, shade?.animation === "rc-shade");
+  const loss = await open({ recap: lost });
+  await loss.page.waitForTimeout(1900);
+  const t = await beat(loss.page, 1).innerText();
+  ok("it says you lost", /LOSS/.test(t) && /Lost by 13\.2/.test(t));
+  const drop = await paint(loss.page, '[data-verdict="loss"]');
+  ok(`LOSS falls in rather than slamming (${drop?.animation})`, drop?.animation === "r2-drop");
+  ok("and is visible", (drop?.opacity ?? 0) > 0.9);
+  ok("no streaks on a loss", (await loss.page.locator("[data-streak]").count()) === 0);
+  const shade = await paint(loss.page, "[data-shade]");
+  ok(`a dark band descends instead (${shade?.animation})`, shade?.animation === "r2-shade");
   await loss.ctx.close();
 }
 
-console.log("\n--- on the narrowest phone there is ---");
+console.log("\n--- on a small phone, and on its own ---");
 {
-  // The recap is not in the layout audit's sweep — it is behind a seen marker
-  // on every page that audit visits — so its widths are measured here. A
-  // takeover that runs off the side of a 320px screen is a takeover that took
-  // the screen and then lost half of it.
-  const small = await open({ width: 320 });
-  const beats = ["Beat 1 of 4", "Beat 2 of 4", "Beat 3 of 4", "Beat 4 of 4"];
-  for (let n = 0; n < beats.length; n++) {
-    await small.page.getByLabel(beats[n]).click();
-    await small.page.waitForTimeout(200);
-    const over = await small.page.evaluate(() => {
-      const root = document.querySelector(".gl-recap");
-      if (!root) return null;
-      let worst = 0;
-      for (const el of root.querySelectorAll("*")) {
-        const box = el.getBoundingClientRect();
-        if (!box.width) continue;
-        // Ignore what is deliberately painted past the edge: the glow, the
-        // ray burst and the amber band are all wider than the phone on
-        // purpose, and none of them can be scrolled to.
-        if (getComputedStyle(el).pointerEvents === "none") continue;
-        worst = Math.max(worst, Math.ceil(box.right - window.innerWidth), Math.ceil(-box.left));
-      }
-      return worst;
-    });
-    ok(`beat ${n + 1} stays inside 320px (${over}px over)`, over === 0);
-  }
-  ok("and the page itself does not scroll sideways",
-    (await small.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 0);
+  // The design is a 402×874 phone; on a smaller one the whole stage scales.
+  const small = await open({ width: 320, height: 568 });
+  const box = await small.page.evaluate(() => {
+    const stageEl = document.querySelector('[role="dialog"] > div');
+    const r = stageEl?.getBoundingClientRect();
+    return r ? { w: Math.round(r.width), h: Math.round(r.height), vw: innerWidth, vh: innerHeight } : null;
+  });
+  ok(`the stage fits the screen (${JSON.stringify(box)})`, !!box && box.w <= box.vw + 1 && box.h <= box.vh + 1);
+
+  // Left alone, it closes itself at 12.4s and marks the week seen.
+  let marked = null;
+  await small.page.route("**/api/recap", async (r) => {
+    if (r.request().method() === "POST") {
+      marked = JSON.parse(r.request().postData() ?? "{}");
+      return r.fulfill({ json: { seenWeek: 3, stored: true } });
+    }
+    return r.fallback();
+  });
+  await small.page.waitForFunction(() => !document.querySelector('[role="dialog"][aria-label="Week 3 recap"]'), undefined, { timeout: 20000 }).catch(() => {});
+  ok("it closes on its own", (await stage(small.page).count()) === 0);
+  ok("and marks the week seen", marked?.week === 3);
   await small.ctx.close();
 }
 
 console.log("\n--- asked for less motion ---");
 {
   const still = await open({ reducedMotion: "reduce" });
-  const t = await still.page.locator(".gl-recap").innerText();
-  ok("the recap still plays", /WEEK 3 · FINAL/.test(t));
-
-  // The end state, immediately: the count-up is skipped rather than started.
-  ok("the score is the score, not a number climbing to it", /131\.6/.test(t));
-
-  const stamp = await paint(still.page, ".gl-recap .rc-stamp");
-  ok(`nothing is animating (${stamp?.animation})`, stamp?.animation === "none");
-  ok("and the verdict is still on the screen", (stamp?.opacity ?? 0) > 0.9);
-  ok("the rays are gone rather than frozen", (await still.page.locator(".gl-recap .rc-rays").isVisible().catch(() => false)) === false);
+  await still.page.waitForTimeout(300);
+  const win = await paint(still.page, '[data-verdict="win"]');
+  ok(`the verdict is simply there (${win?.animation})`, win?.animation === "none" && (win?.opacity ?? 0) > 0.9);
+  ok("the scores are already counted", /131\.6/.test(await beat(still.page, 1).innerText()));
+  await tap(still.page);
+  await still.page.waitForTimeout(150);
+  ok("and the cut has no stinger", (await still.page.locator("[data-sting]").count()) === 0);
   await still.ctx.close();
 }
 

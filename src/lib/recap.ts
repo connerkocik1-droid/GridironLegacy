@@ -58,6 +58,9 @@ export interface RecapTeam {
   franchise: string;
   /** The manager's own name. A franchise is who you play; this is who they are. */
   owner: string;
+  /** For the playoff picture: division winners seed first, and the slot breaks the last tie. */
+  division?: string | null;
+  slot?: string;
 }
 
 /** One graded fixture. Only settled weeks belong here. */
@@ -98,6 +101,10 @@ export interface RecapData {
   myWeek: RecapPlayer[];
   /** Next week's fixture, if the schedule has one. */
   next: { week: number; opponentId: string; kickoff: string | null } | null;
+  /** How many franchises make the playoffs (playoff_field). */
+  playoffTeams?: number;
+  /** The last week of the regular season (regular_season_weeks). */
+  regularWeeks?: number;
 }
 
 export type Result = "W" | "L" | "T";

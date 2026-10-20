@@ -125,7 +125,8 @@ export default function LaunchScreen() {
   }, []);
 
   return (
-    <div id="gl-launch" aria-hidden>
+    // The inline START script adds pl-go before React hydrates, on purpose.
+    <div id="gl-launch" aria-hidden suppressHydrationWarning>
       {/* The ground: two of the app's glows and an orange one under the pylon. */}
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
         <div style={{ position: "absolute", top: -160, left: -140, width: 460, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgb(var(--glow-rgb) / .9), transparent 66%)", filter: "blur(30px)", opacity: 0.8 }} />
