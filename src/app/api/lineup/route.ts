@@ -32,7 +32,7 @@ const NOT_CONFIGURED = Response.json(
  * simply had no way to ask.
  */
 /**
- * The roster limit (nineteen), worked out the way roster_capacity() works it out: the
+ * The roster limit (twenty), worked out the way roster_capacity() works it out: the
  * starting slots plus the bench. Mirrored here only so the page can say what
  * the limit is — the database is still the one that enforces it.
  */

@@ -48,7 +48,7 @@ const ROSTER = [
 
 const SETTINGS = {
   starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, "D/ST": 1, K: 1 },
-  bench: 9, ir: 2, rounds: 19, cinematicRounds: 3,
+  bench: 10, ir: 2, rounds: 20, cinematicRounds: 3,
   // The clock is a ladder now. pickSeconds is kept beside it because a league
   // that has not been migrated still has only that, and the office has to lay
   // out either one without falling over.
