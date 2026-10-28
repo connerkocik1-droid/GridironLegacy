@@ -6,6 +6,7 @@ import { useReportLogos } from "@/lib/use-report-logos";
 import ReportLogoSlot from "./ReportLogoSlot";
 import { DragHandleProps, GripHandle, SortableList } from "./SortableList";
 import { logo as clubLogo } from "@/data/league-data";
+import { cfbLogo, cfbSchool } from "@/lib/cfb-logos";
 
 /**
  * Where the week's Pylon Report is maintained.
@@ -140,8 +141,9 @@ export default function ReportDesk({
       <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
         Re-rank a team by typing its new rank, by ▲ and ▼, or by dragging the
         grip; type into a record to update it. College can have a team added
-        or dropped; the NFL already has all thirty-two, with their logos — tap
-        a logo to replace it. Nothing changes for anybody else until you publish.
+        or dropped; the NFL already has all thirty-two. Every NFL team and
+        most ranked schools come with their logo — tap one to replace it.
+        Nothing changes for anybody else until you publish.
       </p>
 
       <label style={label}>
@@ -302,7 +304,8 @@ function BoardEditor({
             renderRow={(raw, i, handle) => {
               // An NFL row from an older report may carry no abbreviation; the
               // club's own is known from its name.
-              const entry = scope === "nfl" && !raw.abbr ? { ...raw, abbr: nflMeta(raw.team).abbr } : raw;
+              const abbr = raw.abbr || (scope === "nfl" ? nflMeta(raw.team).abbr : cfbSchool(raw.team)?.abbr) || "";
+              const entry = abbr === raw.abbr ? raw : { ...raw, abbr };
               return (
                 <Row
                   entry={entry}
@@ -312,7 +315,7 @@ function BoardEditor({
                   scope={scope}
                   logo={logos[entry.abbr]}
                   // The NFL's thirty-two ship with the app; a school's is uploaded.
-                  fallback={scope === "nfl" ? clubLogo(entry.abbr) : undefined}
+                  fallback={scope === "nfl" ? clubLogo(entry.abbr) : cfbLogo(entry.abbr, entry.team)}
                   onFieldChange={(field, value) => onFieldChange(keyFor(raw), field, value)}
                   onRemove={() => onRemove(keyFor(raw))}
                   onMove={(to) => onReorder(reranked(moveTo(list, i, to)))}

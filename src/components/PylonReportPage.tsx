@@ -17,6 +17,7 @@ import { byRating, tierOf, type ProspectBoard, type ProspectEntry } from "@/lib/
 import { rankTrail, ratingTrail, sparkFields, type SparkFields } from "@/lib/pylon-report-view";
 import { barMark, panelMark } from "@/lib/liquid-glass";
 import { logo as nflLogo } from "@/data/league-data";
+import { cfbLogo, cfbSchool } from "@/lib/cfb-logos";
 
 /**
  * The Pylon Report, in full — ported from the "Pylon Report Web" design
@@ -510,7 +511,7 @@ function CfbBoard({
             <div style={{ padding: "30px 16px", fontSize: 13, color: C.neutral400 }}>Nothing matches that filter.</div>
           ) : (
             vis.map((e, i) => (
-              <CfbRow key={`${e.rank}-${e.team}`} entry={e} first={i === 0} move={moves.get(keyOf(e.team))} polls={polls} trail={history[keyOf(e.team)] ?? []} logo={logos[e.abbr]} />
+              <CfbRow key={`${e.rank}-${e.team}`} entry={e} first={i === 0} move={moves.get(keyOf(e.team))} polls={polls} trail={history[keyOf(e.team)] ?? []} logo={logos[e.abbr || cfbSchool(e.team)?.abbr || ""] ?? cfbLogo(e.abbr, e.team)} />
             ))
           )}
         </div>
@@ -574,7 +575,7 @@ function CfbRow({ entry, first, move, polls, trail, logo }: { entry: Entry; firs
     <div className="pr-row pr-cfb" style={{ padding: "10px 16px", ...(first ? {} : hairline) }}>
       <RankNumeral rank={entry.rank} max={25} />
       <ChangeChip move={move} />
-      <LogoTile abbr={entry.abbr} src={logo} />
+      <LogoTile abbr={entry.abbr || cfbSchool(entry.team)?.abbr || ""} src={logo} />
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 13.5, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{entry.team}</div>
         <div style={{ fontSize: 11, color: C.neutral500, marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -794,7 +795,7 @@ function P50Board({ entries, before, history, logos, week, filter, setFilter }: 
                   ) : null}
                   <div className="pr-row pr-p50" style={{ padding: "10px 16px", ...(showTier || i === 0 ? {} : hairline) }}>
                     <RankNumeral rank={e.rank} max={50} />
-                    <LogoTile abbr={e.schoolAbbr} src={logos[e.schoolAbbr]} />
+                    <LogoTile abbr={e.schoolAbbr} src={logos[e.schoolAbbr] ?? cfbLogo(e.schoolAbbr)} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 13.5, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.player}</div>
                       <div style={{ fontSize: 11, color: C.neutral500, marginTop: 3, display: "flex", alignItems: "center", gap: 8 }}>
