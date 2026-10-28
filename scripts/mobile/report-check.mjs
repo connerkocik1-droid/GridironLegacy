@@ -165,6 +165,39 @@ console.log("\n--- and the office puts one up ---");
 
   const desk = page.locator("#office-report");
   ok("the desk is in the office", (await desk.count()) === 1);
+  await page.waitForSelector('[data-report-row="Kansas City Chiefs"]', { timeout: 15000 }).catch(() => {});
+
+  // On a phone, every team's name is readable — the row used to give it
+  // whatever was left after two inputs and four buttons, which was nothing.
+  const names = await page.evaluate(() =>
+    [...document.querySelectorAll("[data-report-row]")].map((row) => {
+      const name = [...row.querySelectorAll("span")].find((el) => el.textContent?.startsWith(row.getAttribute("data-report-row") ?? "?"));
+      return name ? Math.round(name.getBoundingClientRect().width) : 0;
+    }));
+  ok(`every team's name has room on a phone (narrowest ${Math.min(...names)}px)`, names.length > 0 && Math.min(...names) >= 100);
+
+  // The NFL's logos ship with the app, so the desk shows them without uploads.
+  const nflLogo = await page.locator('[data-report-row="Kansas City Chiefs"] button[title*="crest"]').first()
+    .evaluate((el) => getComputedStyle(el).backgroundImage);
+  ok(`an NFL team shows its club logo (${nflLogo.slice(0, 40)})`, /assets\/logos\/kc/.test(nflLogo));
+
+  const nflOrder = () => page.evaluate(() => {
+    const rows = [...document.querySelectorAll("[data-report-row]")].map((r) => r.getAttribute("data-report-row"));
+    const nfl = ["San Francisco 49ers", "Chicago Bears", "Kansas City Chiefs", "Jacksonville Jaguars", "Seattle Seahawks"];
+    return rows.filter((r) => nfl.includes(r ?? ""));
+  });
+
+  // Typing a rank moves the team straight there.
+  const rank = page.getByLabel("Kansas City Chiefs's rank");
+  await rank.fill("1");
+  await rank.press("Enter");
+  await page.waitForTimeout(200);
+  ok(`typing a rank moves the team there (${(await nflOrder()).slice(0, 2).join(", ")})`, (await nflOrder())[0] === "Kansas City Chiefs");
+
+  await page.getByRole("button", { name: "Move Kansas City Chiefs down" }).click();
+  await page.waitForTimeout(200);
+  ok(`and ▼ moves it one place (${(await nflOrder()).slice(0, 2).join(", ")})`, (await nflOrder())[1] === "Kansas City Chiefs");
+  ok("with the ranks renumbered", (await page.getByLabel("Kansas City Chiefs's rank").inputValue()) === "2");
   await ctx.close();
 }
 
