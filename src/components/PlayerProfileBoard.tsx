@@ -67,6 +67,8 @@ interface Payload {
     onIr: boolean;
     irRoom: boolean;
     rosterRoom: boolean;
+    /** Whether he can come off the reserve (set_ir's rule). */
+    canActivate?: boolean;
     claim: boolean;
     clearsAt: string | null;
     tradeWith: string | null;
@@ -611,7 +613,7 @@ function Actions({
     said: (answer: Record<string, unknown>) => string,
   ) => void;
 }) {
-  const { where, locked, irEligible, onIr, irRoom, rosterRoom, claim } = actions;
+  const { where, locked, irEligible, onIr, irRoom, rosterRoom, claim, canActivate } = actions;
 
   const row: React.CSSProperties = {
     display: "flex",
@@ -643,11 +645,11 @@ function Actions({
             the injury report puts there, and it has a size. */}
         {onIr ? (
           <Button
-            label="Off reserve"
+            label="Activate"
             busy={busy}
-            why={!rosterRoom ? "Your roster is full" : null}
+            why={(canActivate ?? rosterRoom) ? null : "He is still out and your roster is full"}
             onClick={() =>
-              act("recall", { player: name, ir: false }, () => `${name} is back on your roster.`)
+              act("recall", { player: name, ir: false }, () => `${name} is back on your active roster.`)
             }
           />
         ) : irEligible ? (

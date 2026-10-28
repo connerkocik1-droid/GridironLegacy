@@ -26,6 +26,7 @@ interface Payload {
     claim: boolean;
     clearsAt: string | null;
     tradeWith: string | null;
+    canActivate?: boolean;
   } | null;
 }
 
@@ -123,8 +124,10 @@ export default function PlayerSheet() {
     if (!a.locked) opts.push({ label: "DROP", tone: "danger", onClick: () => void act("drop", `${name} was dropped.`) });
     else why.push("Drop locks once his game kicks off.");
     if (a.onIr) {
-      if (a.rosterRoom) opts.push({ label: "ACTIVATE", onClick: () => void act("recall", `${name} is back on your roster.`) });
-      else why.push("Activating him needs a roster spot — drop somebody first.");
+      // canActivate is the server's answer; rosterRoom is the older one, for
+      // a payload from before it existed.
+      if (a.canActivate ?? a.rosterRoom) opts.push({ label: "ACTIVATE", onClick: () => void act("recall", `${name} is back on your active roster.`) });
+      else why.push("He is still out, and activating him needs a roster spot — drop somebody first.");
     } else if (a.irEligible) {
       if (a.irRoom && !a.locked) opts.push({ label: "SEND TO IR", tone: "warn", onClick: () => void act("stash", `${name} is on your injured reserve.`) });
       else why.push(!a.irRoom ? "Your injured reserve is full." : "IR locks once his game kicks off.");

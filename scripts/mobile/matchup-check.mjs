@@ -187,14 +187,14 @@ await open("/my-team", /INJURED RESERVE/);
 // The shared fixture answers every one of this manager's own as on the
 // active roster, so his sheet is served the reserve's state here.
 const rice = await page.evaluate(() => fetch("/api/player/Rashee%20Rice").then((r) => r.json()));
-rice.actions = { ...rice.actions, where: "mine", onIr: true, rosterRoom: false };
+// Cleared and on a full roster: he already counts toward the limit, so the
+// server says he can come back (canActivate) even though no spot is free.
+rice.actions = { ...rice.actions, where: "mine", onIr: true, rosterRoom: false, canActivate: true };
 await page.route("**/api/player/Rashee*", (r) => r.fulfill({ json: rice }));
 await page.getByText("Rashee Rice", { exact: true }).first().click();
 await page.waitForFunction(() => /GAME LOG/.test(document.body.innerText), undefined, { timeout: 15000 }).catch(() => {});
-// The fixture's roster is full, so the sheet says what activating him needs
-// rather than offering a button the server would refuse.
-ok("while your own team still offers its one decision",
-  /ACTIVATE|Activating him needs a roster spot/.test(await page.getByRole("dialog").innerText()));
+ok("while your own team still offers its one decision: activate",
+  (await page.getByRole("dialog").getByRole("button", { name: "ACTIVATE" }).count()) === 1);
 
 console.log("\n--- and a Q only for somebody on the injury report ---");
 // healthOf used to fall back to the pool's own questionable column whenever
