@@ -52,6 +52,11 @@ let page, ctx;
   ok("in the published order", t.indexOf("Georgia") < t.indexOf("Miami") && t.indexOf("Miami") < t.indexOf("Texas"));
   ok("records are on the rows", /\b2-0\b/.test(t));
   ok("no rating is printed on a team board", !/RATING|SOS|PRESEASON/i.test(t));
+  // College crests ship with the app now, the way the NFL's do.
+  const crests = await page.evaluate(() =>
+    [...document.querySelectorAll(".gl-only-phone img")].map((img) => img.getAttribute("src")));
+  ok(`the Top 25 shows the schools' logos (${crests.slice(0, 3).join(", ")})`,
+    crests.includes("/assets/logos/cfb/uga.png") && crests.includes("/assets/logos/cfb/mia.png"));
 }
 
 console.log("\n--- the arrows ---");
@@ -120,6 +125,9 @@ console.log("\n--- the standalone page, on a phone ---");
     ok(`nothing runs off the side at ${width}px (${shown.over}px)`, shown.over <= 0);
     ok(`the board fits the screen rather than scrolling sideways (${shown.table}px)`, shown.table <= width);
     ok("and each row still carries its record", /Georgia[\s\S]{0,40}2-0/.test(shown.text));
+    const tile = await out.page.evaluate(() =>
+      [...document.querySelectorAll(".pr-cfb div")].map((el) => getComputedStyle(el).backgroundImage).find((b) => /cfb\/uga/.test(b)) ?? "");
+    ok(`and its logo (${tile.slice(0, 40)})`, !!tile);
     // The three board tabs never run into one another.
     const tabs = await out.page.locator(".pr-boards button").evaluateAll((els) =>
       els.map((el) => [el.getBoundingClientRect().left, el.getBoundingClientRect().right, el.scrollWidth <= el.clientWidth + 1]));
@@ -180,6 +188,9 @@ console.log("\n--- and the office puts one up ---");
   const nflLogo = await page.locator('[data-report-row="Kansas City Chiefs"] button[title*="crest"]').first()
     .evaluate((el) => getComputedStyle(el).backgroundImage);
   ok(`an NFL team shows its club logo (${nflLogo.slice(0, 40)})`, /assets\/logos\/kc/.test(nflLogo));
+  const cfbCrest = await page.locator('[data-report-row="Georgia"] button[title*="crest"]').first()
+    .evaluate((el) => getComputedStyle(el).backgroundImage);
+  ok(`and a ranked school its own (${cfbCrest.slice(0, 40)})`, /assets\/logos\/cfb\/uga/.test(cfbCrest));
 
   const nflOrder = () => page.evaluate(() => {
     const rows = [...document.querySelectorAll("[data-report-row]")].map((r) => r.getAttribute("data-report-row"));

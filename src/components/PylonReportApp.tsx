@@ -7,6 +7,7 @@ import { byRating, prospectMovement, TIERS, tierOf, type ProspectBoard } from "@
 import { rankTrail, ratingTrail } from "@/lib/pylon-report-view";
 import { useRetro } from "@/lib/retro";
 import { teamLogoPx } from "@/lib/team-logo";
+import { cfbLogo, cfbSchool } from "@/lib/cfb-logos";
 import BoardMark from "./BoardMark";
 import { AppView, Chips, Foot, Note, RowGroup, tileStyle, type Movement, type RowSpec } from "./RowList";
 
@@ -38,7 +39,7 @@ const chg = (m: Move | undefined): Movement | undefined =>
         ? { tone: "flat", label: "—" }
         : { tone: m.kind, label: `${m.kind === "up" ? "▲" : "▼"}${m.places}` };
 
-/** An uploaded logo, or the abbreviation in a tile (a pixel mark in 16-bit). */
+/** A logo, or the abbreviation in a tile (a pixel mark in 16-bit). */
 function Mark({ abbr, src }: { abbr: string; src?: string }) {
   const retro = useRetro();
   if (src)
@@ -70,12 +71,13 @@ export default function PylonReportApp(p: Props) {
     const moves = movement(p.college, p.collegeBefore);
     const rows: RowSpec[] = p.college.ranked.map((e, i) => {
       const ap = pollRanksFor(e.team, p.polls).ap;
+      const abbr = e.abbr || cfbSchool(e.team)?.abbr || "";
       return {
         key: keyOf(e.team),
         num: e.rank,
         lit: i < 5,
         chg: chg(moves.get(keyOf(e.team))),
-        logo: <Mark abbr={e.abbr} src={p.cfbLogos[e.abbr]} />,
+        logo: <Mark abbr={abbr} src={p.cfbLogos[abbr] ?? cfbLogo(abbr, e.team)} />,
         title: e.team,
         sub: [e.conference, p.polls.ap.length ? `AP ${ap ?? "NR"}` : null, e.lastResult || null].filter(Boolean).join(" · "),
         spark: rankTrail(p.collegeHistory[keyOf(e.team)] ?? [], 25),
@@ -107,7 +109,7 @@ export default function PylonReportApp(p: Props) {
   } else {
     const ranked = byRating(p.bigBoard.ranked);
     const moves = prospectMovement(p.bigBoard, p.bigBoardBefore);
-    const school = (abbr: string) => p.college.ranked.find((e) => e.abbr === abbr)?.team ?? abbr;
+    const school = (abbr: string) => p.college.ranked.find((e) => e.abbr === abbr)?.team ?? cfbSchool(abbr)?.name ?? abbr;
     const seen: Record<string, number> = {};
     const all = ranked.map((e) => ({ e, pr: (seen[e.position] = (seen[e.position] ?? 0) + 1) }));
     body = (
@@ -122,7 +124,7 @@ export default function PylonReportApp(p: Props) {
                 num: e.rank,
                 lit: e.rank <= 5,
                 chg: chg(moves.get(keyOf(e.player))),
-                logo: <Mark abbr={e.schoolAbbr} src={p.cfbLogos[e.schoolAbbr]} />,
+                logo: <Mark abbr={e.schoolAbbr} src={p.cfbLogos[e.schoolAbbr] ?? cfbLogo(e.schoolAbbr)} />,
                 title: e.player,
                 tags: [{ label: e.position, tone: "flat" as const }],
                 sub: `${school(e.schoolAbbr)} · ${e.position}${pr} in class`,

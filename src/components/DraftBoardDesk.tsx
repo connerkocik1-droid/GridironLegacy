@@ -9,6 +9,7 @@ import {
   type ProspectEntry,
 } from "@/lib/pylon-draft-board";
 import { useReportLogos } from "@/lib/use-report-logos";
+import { cfbLogo } from "@/lib/cfb-logos";
 import { DragHandleProps, GripHandle, SortableList } from "./SortableList";
 
 /**
@@ -234,7 +235,7 @@ export default function DraftBoardDesk({
                       entry={entry}
                       index={i}
                       handle={handle}
-                      logo={logos.cfb[entry.schoolAbbr]}
+                      logo={logos.cfb[entry.schoolAbbr] ?? cfbLogo(entry.schoolAbbr)}
                       onRatingChange={(rating) => setRating(keyFor(entry), rating)}
                       onRemove={() => removeRow(keyFor(entry))}
                     />
@@ -342,7 +343,7 @@ function Row({
           flex: "0 0 auto",
           borderRadius: 3,
           border: "1px solid rgb(var(--accent-rgb) / .25)",
-          background: logo ? `url(${logo}) center / cover` : "rgb(var(--accent-rgb) / .12)",
+          background: logo ? `url(${logo}) center / contain no-repeat` : "rgb(var(--accent-rgb) / .12)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
