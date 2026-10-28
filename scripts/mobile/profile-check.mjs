@@ -44,7 +44,7 @@ async function open(who) {
         off: el.hasAttribute("disabled"),
         href: el.getAttribute("href"),
       }))
-      .filter((b) => /^(Drop|Trade|Add|Claim|Send to IR Slot|Off reserve|Add to reserve|His game|Your roster|Your reserve)/.test(b.text)));
+      .filter((b) => /^(Drop|Trade|Add|Claim|Send to IR Slot|Activate|Add to reserve|His game|Your roster|Your reserve)/.test(b.text)));
 }
 
 console.log("--- one of your own ---");
@@ -67,14 +67,14 @@ console.log("\n--- one of your own, hurt ---");
   const has = (t) => buttons.some((b) => b.text === t);
   ok(`the reserve is offered too (${buttons.map((b) => b.text).join(", ")})`,
     has("Drop") && has("Trade") && has("Send to IR Slot"));
-  ok("and it is the way in, not the way out", !has("Off reserve"));
+  ok("and it is the way in, not the way out", !has("Activate"));
 }
 
 console.log("\n--- one of your own, already on the reserve ---");
 {
   const buttons = await open("On My Reserve");
   ok(`the offer is to bring him back (${buttons.map((b) => b.text).join(", ")})`,
-    buttons.some((b) => b.text === "Off reserve") && !buttons.some((b) => b.text === "Send to IR Slot"));
+    buttons.some((b) => b.text === "Activate") && !buttons.some((b) => b.text === "Send to IR Slot"));
   ok("the card says where he is", /on injured reserve/.test(await page.locator("body").innerText()));
 }
 

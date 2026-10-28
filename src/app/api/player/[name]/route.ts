@@ -164,7 +164,22 @@ export async function GET(_req: Request, ctx: { params: Promise<{ name: string }
 
   const roster = mine ?? [];
   const onIr = roster.filter((r) => r.lineup_slot === "IR").length;
-  const held_ = roster.filter((r) => r.lineup_slot !== "IR" || !irEligible).length;
+
+  // Who counts toward the limit, the way roster_count() decides it: everybody
+  // off the reserve, plus anybody on it the report has cleared — each by his
+  // own status. It used to ask the status of the man on this card instead, so
+  // opening a cleared player made every stashed teammate count, the roster
+  // read as over the limit, and Activate never appeared.
+  const stashed = roster.filter((r) => r.lineup_slot === "IR").map((r) => r.player_name as string);
+  let fallbackStatus = new Map<string, string | null>();
+  if (!reportOk && stashed.length) {
+    const { data: statuses } = await db.from("nfl_players").select("name, injury_status").in("name", stashed);
+    fallbackStatus = new Map((statuses ?? []).map((x) => [x.name as string, x.injury_status as string | null]));
+  }
+  const stillOut = (name: string) =>
+    reportOk ? reportStashable(report, name) : canStash(fallbackStatus.get(name) ?? null);
+  const held_ = roster.filter((r) => r.lineup_slot !== "IR" || !stillOut(r.player_name as string)).length;
+  const onIrNow = owner?.mine === true && owner.lineupSlot === "IR";
 
   const mode =
     settings.waiverMode === "open" || settings.waiverMode === "all"
@@ -181,9 +196,15 @@ export async function GET(_req: Request, ctx: { params: Promise<{ name: string }
     locked,
     irEligible,
     /** Already stashed, so the offer is to bring him back rather than send him. */
-    onIr: owner?.mine === true && owner.lineupSlot === "IR",
+    onIr: onIrNow,
     irRoom: onIr < Number(settings.ir ?? 0),
     rosterRoom: held_ < capacity,
+    /**
+     * Whether he can come off the reserve, by set_ir's own rule: a man the
+     * report has cleared already counts toward the limit, so bringing him back
+     * never needs a spot; one still out needs one.
+     */
+    canActivate: onIrNow && (!irEligible || held_ < capacity),
     /** Whether adding him would be a claim settled on the next run. */
     claim: mode === "all" || (mode === "waivers" && onWaivers),
     clearsAt: onWaivers ? (wire?.clears_at as string) : null,
