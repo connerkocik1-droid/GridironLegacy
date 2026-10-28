@@ -5,6 +5,7 @@ import { parsePolls, nflMeta, NFL_TEAMS, RANKED, type BoardReport, type Entry } 
 import { useReportLogos } from "@/lib/use-report-logos";
 import ReportLogoSlot from "./ReportLogoSlot";
 import { DragHandleProps, GripHandle, SortableList } from "./SortableList";
+import { logo as clubLogo } from "@/data/league-data";
 
 /**
  * Where the week's Pylon Report is maintained.
@@ -137,9 +138,10 @@ export default function ReportDesk({
     <div id="office-report" style={card}>
       <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>The Pylon Report</h6>
       <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
-        Drag a row to reorder it, type into a record to update it. College
-        can have a team added or dropped; the NFL already has all thirty-two.
-        Nothing changes for anybody else until you publish.
+        Re-rank a team by typing its new rank, by ▲ and ▼, or by dragging the
+        grip; type into a record to update it. College can have a team added
+        or dropped; the NFL already has all thirty-two, with their logos — tap
+        a logo to replace it. Nothing changes for anybody else until you publish.
       </p>
 
       <label style={label}>
@@ -297,17 +299,26 @@ function BoardEditor({
             items={list}
             getId={keyFor}
             onReorder={(next) => onReorder(reranked(next))}
-            renderRow={(entry, i, handle) => (
-              <Row
-                entry={entry}
-                index={i}
-                handle={handle}
-                scope={scope}
-                logo={logos[entry.abbr]}
-                onFieldChange={(field, value) => onFieldChange(keyFor(entry), field, value)}
-                onRemove={() => onRemove(keyFor(entry))}
-              />
-            )}
+            renderRow={(raw, i, handle) => {
+              // An NFL row from an older report may carry no abbreviation; the
+              // club's own is known from its name.
+              const entry = scope === "nfl" && !raw.abbr ? { ...raw, abbr: nflMeta(raw.team).abbr } : raw;
+              return (
+                <Row
+                  entry={entry}
+                  index={i}
+                  count={list.length}
+                  handle={handle}
+                  scope={scope}
+                  logo={logos[entry.abbr]}
+                  // The NFL's thirty-two ship with the app; a school's is uploaded.
+                  fallback={scope === "nfl" ? clubLogo(entry.abbr) : undefined}
+                  onFieldChange={(field, value) => onFieldChange(keyFor(raw), field, value)}
+                  onRemove={() => onRemove(keyFor(raw))}
+                  onMove={(to) => onReorder(reranked(moveTo(list, i, to)))}
+                />
+              );
+            }}
           />
         </div>
       )}
@@ -315,98 +326,162 @@ function BoardEditor({
   );
 }
 
+/** The list with the entry at `from` moved to position `to` (both 0-based). */
+function moveTo(list: Entry[], from: number, to: number): Entry[] {
+  const next = [...list];
+  const [moved] = next.splice(from, 1);
+  next.splice(Math.max(0, Math.min(to, next.length)), 0, moved);
+  return next;
+}
+
+/**
+ * One team on a board. Two lines, so the name has the row's whole width on a
+ * phone: the rank, crest and team on top; the record, last result and the
+ * nudges under it. The rank is typed to move a team straight to a place —
+ * dragging the 30th team to the top of a thirty-two-team list is not a thing
+ * a thumb can do — and ▲/▼ move it one place; the grip still drags.
+ */
 function Row({
   entry,
   index,
+  count,
   handle,
   scope,
   logo,
+  fallback,
   onFieldChange,
   onRemove,
+  onMove,
 }: {
   entry: Entry;
   index: number;
+  count: number;
   handle: DragHandleProps;
   scope: "cfb" | "nfl";
   logo: string | undefined;
+  fallback?: string;
   onFieldChange: (field: "record" | "lastResult", value: string) => void;
   onRemove: () => void;
+  onMove: (to: number) => void;
 }) {
+  const [rank, setRank] = useState(String(entry.rank));
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- follow a move made elsewhere
+    setRank(String(entry.rank));
+  }, [entry.rank]);
+  const commit = () => {
+    const n = Math.round(Number(rank));
+    if (!Number.isFinite(n) || n < 1) return setRank(String(entry.rank));
+    const to = Math.min(n, count) - 1;
+    if (to !== index) onMove(to);
+    else setRank(String(entry.rank));
+  };
+  const field: React.CSSProperties = {
+    padding: "6px 8px",
+    minHeight: 32,
+    boxSizing: "border-box",
+    background: "rgb(var(--raised-rgb) / .7)",
+    border: "1px solid rgb(var(--accent-rgb) / .25)",
+    borderRadius: 6,
+    color: "var(--text)",
+    fontSize: 12,
+  };
+  const nudge: React.CSSProperties = {
+    flex: "0 0 auto",
+    width: 32,
+    height: 32,
+    cursor: "pointer",
+    borderRadius: 6,
+    border: "1px solid rgb(var(--accent-rgb) / .25)",
+    background: "transparent",
+    color: "var(--accent-text)",
+    fontSize: 11,
+  };
+
   return (
     <div
+      data-report-row={entry.team}
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 9,
         padding: "8px 10px",
         borderTop: index === 0 ? undefined : "1px solid rgb(var(--accent-rgb) / .12)",
         background: "rgb(var(--sunken-rgb) / .5)",
       }}
     >
-      <GripHandle {...handle} />
-      <ReportLogoSlot scope={scope} abbr={entry.abbr} image={logo} />
-      <span
-        style={{
-          width: 22,
-          flex: "0 0 auto",
-          fontFamily: "var(--font-heading)",
-          fontSize: 12,
-          color: "var(--text-dim)",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {entry.rank}
-      </span>
-      <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis" }}>
-        {entry.team}
-        <span style={{ color: "var(--text-dim)" }}>{` · ${entry.abbr}`}</span>
-      </span>
-      <input
-        value={entry.record}
-        onChange={(e) => onFieldChange("record", e.target.value)}
-        placeholder="0-0"
-        style={{
-          width: 48,
-          flex: "0 0 auto",
-          padding: "5px 6px",
-          background: "rgb(var(--raised-rgb) / .7)",
-          border: "1px solid rgb(var(--accent-rgb) / .25)",
-          borderRadius: 6,
-          color: "var(--text)",
-          fontSize: 11.5,
-          textAlign: "center",
-        }}
-      />
-      <input
-        value={entry.lastResult}
-        onChange={(e) => onFieldChange("lastResult", e.target.value)}
-        placeholder="Last result"
-        style={{
-          width: 110,
-          flex: "0 0 auto",
-          padding: "5px 6px",
-          background: "rgb(var(--raised-rgb) / .7)",
-          border: "1px solid rgb(var(--accent-rgb) / .25)",
-          borderRadius: 6,
-          color: "var(--text)",
-          fontSize: 11.5,
-        }}
-      />
-      <button
-        onClick={onRemove}
-        aria-label={`Remove ${entry.team}`}
-        style={{
-          flex: "0 0 auto",
-          cursor: "pointer",
-          border: 0,
-          background: "transparent",
-          color: "var(--bad-text)",
-          fontSize: 15,
-          padding: "2px 4px",
-        }}
-      >
-        ×
-      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <GripHandle {...handle} />
+        <input
+          value={rank}
+          onChange={(e) => setRank(e.target.value.replace(/\D/g, "").slice(0, 2))}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+          inputMode="numeric"
+          aria-label={`${entry.team}'s rank`}
+          style={{
+            ...field,
+            width: 40,
+            flex: "0 0 auto",
+            textAlign: "center",
+            fontFamily: "var(--font-heading)",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        />
+        <ReportLogoSlot scope={scope} abbr={entry.abbr} image={logo} fallback={fallback} />
+        <span
+          style={{
+            flex: 1,
+            minWidth: 0,
+            fontSize: 13,
+            fontWeight: 500,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {entry.team}
+          <span style={{ color: "var(--text-dim)", fontWeight: 400 }}>{` · ${entry.abbr}`}</span>
+        </span>
+        <button
+          onClick={onRemove}
+          aria-label={`Remove ${entry.team}`}
+          style={{ ...nudge, border: 0, color: "var(--bad-text)", fontSize: 16 }}
+        >
+          ×
+        </button>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, paddingLeft: 40 }}>
+        <input
+          value={entry.record}
+          onChange={(e) => onFieldChange("record", e.target.value)}
+          placeholder="0-0"
+          aria-label={`${entry.team}'s record`}
+          style={{ ...field, width: 56, flex: "0 0 auto", textAlign: "center" }}
+        />
+        <input
+          value={entry.lastResult}
+          onChange={(e) => onFieldChange("lastResult", e.target.value)}
+          placeholder="Last result"
+          aria-label={`${entry.team}'s last result`}
+          style={{ ...field, flex: 1, minWidth: 0 }}
+        />
+        <button
+          onClick={() => onMove(index - 1)}
+          disabled={index === 0}
+          aria-label={`Move ${entry.team} up`}
+          style={{ ...nudge, opacity: index === 0 ? 0.4 : 1 }}
+        >
+          ▲
+        </button>
+        <button
+          onClick={() => onMove(index + 1)}
+          disabled={index === count - 1}
+          aria-label={`Move ${entry.team} down`}
+          style={{ ...nudge, opacity: index === count - 1 ? 0.4 : 1 }}
+        >
+          ▼
+        </button>
+      </div>
     </div>
   );
 }

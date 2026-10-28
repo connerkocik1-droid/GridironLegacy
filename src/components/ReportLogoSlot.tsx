@@ -18,11 +18,15 @@ export default function ReportLogoSlot({
   scope,
   abbr,
   image,
+  fallback,
 }: {
   scope: "cfb" | "nfl";
   abbr: string;
   image: string | undefined;
+  /** What to show until something is uploaded: the bundled NFL club logo. */
+  fallback?: string;
 }) {
+  const shown = image ?? (fallback || undefined);
   const file = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [over, setOver] = useState(false);
@@ -58,7 +62,7 @@ export default function ReportLogoSlot({
         type="button"
         onClick={() => file.current?.click()}
         disabled={!abbr || busy}
-        title={abbr ? `Set ${abbr}'s crest` : "Give this row an abbreviation first"}
+        title={abbr ? `${image ? "Replace" : "Set"} ${abbr}'s crest` : "Give this row an abbreviation first"}
         onDragOver={(e) => {
           e.preventDefault();
           setOver(true);
@@ -76,18 +80,20 @@ export default function ReportLogoSlot({
           cursor: abbr ? "pointer" : "default",
           borderRadius: 3,
           border: `1px ${over ? "dashed" : "solid"} rgb(var(--accent-rgb) / ${over ? 0.6 : 0.25})`,
-          background: image ? `url(${image}) center / cover` : "rgb(var(--accent-rgb) / .12)",
+          background: shown
+            ? `url(${shown}) center / ${image ? "cover" : "contain"} no-repeat, rgb(var(--accent-rgb) / .06)`
+            : "rgb(var(--accent-rgb) / .12)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 9,
+          fontSize: 10,
           fontWeight: 600,
           letterSpacing: ".04em",
           color: "var(--accent-text)",
           opacity: busy ? 0.6 : 1,
         }}
       >
-        {image ? null : abbr}
+        {shown ? null : abbr}
       </button>
       <input
         ref={file}
