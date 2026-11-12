@@ -5,7 +5,8 @@ import { records, type RecordGame, type Records } from "@/lib/records";
 import { useLogos } from "@/lib/use-logos";
 import { useRefreshable } from "@/lib/use-refresh";
 import TeamCrest from "./TeamCrest";
-import { AppView, GroupSkeleton, Note, RowGroup, type RowSpec } from "./RowList";
+import { AppView, Chips, GroupSkeleton, Note, RowGroup, type RowSpec } from "./RowList";
+import PlayoffsPanel, { type Playoffs } from "./PlayoffsPanel";
 
 interface Franchise {
   id: string;
@@ -23,30 +24,11 @@ interface League {
   franchises: Franchise[];
 }
 
-interface PlayoffSide {
-  id: string;
-  franchise: string;
-  seed: number | null;
-  mine: boolean;
-  points: number;
-}
-
-interface Playoffs {
-  seeded: boolean;
-  season: number | null;
-  totalRounds?: number;
-  champions: { season: number; franchise: string }[];
-  rounds?: { round: number; games: { id: string; week: number; final: boolean; winner: string | null; home: PlayoffSide; away: PlayoffSide }[] }[];
-}
-
 const pct = (r: Franchise["record"]) => {
   if (!r) return 0;
   const g = r.wins + r.losses + r.ties;
   return g ? (r.wins + r.ties / 2) / g : 0;
 };
-
-const roundName = (round: number, total: number) =>
-  total - round === 0 ? "FINAL" : total - round === 1 ? "SEMI-FINALS" : total - round === 2 ? "QUARTER-FINALS" : `ROUND ${round}`;
 
 /**
  * The League → Standings: one table per division, record first and points
@@ -60,6 +42,13 @@ export default function StandingsView() {
   const [playoffs, setPlayoffs] = useState<Playoffs | null>(null);
   const [season, setSeason] = useState<Records | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The divisions by default; the playoffs once there is a bracket, or when a
+  // link asks for them.
+  const [view, setView] = useState<"Standings" | "Playoffs" | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (new URLSearchParams(window.location.search).get("view") === "playoffs") setView("Playoffs");
+  }, []);
 
   const load = useCallback(async () => {
     const [lg, po, sc] = await Promise.all([
@@ -113,8 +102,8 @@ export default function StandingsView() {
     <TeamCrest franchise={franchise} logo={logos[id] ?? (slot ? logos[slot] : undefined) ?? null} size={26} shape="box" />
   );
 
-  const total = playoffs?.totalRounds ?? playoffs?.rounds?.length ?? 0;
-  const champion = playoffs?.champions.find((c) => c.season === playoffs.season);
+  const shown = view ?? (playoffs?.seeded ? "Playoffs" : "Standings");
+  const hasPlayoffs = !!(playoffs?.seeded || playoffs?.picture);
   const past = (playoffs?.champions ?? []).filter((c) => c.season !== playoffs?.season);
 
   const seasonRows: RowSpec[] = [];
@@ -137,8 +126,18 @@ export default function StandingsView() {
       });
   }
 
+  if (hasPlayoffs && shown === "Playoffs") {
+    return (
+      <AppView>
+        <Chips options={["Standings", "Playoffs"] as const} value={shown} onChange={setView} label="Standings or playoffs" />
+        <PlayoffsPanel playoffs={playoffs!} crest={(id, franchise) => crest(id, franchise)} />
+      </AppView>
+    );
+  }
+
   return (
     <AppView>
+      {hasPlayoffs ? <Chips options={["Standings", "Playoffs"] as const} value={shown} onChange={setView} label="Standings or playoffs" /> : null}
       {divisions.map(([division, teams]) => {
         const lead = teams[0]?.record;
         return (
@@ -166,33 +165,6 @@ export default function StandingsView() {
           />
         );
       })}
-
-      {playoffs?.seeded
-        ? (playoffs.rounds ?? []).map(({ round, games }) => (
-            <RowGroup
-              key={`r${round}`}
-              label={roundName(round, total)}
-              note={games[0] ? `WEEK ${games[0].week}` : undefined}
-              rows={games.flatMap((g) =>
-                [g.home, g.away].map((s, j) => {
-                  const won = g.final && g.winner === s.id;
-                  return {
-                    key: `${g.id}:${j}`,
-                    num: s.seed ?? undefined,
-                    hi: s.mine,
-                    tight: true,
-                    logo: crest(s.id, s.franchise),
-                    title: s.franchise,
-                    sub: j === 1 ? undefined : g.final ? "Final" : "In progress",
-                    val: s.points.toFixed(1),
-                    valColor: won ? "var(--good)" : g.final ? "var(--ap-n500)" : undefined,
-                  };
-                }),
-              )}
-            />
-          ))
-        : null}
-      {champion ? <Note tag="CHAMPIONS">{champion.franchise} are champions.</Note> : null}
 
       {seasonRows.length ? <RowGroup label="THE SEASON SO FAR" rows={seasonRows} /> : null}
 

@@ -1,4 +1,5 @@
 import { freshenWeek } from "@/lib/live-refresh";
+import { postseasonFor } from "@/lib/postseason";
 import { pairLineups, totalOf, type Score } from "@/lib/matchup";
 import { teamGames } from "@/lib/nfl-week";
 import { outlookOf, winProbability } from "@/lib/win-probability";
@@ -95,9 +96,13 @@ export async function GET(req: Request) {
 
   if (!opponent) {
     const bye = fixture == null && !oppParam;
+    // After the regular season, no fixture means a playoff bye, a team knocked
+    // out, or one that never made it — each its own sentence.
+    const postseason = bye ? await postseasonFor(db, me.league_id, left.id, week) : null;
     return Response.json({
       week,
       bye,
+      postseason,
       scheduled: fixture != null,
       mine,
       me,

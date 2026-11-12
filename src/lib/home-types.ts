@@ -124,6 +124,8 @@ export interface Home {
   week: number | null;
   games: HomeGame[];
   byes: { slot: string; franchise: string }[];
+  /** After the regular season, why this manager has no game: a playoff bye, knocked out, missed it, champion. */
+  postseason?: { kind: string; message: string } | null;
   /** A game on this week's NFL slate is in progress right now. */
   live: boolean;
   /** Anything on this week's slate has kicked off, so scores exist. */

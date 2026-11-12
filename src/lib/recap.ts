@@ -78,6 +78,10 @@ export interface RecapGame {
    * read as having lost a regular-season game.
    */
   playoff?: boolean;
+  /** Which postseason bracket: the title, a placement game, or the consolation. */
+  bracket?: "title" | "place" | "consolation";
+  /** The place a placement or consolation game decides: the winner takes it, the loser the next. */
+  forPlace?: number | null;
 }
 
 /** The games a season's record is made of. */

@@ -1,4 +1,5 @@
 import { everyRow } from "@/lib/every-row";
+import { postseasonFor } from "@/lib/postseason";
 import { seasonPointsFor } from "@/lib/points-for";
 import { isPresent, readManagers } from "@/lib/presence";
 import { ageOf } from "@/data/league-data";
@@ -17,6 +18,7 @@ const POSITIONS = ["QB", "RB", "WR", "TE", "K", "D/ST"];
 interface Fixture {
   week: number;
   final: boolean;
+  playoff: boolean;
   home_manager: string;
   away_manager: string;
   /** Null until the week is graded. */
@@ -68,7 +70,7 @@ export async function GET() {
       db.from("roster_slots").select("manager_id, player_name, lineup_slot").eq("league_id", me.league_id),
       db
         .from("matchups")
-        .select("week, final, home_manager, away_manager, home_points, away_points")
+        .select("week, final, playoff, home_manager, away_manager, home_points, away_points")
         .eq("league_id", me.league_id)
         .order("week"),
       db.rpc("standings", { p_league_id: me.league_id }),
@@ -186,7 +188,23 @@ export async function GET() {
   const playing = new Set(
     schedule.filter((f) => f.week === week).flatMap((f) => [f.home_manager, f.away_manager]),
   );
-  const byes = roster.filter((m) => !playing.has(m.id)).map((m) => ({ slot: m.slot, franchise: m.franchise }));
+  // In the postseason only a seeded team resting through the first round has
+  // a bye; everybody else without a game is out, which is not a bye.
+  const playoffWeek = schedule.some((f) => f.week === week && f.playoff);
+  const { data: seeded } = playoffWeek
+    ? await db.from("playoff_seeds").select("manager_id").eq("league_id", me.league_id).eq("season", league?.season ?? 0)
+    : { data: null };
+  // Resting: seeded, and in no playoff game yet. Anyone seeded who has played
+  // one and has no game now has been knocked out.
+  const resting = new Set(
+    (seeded ?? [])
+      .map((s) => s.manager_id as string)
+      .filter((id) => !schedule.some((f) => f.playoff && (f.home_manager === id || f.away_manager === id))),
+  );
+  const byes = roster
+    .filter((m) => !playing.has(m.id) && (!playoffWeek || resting.has(m.id)))
+    .map((m) => ({ slot: m.slot, franchise: m.franchise }));
+  const postseason = week != null && !playing.has(me.id) ? await postseasonFor(db, me.league_id, me.id, week) : null;
 
   // --- the best at each position -------------------------------------------
   // Real points once anyone has scored any. Before then a projection is the
@@ -537,6 +555,7 @@ export async function GET() {
     week,
     games,
     byes,
+    postseason,
     // `live` is a game in progress this second; `started` is anything on the
     // slate having kicked off. The matchup band needs both: one decides
     // whether to show a score at all, the other whether to call it current.

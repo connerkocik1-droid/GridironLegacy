@@ -1,5 +1,6 @@
 "use client";
 
+import { bracketShape } from "@/lib/playoff-picture";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { DEFENSE_RULES, POINTS_ALLOWED, SCORING_RULES } from "@/lib/scoring";
@@ -31,6 +32,7 @@ interface Settings {
   rounds?: number;
   scoring?: string;
   regularWeeks?: number;
+  playoffTeams?: number;
   waiverDays?: number;
   tradeDeadlineWeek?: number;
   pickClock?: unknown;
@@ -159,6 +161,8 @@ export default function LeagueRules({ embedded = false }: { embedded?: boolean }
   const deadline = Number(settings.tradeDeadlineWeek ?? 0);
   const waiverDays = Number(settings.waiverDays ?? 1);
   const regularWeeks = Number(settings.regularWeeks ?? 16);
+  const playoffTeams = Number(settings.playoffTeams ?? 6);
+  const playoffByes = bracketShape(playoffTeams).byes;
 
   return (
     <div style={{ maxWidth: 700, margin: "0 auto", padding: embedded ? "0 18px 24px" : "0 18px 44px" }}>
@@ -300,6 +304,28 @@ export default function LeagueRules({ embedded = false }: { embedded?: boolean }
           what="Waivers clear after"
           worth={plural(waiverDays, "day")}
         />
+      </div>
+
+      {/* ---------------------------------------------------- the playoffs --- */}
+      <div id="rule-playoffs" style={card}>
+        <div style={eyebrow}>THE PLAYOFFS</div>
+        <p style={body}>
+          The top {playoffTeams} make the playoffs: the division winners take the top
+          seeds, then the best records left. {playoffByes > 0 ? `The top ${plural(playoffByes, "seed")} sit out the first round. ` : ""}
+          Each round reseeds, so the best team left always plays the worst, and a
+          level game goes to the better seed.
+        </p>
+        <p style={body}>
+          Everybody else plays on. The teams knocked out play for their place, and
+          the teams that missed the playoffs play a losers-advance consolation
+          bracket: lose twice and you finish last.
+        </p>
+        <p style={{ ...body, margin: 0 }}>
+          The rookie draft is the final finish reversed — last place picks first and
+          the champion picks last, whatever anybody&apos;s record was.
+        </p>
+        <Rule what="Playoff teams" worth={String(playoffTeams)} />
+        <Rule what="First-round byes" worth={playoffByes > 0 ? `top ${playoffByes}` : "none"} />
       </div>
 
       {/* ------------------------------------------------------ the waiver --- */}
