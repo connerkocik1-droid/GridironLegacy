@@ -1,4 +1,5 @@
 import { MAX_SECONDS, MIN_SECONDS } from "@/lib/draft-clock";
+import { bracketShape, roundName } from "@/lib/playoff-picture";
 import { isConfigured, serverClient } from "@/lib/supabase";
 import { checkVideoSrc } from "@/lib/video-src";
 
@@ -53,7 +54,7 @@ export async function GET() {
   // button nobody presses twice.
   const { data: fixtures } = await db
     .from("matchups")
-    .select("week, final")
+    .select("week, final, playoff")
     .eq("league_id", me.league_id)
     .order("week");
 
@@ -79,6 +80,7 @@ export async function GET() {
       scored: Number(scored ?? 0),
       weeks: new Set((fixtures ?? []).map((f) => f.week)).size,
       settled: (fixtures ?? []).length - open.length,
+      postseason: await postseasonPhase(db, me.league_id, fixtures ?? [], week),
     },
     isCommissioner: me.is_commissioner,
     league,
@@ -449,7 +451,13 @@ export async function PATCH(req: Request) {
       );
     }
 
-    const answer = (data ?? {}) as { ok?: boolean; error?: string; locked?: number; week?: number };
+    const answer = (data ?? {}) as {
+      ok?: boolean;
+      error?: string;
+      locked?: number;
+      week?: number;
+      postseason?: { state?: string; round?: number; franchise?: string; field?: number } | null;
+    };
     // The function refuses rather than raising for the two ordinary reasons —
     // a season with nothing left to settle, and a week nobody has scored in —
     // so those come back as a message rather than as a failure.
@@ -457,8 +465,44 @@ export async function PATCH(req: Request) {
       return Response.json({ error: answer.error ?? "The week could not be advanced." }, { status: 409 });
     }
 
-    return Response.json({ ok: true, locked: answer.locked ?? null, week: answer.week ?? null });
+    return Response.json({
+      ok: true,
+      locked: answer.locked ?? null,
+      week: answer.week ?? null,
+      // What closing the week did to the postseason: seeded it, drew the next
+      // round, or crowned the champion. Null-ish states ("regular season",
+      // "playing") mean nothing changed there.
+      postseason: answer.postseason ?? null,
+    });
   }
 
   return Response.json({ ok: true });
+}
+
+/**
+ * What locking the open week does to the postseason, so the button can say
+ * so before it is pressed: the last regular week seeds the field, a playoff
+ * round draws the next, and the final crowns the champion. Also whether the
+ * regular season is over with no bracket drawn, which the button then fixes.
+ */
+async function postseasonPhase(
+  db: Awaited<ReturnType<typeof serverClient>>,
+  leagueId: string,
+  fixtures: { week: number; final: boolean; playoff: boolean }[],
+  week: number | null,
+): Promise<{ phase: "regular" | "last-regular" | "playoff" | "final" | "draw" | "over"; round: string | null }> {
+  const regular = fixtures.filter((f) => !f.playoff);
+  const lastRegular = regular.length ? Math.max(...regular.map((f) => f.week)) : 0;
+  const { data: field } = await db.rpc("playoff_field", { p_league_id: leagueId });
+  const shape = bracketShape(Number(field ?? 6));
+
+  if (week == null) {
+    // Nothing open: either the bracket is owed, or the season is done.
+    const drawn = fixtures.some((f) => f.playoff);
+    return { phase: lastRegular > 0 && !drawn ? "draw" : "over", round: null };
+  }
+  if (week < lastRegular) return { phase: "regular", round: null };
+  if (week === lastRegular) return { phase: "last-regular", round: null };
+  const round = week - lastRegular;
+  return { phase: round >= shape.rounds ? "final" : "playoff", round: roundName(round, shape.rounds) };
 }

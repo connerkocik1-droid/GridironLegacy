@@ -1020,7 +1020,7 @@ select expect('and the postseason length follows the field',
 select expect('the top two seeds sit the first round out',
   (select count(*)::int from matchups m
      join managers h on h.id = m.home_manager
-    where m.league_id = :'Y' and m.playoff_round = 1
+    where m.league_id = :'Y' and m.playoff_round = 1 and m.bracket = 'title'
       and h.slot in ('AAA', 'EEE')), 0);
 
 select expect('the rest pair off from the outside in',
@@ -1028,7 +1028,7 @@ select expect('the rest pair off from the outside in',
      from matchups m
      join managers h on h.id = m.home_manager
      join managers a on a.id = m.away_manager
-    where m.league_id = :'Y' and m.playoff_round = 1), 'BBBvGGG FFFvCCC');
+    where m.league_id = :'Y' and m.playoff_round = 1 and m.bracket = 'title'), 'BBBvGGG FFFvCCC');
 
 select expect('in the week after the regular season',
   (select distinct week from matchups where league_id = :'Y' and playoff_round = 1), 5);
@@ -1043,8 +1043,25 @@ update matchups set final = true, home_points = 80, away_points = 95,
        winner = away_manager
  where league_id = :'Y' and playoff_round = 1
    and home_manager = (select id from managers where league_id = :'Y' and slot = 'FFF');
+-- The two outside the field play once, for seventh.
+update matchups set final = true, home_points = 60, away_points = 50, winner = home_manager
+ where league_id = :'Y' and bracket = 'consolation';
 select advance_playoffs(:'Y');
 \o
+
+select expect('the two who missed the field play for seventh',
+  (select h.slot || 'v' || a.slot || ':' || m.for_place
+     from matchups m
+     join managers h on h.id = m.home_manager
+     join managers a on a.id = m.away_manager
+    where m.league_id = :'Y' and m.bracket = 'consolation'), 'DDDvHHH:7');
+
+select expect('the wild-card losers play for fifth the week after',
+  (select h.slot || 'v' || a.slot || ':' || m.for_place || '@' || m.week
+     from matchups m
+     join managers h on h.id = m.home_manager
+     join managers a on a.id = m.away_manager
+    where m.league_id = :'Y' and m.bracket = 'place'), 'FFFvGGG:5@6');
 
 select expect('a bye is not a defeat — both top seeds are still in',
   (select string_agg(m.slot, ' ' order by s.seed)
@@ -1056,7 +1073,7 @@ select expect('the second round reseeds: best left against worst left',
      from matchups m
      join managers h on h.id = m.home_manager
      join managers a on a.id = m.away_manager
-    where m.league_id = :'Y' and m.playoff_round = 2), 'AAAvCCC EEEvBBB');
+    where m.league_id = :'Y' and m.playoff_round = 2 and m.bracket = 'title'), 'AAAvCCC EEEvBBB');
 
 -- Round two: Charlie keeps going, Echo sees off Bravo.
 \o /dev/null
@@ -1068,6 +1085,8 @@ update matchups set final = true, home_points = 105, away_points = 88,
        winner = home_manager
  where league_id = :'Y' and playoff_round = 2
    and home_manager = (select id from managers where league_id = :'Y' and slot = 'EEE');
+update matchups set final = true, home_points = 90, away_points = 80, winner = home_manager
+ where league_id = :'Y' and bracket = 'place' and for_place = 5;
 select advance_playoffs(:'Y');
 \o
 
@@ -1076,7 +1095,17 @@ select expect('the final is the two left standing',
      from matchups m
      join managers h on h.id = m.home_manager
      join managers a on a.id = m.away_manager
-    where m.league_id = :'Y' and m.playoff_round = 3), 'EEEvCCC');
+    where m.league_id = :'Y' and m.playoff_round = 3 and m.bracket = 'title'), 'EEEvCCC');
+
+select expect('for first place',
+  (select for_place from matchups where league_id = :'Y' and playoff_round = 3 and bracket = 'title'), 1);
+
+select expect('and the semi-final losers play for third alongside it',
+  (select h.slot || 'v' || a.slot || ':' || m.for_place || '@' || m.week
+     from matchups m
+     join managers h on h.id = m.home_manager
+     join managers a on a.id = m.away_manager
+    where m.league_id = :'Y' and m.bracket = 'place' and m.playoff_round = 3), 'AAAvBBB:3@7');
 
 select expect('and it is the last week the bracket needs',
   (select distinct week from matchups where league_id = :'Y' and playoff_round = 3), 7);
@@ -1105,6 +1134,13 @@ select expect('and the title is filed against the season',
 select expect('the franchise name is kept with it',
   (select franchise from league_champions where league_id = :'Y'), 'Echo');
 
+-- The final and the third-place game were both level: the better seeds take
+-- them. Everybody has a place, one to eight.
+select expect('the whole league finishes in order',
+  (select string_agg(m.slot, ' ' order by f.place)
+     from season_finish f join managers m on m.id = f.manager_id
+    where f.league_id = :'Y'), 'EEE CCC AAA BBB FFF GGG DDD HHH');
+
 select expect('a decided season stays decided',
   (select advance_playoffs(:'Y') ->> 'state'), 'decided');
 
@@ -1113,13 +1149,13 @@ select expect('a decided season stays decided',
 select award_draft_picks(:'Y', 2027);
 \o
 
-select expect('the teams that missed pick first, worst record first',
+select expect('the consolation loser picks first',
   (select string_agg(m.slot, ' ' order by a.slot)
      from draft_pick_assets a join managers m on m.id = a.origin_manager
     where a.league_id = :'Y' and a.season = 2027 and a.round = 1 and a.slot <= 2),
   'HHH DDD');
 
-select expect('then the playoff teams in the order they went out, champion last',
+select expect('and every pick is the finish reversed, champion last',
   (select string_agg(m.slot, ' ' order by a.slot)
      from draft_pick_assets a join managers m on m.id = a.origin_manager
     where a.league_id = :'Y' and a.season = 2027 and a.round = 1),
@@ -1779,6 +1815,127 @@ select expect('and leaves the played weeks as they were',
    ) per_week), true);
 select expect('a second pass finds nothing to add',
   pair_idle_franchises(:'T', 1, 14), 0);
+
+-- The whole postseason for ten, as this league plays it: a six-team field,
+-- a losers-advance consolation for the four outside it, placement games, and
+-- every franchise finishing in a place.
+\o /dev/null
+\set P '99999999-0000-0000-0000-00000000a011'
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'P', 'Ten Finish', 2026, 'F01', '{"regularWeeks": 14, "playoffTeams": 6}'::jsonb);
+insert into managers (league_id, slot, name, franchise)
+select :'P', 'F' || lpad(i::text, 2, '0'), 'Open', 'Franchise ' || i
+  from generate_series(1, 10) i;
+select generate_schedule(:'P');
+-- The lower slot wins every regular-season game, by its own margin, so the
+-- table has no ties anywhere.
+update matchups x
+   set final = true,
+       home_points = 200 - substr(h.slot, 2)::int,
+       away_points = 200 - substr(a.slot, 2)::int,
+       winner = case when h.slot < a.slot then x.home_manager else x.away_manager end
+  from managers h, managers a
+ where x.league_id = :'P' and h.id = x.home_manager and a.id = x.away_manager;
+
+-- Settles a postseason week: the better seed wins every game, except the
+-- games named in p_upsets (by the winner's slot).
+create or replace function settle_postseason(p_week int, p_upsets text[] default '{}')
+returns void language plpgsql as $fn$
+declare g matchups; hs int; aws int; hslot text; aslot text; w uuid;
+begin
+  for g in select * from matchups where league_id = '99999999-0000-0000-0000-00000000a011'
+             and week = p_week and not final loop
+    hs := postseason_seed(g.league_id, 2026, g.home_manager);
+    aws := postseason_seed(g.league_id, 2026, g.away_manager);
+    select slot into hslot from managers where id = g.home_manager;
+    select slot into aslot from managers where id = g.away_manager;
+    w := case when hslot = any(p_upsets) then g.home_manager
+              when aslot = any(p_upsets) then g.away_manager
+              when hs < aws then g.home_manager else g.away_manager end;
+    update matchups set final = true, winner = w,
+           home_points = case when w = g.home_manager then 100 else 90 end,
+           away_points = case when w = g.away_manager then 100 else 90 end
+     where id = g.id;
+  end loop;
+end;
+$fn$;
+
+create temp table p_seed as
+select s.seed, m.slot from seeding(:'P') s join managers m on m.id = s.manager_id;
+select advance_playoffs(:'P');
+\o
+
+select expect('week 15: two wild-card games and two consolation games, the top two resting',
+  (select string_agg(bracket || ':' || n, ' ' order by bracket) from (
+     select bracket, count(*) n from matchups where league_id = :'P' and week = 15 group by bracket) b),
+  'consolation:2 title:2');
+
+select expect('the consolation is best against worst outside the field',
+  (select string_agg(hs.seed || 'v' || aws.seed, ' ' order by hs.seed)
+     from matchups m
+     join managers h on h.id = m.home_manager join p_seed hs on hs.slot = h.slot
+     join managers a on a.id = m.away_manager join p_seed aws on aws.slot = a.slot
+    where m.league_id = :'P' and m.bracket = 'consolation'), '7v10 8v9');
+
+-- The ten seed knocks out the seven: so the seven drops into the losers' game.
+\o /dev/null
+select settle_postseason(15, array[(select slot from p_seed where seed = 10)]);
+select advance_playoffs(:'P');
+\o
+
+select expect('week 16: everybody plays',
+  (select count(*)::int from matchups where league_id = :'P' and week = 16), 5);
+
+select expect('two semi-finals, and games for fifth, seventh and ninth',
+  (select string_agg(coalesce(for_place::text, 'semi'), ' ' order by for_place nulls first)
+     from matchups where league_id = :'P' and week = 16), 'semi semi 5 7 9');
+
+select expect('the losers of the consolation play each other — for ninth, and last',
+  (select string_agg(s.seed::text, 'v' order by s.seed)
+     from matchups m
+     join lateral (values (m.home_manager), (m.away_manager)) v(id) on true
+     join managers mg on mg.id = v.id join p_seed s on s.slot = mg.slot
+    where m.league_id = :'P' and m.for_place = 9), '7v9');
+
+\o /dev/null
+select settle_postseason(16);
+select advance_playoffs(:'P');
+\o
+
+select expect('week 17: the championship and the game for third',
+  (select string_agg(for_place::text, ' ' order by for_place)
+     from matchups where league_id = :'P' and week = 17), '1 3');
+
+select expect('nobody else plays in it',
+  (select count(*)::int from matchups where league_id = :'P' and week > 17), 0);
+
+\o /dev/null
+select settle_postseason(17);
+create temp table p_end as select advance_playoffs(:'P') as r;
+\o
+
+select expect('the last game names the champion', (select r ->> 'state' from p_end), 'champion');
+
+-- Better seeds won everything but the seven-ten game, so the top six finish
+-- in seed order; the ten won the seventh-place game's way in, the seven beat
+-- the nine for ninth, and the nine — who lost twice — finishes last.
+select expect('every franchise finishes in a place',
+  (select string_agg(s.seed::text, ' ' order by f.place)
+     from season_finish f join managers m on m.id = f.manager_id join p_seed s on s.slot = m.slot
+    where f.league_id = :'P'), '1 2 3 4 5 6 8 10 7 9');
+
+\o /dev/null
+select award_draft_picks(:'P', 2027);
+\o
+
+select expect('the ultimate loser picks first, and the champion last',
+  (select string_agg(s.seed::text, ' ' order by a.slot)
+     from draft_pick_assets a join managers m on m.id = a.origin_manager join p_seed s on s.slot = m.slot
+    where a.league_id = :'P' and a.season = 2027 and a.round = 1), '9 7 10 8 6 5 4 3 2 1');
+
+\o /dev/null
+drop function settle_postseason(int, text[]);
+\o
 
 -- Grading, on its own two-franchise league so the pairing is not in doubt.
 \o /dev/null
@@ -6256,11 +6413,36 @@ select expect('with nobody named the winner',
   (select winner is null from matchups where league_id = :'AW' and week = 2), true);
 
 \o /dev/null
-select advance_week(:'AW');
+create temp table last_regular as select advance_week(:'AW') as r;
 \o
 
-select expect('and a season with nothing left says so',
-  (select advance_week(:'AW') ->> 'error'), 'Every week has been settled.');
+-- Closing the last regular week draws the bracket there and then, rather than
+-- leaving the league with nothing to play until the nightly job runs.
+select expect('closing the last regular week starts the playoffs',
+  (select r -> 'postseason' ->> 'state' from last_regular), 'started');
+select expect('so the league is straight on to the final',
+  (select r ->> 'week' from last_regular), '4');
+select expect('which is a playoff game',
+  (select playoff and playoff_round = 1 from matchups where league_id = :'AW' and week = 4), true);
+
+\o /dev/null
+insert into player_scores (league_id, week, player_name, points) values
+  (:'AW', 4, 'Advance QB A', 15), (:'AW', 4, 'Advance QB B', 15);
+create temp table the_final as select advance_week(:'AW') as r;
+\o
+
+select expect('closing the final crowns the champion',
+  (select r -> 'postseason' ->> 'state' from the_final), 'champion');
+-- A level playoff game is not a draw: the better seed goes through, and the
+-- game says so rather than leaving the winner blank.
+select expect('a level final goes to the better seed',
+  (select m.slot from matchups x join managers m on m.id = x.winner
+    where x.league_id = :'AW' and x.week = 4), 'AAA');
+select expect('who is the champion',
+  (select franchise from league_champions where league_id = :'AW'), 'Alpha');
+
+select expect('and a season with nothing left says who won it',
+  (select advance_week(:'AW') ->> 'error'), 'The season is over — Alpha are the champions.');
 
 \echo ''
 \echo '════════ the Pylon Report ════════'

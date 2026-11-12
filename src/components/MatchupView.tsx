@@ -74,6 +74,7 @@ function View() {
 
   const [board, setBoard] = useState<Board | null>(null);
   const [bye, setBye] = useState<number | null>(null);
+  const [postseason, setPostseason] = useState<{ kind: string; message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<Record<string, { d: number; until: number }>>({});
   const last = useRef<{ key: string; pts: Map<string, number> } | null>(null);
@@ -126,6 +127,7 @@ function View() {
       // A bye answers 200 without two sides, because there are not two sides.
       if (!body?.home || !body?.away) {
         setBye(body?.week ?? 0);
+        setPostseason(body?.postseason ?? null);
         setBoard(null);
         setError(null);
         return;
@@ -170,10 +172,10 @@ function View() {
     return (
       <AppView>
         <DuesNotice />
-        <Note tag={`WEEK ${bye}`}>
-          A bye this week — no fixture, so no board.{" "}
-          <Link href="/the-league" style={{ color: "var(--ap-a300)" }}>
-            See the rest of the league →
+        <Note tag={postseason ? (postseason.kind === "champion" ? "CHAMPIONS" : `WEEK ${bye} · PLAYOFFS`) : `WEEK ${bye}`}>
+          {postseason ? postseason.message : "A bye this week — no fixture, so no board."}{" "}
+          <Link href={postseason ? "/standings?view=playoffs" : "/the-league"} style={{ color: "var(--ap-a300)" }}>
+            {postseason ? "See the bracket →" : "See the rest of the league →"}
           </Link>
         </Note>
       </AppView>

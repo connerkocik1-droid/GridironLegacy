@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
+import { Note } from "./RowList";
 import ReportDesk from "./ReportDesk";
 import DraftBoardDesk from "./DraftBoardDesk";
 import DraftSettings from "./DraftSettings";
@@ -63,6 +64,8 @@ interface Admin {
     scored: number;
     weeks: number;
     settled: number;
+    /** What locking the open week does to the postseason. */
+    postseason?: { phase: "regular" | "last-regular" | "playoff" | "final" | "draw" | "over"; round: string | null };
   };
 }
 
@@ -409,6 +412,26 @@ export default function Commissioner() {
    * fixture mirror reports every NFL game complete, which is right when the
    * mirror is current and leaves a league stranded on week one when it is not.
    */
+  /** What closing a week did, in a sentence or two — the postseason included. */
+  function advanceNotice(body: {
+    locked: number | null;
+    week: number | null;
+    postseason: { state?: string; round?: number; franchise?: string; field?: number } | null;
+  }) {
+    const settled = body.locked != null ? `Week ${body.locked} is settled. ` : "";
+    const post = body.postseason;
+    if (post?.state === "champion") return `${settled}${post.franchise} are the champions — the season is over.`;
+    if (post?.state === "started")
+      return `${settled}The regular season is over: the ${post.field}-team field is seeded and the first round is drawn for week ${body.week}. The bracket is on the Standings page.`;
+    if (post?.state === "drawn") return `${settled}The next playoff round is drawn for week ${body.week}.`;
+    return (
+      settled +
+      (body.week
+        ? `The league is on week ${body.week}, and everybody's recap of week ${body.locked} plays the next time they open the app.`
+        : "That was the last week on the schedule.")
+    );
+  }
+
   async function advanceWeek() {
     if (busy) return;
     setBusy(true);
@@ -423,13 +446,7 @@ export default function Commissioner() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) setError(body.error ?? "Could not advance the week.");
-      else
-        setNotice(
-          `Week ${body.locked} is settled. ` +
-            (body.week
-              ? `The league is on week ${body.week}, and everybody's recap of week ${body.locked} plays the next time they open the app.`
-              : "That was the last week on the schedule."),
-        );
+      else setNotice(advanceNotice(body));
       await load();
     } finally {
       setBusy(false);
@@ -975,7 +992,17 @@ export default function Commissioner() {
 
       <div id="office-week" style={card}>
         <h6 style={{ margin: "0 0 4px", color: "var(--accent-text)" }}>The week</h6>
-        {admin.season?.week == null ? (
+        {admin.season?.week == null && admin.season?.postseason?.phase === "draw" ? (
+          <>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 14px" }}>
+              The regular season is over and the playoff bracket hasn&apos;t been drawn yet.
+              Drawing it seeds the field from the final standings and sets the first round.
+            </p>
+            <button onClick={advanceWeek} disabled={busy} style={action(!busy)}>
+              Draw the playoffs
+            </button>
+          </>
+        ) : admin.season?.week == null ? (
           <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, margin: 0 }}>
             Every week on the schedule has been settled. Build a schedule, or roll
             the league into next season below.
@@ -995,6 +1022,15 @@ export default function Commissioner() {
               to the next week — the matchup, the ticker and the gamecast all
               read the week off the fixtures rather than being told.
             </p>
+            {admin.season.postseason && admin.season.postseason.phase !== "regular" ? (
+              <Note tag="PLAYOFFS">
+                {admin.season.postseason.phase === "last-regular"
+                  ? "This is the last week of the regular season. Locking it seeds the playoff field from the final standings and draws the first round straight away."
+                  : admin.season.postseason.phase === "final"
+                    ? "This is the championship. Locking it crowns the champion and ends the season."
+                    : `This is the ${admin.season.postseason.round?.toLowerCase()}. Locking it draws the next round straight away, best seed left against the lowest.`}
+              </Note>
+            ) : null}
             <p style={{ fontSize: 11.5, color: "var(--text-dim)", lineHeight: 1.6, margin: "0 0 14px" }}>
               {admin.season.scored === 0
                 ? "Nobody has been scored in this week yet, so there is nothing to lock in. Pull the scores first."

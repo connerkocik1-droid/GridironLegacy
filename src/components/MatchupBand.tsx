@@ -147,7 +147,9 @@ export default function MatchupBand({ home }: { home: Home | null }) {
     const onBye = home.week != null && home.games.length > 0;
     return (
       <div style={{ ...card, padding: "14px 16px", fontSize: 12.5, color: "var(--text-muted)" }}>
-        {onBye
+        {home.postseason
+          ? home.postseason.message
+          : onBye
           ? "No fixture this week — you have a bye."
           : "No fixtures yet. The commissioner builds the schedule once every franchise is claimed."}
       </div>

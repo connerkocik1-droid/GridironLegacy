@@ -51,6 +51,7 @@ REPORT=""
 PROFILE=""
 FIT=""
 RETRO=""
+PLAYOFFS=""
 
 # --console is the other lens on the same app. The audit answers /api/* in the
 # browser from a fixture, which is right for measuring layout and means it
@@ -73,6 +74,7 @@ while [ $# -gt 0 ]; do
     --recap) RECAP="1"; shift ;;
     --week) WEEK="1"; shift ;;
     --report) REPORT="1"; shift ;;
+    --playoffs) PLAYOFFS="1"; shift ;;
     --profile) PROFILE="1"; shift ;;
     --fit) FIT="1"; shift ;;
     --retro) RETRO="1"; shift ;;
@@ -157,7 +159,10 @@ if ! curl -fsS -o /dev/null "http://localhost:$PORT/" 2>/dev/null; then
   exit 1
 fi
 
-if [ -n "$MYTEAM" ]; then
+if [ -n "$PLAYOFFS" ]; then
+  AUDIT_BASE="http://localhost:$PORT" AUDIT_SHOTS="$SHOTS" \
+    node "$ROOT/scripts/mobile/playoffs-check.mjs"
+elif [ -n "$MYTEAM" ]; then
   AUDIT_BASE="http://localhost:$PORT" AUDIT_SHOTS="$SHOTS" \
     node "$ROOT/scripts/mobile/myteam-check.mjs"
 elif [ -n "$LEAGUE" ]; then

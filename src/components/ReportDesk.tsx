@@ -453,7 +453,9 @@ function Row({
           ×
         </button>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, paddingLeft: 40 }}>
+      {/* Indented under the name where there's room; flush on the narrowest
+          phones, so the last-result box keeps a usable width. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, paddingLeft: "clamp(0px, calc(100% - 230px), 40px)" }}>
         <input
           value={entry.record}
           onChange={(e) => onFieldChange("record", e.target.value)}
@@ -466,7 +468,7 @@ function Row({
           onChange={(e) => onFieldChange("lastResult", e.target.value)}
           placeholder="Last result"
           aria-label={`${entry.team}'s last result`}
-          style={{ ...field, flex: 1, minWidth: 0 }}
+          style={{ ...field, flex: 1, minWidth: 64 }}
         />
         <button
           onClick={() => onMove(index - 1)}

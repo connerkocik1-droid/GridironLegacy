@@ -110,6 +110,38 @@ console.log("\n--- the playoff picture ---");
   eq("a climb is counted", [p.seedBefore, p.seedAfter, p.tag], [3, 1, "▲ 2"]);
 }
 
+console.log("\n--- after the regular season ---");
+{
+  // Losing the last consolation game: last place, and the first pick.
+  const d = data({
+    week: 4,
+    regularWeeks: 3,
+    next: null,
+    games: [...GAMES, { week: 4, home: "a", away: "f", homePoints: 80, awayPoints: 90, playoff: true, bracket: "consolation", forPlace: 5 }],
+  });
+  const p = playoffPicture(d, recapFacts(d)!);
+  eq("a consolation game says the place it decided", [p.kicker, p.number], ["CONSOLATION", "6TH"]);
+  eq("and last place says what it is worth", p.clinchNote, "Last place — and the first pick in the rookie draft.");
+}
+{
+  const d = data({
+    week: 4,
+    regularWeeks: 3,
+    next: null,
+    games: [...GAMES, { week: 4, home: "a", away: "f", homePoints: 95, awayPoints: 90, playoff: true, bracket: "place", forPlace: 3 }],
+  });
+  eq("a placement win is the place", playoffPicture(d, recapFacts(d)!).number, "3RD");
+}
+{
+  const d = data({
+    week: 4,
+    regularWeeks: 3,
+    next: null,
+    games: [...GAMES, { week: 4, home: "a", away: "f", homePoints: 80, awayPoints: 90, playoff: true, bracket: "consolation", forPlace: null }],
+  });
+  eq("losing the consolation's first round warns what is next", /Lose that and you finish last/.test(playoffPicture(d, recapFacts(d)!).clinchNote), true);
+}
+
 console.log("\n--- the sentences ---");
 {
   const f = recapFacts(data())!;

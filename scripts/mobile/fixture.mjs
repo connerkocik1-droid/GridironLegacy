@@ -744,37 +744,84 @@ export function routes(page, over = {}) {
     })),
   }));
 
-  // A live postseason, which the standings page draws above the table.
+  // The postseason, in either of its two shapes. By default a live one, in its
+  // second week: the wild card played, the semi-finals on, and the placement
+  // and consolation games beside them. With `over.playoffs: "picture"`, the
+  // regular season still running and the picture of who would make it.
   const seat = (id, seed, points) => ({
     id, franchise: MANAGERS.find((m) => m.id === id).franchise,
     who: null, seed, mine: id === "m0", points,
   });
-  page.route("**/api/playoffs", json({
-    seeded: true, season: 2026, me: { id: "m0" }, totalRounds: 3,
+  const PICTURE_ORDER = ["m0", "m7", "m3", "m8", "m5", "m10", "m1", "m9", "m4", "m6", "m11", "m2"];
+  const MARKS = { m0: "z", m7: "y", m3: "x", m6: "e", m11: "e", m2: "e" };
+  page.route("**/api/playoffs", json(over.playoffs === "picture" ? {
+    seeded: false, season: 2026, me: { id: "m0" },
+    champions: [{ season: 2025, manager_id: "m8", franchise: "Iron Rail", decided_at: "2026-01-05" }],
+    picture: {
+      field: 6, rounds: 3, byes: 2, regularWeeks: 14, weeksLeft: 2,
+      rows: PICTURE_ORDER.map((id, i) => {
+        const m = MANAGERS.find((x) => x.id === id);
+        const mark = MARKS[id] ?? null;
+        return {
+          ...seat(id, i + 1), seed: i + 1, inField: i < 6, bye: i < 2, divisionLeader: i < 2,
+          status: { z: "bye", y: "division", x: "clinched", e: "eliminated" }[mark] ?? (i < 6 ? "in" : "out"),
+          mark, behind: i < 6 ? null : Math.min(i - 5, 3), division: m.division,
+          record: { wins: 11 - i, losses: 1 + i, ties: 0 },
+        };
+      }),
+      firstRound: [
+        { week: 15, home: seat("m3", 3), away: seat("m10", 6) },
+        { week: 15, home: seat("m8", 4), away: seat("m5", 5) },
+      ],
+      consolation: [
+        { home: seat("m1", 7), away: seat("m2", 12) },
+        { home: seat("m9", 8), away: seat("m11", 11) },
+        { home: seat("m4", 9), away: seat("m6", 10) },
+      ],
+    },
+  } : {
+    seeded: true, season: 2026, me: { id: "m0" }, field: 6, rounds: 3, byes: 2,
+    roundWeeks: [15, 16, 17],
     champions: [{ season: 2025, manager_id: "m8", franchise: "Iron Rail",
       decided_at: "2026-01-05" }],
     seeds: [
-      { seed: 1, id: "m0", franchise: "Steel Cartel", mine: true, bye: true },
-      { seed: 2, id: "m3", franchise: "Kim's Very Long Franchise Name", mine: false, bye: true },
-      { seed: 3, id: "m5", franchise: "Riverside Rattlesnakes", mine: false, bye: false },
-      { seed: 4, id: "m7", franchise: "Gold Coast Gladiators", mine: false, bye: false },
-      { seed: 5, id: "m8", franchise: "Iron Rail", mine: false, bye: false },
-      { seed: 6, id: "m10", franchise: "Harbour Hounds", mine: false, bye: false },
+      { seed: 1, ...seat("m0", 1), bye: true, status: "alive", outIn: null },
+      { seed: 2, ...seat("m3", 2), bye: true, status: "alive", outIn: null },
+      { seed: 3, ...seat("m5", 3), bye: false, status: "alive", outIn: null },
+      { seed: 4, ...seat("m7", 4), bye: false, status: "out", outIn: 1 },
+      { seed: 5, ...seat("m8", 5), bye: false, status: "alive", outIn: null },
+      { seed: 6, ...seat("m10", 6), bye: false, status: "out", outIn: 1 },
     ],
-    rounds: [
+    drawn: [
       { round: 1, games: [
-        { id: "g1", week: 17, final: true, winner: "m5", onSeed: false,
+        { id: "g1", week: 15, final: true, winner: "m5", onSeed: false,
           home: seat("m5", 3, 121.4), away: seat("m10", 6, 98.2) },
-        { id: "g2", week: 17, final: true, winner: "m8", onSeed: true,
+        { id: "g2", week: 15, final: true, winner: "m8", onSeed: true,
           home: seat("m7", 4, 110.0), away: seat("m8", 5, 110.0) },
       ] },
       { round: 2, games: [
-        { id: "g3", week: 18, final: false, winner: null, onSeed: false,
+        { id: "g3", week: 16, final: false, winner: null, onSeed: false,
           home: seat("m0", 1, 44.2), away: seat("m8", 5, 51.8) },
-        { id: "g4", week: 18, final: false, winner: null, onSeed: false,
+        { id: "g4", week: 16, final: false, winner: null, onSeed: false,
           home: seat("m3", 2, 39.0), away: seat("m5", 3, 30.1) },
       ] },
     ],
+    placement: [
+      { id: "p1", week: 16, round: 2, forPlace: 5, final: false, winner: null,
+        home: seat("m7", 4, 41.0), away: seat("m10", 6, 36.5) },
+    ],
+    consolationSeeds: [["m1", 7], ["m9", 8], ["m11", 9], ["m2", 10]].map(([id, seed]) => ({ ...seat(id, seed), seed })),
+    consolation: [
+      { id: "c1", week: 15, round: 1, forPlace: null, final: true, winner: "m1",
+        home: seat("m1", 7, 102.3), away: seat("m2", 10, 88.0) },
+      { id: "c2", week: 15, round: 1, forPlace: null, final: true, winner: "m11",
+        home: seat("m9", 8, 91.1), away: seat("m11", 9, 97.4) },
+      { id: "c3", week: 16, round: 2, forPlace: 7, final: false, winner: null,
+        home: seat("m1", 7, 40.2), away: seat("m11", 9, 33.9) },
+      { id: "c4", week: 16, round: 2, forPlace: 9, final: false, winner: null,
+        home: seat("m9", 8, 28.4), away: seat("m2", 10, 31.0) },
+    ],
+    finish: [],
   }));
 
   // The longest line each position can produce, because a stat line that fits

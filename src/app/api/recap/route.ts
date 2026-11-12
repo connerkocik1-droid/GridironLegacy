@@ -45,7 +45,7 @@ export async function GET() {
     db
       .from("matchups")
       .select(
-        "week, home_manager, away_manager, home_points, away_points, final, playoff, graded_at, home_starters, away_starters",
+        "week, home_manager, away_manager, home_points, away_points, final, playoff, bracket, for_place, graded_at, home_starters, away_starters",
       )
       .eq("league_id", me.league_id)
       .order("week"),
@@ -70,6 +70,8 @@ export async function GET() {
     homePoints: Number(f.home_points ?? 0),
     awayPoints: Number(f.away_points ?? 0),
     playoff: Boolean(f.playoff),
+    bracket: (f.bracket as RecapGame["bracket"]) ?? "title",
+    forPlace: f.for_place ?? null,
   }));
 
   // This manager's own fixture in the week being recapped, so the snapshot is

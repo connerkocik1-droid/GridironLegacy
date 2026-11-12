@@ -145,12 +145,30 @@ export function playoffPicture(data: RecapData, f: RecapFacts): Picture {
   let kicker: string;
   let number: string;
   let clinchNote: string;
-  if (f.week > regular) {
+  const game = f.week > regular ? data.games.find((g) => g.week === f.week && (g.home === data.meId || g.away === data.meId)) : undefined;
+  if (game && game.bracket && game.bracket !== "title") {
+    // A placement or consolation game: what it decided, or what comes next.
+    const won = f.won;
+    if (game.forPlace != null) {
+      const place = won ? game.forPlace : game.forPlace + 1;
+      kicker = game.bracket === "consolation" ? "CONSOLATION" : "PLACEMENT";
+      number = ordinal(place).toUpperCase();
+      clinchNote = place === data.teams.length ? "Last place — and the first pick in the rookie draft." : `You finish the season ${ordinal(place)}.`;
+    } else {
+      kicker = "CONSOLATION";
+      number = won ? "W" : "L";
+      clinchNote = won
+        ? `Into the game for ${ordinal(field + 1)}.`
+        : `Into the game for ${ordinal(field + 3)}. Lose that and you finish last.`;
+    }
+  } else if (f.week > regular) {
     // The postseason: the table is frozen, and the only question is whether
     // this week's game kept the season going.
     kicker = "POSTSEASON";
     number = f.won ? "IN" : "OUT";
-    clinchNote = f.won ? "Through to the next round." : "Your season ends here.";
+    clinchNote = game?.forPlace === 1
+      ? f.won ? "Champions." : "Runners-up."
+      : f.won ? "Through to the next round." : "Out of the title race — on to the placement game.";
   } else if (seedAfter <= field) {
     const chaser = after[field];
     const magic = chaser ? regular + 1 - me.wins - chaser.losses : 0;
