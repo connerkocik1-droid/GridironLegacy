@@ -1711,6 +1711,75 @@ select expect('so everyone plays sixteen games',
       where league_id = :'D' group by m
    ) per_team), true);
 
+-- Ten franchises, five a side: an odd division can't pair off in its
+-- rematch round robin, so one from each is left over every week. They play
+-- each other rather than both sitting out.
+\o /dev/null
+\set T '99999999-0000-0000-0000-00000000a010'
+insert into leagues (id, name, season, commissioner_slot, settings)
+values (:'T', 'Ten', 2026, 'F01', '{"regularWeeks": 14}'::jsonb);
+insert into managers (league_id, slot, name, franchise)
+select :'T', 'F' || lpad(i::text, 2, '0'), 'Open', 'Franchise ' || i
+  from generate_series(1, 10) i;
+select generate_schedule(:'T');
+\o
+
+select expect('ten franchises split five and five',
+  (select string_agg(division || ':' || n, ' ' order by division) from (
+     select division, count(*) n from managers where league_id = :'T' group by division
+   ) d), 'North:5 South:5');
+
+select expect('a ten-team season runs fourteen weeks',
+  (select max(week)::int from matchups where league_id = :'T'), 14);
+
+select expect('five games every week, nobody on a bye',
+  (select bool_and(n = 5) and count(*) = 14 from (
+     select week, count(*) n from matchups where league_id = :'T' group by week
+   ) per_week), true);
+
+select expect('and nobody plays twice in a week',
+  (select count(*)::int from (
+     select week, m from matchups, lateral (values (home_manager), (away_manager)) v(m)
+      where league_id = :'T'
+      group by week, m having count(*) > 1
+   ) dupes), 0);
+
+select expect('so everyone plays fourteen games',
+  (select bool_and(n = 14) and count(*) = 10 from (
+     select m, count(*) n from matchups, lateral (values (home_manager), (away_manager)) v(m)
+      where league_id = :'T' group by m
+   ) per_team), true);
+
+select expect('divisional rivals still meet twice',
+  (select bool_and(n = 2) from (
+     select count(*) n from matchups x
+       join managers h on h.id = x.home_manager
+       join managers a on a.id = x.away_manager
+      where x.league_id = :'T' and h.division = a.division
+      group by least(x.home_manager::text, x.away_manager::text),
+               greatest(x.home_manager::text, x.away_manager::text)
+   ) pairs), true);
+
+-- A season already under way: the rematch weeks drawn the old way, with a
+-- week played, are mended without touching what was played.
+\o /dev/null
+delete from matchups x
+ using managers h, managers a
+ where x.league_id = :'T' and x.week > 9 and not x.divisional
+   and h.id = x.home_manager and a.id = x.away_manager;
+update matchups set final = true where league_id = :'T' and week <= 9;
+\o
+select expect('the old draw left two idle in each rematch week',
+  (select count(*)::int from matchups where league_id = :'T' and week > 9), 20);
+select expect('mending it adds the five missing games',
+  pair_idle_franchises(:'T', 1, 14), 5);
+select expect('and leaves the played weeks as they were',
+  (select bool_and(n = 5) from (
+     select week, count(*) n from matchups where league_id = :'T' group by week
+   ) per_week), true);
+select expect('a second pass finds nothing to add',
+  pair_idle_franchises(:'T', 1, 14), 0);
+
 -- Grading, on its own two-franchise league so the pairing is not in doubt.
 \o /dev/null
 \set G '99999999-0000-0000-0000-000000000004'
@@ -2027,13 +2096,13 @@ select expect('the divisions are evened up, not left lopsided',
 
 select expect('the season is regenerated at the new size',
   (select max(week)::int || '/' || count(*)::int from matchups where league_id = :'R'),
-  '14/65');
+  '14/70');
 
 select expect('and the new length is written back to the league',
   (select (settings ->> 'regularWeeks')::int from leagues where id = :'R'), 14);
 
-select expect('everybody plays thirteen games',
-  (select bool_and(n = 13) from (
+select expect('everybody plays fourteen games',
+  (select bool_and(n = 14) from (
      select m, count(*) n from matchups, lateral (values (home_manager), (away_manager)) v(m)
       where league_id = :'R' group by m
    ) per_team), true);
@@ -2104,7 +2173,7 @@ select expect('a played week freezes the league size',
 
 select expect('and the season survives the refusal',
   (select max(week)::int || '/' || count(*)::int from matchups where league_id = :'R'),
-  '14/65');
+  '14/70');
 
 \echo ''
 \echo '--- repairing a schedule left over from a bigger league ---'
@@ -2157,25 +2226,25 @@ select expect('the repair spots it', repair_schedule(:'Q'), true);
 
 select expect('and rebuilds the season the league actually implies',
   (select max(week)::int || '/' || count(*)::int from matchups where league_id = :'Q'),
-  '14/65');
+  '14/70');
 
 select expect('evening the divisions on the way past',
   (select string_agg(division || ':' || n, ' ' order by division) from (
      select division, count(*) n from managers where league_id = :'Q' group by division
    ) d), 'North:5 South:5');
 
-select expect('everybody plays thirteen again',
-  (select bool_and(n = 13) from (
+select expect('everybody plays fourteen again',
+  (select bool_and(n = 14) from (
      select m, count(*) n from matchups, lateral (values (home_manager), (away_manager)) v(m)
       where league_id = :'Q' group by m
    ) per_team), true);
 
 select expect('running it a second time changes nothing', repair_schedule(:'Q'), false);
 
--- Five to a division means one sits out each rematch week. That is the shape
--- of a correct schedule, not a broken one, and the repair must not chase it.
-select expect('an idle franchise in a rematch week is not treated as damage',
-  (select bool_and(n = 4) from (
+-- Five to a division leaves one from each over in every rematch week, and
+-- they play each other: five games a week, and the repair is content with it.
+select expect('the two left over in a rematch week play each other',
+  (select bool_and(n = 5) from (
      select week, count(*) n from matchups where league_id = :'Q' and week > 9 group by week
    ) per_week), true);
 
