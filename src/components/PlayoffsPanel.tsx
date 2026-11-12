@@ -2,11 +2,14 @@
 
 import type { ReactNode } from "react";
 import { roundName } from "@/lib/playoff-picture";
+import { bracketLayout, type BracketTeam } from "@/lib/bracket-layout";
+import BracketGraphic from "./BracketGraphic";
 import { Note, RowGroup, type RowSpec, type RowTag } from "./RowList";
 
 export interface PlayoffSide {
   id: string;
   franchise: string;
+  slot?: string | null;
   seed: number | null;
   mine: boolean;
   points?: number;
@@ -67,6 +70,21 @@ export interface Playoffs {
 }
 
 const record = (r: PictureRow["record"]) => `${r.wins}-${r.losses}${r.ties ? `-${r.ties}` : ""}`;
+/** Initials for a franchise with no slot code: "Gold Coast Gladiators" → "GCG". */
+const abbreviate = (name: string) => {
+  const words = name.replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean);
+  return (words.length > 1 ? words.map((w) => w[0]).join("") : name).slice(0, 4).toUpperCase();
+};
+
+/** A side as the bracket graphic wants it: its slot as the short name. */
+const bracketTeam = (s: PlayoffSide & { seed: number }): BracketTeam => ({
+  id: s.id,
+  seed: s.seed,
+  abbr: s.slot ?? abbreviate(s.franchise),
+  franchise: s.franchise,
+  mine: s.mine,
+});
+
 const ordinal = (n: number) => `${n}${["th", "st", "nd", "rd"][n % 100 >= 11 && n % 100 <= 13 ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
 
 const MARK: Record<NonNullable<PictureRow["mark"]>, RowTag> = {
@@ -136,6 +154,14 @@ function Picture({ picture, crest }: { picture: NonNullable<Playoffs["picture"]>
             }. Division winners take the top seeds.`
           : `The regular season is over. The bracket is drawn when the last week is closed.`}
       </Note>
+      <BracketGraphic
+        layout={bracketLayout({
+          teams: inField.map(bracketTeam),
+          games: [],
+          roundWeeks: Array.from({ length: picture.rounds }, (_, i) => picture.regularWeeks + 1 + i),
+        })}
+        note="If the season ended today · each round reseeds"
+      />
       <RowGroup label="IN THE FIELD" note={`TOP ${picture.field}`} rows={inField.map(row)} />
       {outside.length ? <RowGroup label="ON THE OUTSIDE" rows={outside.map(row)} /> : null}
       <RowGroup
@@ -269,48 +295,25 @@ function Bracket({ playoffs, crest }: { playoffs: Playoffs; crest: (id: string, 
         />
       ) : null}
 
-      {Array.from({ length: rounds }, (_, i) => i + 1).map((round) => {
-        const games = drawn.get(round) ?? [];
-        const week = playoffs.roundWeeks?.[round - 1];
-        const label = `${roundName(round, rounds).toUpperCase()}${week ? ` · WEEK ${week}` : ""}`;
-        const byes = round === 1 ? seeds.filter((s) => s.bye) : [];
-        if (games.length) {
-          return (
-            <RowGroup
-              key={round}
-              label={label}
-              rows={[
-                ...games.flatMap((g) => gameRows(g)),
-                ...byes.map((s) => ({
-                  key: `bye:${s.id}`,
-                  num: s.seed,
-                  hi: s.mine,
-                  tight: true,
-                  logo: crest(s.id, s.franchise),
-                  title: s.franchise,
-                  sub: `Bye · into the ${roundName(2, rounds).toLowerCase()}`,
-                })),
-              ]}
-            />
-          );
-        }
-        // Not drawn yet: say what it will be. Each round reseeds, so who plays
-        // whom is only known once the round before it is over.
-        const count = 2 ** (rounds - round);
-        return (
-          <RowGroup
-            key={round}
-            label={label}
-            note="TO BE DRAWN"
-            rows={Array.from({ length: count }, (_, k) => ({
-              key: `tbd:${round}:${k}`,
-              tight: true,
-              title: round === rounds ? "The last two standing" : k === 0 ? "Best seed left v lowest seed left" : "The two in between",
-              sub: "Drawn when the round before it ends",
-            }))}
-          />
-        );
-      })}
+      <BracketGraphic
+        layout={bracketLayout({
+          teams: seeds.map(bracketTeam),
+          games: (playoffs.drawn ?? []).flatMap((r) =>
+            r.games.map((g) => ({
+              id: g.id,
+              week: g.week,
+              round: r.round,
+              final: g.final,
+              winner: g.winner,
+              home: { id: g.home.id, points: g.home.points },
+              away: { id: g.away.id, points: g.away.points },
+            })),
+          ),
+          roundWeeks: playoffs.roundWeeks,
+          championId: champion?.manager_id ?? null,
+        })}
+        note="Tap a game for the head to head · each round reseeds, best seed left v lowest"
+      />
 
       {playoffs.placement?.length ? (
         <RowGroup label="PLACEMENT GAMES" rows={playoffs.placement.flatMap((g) => gameRows(g, placeLabel(g)))} />

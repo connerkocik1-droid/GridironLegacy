@@ -74,6 +74,7 @@ export async function GET() {
       ? {
           id,
           franchise: by.get(id)?.franchise ?? "Unknown",
+          slot: by.get(id)?.slot ?? null,
           who: by.get(id)?.name ?? null,
           seed: seedOf.get(id) ?? null,
           mine: id === me.id,
