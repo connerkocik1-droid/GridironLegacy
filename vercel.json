@@ -19,22 +19,6 @@
     {
       "path": "/api/cron/projections",
       "schedule": "0 13 * * 4"
-    },
-    {
-      "path": "/api/cron/push",
-      "schedule": "*/10 * * * *"
-    },
-    {
-      "path": "/api/cron/scores",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/mail",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/autodraft",
-      "schedule": "*/5 * * * *"
     }
   ]
 }

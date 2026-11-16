@@ -4,9 +4,11 @@
  * These were meant to run from .github/workflows/cron.yml, and never did: all
  * 292 scheduled runs from August 30 to September 29 stopped at their first
  * line for want of a SITE_URL secret, and GitHub only ran the "every five
- * minutes" schedule about ten times a day besides. Vercel's own scheduler
- * already runs this project's push job every ten minutes to the minute, so the
- * frequent jobs live in vercel.json now, beside the daily ones.
+ * minutes" schedule about ten times a day besides. They then ran from
+ * vercel.json, until the project moved to Vercel's Hobby plan, which only runs
+ * daily cron jobs. They now run from Supabase pg_cron (migration 0073), which
+ * sends the same secret and x-vercel-cron-schedule header Vercel Cron did, so
+ * everything below still applies. The daily runs stay in vercel.json.
  *
  * Off until the league turns them on, because on is a change the league will
  * notice: the week settles minutes after its last game rather than at the
