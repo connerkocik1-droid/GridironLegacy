@@ -11,9 +11,10 @@
 --
 -- The secret lives in Supabase Vault as 'pylon_cron_secret' and must equal the
 -- CRON_SECRET in the Vercel environment. Until it is there, the call is skipped.
-
-create extension if not exists pg_cron;
-create extension if not exists pg_net with schema extensions;
+--
+-- Where pg_cron and pg_net are not available (the throwaway Postgres the
+-- database tests run against), the function is still created and the
+-- extensions and schedules are left out.
 
 create schema if not exists private;
 revoke all on schema private from public, anon, authenticated;
@@ -50,7 +51,20 @@ $$;
 
 revoke all on function private.call_cron_route(text, text) from public, anon, authenticated;
 
-select cron.schedule('pylon-push',      '*/10 * * * *', $$select private.call_cron_route('/api/cron/push', '*/10 * * * *')$$);
-select cron.schedule('pylon-scores',    '*/5 * * * *',  $$select private.call_cron_route('/api/cron/scores', '*/5 * * * *')$$);
-select cron.schedule('pylon-mail',      '*/5 * * * *',  $$select private.call_cron_route('/api/cron/mail', '*/5 * * * *')$$);
-select cron.schedule('pylon-autodraft', '*/5 * * * *',  $$select private.call_cron_route('/api/cron/autodraft', '*/5 * * * *')$$);
+do $do$
+begin
+  if not exists (select 1 from pg_available_extensions where name = 'pg_cron')
+     or not exists (select 1 from pg_available_extensions where name = 'pg_net') then
+    raise notice 'pg_cron or pg_net is not available; the frequent jobs are not scheduled here';
+    return;
+  end if;
+
+  create extension if not exists pg_cron;
+  create extension if not exists pg_net with schema extensions;
+
+  perform cron.schedule('pylon-push',      '*/10 * * * *', $$select private.call_cron_route('/api/cron/push', '*/10 * * * *')$$);
+  perform cron.schedule('pylon-scores',    '*/5 * * * *',  $$select private.call_cron_route('/api/cron/scores', '*/5 * * * *')$$);
+  perform cron.schedule('pylon-mail',      '*/5 * * * *',  $$select private.call_cron_route('/api/cron/mail', '*/5 * * * *')$$);
+  perform cron.schedule('pylon-autodraft', '*/5 * * * *',  $$select private.call_cron_route('/api/cron/autodraft', '*/5 * * * *')$$);
+end
+$do$;
