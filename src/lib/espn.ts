@@ -7,6 +7,8 @@
  * the field names below.
  */
 
+import { toHealth, type Health } from "./health";
+
 // Overridable so the parser can be exercised against a recorded response.
 // Unset everywhere except a test harness, which is where it belongs.
 const SITE =
@@ -578,6 +580,50 @@ export interface InjuryReport {
   team: string;
 }
 
+/**
+ * The designation an injury entry carries.
+ *
+ * ESPN states it in up to three places, and they disagree. The entry's own
+ * status and its type are the team's game-week word, which for much of the
+ * week is "Day-To-Day" — a phrase, not a designation. The fantasy status under
+ * details is the one ESPN's own fantasy app puts beside the name: a receiver
+ * the team calls day-to-day while he sits out practice is "O" there, and that
+ * is what a manager has already seen when he comes here. Reading only the
+ * first left such a player looking fit — no badge, and no way to the reserve.
+ *
+ * So all of them are read and the most serious wins. None is ever invented: a
+ * player one source calls injured is injured by that source's own word, and
+ * one they all call active stays active.
+ */
+export function injuryStatusOf(raw: unknown): string {
+  const entry = asRecord(raw);
+  const type = asRecord(entry.type);
+  const fantasy = asRecord(asRecord(entry.details).fantasyStatus);
+  const words = [
+    typeof entry.status === "string" ? entry.status : "",
+    typeof type.description === "string" ? type.description : "",
+    typeof type.name === "string" ? type.name : "",
+    typeof fantasy.description === "string" ? fantasy.description : "",
+    typeof fantasy.abbreviation === "string" ? (FANTASY_ABBREVIATIONS[fantasy.abbreviation.toUpperCase()] ?? "") : "",
+  ].filter(Boolean);
+  if (!words.length) return "";
+  return words.reduce((worst, w) => (SEVERITY[toHealth(w)] > SEVERITY[toHealth(worst)] ? w : worst));
+}
+
+/** How serious each designation is, for choosing between ESPN's words. */
+const SEVERITY: Record<Health, number> = { active: 0, questionable: 1, out: 2, ir: 3, suspended: 4 };
+
+/** ESPN's fantasy abbreviations, for an entry that carries no description. */
+const FANTASY_ABBREVIATIONS: Record<string, string> = {
+  Q: "Questionable",
+  D: "Doubtful",
+  O: "Out",
+  OUT: "Out",
+  IR: "Injured Reserve",
+  SSPD: "Suspension",
+  SUSP: "Suspension",
+};
+
 export async function fetchInjuries(): Promise<InjuryReport[]> {
   const body = asRecord(await getJson(`${SITE}/injuries`));
   const out: InjuryReport[] = [];
@@ -593,14 +639,7 @@ export async function fetchInjuries(): Promise<InjuryReport[]> {
       const name = typeof athlete.displayName === "string" ? athlete.displayName : "";
       if (!name) continue;
 
-      // The status hangs off the entry as a string on some responses and as a
-      // { name } object on others.
-      const type = asRecord(entry.type);
-      const status =
-        (typeof entry.status === "string" ? entry.status : "") ||
-        (typeof type.description === "string" ? type.description : "") ||
-        (typeof type.name === "string" ? type.name : "");
-
+      const status = injuryStatusOf(entry);
       const shortComment = asRecord(entry.details).type;
 
       out.push({

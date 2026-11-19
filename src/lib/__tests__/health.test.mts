@@ -10,6 +10,7 @@ import { canStash, toHealth, worthShowing, HEALTH_LABEL, HEALTH_SHORT } from "..
 import { healthOf } from "../use-player-health";
 import { normalizeName } from "../player-names";
 import { POOL } from "../../data/league-data";
+import { injuryStatusOf } from "../espn";
 import { reportFrom } from "../../app/api/player-status/route";
 
 let failed = 0;
@@ -166,6 +167,24 @@ console.log("\n--- who the reserve will take ---");
   eq("nor one the report has never mentioned", canStash(null), false);
   eq("nor an empty string", canStash(""), false);
   eq("nor a status nobody recognises", canStash("dayto-day"), false);
+}
+
+console.log("\n--- reading an ESPN entry ---");
+{
+  // The team calls him day-to-day; ESPN's fantasy status has him out. The
+  // fantasy word is the one a manager has seen, and the reserve takes it.
+  const dayToDayButOut = {
+    status: "Day-To-Day",
+    type: { name: "INJURY_STATUS_DAYTODAY", description: "day-to-day" },
+    details: { type: "Hamstring", fantasyStatus: { description: "Out", abbreviation: "OUT" } },
+  };
+  eq("the most serious of ESPN's words wins", toHealth(injuryStatusOf(dayToDayButOut)), "out");
+  eq("so he can go to the reserve", canStash(toHealth(injuryStatusOf(dayToDayButOut))), true);
+  eq("an abbreviation alone is read", toHealth(injuryStatusOf({ status: "Day-To-Day", details: { fantasyStatus: { abbreviation: "Q" } } })), "questionable");
+  eq("a plain designation is unchanged", injuryStatusOf({ status: "Questionable", type: { description: "questionable" } }), "Questionable");
+  eq("and a fantasy status never softens it", toHealth(injuryStatusOf({ status: "Injured Reserve", details: { fantasyStatus: { description: "Questionable" } } })), "ir");
+  eq("day-to-day with nothing more is still fit", toHealth(injuryStatusOf({ status: "Day-To-Day", type: { description: "day-to-day" } })), "active");
+  eq("an entry with no words has none", injuryStatusOf({}), "");
 }
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");
