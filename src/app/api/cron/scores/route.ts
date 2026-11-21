@@ -1,5 +1,6 @@
 import { maybeRefreshScores, refreshScores, weekState, type RefreshResult } from "@/lib/live";
 import { frequentJobsOff, isFrequentRun } from "@/lib/frequent-jobs";
+import { playoffPowerOrder } from "@/lib/playoff-power-order";
 import { serviceClient } from "@/lib/supabase";
 import { currentWeek } from "@/lib/week";
 
@@ -71,11 +72,19 @@ export async function GET(req: Request) {
 
   // Grading is what ends the regular season, so the postseason is moved on in
   // the same breath. advance_playoffs decides for itself whether anything is
-  // owed — it seeds the bracket when the last regular week goes final, draws
-  // the next round when the previous one is complete, and crowns a champion
-  // when one team is left. On any other night it does nothing.
+  // owed — it seeds both brackets when the last regular week goes final,
+  // draws each one's next round when its previous one is complete, and
+  // crowns a champion out of the winners bracket when one team is left. On
+  // any other night it does nothing.
+  //
+  // The power order is computed every call rather than only the night it
+  // seeds, because that night is not known in advance and the computation
+  // itself is cheap — two queries and an in-memory sort, the same work the
+  // League Power card already does on every page view.
+  const powerOrder = await playoffPowerOrder(db, leagueId);
   const { data: postseason, error: playoffError } = await db.rpc("advance_playoffs", {
     p_league_id: leagueId,
+    p_power_order: powerOrder,
   });
   if (playoffError) console.error("[cron/scores] playoffs failed", playoffError);
 

@@ -31,15 +31,20 @@ interface Champion {
   decided_at: string;
 }
 
+interface BracketFeed {
+  /** What the finished bracket will be, not what has been drawn so far. */
+  totalRounds: number;
+  seeds: { seed: number; franchise: string; mine: boolean; bye: boolean; id: string }[];
+  rounds: { round: number; games: Game[] }[];
+}
+
 interface Feed {
   seeded: boolean;
   season: number | null;
   me: { id: string };
   champions: Champion[];
-  /** What the finished bracket will be, not what has been drawn so far. */
-  totalRounds?: number;
-  seeds?: { seed: number; franchise: string; mine: boolean; bye: boolean; id: string }[];
-  rounds?: { round: number; games: Game[] }[];
+  winners?: BracketFeed | null;
+  losers?: BracketFeed | null;
 }
 
 /** What a round is called, counting back from the last one. */
@@ -161,13 +166,66 @@ export default function Bracket() {
     return <Titles champions={past} />;
   }
 
-  // From the field, so a quarter-final does not become a semi-final next week.
-  const total = feed.totalRounds ?? feed.rounds?.length ?? 0;
-  const byes = (feed.seeds ?? []).filter((s) => s.bye);
   const champion = feed.champions.find((c) => c.season === feed.season);
 
   return (
     <div style={{ marginBottom: 26 }}>
+      {feed.winners ? (
+        <BracketSection
+          title="The postseason"
+          feed={feed.winners}
+          logos={logos}
+          note={
+            champion ? (
+              <span style={{ fontSize: 11, color: "var(--warn)" }}>
+                {champion.franchise} are champions.
+              </span>
+            ) : undefined
+          }
+        />
+      ) : null}
+
+      {feed.losers ? (
+        <BracketSection
+          title="The losers bracket"
+          feed={feed.losers}
+          logos={logos}
+          note={
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
+              Decides next year&rsquo;s draft order among the bottom six.
+            </span>
+          }
+        />
+      ) : null}
+
+      {past.length ? <Titles champions={past} /> : null}
+    </div>
+  );
+}
+
+/**
+ * One bracket, drawn as a column of rounds.
+ *
+ * Laid out as a column rather than the branching diagram a bracket usually
+ * is. The branches only read on a wide screen, and this league is checked on
+ * a phone during a Sunday.
+ */
+function BracketSection({
+  title,
+  feed,
+  logos,
+  note,
+}: {
+  title: string;
+  feed: BracketFeed;
+  logos: Record<string, string>;
+  note?: React.ReactNode;
+}) {
+  const total = feed.totalRounds || feed.rounds.length;
+  const byes = feed.seeds.filter((s) => s.bye);
+
+  return (
+    <div style={{ marginBottom: 20 }}>
       <div
         style={{
           display: "flex",
@@ -186,18 +244,15 @@ export default function Bracket() {
             margin: 0,
           }}
         >
-          The postseason
+          {title}
         </h2>
-        {champion ? (
-          <span style={{ fontSize: 11, color: "var(--warn)" }}>
-            {champion.franchise} are champions.
-          </span>
-        ) : byes.length ? (
-          <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
-            {byes.map((b) => b.franchise).join(" and ")}{" "}
-            {byes.length === 1 ? "has" : "have"} a first-round bye.
-          </span>
-        ) : null}
+        {note ??
+          (byes.length ? (
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
+              {byes.map((b) => b.franchise).join(" and ")}{" "}
+              {byes.length === 1 ? "has" : "have"} a first-round bye.
+            </span>
+          ) : null)}
       </div>
 
       <div
@@ -208,7 +263,7 @@ export default function Bracket() {
           alignItems: "start",
         }}
       >
-        {(feed.rounds ?? []).map(({ round, games }) => (
+        {feed.rounds.map(({ round, games }) => (
           <div key={round} style={card}>
             <div
               style={{
@@ -248,8 +303,6 @@ export default function Bracket() {
           </div>
         ))}
       </div>
-
-      {past.length ? <Titles champions={past} /> : null}
     </div>
   );
 }
